@@ -308,7 +308,7 @@ export function RoundsEditor({
       : null;
 
   return (
-    <Card className="w-full min-w-0 border p-4 sm:p-6 space-y-4 shadow-none">
+    <Card className="w-full min-w-0 space-y-6 border p-4 shadow-none sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-lg font-semibold">Judging Rounds</h3>
@@ -333,7 +333,7 @@ export function RoundsEditor({
           return (
             <div
               key={round.round_number}
-              className="space-y-4 p-4 first:pt-4 last:pb-4"
+              className="space-y-5 p-4 first:pt-4 last:pb-4"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <span className="text-sm font-medium shrink-0">
@@ -371,11 +371,11 @@ export function RoundsEditor({
                   )}
                 </div>
               </div>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <p className="text-sm text-muted-foreground">
                   Choose projects to advance
                 </p>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <div className="flex flex-col gap-3">
                   <Button
                     type="button"
                     size="sm"
@@ -399,9 +399,9 @@ export function RoundsEditor({
                     size="sm"
                     variant="outline"
                     onClick={() => openAdvanceDialog(round.round_number)}
-                    className="w-full sm:w-auto whitespace-normal sm:whitespace-nowrap"
+                    className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
                   >
-                    <ArrowRightCircle className="w-4 h-4 mr-1 shrink-0" />
+                    <ArrowRightCircle className="mr-1 h-4 w-4 shrink-0" />
                     Pick round {round.round_number + 1} projects
                   </Button>
                 </div>
@@ -411,7 +411,7 @@ export function RoundsEditor({
         })}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-3 border-t border-border/60 pt-5 sm:flex-row sm:justify-end">
         <Button
           type="button"
           onClick={handleSave}

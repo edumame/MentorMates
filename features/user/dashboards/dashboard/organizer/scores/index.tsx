@@ -746,50 +746,47 @@ export function ScoresTab({
               onSaved={(next) => onScoringConfigSaved?.(next)}
             />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Judge Scoring Dashboard</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-medium">Live Judge Scores</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Each project shows the judges who have submitted a score
-                        and the total they gave.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 shrink-0">
-                      <Button
-                        onClick={exportRawData}
-                        variant="outline"
-                        size="sm"
-                        disabled={loading}
-                        className="flex h-11 items-center rounded-[12px] px-5 py-2 whitespace-nowrap"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Raw Data
-                      </Button>
-                      <Button
-                        onClick={exportScores}
-                        variant="outline"
-                        size="sm"
-                        disabled={loading}
-                        className="flex h-11 items-center rounded-[12px] px-5 py-2 whitespace-nowrap"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Tables
-                      </Button>
-                    </div>
+            <Card className="w-full min-w-0 border shadow-none">
+              <div className="space-y-5 p-4 sm:p-6">
+                <h3 className="text-lg font-semibold">Judge Scoring Dashboard</h3>
+
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <h4 className="text-base font-medium">Live Judge Scores</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Each project shows the judges who have submitted a score
+                      and the total they gave.
+                    </p>
                   </div>
+                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
+                    <Button
+                      onClick={exportRawData}
+                      variant="outline"
+                      size="sm"
+                      disabled={loading}
+                      className="flex h-11 w-full items-center justify-center rounded-[12px] px-5 py-2 whitespace-nowrap sm:w-auto"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export Raw Data
+                    </Button>
+                    <Button
+                      onClick={exportScores}
+                      variant="outline"
+                      size="sm"
+                      disabled={loading}
+                      className="flex h-11 w-full items-center justify-center rounded-[12px] px-5 py-2 whitespace-nowrap sm:w-auto"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export Tables
+                    </Button>
+                  </div>
+                </div>
 
                   {/* Link Tracks to Main Track Controls */}
                   {Object.keys(trackScores).length > 1 && (
-                    <Card className="bg-muted/50">
-                      <CardContent className="pt-6">
+                    <div className="rounded-lg bg-muted/30 p-4">
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center space-x-2">
                               <Switch
                                 id="link-tracks"
@@ -850,8 +847,7 @@ export function ScoresTab({
                           </div>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
                 )}
 
                 {loading ? (
@@ -1160,8 +1156,7 @@ export function ScoresTab({
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </Card>
           </div>
         </TabsContent>
 
