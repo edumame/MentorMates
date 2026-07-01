@@ -47,7 +47,7 @@ export function SidebarLayout({ children, showLogoInSidebar }: SidebarLayoutProp
               className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:ml-[var(--sidebar-width,280px)] lg:mt-4 lg:rounded-tl-[32px] lg:border-t lg:border-l lg:border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
             >
               <div className="flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]">
-                <main className="flex min-h-0 flex-1 flex-col overflow-auto pt-0">
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip overflow-y-auto pt-0">
                   {children}
                 </main>
               </div>
