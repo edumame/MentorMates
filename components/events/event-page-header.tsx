@@ -60,8 +60,7 @@ export function EventPageHeader({
   })();
   return (
     <div
-      className="bg-white flex flex-col w-full"
-      style={{ maxWidth: "100vw" }}
+      className="bg-white flex min-w-0 max-w-full flex-col w-full overflow-x-clip"
     >
       {/* Cover Image */}
       <div className="h-[200px] sm:h-[224px] w-full relative overflow-hidden">

@@ -57,10 +57,7 @@ export function RoleBanner({
   };
 
   return (
-    <div
-      className="sticky top-0 z-50 overflow-hidden mb-8 rounded-tl-[16px] border-b border-[rgba(0,0,0,0.15)] bg-sky-50"
-      style={{ borderTopLeftRadius: 16 }}
-    >
+    <div className="sticky top-0 z-50 mb-8 w-full min-w-0 max-w-full overflow-hidden border-b border-[rgba(0,0,0,0.15)] bg-sky-50">
       <div className="max-w-full mx-auto px-4 sm:px-6 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0 w-full sm:w-auto">
           <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-[#4c4c4c] flex-shrink-0 mt-0.5 sm:mt-0" />
