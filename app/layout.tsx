@@ -7,6 +7,7 @@ import { AuthContextProvider } from "@/features/user/authentication/auth/AuthCon
 import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
+import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
 import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
 import { JsonLd } from "./JsonLd";
 import { seoMetadata } from "./seo-metadata";
@@ -43,6 +44,7 @@ export default function RootLayout({
           <Providers>
             <AuthContextProvider>
               <LayoutConfigProvider>
+                <ConditionalAnnouncement />
                 <ConditionalNavbar />
                 <AuthProvider>
                   <ConditionalLayout>
