@@ -5,6 +5,7 @@ export interface ExportableParticipant {
   email: string;
   role: string;
   affiliation?: string | null;
+  team_name?: string | null;
 }
 
 export interface TeamProjectRow {
@@ -47,7 +48,12 @@ export function buildParticipantsCsv(
       Name: participant.display_name,
       Email: participant.email,
       Role: participant.role,
-      "Team Name": teamByEmail.get(participant.email.trim().toLowerCase()) ?? "",
+      // Formal team assignment (team_members/teams) wins; the project
+      // lead/teammate email match is the fallback for events without teams.
+      "Team Name":
+        participant.team_name?.trim() ||
+        teamByEmail.get(participant.email.trim().toLowerCase()) ||
+        "",
       University: participant.affiliation ?? "",
     }))
   );

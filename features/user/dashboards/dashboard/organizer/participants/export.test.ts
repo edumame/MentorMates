@@ -126,6 +126,28 @@ describe("buildParticipantsCsv", () => {
     });
   });
 
+  it("prefers the formal team assignment over the project email match", () => {
+    const teamMap = new Map([["unganleo@example.com", "Project Fallback"]]);
+    const csv = buildParticipantsCsv(
+      [{ ...participants[0], team_name: "CarePulse" }],
+      teamMap
+    );
+    const parsed = Papa.parse<Record<string, string>>(csv, { header: true });
+
+    expect(parsed.data[0]?.["Team Name"]).toBe("CarePulse");
+  });
+
+  it("falls back to the project email match when team_name is blank", () => {
+    const teamMap = new Map([["unganleo@example.com", "Project Fallback"]]);
+    const csv = buildParticipantsCsv(
+      [{ ...participants[0], team_name: "  " }],
+      teamMap
+    );
+    const parsed = Papa.parse<Record<string, string>>(csv, { header: true });
+
+    expect(parsed.data[0]?.["Team Name"]).toBe("Project Fallback");
+  });
+
   it("matches participants to teams case-insensitively", () => {
     const teamMap = new Map([["solo@example.com", "Solo Squad"]]);
     const csv = buildParticipantsCsv(

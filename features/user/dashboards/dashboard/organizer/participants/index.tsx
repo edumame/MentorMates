@@ -33,6 +33,7 @@ interface UserEventRoleWithProfile {
     display_name: string;
     email: string;
     affiliation: string;
+    team_name: string;
   } | null;
 }
 
@@ -42,6 +43,7 @@ interface Participant {
   display_name: string;
   email: string;
   affiliation: string;
+  team_name: string;
 }
 
 interface ParticipantsTabProps {
@@ -121,6 +123,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             display_name: string;
             email: string;
             affiliation?: string;
+            team_name?: string;
           }) => ({
             user_id: user.user_id,
             role: user.role,
@@ -128,6 +131,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
               display_name: user.display_name,
               email: user.email,
               affiliation: user.affiliation ?? "",
+              team_name: user.team_name ?? "",
             },
           })
         ) as UserEventRoleWithProfile[];
@@ -151,6 +155,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             "Unknown User",
           email: roleRow.profiles?.email ?? "",
           affiliation: roleRow.profiles?.affiliation ?? "",
+          team_name: roleRow.profiles?.team_name ?? "",
         }));
 
         const projectParticipants: Participant[] = [];
@@ -171,6 +176,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 display_name: project.lead_email,
                 email: project.lead_email,
                 affiliation: "",
+                team_name: "",
               });
               allEmails.add(leadEmailLower);
             }
@@ -188,6 +194,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 display_name: teammateEmail,
                 email: teammateEmail,
                 affiliation: "",
+                team_name: "",
               });
               allEmails.add(teammateLower);
             }
