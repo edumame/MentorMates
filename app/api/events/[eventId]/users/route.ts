@@ -88,7 +88,8 @@ export async function GET(
         user_profiles:user_id (
           uid,
           display_name,
-          email
+          email,
+          affiliation
         )
       `,
         { count: includeCount ? "exact" : undefined }
@@ -116,6 +117,7 @@ export async function GET(
         uid: profile?.uid ?? row.user_id,
         display_name: profile?.display_name ?? "",
         email: profile?.email ?? "",
+        affiliation: profile?.affiliation ?? "",
       };
     });
 
