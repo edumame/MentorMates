@@ -88,7 +88,8 @@ export async function GET(
         user_profiles:user_id (
           uid,
           display_name,
-          email
+          email,
+          affiliation
         )
       `,
         { count: includeCount ? "exact" : undefined }
@@ -105,6 +106,22 @@ export async function GET(
       );
     }
 
+    // Team assignments live in team_members/teams (populated by event-day
+    // team formation), not on the role rows — join them in per user.
+    const { data: teamRows } = await serviceSupabase
+      .from("team_members")
+      .select("user_id, teams (name)")
+      .eq("event_id", eventId);
+
+    const teamNameByUserId = new Map<string, string>();
+    (teamRows || []).forEach((row) => {
+      const team = Array.isArray(row.teams) ? row.teams[0] : row.teams;
+      const name = (team as { name?: string } | null)?.name?.trim();
+      if (name && !teamNameByUserId.has(row.user_id)) {
+        teamNameByUserId.set(row.user_id, name);
+      }
+    });
+
     const users = (data || []).map((row) => {
       const profile = Array.isArray(row.user_profiles)
         ? row.user_profiles[0]
@@ -116,6 +133,8 @@ export async function GET(
         uid: profile?.uid ?? row.user_id,
         display_name: profile?.display_name ?? "",
         email: profile?.email ?? "",
+        affiliation: profile?.affiliation ?? "",
+        team_name: teamNameByUserId.get(row.user_id) ?? "",
       };
     });
 
