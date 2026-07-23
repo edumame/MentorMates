@@ -5,6 +5,9 @@ jest.mock("@/lib/supabase", () => ({ supabase: {} }));
 jest.mock("./join-event-button", () => ({
   JoinEventButton: () => null,
 }));
+jest.mock("@/features/events/rsvp/RsvpButton", () => ({
+  RsvpButton: () => null,
+}));
 
 import { EventPageHeader } from "./event-page-header";
 import { EventRole } from "@/lib/types";
