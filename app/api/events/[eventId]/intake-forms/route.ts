@@ -9,17 +9,33 @@ import {
 } from "./_shared";
 
 const querySchema = z.object({
-  context: z.enum(["registration", "project_submission"]),
+  context: z.enum(["registration", "project_submission", "rsvp"]),
 });
 
 const saveSchema = z.object({
-  context: z.enum(["registration", "project_submission"]),
+  context: z.enum(["registration", "project_submission", "rsvp"]),
   schema: z.object({
     title: z.string().min(1),
     description: z.string().optional(),
     fields: z.array(z.any()),
   }),
 });
+
+function getDefaultSchema(context: IntakeFormContext): IntakeFormSchema {
+  if (context === "rsvp") {
+    return {
+      title: "RSVP Form",
+      description: "Confirm your attendance for this event",
+      fields: [],
+    };
+  }
+
+  return {
+    title: "Participant Intake Form",
+    description: "Collect additional participant details",
+    fields: [],
+  };
+}
 
 async function getLatestVersion(
   supabase: Awaited<ReturnType<typeof getAuthContext>>["supabase"],
@@ -88,11 +104,7 @@ export async function GET(
 
     if (!template?.id) {
       return NextResponse.json({
-        schema: {
-          title: "Participant Intake Form",
-          description: "Collect additional participant details",
-          fields: [],
-        } satisfies IntakeFormSchema,
+        schema: getDefaultSchema(context),
         lastPublished: null,
       });
     }
@@ -105,11 +117,7 @@ export async function GET(
 
     if (!latestVersion?.schema_json) {
       return NextResponse.json({
-        schema: {
-          title: "Participant Intake Form",
-          description: "Collect additional participant details",
-          fields: [],
-        } satisfies IntakeFormSchema,
+        schema: getDefaultSchema(context),
         lastPublished: lastPublishedVersion
           ? {
               versionId: lastPublishedVersion.id,

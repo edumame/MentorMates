@@ -1,4 +1,4 @@
-export type IntakeFormContext = "registration" | "project_submission";
+export type IntakeFormContext = "registration" | "project_submission" | "rsvp";
 
 export type IntakeFieldType =
   | "short_text"

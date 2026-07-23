@@ -3,6 +3,7 @@
 import { CalendarDays, MapPin, ArrowUpRight, Plus, Pencil } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { JoinEventButton } from "./join-event-button";
+import { RsvpButton } from "@/features/events/rsvp/RsvpButton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { parseEventDateLocal } from "@/lib/utils/date";
@@ -172,6 +173,13 @@ export function EventPageHeader({
                       );
                     })()}
                   </div>
+
+                  {/* RSVP (only for joined users, when an RSVP form is published) */}
+                  {hasJoined && (
+                    <div className="w-full">
+                      <RsvpButton eventId={eventId} />
+                    </div>
+                  )}
 
                   {/* Manage / Edit Event Buttons (organizer + admin) */}
                   {(userRole === "organizer" || userRole === "admin") && (

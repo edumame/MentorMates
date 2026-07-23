@@ -8,7 +8,7 @@ import {
 } from "../_shared";
 
 const publishSchema = z.object({
-  context: z.enum(["registration", "project_submission"]),
+  context: z.enum(["registration", "project_submission", "rsvp"]),
   schema: z
     .object({
       title: z.string().min(1),
