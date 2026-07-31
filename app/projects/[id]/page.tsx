@@ -57,6 +57,7 @@ import { fetchEventTracks } from "@/features/projects/client-actions/client-trac
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import ProjectTimeline from "@/features/projects/components/displays/ProjectTimeline";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
+import { ProjectFieldEntriesSection } from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
@@ -1614,6 +1615,11 @@ export default function ProjectPage() {
                         </div>
 
                         <ProjectSubmissionDetails project={project} />
+
+                        <ProjectFieldEntriesSection
+                          projectId={project.id}
+                          canContribute={canEdit}
+                        />
 
                         {/* Cover Image Display */}
                         {project.cover_image_url && (

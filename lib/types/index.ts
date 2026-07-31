@@ -294,7 +294,19 @@ export interface EventSubmissionField {
   sort_order: number;
   is_active: boolean;
   options?: unknown;
+  allows_multiple_entries?: boolean;
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectFieldEntry {
+  id: string;
+  project_id: string;
+  event_submission_field_id: string;
+  submitter_user_id: string;
+  content: string;
+  submitter_display_name?: string | null;
+  created_at: string;
   updated_at?: string;
 }
 

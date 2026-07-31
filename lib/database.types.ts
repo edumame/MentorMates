@@ -849,6 +849,7 @@ export type Database = {
       };
       event_submission_fields: {
         Row: {
+          allows_multiple_entries: boolean;
           created_at: string;
           description: string | null;
           event_id: string;
@@ -864,6 +865,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          allows_multiple_entries?: boolean;
           created_at?: string;
           description?: string | null;
           event_id: string;
@@ -879,6 +881,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          allows_multiple_entries?: boolean;
           created_at?: string;
           description?: string | null;
           event_id?: string;
@@ -900,6 +903,58 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "events";
             referencedColumns: ["event_id"];
+          },
+        ];
+      };
+      project_field_entries: {
+        Row: {
+          content: Json;
+          created_at: string;
+          event_submission_field_id: string;
+          id: string;
+          project_id: string;
+          submitter_user_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          content: Json;
+          created_at?: string;
+          event_submission_field_id: string;
+          id?: string;
+          project_id: string;
+          submitter_user_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          content?: Json;
+          created_at?: string;
+          event_submission_field_id?: string;
+          id?: string;
+          project_id?: string;
+          submitter_user_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_field_entries_event_submission_field_id_fkey";
+            columns: ["event_submission_field_id"];
+            isOneToOne: false;
+            referencedRelation: "event_submission_fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_field_entries_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_field_entries_submitter_user_id_fkey";
+            columns: ["submitter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "user_profiles";
+            referencedColumns: ["uid"];
           },
         ];
       };
