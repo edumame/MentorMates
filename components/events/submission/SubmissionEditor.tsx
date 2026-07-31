@@ -765,7 +765,10 @@ function FieldEditor({
           </div>
         )}
 
-        {(field.type === "text" || field.type === "textarea" || field.type === "url") &&
+        {(field.type === "text" ||
+          field.type === "textarea" ||
+          field.type === "url" ||
+          field.type === "file") &&
           !BUILT_IN_FIELD_IDS.has(field.id) && (
             <div className="sm:col-span-2">
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">

@@ -299,12 +299,18 @@ export interface EventSubmissionField {
   updated_at?: string;
 }
 
+export interface ProjectFieldEntryAttachment {
+  name: string;
+  url: string;
+}
+
 export interface ProjectFieldEntry {
   id: string;
   project_id: string;
   event_submission_field_id: string;
   submitter_user_id: string;
   content: string;
+  attachments?: ProjectFieldEntryAttachment[];
   submitter_display_name?: string | null;
   created_at: string;
   updated_at?: string;

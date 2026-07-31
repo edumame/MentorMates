@@ -286,6 +286,48 @@ describe("POST /api/projects/[projectId]/field-entries", () => {
     });
   });
 
+  it("creates an attachment-only entry with structured content", async () => {
+    const authedClient = buildAuthedClient();
+    mockCreateSupabaseClient.mockResolvedValue(authedClient);
+    mockCreateServiceClient.mockReturnValue(buildServiceClient());
+
+    const attachments = [
+      { name: "demo.pdf", url: "https://cdn.example.com/demo.pdf" },
+    ];
+    const response = await POST(
+      buildPostRequest({ fieldId, attachments }),
+      routeParams,
+    );
+
+    expect(response.status).toBe(201);
+
+    const insertMock = authedClient.from.mock.results
+      .map((result) => result.value)
+      .find((value) => value && "insert" in value)?.insert as jest.Mock;
+    expect(insertMock).toHaveBeenCalledWith({
+      project_id: projectId,
+      event_submission_field_id: fieldId,
+      submitter_user_id: userId,
+      content: { text: "", attachments },
+    });
+  });
+
+  it("rejects entries exceeding the attachment limit", async () => {
+    mockCreateSupabaseClient.mockResolvedValue(buildAuthedClient());
+    mockCreateServiceClient.mockReturnValue(buildServiceClient());
+
+    const attachments = Array.from({ length: 6 }, (_, index) => ({
+      name: `file-${index}.png`,
+      url: `https://cdn.example.com/file-${index}.png`,
+    }));
+    const response = await POST(
+      buildPostRequest({ fieldId, attachments }),
+      routeParams,
+    );
+
+    expect(response.status).toBe(400);
+  });
+
   it("returns 403 when RLS rejects the insert", async () => {
     mockCreateSupabaseClient.mockResolvedValue(
       buildAuthedClient({
