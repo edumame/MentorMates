@@ -1,8 +1,10 @@
 import {
+  ensureScheduleEventIds,
   moveScheduleEvent,
   parseScheduleDragId,
   scheduleDayDropId,
   scheduleEventDragId,
+  stripScheduleEventIds,
 } from "./schedule";
 
 type TestDay = { title: string; events: string[] };
@@ -99,6 +101,56 @@ describe("moveScheduleEvent", () => {
       { dayIndex: 1, eventIndex: 0 }
     );
     expect(schedule).toEqual(makeSchedule());
+  });
+});
+
+describe("ensureScheduleEventIds", () => {
+  it("generates unique ids for events that lack them", () => {
+    const schedule: { events: { id?: string; name: string }[] }[] = [
+      { events: [{ name: "a" }, { name: "b" }] },
+      { events: [{ name: "c" }] },
+    ];
+    const result = ensureScheduleEventIds(schedule);
+    const ids = result.flatMap((day) => day.events.map((ev) => ev.id));
+    expect(ids.every((id) => typeof id === "string" && id.length > 0)).toBe(
+      true
+    );
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it("preserves existing ids and untouched day references", () => {
+    const schedule: { events: { id?: string; name: string }[] }[] = [
+      { events: [{ id: "keep-me", name: "a" }] },
+      { events: [{ name: "b" }] },
+    ];
+    const result = ensureScheduleEventIds(schedule);
+    expect(result[0]).toBe(schedule[0]);
+    expect(result[1].events[0].id).toBeDefined();
+  });
+
+  it("returns the same reference when all ids are present", () => {
+    const schedule = [{ events: [{ id: "x", name: "a" }] }];
+    expect(ensureScheduleEventIds(schedule)).toBe(schedule);
+  });
+});
+
+describe("stripScheduleEventIds", () => {
+  it("removes ids without touching other fields or the input", () => {
+    const schedule = [
+      { title: "Day 1", events: [{ id: "x", name: "a", time: "10:00" }] },
+    ];
+    const result = stripScheduleEventIds(schedule);
+    expect(result[0].events[0]).toEqual({ name: "a", time: "10:00" });
+    expect(schedule[0].events[0].id).toBe("x");
+  });
+
+  it("makes id-backfilled and id-less schedules compare equal", () => {
+    const original: { events: { id?: string; name: string; time: string }[] }[] =
+      [{ events: [{ name: "a", time: "1" }] }];
+    const withIds = ensureScheduleEventIds(original);
+    expect(JSON.stringify(stripScheduleEventIds(withIds))).toBe(
+      JSON.stringify(original)
+    );
   });
 });
 

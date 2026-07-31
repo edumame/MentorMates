@@ -52,6 +52,53 @@ export function scheduleEventDragId(
   return `schedule-event-${dayIndex}-${eventIndex}`;
 }
 
+/** Generates a stable client-side id for a schedule event. */
+export function createScheduleEventId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+}
+
+/**
+ * Returns a copy of the schedule with event ids removed, for comparing
+ * schedule content while ignoring client-generated ids.
+ */
+export function stripScheduleEventIds<
+  TDay extends { events: Array<{ id?: string }> },
+>(schedule: TDay[]): TDay[] {
+  return schedule.map((day) => ({
+    ...day,
+    events: day.events.map((ev) => {
+      const rest = { ...ev };
+      delete rest.id;
+      return rest;
+    }),
+  }));
+}
+
+/**
+ * Ensures every schedule event has a stable id, generating ids for legacy
+ * data that lacks them. dnd-kit's sortable requires ids that survive
+ * reordering; position-derived ids break its optimistic sorting. Returns the
+ * original array unchanged (same reference) when all ids are already present.
+ */
+export function ensureScheduleEventIds<
+  TDay extends { events: Array<{ id?: string }> },
+>(schedule: TDay[]): TDay[] {
+  let changed = false;
+  const next = schedule.map((day) => {
+    if (day.events.every((ev) => ev.id)) return day;
+    changed = true;
+    return {
+      ...day,
+      events: day.events.map((ev) =>
+        ev.id ? ev : { ...ev, id: createScheduleEventId() }
+      ),
+    };
+  });
+  return changed ? next : schedule;
+}
+
 /** Builds the droppable id for an empty day's drop zone. */
 export function scheduleDayDropId(dayIndex: number): string {
   return `schedule-day-${dayIndex}`;

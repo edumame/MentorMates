@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { DragDropProvider, useDroppable } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { supabase } from "@/lib/supabase";
@@ -13,9 +13,12 @@ import { GripVertical, Trash2, Type, Clock } from "lucide-react";
 import { EventDetails, ScheduleDay, ScheduleEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
+  createScheduleEventId,
+  ensureScheduleEventIds,
   moveScheduleEvent,
   scheduleDayDropId,
   scheduleEventDragId,
+  stripScheduleEventIds,
 } from "@/lib/utils/schedule";
 import { getScheduleDragMove } from "@/lib/utils/schedule-dnd";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -49,7 +52,8 @@ function SortableEventCard({
   onRemove,
 }: SortableEventCardProps) {
   const { ref, handleRef, isDragSource, isDropTarget } = useSortable({
-    id: scheduleEventDragId(dayIndex, eventIndex),
+    // Falls back to a position-derived id only until ensureScheduleEventIds runs
+    id: scheduleEvent.id ?? scheduleEventDragId(dayIndex, eventIndex),
     index: eventIndex,
     group: scheduleDayDropId(dayIndex),
     disabled,
@@ -169,6 +173,16 @@ export function ScheduleTab({
   // Reorders are persisted immediately without emailing; "Save Schedule" still notifies for them
   const pendingReorderNotifyRef = useRef(false);
 
+  // Legacy schedules have no event ids; drag-and-drop needs ids that survive reordering
+  useEffect(() => {
+    const withIds = ensureScheduleEventIds(event.event_schedule);
+    if (withIds !== event.event_schedule) {
+      setEvent((current) =>
+        current ? { ...current, event_schedule: withIds } : current
+      );
+    }
+  }, [event.event_schedule, setEvent]);
+
   const handleScheduleUpdateNotification = async () => {
     const response = await fetch(
       `/api/email_notification/event/${event.event_id}`,
@@ -226,10 +240,14 @@ export function ScheduleTab({
         description: "Schedule saved successfully",
       });
 
-      // Compare schedules to determine if notification is needed
+      // Compare schedules to determine if notification is needed, ignoring
+      // client-generated event ids so id backfill alone never triggers emails
       const hasScheduleChanged =
-        JSON.stringify(currentData.event_schedule) !==
-        JSON.stringify(event.event_schedule);
+        JSON.stringify(
+          stripScheduleEventIds(
+            (currentData.event_schedule ?? []) as ScheduleDay[]
+          )
+        ) !== JSON.stringify(stripScheduleEventIds(event.event_schedule));
 
       if (
         (hasScheduleChanged || pendingReorderNotifyRef.current) &&
@@ -357,7 +375,14 @@ export function ScheduleTab({
                     ...event.event_schedule,
                     {
                       time: "",
-                      events: [{ name: "", time: "", description: undefined }],
+                      events: [
+                        {
+                          id: createScheduleEventId(),
+                          name: "",
+                          time: "",
+                          description: undefined,
+                        },
+                      ],
                     },
                   ],
                 });
@@ -414,7 +439,7 @@ export function ScheduleTab({
 
               {day.events.map((scheduleEvent, eventIndex) => (
                 <SortableEventCard
-                  key={scheduleEventDragId(dayIndex, eventIndex)}
+                  key={scheduleEvent.id ?? scheduleEventDragId(dayIndex, eventIndex)}
                   scheduleEvent={scheduleEvent}
                   dayIndex={dayIndex}
                   eventIndex={eventIndex}
@@ -432,6 +457,7 @@ export function ScheduleTab({
                 onClick={() => {
                   const newSchedule = [...event.event_schedule];
                   newSchedule[dayIndex].events.push({
+                    id: createScheduleEventId(),
                     name: "",
                     time: "",
                     description: undefined,

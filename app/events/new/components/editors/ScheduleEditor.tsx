@@ -6,11 +6,7 @@ import { useSortable } from "@dnd-kit/react/sortable";
 import { Calendar, Tag, Clock, GripVertical, Trash2, Plus } from "lucide-react";
 import type { WizardEventData, WizardScheduleDay } from "@/lib/types/wizard";
 import { cn } from "@/lib/utils";
-import {
-  moveScheduleEvent,
-  scheduleDayDropId,
-  scheduleEventDragId,
-} from "@/lib/utils/schedule";
+import { moveScheduleEvent, scheduleDayDropId } from "@/lib/utils/schedule";
 import { getScheduleDragMove } from "@/lib/utils/schedule-dnd";
 
 interface ScheduleEditorProps {
@@ -36,7 +32,7 @@ function SortableEventRow({
   onRemove,
 }: SortableEventRowProps) {
   const { ref, handleRef, isDragSource, isDropTarget } = useSortable({
-    id: scheduleEventDragId(dayIndex, eventIndex),
+    id: scheduleEvent.id,
     index: eventIndex,
     group: scheduleDayDropId(dayIndex),
   });

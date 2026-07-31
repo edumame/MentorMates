@@ -153,6 +153,8 @@ export interface ScheduleParticipant {
 }
 
 export interface ScheduleEvent {
+  /** Stable identifier used for drag-and-drop and React keys; generated client-side for legacy data. */
+  id?: string;
   name: string;
   time: string;
   description?: string;
