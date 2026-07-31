@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
-import { useSortable } from "@dnd-kit/react/sortable";
+import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import {
   Copy,
   GripVertical,
@@ -541,20 +541,28 @@ export function IntakeFormBuilder({
   > = (event) => {
     if (event.canceled) return;
 
-    const sourceId = event.operation.source?.id;
-    const targetId = event.operation.target?.id;
+    // dnd-kit's optimistic sorting live-reorders items during the drag, so at
+    // drag end the source's own (initialIndex -> index) describe the move; the
+    // drop target usually resolves to the source itself and must not be used.
+    const { source } = event.operation;
+    if (!source || !isSortable(source)) return;
 
-    if (!sourceId || !targetId || sourceId === targetId) return;
+    const { initialIndex, index } = source.sortable;
+    if (initialIndex === index) return;
 
     setSchema((current) => {
-      const fromIndex = current.fields.findIndex((field) => field.id === sourceId);
-      const toIndex = current.fields.findIndex((field) => field.id === targetId);
-
-      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return current;
+      if (
+        initialIndex < 0 ||
+        index < 0 ||
+        initialIndex >= current.fields.length ||
+        index >= current.fields.length
+      ) {
+        return current;
+      }
 
       return {
         ...current,
-        fields: arrayMove(current.fields, fromIndex, toIndex),
+        fields: arrayMove(current.fields, initialIndex, index),
       };
     });
   };
