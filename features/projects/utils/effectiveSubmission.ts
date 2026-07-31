@@ -77,8 +77,10 @@ export function buildDefaultSubmissionFields(
 export function sortActiveSubmissionFields(
   fields: EventSubmissionField[]
 ): EventSubmissionField[] {
+  // Multi-entry ("team log") fields collect per-teammate entries on the
+  // project page, not a single shared answer on the submission form.
   return [...fields]
-    .filter((field) => field.is_active)
+    .filter((field) => field.is_active && !field.allows_multiple_entries)
     .sort((a, b) => a.sort_order - b.sort_order);
 }
 

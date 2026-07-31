@@ -15,6 +15,8 @@ export interface SubmissionField {
   options?: string[];
   multiple?: boolean;
   maxFiles?: number;
+  /** Collect append-only per-teammate entries (e.g. a submission log) instead of one shared answer. */
+  allowsMultipleEntries?: boolean;
 }
 
 export interface ChatMessage {
@@ -270,6 +272,11 @@ export function createMLHSubmissionTemplateFields(): SubmissionField[] {
   }));
 }
 
+/** Field ids that map onto built-in project columns and cannot become entry logs. */
+export const BUILT_IN_FIELD_IDS = new Set(
+  DEFAULT_SUBMISSION_FIELDS.map((field) => field.id)
+);
+
 /** Convert a SubmissionField array → API payload for PUT /api/events/[eventId]/submission-fields */
 export function fieldsToApiPayload(fields: SubmissionField[]) {
   return fields.map((field, index) => ({
@@ -284,6 +291,8 @@ export function fieldsToApiPayload(fields: SubmissionField[]) {
     options: (field.options || [])
       .map((option) => option.trim())
       .filter((option) => option.length > 0),
+    allows_multiple_entries:
+      (field.allowsMultipleEntries ?? false) && !BUILT_IN_FIELD_IDS.has(field.id),
   }));
 }
 
@@ -297,6 +306,7 @@ export function apiFieldsToEditor(
     field_type: string;
     required: boolean;
     options?: unknown;
+    allows_multiple_entries?: boolean;
   }>
 ): SubmissionField[] {
   return apiFields.map((f) => ({
@@ -308,5 +318,6 @@ export function apiFieldsToEditor(
     helperText: f.description || undefined,
     options: Array.isArray(f.options) && f.options.length > 0 ? f.options : undefined,
     multiple: f.field_type === "multi_url",
+    allowsMultipleEntries: f.allows_multiple_entries || undefined,
   }));
 }

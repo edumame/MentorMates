@@ -100,6 +100,7 @@ describe("submission field type mapping", () => {
         is_active: true,
         sort_order: 0,
         options: [],
+        allows_multiple_entries: false,
       });
       expect(payload[1]).toEqual({
         key: "tech_stack",
@@ -111,6 +112,7 @@ describe("submission field type mapping", () => {
         is_active: true,
         sort_order: 1,
         options: ["React", "Next.js", "Python"],
+        allows_multiple_entries: false,
       });
       expect(payload[2]).toEqual({
         key: "terms_ack",
@@ -122,11 +124,42 @@ describe("submission field type mapping", () => {
         is_active: true,
         sort_order: 2,
         options: ["I agree to the submission rules"],
+        allows_multiple_entries: false,
       });
     });
 
     it("handles empty fields array", () => {
       expect(fieldsToApiPayload([])).toEqual([]);
+    });
+
+    it("passes allows_multiple_entries through for custom fields", () => {
+      const payload = fieldsToApiPayload([
+        {
+          id: "submission_log",
+          label: "Submission Log",
+          type: "textarea",
+          required: false,
+          placeholder: "",
+          allowsMultipleEntries: true,
+        },
+      ]);
+
+      expect(payload[0].allows_multiple_entries).toBe(true);
+    });
+
+    it("never marks built-in fields as multi-entry", () => {
+      const payload = fieldsToApiPayload([
+        {
+          id: "project_url",
+          label: "Project URL",
+          type: "url",
+          required: false,
+          placeholder: "",
+          allowsMultipleEntries: true,
+        },
+      ]);
+
+      expect(payload[0].allows_multiple_entries).toBe(false);
     });
   });
 
@@ -195,6 +228,23 @@ describe("submission field type mapping", () => {
         options: undefined,
         multiple: true,
       });
+    });
+
+    it("restores allowsMultipleEntries from the API response", () => {
+      const fields = apiFieldsToEditor([
+        {
+          key: "submission_log",
+          label: "Submission Log",
+          description: null,
+          placeholder: null,
+          field_type: "long_text",
+          required: false,
+          options: [],
+          allows_multiple_entries: true,
+        },
+      ]);
+
+      expect(fields[0].allowsMultipleEntries).toBe(true);
     });
 
     it("round-trips through fieldsToApiPayload and back", () => {
