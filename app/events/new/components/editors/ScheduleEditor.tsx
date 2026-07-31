@@ -8,10 +8,10 @@ import type { WizardEventData, WizardScheduleDay } from "@/lib/types/wizard";
 import { cn } from "@/lib/utils";
 import {
   moveScheduleEvent,
-  parseScheduleDragId,
   scheduleDayDropId,
   scheduleEventDragId,
 } from "@/lib/utils/schedule";
+import { getScheduleDragMove } from "@/lib/utils/schedule-dnd";
 
 interface ScheduleEditorProps {
   event: WizardEventData;
@@ -191,11 +191,10 @@ export function ScheduleEditor({ event, update }: ScheduleEditorProps) {
   > = (dragEvent) => {
     if (dragEvent.canceled) return;
 
-    const from = parseScheduleDragId(dragEvent.operation.source?.id);
-    const to = parseScheduleDragId(dragEvent.operation.target?.id);
-    if (!from || !to) return;
+    const move = getScheduleDragMove(dragEvent.operation);
+    if (!move) return;
 
-    const schedule = moveScheduleEvent(event.schedule, from, to);
+    const schedule = moveScheduleEvent(event.schedule, move.from, move.to);
     if (schedule !== event.schedule) {
       update({ schedule });
     }

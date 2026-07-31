@@ -14,10 +14,10 @@ import { EventDetails, ScheduleDay, ScheduleEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   moveScheduleEvent,
-  parseScheduleDragId,
   scheduleDayDropId,
   scheduleEventDragId,
 } from "@/lib/utils/schedule";
+import { getScheduleDragMove } from "@/lib/utils/schedule-dnd";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
@@ -280,6 +280,7 @@ export function ScheduleTab({
 
   const persistScheduleOrder = (newSchedule: ScheduleDay[]) => {
     persistQueueRef.current = persistQueueRef.current.then(async () => {
+      console.log("Persisting schedule order:", newSchedule);
       const { error } = await supabase
         .from("events")
         .update({ event_schedule: newSchedule })
@@ -304,11 +305,14 @@ export function ScheduleTab({
   > = (dragEvent) => {
     if (dragEvent.canceled || isArchived) return;
 
-    const from = parseScheduleDragId(dragEvent.operation.source?.id);
-    const to = parseScheduleDragId(dragEvent.operation.target?.id);
-    if (!from || !to) return;
+    const move = getScheduleDragMove(dragEvent.operation);
+    if (!move) return;
 
-    const newSchedule = moveScheduleEvent(event.event_schedule, from, to);
+    const newSchedule = moveScheduleEvent(
+      event.event_schedule,
+      move.from,
+      move.to
+    );
     if (newSchedule !== event.event_schedule) {
       setEvent({ ...event, event_schedule: newSchedule });
       persistScheduleOrder(newSchedule);
