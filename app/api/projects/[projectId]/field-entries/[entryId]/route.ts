@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { entryRowToPayload } from "@/lib/projects/field-entries";
+import {
+  buildEntryContent,
+  entryContentInputSchema,
+  entryRowToPayload,
+} from "@/lib/projects/field-entries";
 
-const updateEntrySchema = z.object({
-  content: z.string().trim().min(1).max(5000),
-});
+const updateEntrySchema = entryContentInputSchema;
 
 const ENTRY_COLUMNS =
   "id, project_id, event_submission_field_id, submitter_user_id, content, created_at, updated_at";
@@ -37,7 +38,7 @@ export async function PATCH(
     // RLS limits updates to the submitter, event organizers, and admins.
     const { data: updated, error } = await supabase
       .from("project_field_entries")
-      .update({ content: parsed.data.content })
+      .update({ content: buildEntryContent(parsed.data) })
       .eq("id", entryId)
       .eq("project_id", projectId)
       .select(ENTRY_COLUMNS)

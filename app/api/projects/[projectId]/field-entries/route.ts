@@ -3,12 +3,17 @@ import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { EventSubmissionField } from "@/lib/types";
-import { entryRowToPayload } from "@/lib/projects/field-entries";
+import {
+  buildEntryContent,
+  entryContentInputSchema,
+  entryRowToPayload,
+} from "@/lib/projects/field-entries";
 
-const createEntrySchema = z.object({
-  fieldId: z.string().uuid(),
-  content: z.string().trim().min(1).max(5000),
-});
+const createEntrySchema = z
+  .object({
+    fieldId: z.string().uuid(),
+  })
+  .and(entryContentInputSchema);
 
 async function fetchVisibleProject(projectId: string) {
   // The cookie-based client enforces the projects select RLS, so a row only
@@ -168,7 +173,7 @@ export async function POST(
         project_id: projectId,
         event_submission_field_id: field.id,
         submitter_user_id: user.id,
-        content: parsed.data.content,
+        content: buildEntryContent(parsed.data),
       })
       .select(
         "id, project_id, event_submission_field_id, submitter_user_id, content, created_at, updated_at",
