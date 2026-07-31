@@ -1,12 +1,23 @@
 "use client";
 
+import { useState, type ComponentProps } from "react";
+import { DragDropProvider, useDroppable } from "@dnd-kit/react";
+import { useSortable } from "@dnd-kit/react/sortable";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Type, Clock } from "lucide-react";
-import { EventDetails } from "@/lib/types";
+import { GripVertical, Trash2, Type, Clock } from "lucide-react";
+import { EventDetails, ScheduleEvent } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  moveScheduleEvent,
+  parseScheduleDragId,
+  scheduleDayDropId,
+  scheduleEventDragId,
+} from "@/lib/utils/schedule";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
@@ -20,6 +31,130 @@ interface ScheduleTabProps {
   toast: typeof ToastType;
 }
 
+interface SortableEventCardProps {
+  scheduleEvent: ScheduleEvent;
+  dayIndex: number;
+  eventIndex: number;
+  disabled: boolean;
+  onChange: (patch: Partial<ScheduleEvent>) => void;
+  onRemove: () => void;
+}
+
+function SortableEventCard({
+  scheduleEvent,
+  dayIndex,
+  eventIndex,
+  disabled,
+  onChange,
+  onRemove,
+}: SortableEventCardProps) {
+  const { ref, handleRef, isDragSource, isDropTarget } = useSortable({
+    id: scheduleEventDragId(dayIndex, eventIndex),
+    index: eventIndex,
+    group: scheduleDayDropId(dayIndex),
+    disabled,
+  });
+
+  return (
+    <div
+      ref={(node) => ref(node)}
+      className={cn(
+        "rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-[#F7FAFE] p-4 flex flex-col items-start gap-6",
+        isDragSource && "opacity-60",
+        isDropTarget && "ring-2 ring-[#4b89ef]/60"
+      )}
+      style={{
+        boxShadow:
+          "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      }}
+    >
+      <div className="w-full flex items-start justify-between gap-4">
+        <button
+          ref={(node) => handleRef(node)}
+          type="button"
+          disabled={disabled}
+          className="mt-9 rounded p-1 text-black/45 hover:bg-black/5 hover:text-black/70 disabled:cursor-not-allowed disabled:opacity-40 cursor-grab shrink-0"
+          aria-label="Drag to move event"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-[16px] font-normal text-black">Event Name</label>
+            <div className="relative">
+              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+              <Input
+                value={scheduleEvent.name}
+                disabled={disabled}
+                onChange={(e) => onChange({ name: e.target.value })}
+                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[16px] font-normal text-black">Time</label>
+            <div className="relative">
+              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+              <Input
+                value={scheduleEvent.time}
+                disabled={disabled}
+                onChange={(e) => onChange({ time: e.target.value })}
+                placeholder="11-22-33"
+                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+              />
+            </div>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+          disabled={disabled}
+          onClick={onRemove}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="space-y-2 w-full">
+        <label className="text-[16px] font-normal text-black">Description (Optional - Markdown Supported)</label>
+        <Textarea
+          value={scheduleEvent.description || ""}
+          disabled={disabled}
+          onChange={(e) => onChange({ description: e.target.value || undefined })}
+          placeholder="Add optional markdown description for this event..."
+          className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+        />
+      </div>
+    </div>
+  );
+}
+
+function EmptyDayDropZone({
+  dayIndex,
+  disabled,
+}: {
+  dayIndex: number;
+  disabled: boolean;
+}) {
+  const { ref, isDropTarget } = useDroppable({
+    id: scheduleDayDropId(dayIndex),
+    disabled,
+  });
+
+  return (
+    <div
+      ref={(node) => ref(node)}
+      className={cn(
+        "rounded-[12px] border-2 border-dashed border-gray-300 p-6 text-center text-sm text-gray-500",
+        isDropTarget && "border-[#4b89ef] bg-[#4b89ef]/5 text-[#4b89ef]"
+      )}
+    >
+      Drag an event here, or add one below.
+    </div>
+  );
+}
+
 export function ScheduleTab({
   event,
   setEvent,
@@ -28,6 +163,8 @@ export function ScheduleTab({
   toast,
 }: ScheduleTabProps) {
   const { isArchived, checkArchiveStatus } = useEventArchiveStatus(event);
+  const [notifyParticipants, setNotifyParticipants] = useState(true);
+
   const handleScheduleUpdateNotification = async () => {
     const response = await fetch(
       `/api/email_notification/event/${event.event_id}`,
@@ -90,7 +227,7 @@ export function ScheduleTab({
         JSON.stringify(currentData.event_schedule) !==
         JSON.stringify(event.event_schedule);
 
-      if (hasScheduleChanged) {
+      if (hasScheduleChanged && notifyParticipants) {
         // Only send notification if schedule actually changed
         await handleScheduleUpdateNotification();
       }
@@ -103,6 +240,48 @@ export function ScheduleTab({
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const updateScheduleEvent = (
+    dayIndex: number,
+    eventIndex: number,
+    patch: Partial<ScheduleEvent>
+  ) => {
+    const newSchedule = event.event_schedule.map((day, di) =>
+      di === dayIndex
+        ? {
+            ...day,
+            events: day.events.map((ev, ei) =>
+              ei === eventIndex ? { ...ev, ...patch } : ev
+            ),
+          }
+        : day
+    );
+    setEvent({ ...event, event_schedule: newSchedule });
+  };
+
+  const removeScheduleEvent = (dayIndex: number, eventIndex: number) => {
+    const newSchedule = event.event_schedule.map((day, di) =>
+      di === dayIndex
+        ? { ...day, events: day.events.filter((_, ei) => ei !== eventIndex) }
+        : day
+    );
+    setEvent({ ...event, event_schedule: newSchedule });
+  };
+
+  const handleDragEnd: NonNullable<
+    ComponentProps<typeof DragDropProvider>["onDragEnd"]
+  > = (dragEvent) => {
+    if (dragEvent.canceled) return;
+
+    const from = parseScheduleDragId(dragEvent.operation.source?.id);
+    const to = parseScheduleDragId(dragEvent.operation.target?.id);
+    if (!from || !to) return;
+
+    const newSchedule = moveScheduleEvent(event.event_schedule, from, to);
+    if (newSchedule !== event.event_schedule) {
+      setEvent({ ...event, event_schedule: newSchedule });
     }
   };
 
@@ -156,7 +335,7 @@ export function ScheduleTab({
           </div>
         </div>
       ) : (
-        <>
+        <DragDropProvider onDragEnd={handleDragEnd}>
           {event.event_schedule.map((day, dayIndex) => (
             <div key={dayIndex} className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
               <div className="flex justify-between items-center">
@@ -195,98 +374,22 @@ export function ScheduleTab({
                 </Button>
               </div>
 
-              {day.events.map((scheduleEvent, eventIndex) => (
-                <div
-                  key={eventIndex}
-                  className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-[#F7FAFE] p-4 flex flex-col items-start gap-6"
-                  style={{
-                    boxShadow:
-                      "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                  }}
-                >
-                  <div className="w-full flex items-start justify-between gap-4">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-[16px] font-normal text-black">Event Name</label>
-                        <div className="relative">
-                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                          <Input
-                            value={scheduleEvent.name}
-                            disabled={isArchived}
-                            onChange={(e) => {
-                              const newSchedule = [...event.event_schedule];
-                              newSchedule[dayIndex].events[eventIndex].name =
-                                e.target.value;
-                              setEvent({
-                                ...event,
-                                event_schedule: newSchedule,
-                              });
-                            }}
-                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[16px] font-normal text-black">Time</label>
-                        <div className="relative">
-                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                          <Input
-                            value={scheduleEvent.time}
-                            disabled={isArchived}
-                            onChange={(e) => {
-                              const newSchedule = [...event.event_schedule];
-                              newSchedule[dayIndex].events[eventIndex].time =
-                                e.target.value;
-                              setEvent({
-                                ...event,
-                                event_schedule: newSchedule,
-                              });
-                            }}
-                            placeholder="11-22-33"
-                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      disabled={isArchived}
-                      onClick={() => {
-                        const newSchedule = [...event.event_schedule];
-                        newSchedule[dayIndex].events = newSchedule[
-                          dayIndex
-                        ].events.filter((_, i) => i !== eventIndex);
-                        setEvent({
-                          ...event,
-                          event_schedule: newSchedule,
-                        });
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+              {day.events.length === 0 && (
+                <EmptyDayDropZone dayIndex={dayIndex} disabled={isArchived} />
+              )}
 
-                  <div className="space-y-2 w-full">
-                    <label className="text-[16px] font-normal text-black">Description (Optional - Markdown Supported)</label>
-                    <Textarea
-                      value={scheduleEvent.description || ""}
-                      disabled={isArchived}
-                      onChange={(e) => {
-                        const newSchedule = [...event.event_schedule];
-                        newSchedule[dayIndex].events[eventIndex].description =
-                          e.target.value || undefined;
-                        setEvent({
-                          ...event,
-                          event_schedule: newSchedule,
-                        });
-                      }}
-                      placeholder="Add optional markdown description for this event..."
-                      className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                    />
-                  </div>
-                </div>
+              {day.events.map((scheduleEvent, eventIndex) => (
+                <SortableEventCard
+                  key={scheduleEventDragId(dayIndex, eventIndex)}
+                  scheduleEvent={scheduleEvent}
+                  dayIndex={dayIndex}
+                  eventIndex={eventIndex}
+                  disabled={isArchived}
+                  onChange={(patch) =>
+                    updateScheduleEvent(dayIndex, eventIndex, patch)
+                  }
+                  onRemove={() => removeScheduleEvent(dayIndex, eventIndex)}
+                />
               ))}
 
               <Button
@@ -327,12 +430,28 @@ export function ScheduleTab({
           >
             Add new day
           </Button>
-        </>
+        </DragDropProvider>
       )}
 
-      <div className="flex justify-center items-center text-sm text-gray-500 italic bg-gray-100 py-2 px-4 rounded-lg">
-        Editing the schedule will automatically send a notification to all
-        participants once the changes are saved.
+      <div className="flex items-center justify-between gap-4 bg-gray-100 py-3 px-4 rounded-lg">
+        <div className="space-y-0.5">
+          <Label
+            htmlFor="notify-schedule-changes"
+            className="text-sm font-medium text-gray-900"
+          >
+            Notify participants of schedule changes
+          </Label>
+          <p className="text-sm text-gray-500">
+            When on, all participants receive an email notification after you
+            save changes to the schedule.
+          </p>
+        </div>
+        <Switch
+          id="notify-schedule-changes"
+          checked={notifyParticipants}
+          onCheckedChange={setNotifyParticipants}
+          disabled={isArchived}
+        />
       </div>
 
       <Button
