@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useRef, useState, type ComponentProps } from "react";
 import { DragDropProvider, useDroppable } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { GripVertical, Trash2, Type, Clock } from "lucide-react";
-import { EventDetails, ScheduleEvent } from "@/lib/types";
+import { EventDetails, ScheduleDay, ScheduleEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   moveScheduleEvent,
@@ -164,6 +164,10 @@ export function ScheduleTab({
 }: ScheduleTabProps) {
   const { isArchived, checkArchiveStatus } = useEventArchiveStatus(event);
   const [notifyParticipants, setNotifyParticipants] = useState(true);
+  // Serializes drag-reorder writes so a slow earlier request cannot overwrite a later one
+  const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
+  // Reorders are persisted immediately without emailing; "Save Schedule" still notifies for them
+  const pendingReorderNotifyRef = useRef(false);
 
   const handleScheduleUpdateNotification = async () => {
     const response = await fetch(
@@ -227,10 +231,14 @@ export function ScheduleTab({
         JSON.stringify(currentData.event_schedule) !==
         JSON.stringify(event.event_schedule);
 
-      if (hasScheduleChanged && notifyParticipants) {
+      if (
+        (hasScheduleChanged || pendingReorderNotifyRef.current) &&
+        notifyParticipants
+      ) {
         // Only send notification if schedule actually changed
         await handleScheduleUpdateNotification();
       }
+      pendingReorderNotifyRef.current = false;
     } catch (error) {
       console.error("Error updating schedule:", error);
       toast({
@@ -270,10 +278,31 @@ export function ScheduleTab({
     setEvent({ ...event, event_schedule: newSchedule });
   };
 
+  const persistScheduleOrder = (newSchedule: ScheduleDay[]) => {
+    persistQueueRef.current = persistQueueRef.current.then(async () => {
+      const { error } = await supabase
+        .from("events")
+        .update({ event_schedule: newSchedule })
+        .eq("event_id", event.event_id);
+
+      if (error) {
+        console.error("Error saving schedule order:", error);
+        toast({
+          title: "Order not saved",
+          description:
+            "The new event order could not be saved. Click “Save Schedule” to retry.",
+          variant: "destructive",
+        });
+      } else {
+        pendingReorderNotifyRef.current = true;
+      }
+    });
+  };
+
   const handleDragEnd: NonNullable<
     ComponentProps<typeof DragDropProvider>["onDragEnd"]
   > = (dragEvent) => {
-    if (dragEvent.canceled) return;
+    if (dragEvent.canceled || isArchived) return;
 
     const from = parseScheduleDragId(dragEvent.operation.source?.id);
     const to = parseScheduleDragId(dragEvent.operation.target?.id);
@@ -282,6 +311,7 @@ export function ScheduleTab({
     const newSchedule = moveScheduleEvent(event.event_schedule, from, to);
     if (newSchedule !== event.event_schedule) {
       setEvent({ ...event, event_schedule: newSchedule });
+      persistScheduleOrder(newSchedule);
     }
   };
 
@@ -443,7 +473,9 @@ export function ScheduleTab({
           </Label>
           <p className="text-sm text-gray-500">
             When on, all participants receive an email notification after you
-            save changes to the schedule.
+            save changes to the schedule. Drag-and-drop reorders are saved
+            immediately, but the email is only sent when you press Save
+            Schedule.
           </p>
         </div>
         <Switch
