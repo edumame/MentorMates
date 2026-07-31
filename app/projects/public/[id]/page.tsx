@@ -42,6 +42,7 @@ import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils/string";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
+import { ProjectFieldEntriesSection } from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 import {
   CoverImageWithFallback,
   ProjectCoverHero,
@@ -694,6 +695,10 @@ export default function PublicProjectPage() {
                       </div>
 
                       <ProjectSubmissionDetails project={project} />
+
+                      {/* Read-only on the public route; entries are added from
+                          the private project page. */}
+                      <ProjectFieldEntriesSection projectId={project.id} />
 
                       {/* Cover Image Display */}
                       {project.cover_image_url && (

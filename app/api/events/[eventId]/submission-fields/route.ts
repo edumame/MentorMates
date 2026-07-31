@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
+import { BUILT_IN_SUBMISSION_FIELD_KEYS } from "@/features/projects/utils/effectiveSubmission";
 
 const LOCKED_FIELD_KEYS = ["project_name", "project_description"] as const;
 
@@ -22,6 +23,7 @@ const fieldInputSchema = z.object({
   required: z.boolean().default(false),
   is_active: z.boolean().optional(),
   options: z.array(z.string().trim().min(1)).optional(),
+  allows_multiple_entries: z.boolean().optional(),
 });
 
 const bodySchema = z.object({
@@ -176,6 +178,9 @@ export async function PUT(
         is_active: field.is_active ?? true,
         sort_order: index,
         options: field.options ?? [],
+        allows_multiple_entries:
+          (field.allows_multiple_entries ?? false) &&
+          !BUILT_IN_SUBMISSION_FIELD_KEYS.has(key),
       };
     });
 

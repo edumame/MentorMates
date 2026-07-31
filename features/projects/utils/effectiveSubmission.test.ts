@@ -66,6 +66,28 @@ describe("effective submission helpers", () => {
     },
   ];
 
+  it("excludes multi-entry (team log) fields from the effective form", () => {
+    const withLogField: EventSubmissionField[] = [
+      ...configuredFields,
+      {
+        id: "field-submission-log",
+        event_id: "event-1",
+        key: "submission_log",
+        label: "Submission Log",
+        field_type: "long_text",
+        required: false,
+        sort_order: 99,
+        is_active: true,
+        allows_multiple_entries: true,
+      },
+    ];
+
+    const effective = buildEffectiveSubmissionFields(withLogField, "event-1");
+
+    expect(effective.map((field) => field.key)).not.toContain("submission_log");
+    expect(effective).toHaveLength(configuredFields.length);
+  });
+
   it("falls back to the default project schema when no event config exists", () => {
     const effectiveFields = buildEffectiveSubmissionFields([], "event-1");
 
