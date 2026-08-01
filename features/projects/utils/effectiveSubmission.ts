@@ -2,6 +2,7 @@ import {
   DEFAULT_SUBMISSION_FIELDS,
   type SubmissionField,
 } from "@/components/events/submission";
+import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
 import type {
   EventSubmissionField,
   Project,
@@ -42,7 +43,9 @@ function defaultEditorFieldToEffectiveField(
           ? "multi_url"
           : field.type === "url"
             ? "url"
-            : field.type === "file"
+            : field.type === "file" && field.multiple
+              ? "multi_file"
+              : field.type === "file"
               ? "file"
               : field.type === "select"
                 ? "select"
@@ -62,6 +65,7 @@ function defaultEditorFieldToEffectiveField(
     sort_order: index,
     is_active: true,
     options: field.options ?? [],
+    max_files: field.type === "file" && field.multiple ? (field.maxFiles ?? 5) : null,
     is_virtual: true,
   };
 }
@@ -106,7 +110,7 @@ export function normalizeSubmissionValue(
   field: Pick<EffectiveSubmissionField, "field_type">,
   rawValue: SubmissionValue | null | undefined
 ): SubmissionValue {
-  if (field.field_type === "multi_url" || field.field_type === "multi_select") {
+  if (isMultiValueSubmissionFieldType(field.field_type)) {
     if (!Array.isArray(rawValue)) {
       return [];
     }
@@ -193,10 +197,9 @@ export function buildSubmissionValuesFromProject(
       continue;
     }
 
-    values[field.key] =
-      field.field_type === "multi_url" || field.field_type === "multi_select"
-        ? []
-        : "";
+    values[field.key] = isMultiValueSubmissionFieldType(field.field_type)
+      ? []
+      : "";
   }
 
   return values;

@@ -55,6 +55,7 @@ import {
   hasSubmissionFieldMismatch,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
+import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
@@ -909,10 +910,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     const missingRequiredField = effectiveSubmissionFields.find((field) => {
       if (!field.required) return false;
       const value = submissionFieldValues[field.key];
-      if (
-        field.field_type === "multi_url" ||
-        field.field_type === "multi_select"
-      ) {
+      if (isMultiValueSubmissionFieldType(field.field_type)) {
         return !Array.isArray(value) || value.every((item) => !item.trim());
       }
       return typeof value !== "string" || value.trim().length === 0;
@@ -1117,31 +1115,39 @@ export default function DraftProjectSubmissionFormSinglePage({
                   fields={effectiveSubmissionFields}
                   values={submissionFieldValues}
                   onValueChange={handleSubmissionFieldChange}
-                  onFileUpload={async (fieldKey, file) => {
-                      if (fieldKey === "cover_image") {
-                        const event = {
-                          target: { files: [file] },
-                        } as unknown as React.ChangeEvent<HTMLInputElement>;
-                        await handleCoverImageUpload(event);
-                        return;
-                      }
+                  onFileUpload={async (fieldKey, files) => {
+                    if (fieldKey === "cover_image") {
+                      const event = {
+                        target: { files: [files[0]] },
+                      } as unknown as React.ChangeEvent<HTMLInputElement>;
+                      await handleCoverImageUpload(event);
+                      return;
+                    }
 
-                    const uploadedUrl = await uploadAdditionalMaterialFile(file);
-                    if (!uploadedUrl) return;
+                    const uploadedUrls: string[] = [];
+                    for (const file of files) {
+                      const uploadedUrl =
+                        await uploadAdditionalMaterialFile(file);
+                      if (uploadedUrl) uploadedUrls.push(uploadedUrl);
+                    }
+                    if (uploadedUrls.length === 0) return;
 
-                    if (fieldKey === "additional_materials") {
+                    const targetField = effectiveSubmissionFields.find(
+                      (field) => field.key === fieldKey
+                    );
+                    if (
+                      targetField &&
+                      isMultiValueSubmissionFieldType(targetField.field_type)
+                    ) {
+                      const currentValue = submissionFieldValues[fieldKey];
                       handleSubmissionFieldChange(fieldKey, [
-                        ...(
-                          Array.isArray(submissionFieldValues.additional_materials)
-                            ? submissionFieldValues.additional_materials
-                            : []
-                        ),
-                        uploadedUrl,
+                        ...(Array.isArray(currentValue) ? currentValue : []),
+                        ...uploadedUrls,
                       ]);
                       return;
                     }
 
-                    handleSubmissionFieldChange(fieldKey, uploadedUrl);
+                    handleSubmissionFieldChange(fieldKey, uploadedUrls[0]);
                   }}
                   showDescriptionPreview={showDescriptionPreview}
                   onToggleDescriptionPreview={() =>

@@ -22,6 +22,7 @@ describe("submission field type mapping", () => {
       expect(editorTypeToDb("url")).toBe("url");
       expect(editorTypeToDb("url", true)).toBe("multi_url");
       expect(editorTypeToDb("file")).toBe("file");
+      expect(editorTypeToDb("file", true)).toBe("multi_file");
       expect(editorTypeToDb("select")).toBe("select");
       expect(editorTypeToDb("multi_select")).toBe("multi_select");
       expect(editorTypeToDb("checkbox")).toBe("checkbox");
@@ -43,6 +44,10 @@ describe("submission field type mapping", () => {
 
     it("maps multi_url → url", () => {
       expect(dbTypeToEditor("multi_url")).toBe("url");
+    });
+
+    it("maps multi_file → file", () => {
+      expect(dbTypeToEditor("multi_file")).toBe("file");
     });
 
     it("passes through direct-match types unchanged", () => {
@@ -101,6 +106,7 @@ describe("submission field type mapping", () => {
         sort_order: 0,
         options: [],
         allows_multiple_entries: false,
+        max_files: null,
       });
       expect(payload[1]).toEqual({
         key: "tech_stack",
@@ -113,6 +119,7 @@ describe("submission field type mapping", () => {
         sort_order: 1,
         options: ["React", "Next.js", "Python"],
         allows_multiple_entries: false,
+        max_files: null,
       });
       expect(payload[2]).toEqual({
         key: "terms_ack",
@@ -125,7 +132,67 @@ describe("submission field type mapping", () => {
         sort_order: 2,
         options: ["I agree to the submission rules"],
         allows_multiple_entries: false,
+        max_files: null,
       });
+    });
+
+    it("encodes multi-file fields with their max_files limit", () => {
+      const payload = fieldsToApiPayload([
+        {
+          id: "screenshots",
+          label: "Screenshots",
+          type: "file",
+          required: false,
+          placeholder: "",
+          multiple: true,
+          maxFiles: 8,
+        },
+      ]);
+
+      expect(payload[0].field_type).toBe("multi_file");
+      expect(payload[0].max_files).toBe(8);
+    });
+
+    it("defaults max_files to 5 when a multi-file field has no explicit limit", () => {
+      const payload = fieldsToApiPayload([
+        {
+          id: "screenshots",
+          label: "Screenshots",
+          type: "file",
+          required: false,
+          placeholder: "",
+          multiple: true,
+        },
+      ]);
+
+      expect(payload[0].field_type).toBe("multi_file");
+      expect(payload[0].max_files).toBe(5);
+    });
+
+    it("does not send max_files for single-file or multi-url fields", () => {
+      const payload = fieldsToApiPayload([
+        {
+          id: "one_file",
+          label: "One file",
+          type: "file",
+          required: false,
+          placeholder: "",
+          maxFiles: 8,
+        },
+        {
+          id: "links",
+          label: "Links",
+          type: "url",
+          required: false,
+          placeholder: "",
+          multiple: true,
+        },
+      ]);
+
+      expect(payload[0].field_type).toBe("file");
+      expect(payload[0].max_files).toBeNull();
+      expect(payload[1].field_type).toBe("multi_url");
+      expect(payload[1].max_files).toBeNull();
     });
 
     it("handles empty fields array", () => {
@@ -228,6 +295,58 @@ describe("submission field type mapping", () => {
         options: undefined,
         multiple: true,
       });
+    });
+
+    it("restores the multiple flag and maxFiles for multi_file fields", () => {
+      const fields = apiFieldsToEditor([
+        {
+          key: "screenshots",
+          label: "Screenshots",
+          description: null,
+          placeholder: null,
+          field_type: "multi_file",
+          required: false,
+          options: [],
+          max_files: 8,
+        },
+        {
+          key: "one_file",
+          label: "One file",
+          description: null,
+          placeholder: null,
+          field_type: "file",
+          required: false,
+          options: [],
+          max_files: null,
+        },
+      ]);
+
+      expect(fields[0].type).toBe("file");
+      expect(fields[0].multiple).toBe(true);
+      expect(fields[0].maxFiles).toBe(8);
+      expect(fields[1].type).toBe("file");
+      expect(fields[1].multiple).toBe(false);
+      expect(fields[1].maxFiles).toBeUndefined();
+    });
+
+    it("round-trips a multi-file field through the API payload and back", () => {
+      const original: SubmissionField[] = [
+        {
+          id: "screenshots",
+          label: "Screenshots",
+          type: "file",
+          required: false,
+          placeholder: "",
+          multiple: true,
+          maxFiles: 8,
+        },
+      ];
+
+      const roundTripped = apiFieldsToEditor(fieldsToApiPayload(original));
+
+      expect(roundTripped[0].type).toBe("file");
+      expect(roundTripped[0].multiple).toBe(true);
+      expect(roundTripped[0].maxFiles).toBe(8);
     });
 
     it("restores allowsMultipleEntries from the API response", () => {

@@ -139,6 +139,40 @@ describe("effective submission helpers", () => {
     ]);
   });
 
+  it("keeps multi-file answers as arrays and drops blank entries", () => {
+    const multiFileField: EventSubmissionField = {
+      id: "field-screenshots",
+      event_id: "event-1",
+      key: "screenshots",
+      label: "Screenshots",
+      field_type: "multi_file",
+      required: false,
+      sort_order: 5,
+      is_active: true,
+      max_files: 8,
+    };
+
+    const answers = buildSubmissionAnswersPayload(
+      [...configuredFields, multiFileField],
+      {
+        project_name: "Shipyard",
+        screenshots: [
+          "https://cdn.example.com/one.png",
+          " ",
+          "https://cdn.example.com/two.png",
+        ],
+      }
+    );
+
+    expect(answers).toContainEqual({
+      eventSubmissionFieldId: "field-screenshots",
+      answer: [
+        "https://cdn.example.com/one.png",
+        "https://cdn.example.com/two.png",
+      ],
+    });
+  });
+
   it("detects when stored answers reference removed submission fields", () => {
     expect(
       hasSubmissionFieldMismatch(

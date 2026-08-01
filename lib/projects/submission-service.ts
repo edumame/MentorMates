@@ -50,6 +50,7 @@ type ConfiguredSubmissionField = {
     | "url"
     | "multi_url"
     | "file"
+    | "multi_file"
     | "select"
     | "multi_select"
     | "checkbox";
