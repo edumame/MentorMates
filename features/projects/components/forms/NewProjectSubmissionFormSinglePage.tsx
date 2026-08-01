@@ -40,6 +40,10 @@ import type {
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import {
+  ProjectFieldEntriesSection,
+  type ProjectFieldEntriesSectionHandle,
+} from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 
 interface EventParticipant {
   user_id: string;
@@ -99,6 +103,10 @@ export function NewProjectSubmissionFormSinglePage({
 
   // Ref to track if draft creation has been attempted
   const draftCreationAttempted = useRef(false);
+
+  // Lets publish flush any multi-entry field drafts the submitter typed
+  // but didn't explicitly add.
+  const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
 
   // State
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -647,6 +655,16 @@ export function NewProjectSubmissionFormSinglePage({
     }
 
     try {
+      // Save the submitter's own multi-entry field drafts before publishing
+      // so their contribution lands on the project automatically.
+      const entriesFlushed =
+        (await fieldEntriesRef.current?.flushPendingEntries()) ?? true;
+      if (!entriesFlushed) {
+        // The section already toasted; stop so the draft text isn't lost.
+        setIsSubmitting(false);
+        return;
+      }
+
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
       const payload = {
@@ -1105,6 +1123,16 @@ export function NewProjectSubmissionFormSinglePage({
                       setShowDescriptionPreview((prev) => !prev)
                     }
                   />
+
+                  {/* Multi-entry fields: the submitter adds their own entry
+                      here; teammates can add theirs from the project page. */}
+                  {projectId && (
+                    <ProjectFieldEntriesSection
+                      ref={fieldEntriesRef}
+                      projectId={projectId}
+                      canContribute
+                    />
+                  )}
 
                   {/* Tracks Selection (if event has tracks) */}
                   {eventId && availableTracks && availableTracks.length > 0 && (
