@@ -1009,8 +1009,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   onPointerLeave={resetSwipeState}
                 >
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="mt-1 text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
+                    <div className="min-w-0">
+                      <h3 className="mt-1 break-words text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
                         <Link
                           href={`/projects/public/${currentProject.id}`}
                           target="_blank"
@@ -1158,12 +1158,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                   data-no-swipe="true"
                                   className="py-3 hover:no-underline"
                                 >
-                                  <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
-                                    <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                                  <div className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-3 text-left">
+                                    <span className="min-w-0 flex-1 truncate font-medium text-[rgba(0,0,0,0.8)]">
                                       {trackInfo?.name || "Track"}
                                     </span>
                                     <span
-                                      className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                      className={`inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold ${
                                         isScored
                                           ? "bg-[#E8F8EC] text-[#19703A]"
                                           : "bg-[#FFF5E5] text-[#9A5C00]"
@@ -1274,12 +1274,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                             data-no-swipe="true"
                             className="py-3 hover:no-underline"
                           >
-                            <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
-                              <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-3 text-left">
+                              <span className="min-w-0 flex-1 truncate font-medium text-[rgba(0,0,0,0.8)]">
                                 {trackInfo?.name || "Track"}
                               </span>
                               <span
-                                className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                className={`inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold ${
                                   isScored
                                     ? "bg-[#E8F8EC] text-[#19703A]"
                                     : "bg-[#FFF5E5] text-[#9A5C00]"
