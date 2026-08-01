@@ -43,7 +43,7 @@ import {
 } from "@/lib/utils/pricing";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { Ticket, Users, Lock, Loader2 } from "lucide-react";
-import { RegistrationQuestionnaireDialog } from "@/features/events/registration/RegistrationQuestionnaireDialog";
+import { IntakeFormDialog } from "@/features/intake-forms/components/IntakeFormDialog";
 import {
   clearJoinEventIntent,
   createJoinEventIntent,
@@ -461,7 +461,7 @@ export function JoinEventButton({
         role === EventRole.Participant
       ) {
         const questionnaireStatusResponse = await fetch(
-          `/api/events/${eventId}/registration/questionnaire-status`,
+          `/api/events/${eventId}/intake-form/status?context=registration`,
           { cache: "no-store" }
         );
 
@@ -479,26 +479,11 @@ export function JoinEventButton({
         }
 
         const statusData = (await questionnaireStatusResponse.json()) as {
-          requiresQuestionnaire: boolean;
           hasActiveForm: boolean;
           completed: boolean;
         };
 
-        if (
-          statusData.requiresQuestionnaire &&
-          !statusData.hasActiveForm &&
-          !statusData.completed
-        ) {
-          toast({
-            title: "Registration unavailable",
-            description:
-              "This event requires a registration questionnaire, but no published registration form is configured.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (statusData.requiresQuestionnaire && !statusData.completed) {
+        if (statusData.hasActiveForm && !statusData.completed) {
           setIsDialogOpen(false);
           setShowRegistrationQuestionnaireDialog(true);
           return;
@@ -952,9 +937,10 @@ export function JoinEventButton({
 
   return (
     <>
-      <RegistrationQuestionnaireDialog
+      <IntakeFormDialog
         open={showRegistrationQuestionnaireDialog}
         eventId={eventId}
+        context="registration"
         onClose={() => setShowRegistrationQuestionnaireDialog(false)}
         onCompleted={() =>
           handleJoinEvent({ skipRegistrationQuestionnaireCheck: true })

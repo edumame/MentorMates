@@ -3,6 +3,9 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import type { Database } from "@/lib/database.types";
+
+type DbEventRole = Database["public"]["Enums"]["event_role"];
 
 const VALID_ROLES = new Set<string>([
   EventRole.Participant,
@@ -48,12 +51,12 @@ export async function GET(
 
     const searchParams = request.nextUrl.searchParams;
     const rolesParam = searchParams.get("roles");
-    const requestedRoles = rolesParam
+    const requestedRoles: DbEventRole[] = rolesParam
       ? rolesParam
           .split(",")
           .map((r) => r.trim())
-          .filter((r) => VALID_ROLES.has(r))
-      : [EventRole.Participant];
+          .filter((r): r is DbEventRole => VALID_ROLES.has(r))
+      : ["participant"];
 
     if (requestedRoles.length === 0) {
       return NextResponse.json({ users: [], count: 0 }, { status: 200 });

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import type { IntakeFormContext, IntakeFormSchema } from "@/features/intake-forms/types";
+import {
+  INTAKE_FORM_CONTEXTS,
+  type IntakeFormContext,
+  type IntakeFormSchema,
+} from "@/features/intake-forms/types";
 import {
   getAuthContext,
   getOrCreateTemplateId,
@@ -9,11 +13,11 @@ import {
 } from "./_shared";
 
 const querySchema = z.object({
-  context: z.enum(["registration", "project_submission", "rsvp"]),
+  context: z.enum(INTAKE_FORM_CONTEXTS),
 });
 
 const saveSchema = z.object({
-  context: z.enum(["registration", "project_submission", "rsvp"]),
+  context: z.enum(INTAKE_FORM_CONTEXTS),
   schema: z.object({
     title: z.string().min(1),
     description: z.string().optional(),
@@ -26,6 +30,14 @@ function getDefaultSchema(context: IntakeFormContext): IntakeFormSchema {
     return {
       title: "RSVP Form",
       description: "Confirm your attendance for this event",
+      fields: [],
+    };
+  }
+
+  if (context === "post_survey") {
+    return {
+      title: "Post-Event Survey",
+      description: "Share your feedback about this event",
       fields: [],
     };
   }

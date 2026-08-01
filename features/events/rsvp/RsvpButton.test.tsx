@@ -1,9 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const rsvpDialogMock = jest.fn(() => null);
-jest.mock("./RsvpDialog", () => ({
-  RsvpDialog: (props: unknown) => rsvpDialogMock(props),
+const intakeFormDialogMock = jest.fn((props: unknown) => {
+  void props;
+  return null;
+});
+jest.mock("@/features/intake-forms/components/IntakeFormDialog", () => ({
+  IntakeFormDialog: (props: unknown) => intakeFormDialogMock(props),
 }));
 
 import { RsvpButton } from "./RsvpButton";
@@ -17,7 +20,7 @@ function mockStatusFetch(status: { hasActiveForm: boolean; completed: boolean })
 
 describe("RsvpButton", () => {
   beforeEach(() => {
-    rsvpDialogMock.mockClear();
+    intakeFormDialogMock.mockClear();
   });
 
   it("renders nothing when no RSVP form is published", async () => {
@@ -27,7 +30,7 @@ describe("RsvpButton", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        "/api/events/event-1/rsvp/status",
+        "/api/events/event-1/intake-form/status?context=rsvp",
         { cache: "no-store" }
       );
     });
@@ -67,7 +70,7 @@ describe("RsvpButton", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens the RSVP dialog when clicked", async () => {
+  it("opens the intake dialog with the rsvp context when clicked", async () => {
     mockStatusFetch({ hasActiveForm: true, completed: false });
 
     render(<RsvpButton eventId="event-1" />);
@@ -76,8 +79,12 @@ describe("RsvpButton", () => {
     await userEvent.click(button);
 
     await waitFor(() => {
-      expect(rsvpDialogMock).toHaveBeenCalledWith(
-        expect.objectContaining({ open: true, eventId: "event-1" })
+      expect(intakeFormDialogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          open: true,
+          eventId: "event-1",
+          context: "rsvp",
+        })
       );
     });
   });
