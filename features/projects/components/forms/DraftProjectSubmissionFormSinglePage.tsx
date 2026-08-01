@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,10 @@ import type {
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import {
+  ProjectFieldEntriesSection,
+  type ProjectFieldEntriesSectionHandle,
+} from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 
 interface EventParticipant {
   user_id: string;
@@ -103,6 +107,10 @@ export default function DraftProjectSubmissionFormSinglePage({
   onProjectUpdate,
 }: DraftProjectSubmissionFormProps) {
   const router = useRouter();
+
+  // Lets publish flush any multi-entry field drafts the submitter typed
+  // but didn't explicitly add.
+  const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
 
   const [project, setProject] = useState<Project>(initialProject);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -926,6 +934,15 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
 
     try {
+      // Save the submitter's own multi-entry field drafts before publishing
+      // so their contribution lands on the project automatically.
+      const entriesFlushed =
+        (await fieldEntriesRef.current?.flushPendingEntries()) ?? true;
+      if (!entriesFlushed) {
+        // The section already toasted; stop so the draft text isn't lost.
+        return;
+      }
+
       if (project.event_id) {
         const intakeResponse = await fetch(
           `/api/events/${project.event_id}/intake-form?context=project_submission`,
@@ -1153,6 +1170,14 @@ export default function DraftProjectSubmissionFormSinglePage({
                   onToggleDescriptionPreview={() =>
                     setShowDescriptionPreview((prev) => !prev)
                   }
+                />
+
+                {/* Multi-entry fields: the submitter adds their own entry
+                    here; teammates can add theirs from the project page. */}
+                <ProjectFieldEntriesSection
+                  ref={fieldEntriesRef}
+                  projectId={projectId}
+                  canContribute={canEdit}
                 />
 
                 {/* Event Selection */}

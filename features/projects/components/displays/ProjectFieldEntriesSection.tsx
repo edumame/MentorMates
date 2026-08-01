@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +27,14 @@ interface ProjectFieldEntriesSectionProps {
   projectId: string;
   /** Whether the viewer may add entries (team member / organizer on the private route). */
   canContribute?: boolean;
+}
+
+export interface ProjectFieldEntriesSectionHandle {
+  /**
+   * Submit any typed-but-not-yet-added entry drafts. Returns false if a
+   * pending draft failed to save (callers should avoid navigating away).
+   */
+  flushPendingEntries: () => Promise<boolean>;
 }
 
 interface FieldEntriesResponse {
@@ -58,10 +73,13 @@ async function uploadEntryAttachment(projectId: string, file: File) {
   return { name: file.name, url: publicUrl } satisfies ProjectFieldEntryAttachment;
 }
 
-export function ProjectFieldEntriesSection({
-  projectId,
-  canContribute = false,
-}: ProjectFieldEntriesSectionProps) {
+export const ProjectFieldEntriesSection = forwardRef<
+  ProjectFieldEntriesSectionHandle,
+  ProjectFieldEntriesSectionProps
+>(function ProjectFieldEntriesSection(
+  { projectId, canContribute = false },
+  ref,
+) {
   const { toast } = useToast();
   const [fields, setFields] = useState<EventSubmissionField[]>([]);
   const [entries, setEntries] = useState<ProjectFieldEntry[]>([]);
@@ -179,11 +197,11 @@ export function ProjectFieldEntriesSection({
   );
 
   const addEntry = useCallback(
-    async (fieldId: string) => {
+    async (fieldId: string): Promise<boolean> => {
       const content = (drafts[fieldId] || "").trim();
       const attachments = draftAttachments[fieldId] || [];
       if (!content && attachments.length === 0) {
-        return;
+        return true;
       }
 
       setSavingFieldId(fieldId);
@@ -208,6 +226,7 @@ export function ProjectFieldEntriesSection({
         setEntries((previous) => [...previous, json.entry as ProjectFieldEntry]);
         setDrafts((previous) => ({ ...previous, [fieldId]: "" }));
         setDraftAttachments((previous) => ({ ...previous, [fieldId]: [] }));
+        return true;
       } catch (error) {
         toast({
           title: "Error",
@@ -215,11 +234,39 @@ export function ProjectFieldEntriesSection({
             error instanceof Error ? error.message : "Failed to add entry",
           variant: "destructive",
         });
+        return false;
       } finally {
         setSavingFieldId(null);
       }
     },
     [drafts, draftAttachments, projectId, toast],
+  );
+
+  // Submit any typed-but-not-yet-added drafts (used by the submission forms
+  // so the submitter's entry is saved automatically when they publish).
+  useImperativeHandle(
+    ref,
+    () => ({
+      flushPendingEntries: async () => {
+        const pendingFieldIds = fields
+          .map((field) => field.id)
+          .filter(
+            (fieldId) =>
+              Boolean((drafts[fieldId] || "").trim()) ||
+              (draftAttachments[fieldId] || []).length > 0,
+          );
+
+        let allSaved = true;
+        for (const fieldId of pendingFieldIds) {
+          const saved = await addEntry(fieldId);
+          if (!saved) {
+            allSaved = false;
+          }
+        }
+        return allSaved;
+      },
+    }),
+    [fields, drafts, draftAttachments, addEntry],
   );
 
   const deleteEntry = useCallback(
@@ -425,4 +472,4 @@ export function ProjectFieldEntriesSection({
       })}
     </div>
   );
-}
+});
