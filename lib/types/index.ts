@@ -282,7 +282,7 @@ export interface ProjectArtifact {
   updated_at?: string;
 }
 
-export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "multi_file" | "select" | "multi_select" | "checkbox";
 
 export interface EventSubmissionField {
   id: string;
@@ -297,6 +297,7 @@ export interface EventSubmissionField {
   is_active: boolean;
   options?: unknown;
   allows_multiple_entries?: boolean;
+  max_files?: number | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -24,6 +24,7 @@ const fieldInputSchema = z.object({
   is_active: z.boolean().optional(),
   options: z.array(z.string().trim().min(1)).optional(),
   allows_multiple_entries: z.boolean().optional(),
+  max_files: z.number().int().min(2).max(20).optional().nullable(),
 });
 
 const bodySchema = z.object({
@@ -181,6 +182,8 @@ export async function PUT(
         allows_multiple_entries:
           (field.allows_multiple_entries ?? false) &&
           !BUILT_IN_SUBMISSION_FIELD_KEYS.has(key),
+        max_files:
+          field.field_type === "multi_file" ? (field.max_files ?? 5) : null,
       };
     });
 
