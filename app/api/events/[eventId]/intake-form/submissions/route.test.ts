@@ -235,3 +235,110 @@ describe("POST /api/events/[eventId]/intake-form/submissions (rsvp)", () => {
     expect(response.status).toBe(403);
   });
 });
+
+describe("POST /api/events/[eventId]/intake-form/submissions (post_survey)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("first submission inserts a new submission row with the post_survey context", async () => {
+    const mocks = buildSupabaseMock({ existingSubmissionId: null });
+    mockAuth(mocks.supabase);
+
+    const response = await POST(
+      makeRequest({
+        context: "post_survey",
+        formVersionId: FORM_VERSION_ID,
+        answers: { rating: "5", comments: "Great event!" },
+      }),
+      makeContext()
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({ success: true, submissionId: "sub-new" });
+    expect(mocks.submissionInsertBuilder.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_id: "event-1",
+        context: "post_survey",
+        submitter_user_id: "user-1",
+        project_id: null,
+        status: "submitted",
+      })
+    );
+  });
+
+  it("resubmission updates the existing post_survey submission", async () => {
+    const mocks = buildSupabaseMock({ existingSubmissionId: "sub-2" });
+    mockAuth(mocks.supabase);
+
+    const response = await POST(
+      makeRequest({
+        context: "post_survey",
+        formVersionId: FORM_VERSION_ID,
+        answers: { rating: "4" },
+      }),
+      makeContext()
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({ success: true, submissionId: "sub-2" });
+    expect(mocks.submissionUpdateBuilder.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        form_version_id: FORM_VERSION_ID,
+        status: "submitted",
+      })
+    );
+    expect(mocks.submissionInsertBuilder.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a projectId for the post_survey context", async () => {
+    const mocks = buildSupabaseMock();
+    mockAuth(mocks.supabase);
+
+    const response = await POST(
+      makeRequest({
+        context: "post_survey",
+        formVersionId: FORM_VERSION_ID,
+        projectId: PROJECT_ID,
+        answers: {},
+      }),
+      makeContext()
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 403 when the user has no role in the event", async () => {
+    const mocks = buildSupabaseMock({ hasRole: false });
+    mockAuth(mocks.supabase);
+
+    const response = await POST(
+      makeRequest({
+        context: "post_survey",
+        formVersionId: FORM_VERSION_ID,
+        answers: { rating: "5" },
+      }),
+      makeContext()
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects an unknown context", async () => {
+    const mocks = buildSupabaseMock();
+    mockAuth(mocks.supabase);
+
+    const response = await POST(
+      makeRequest({
+        context: "not_a_context",
+        formVersionId: FORM_VERSION_ID,
+        answers: {},
+      }),
+      makeContext()
+    );
+
+    expect(response.status).toBe(400);
+  });
+});
