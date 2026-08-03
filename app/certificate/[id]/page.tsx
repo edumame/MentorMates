@@ -8,13 +8,10 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Award, BadgeCheck, Copy, Loader, Printer, Trophy } from "lucide-react";
-import { Project } from "@/lib/types";
+import { Prize, Project } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import {
-  buildShareCaption,
-  publicProjectUrl,
-} from "@/features/projects/components/displays/ProjectShareSection";
+import { buildShareCaption } from "@/features/projects/components/displays/ProjectShareSection";
 
 interface CertificateEvent {
   event_name: string;
@@ -39,11 +36,22 @@ export default function CertificatePage() {
     const load = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/projects?projectId=${projectId}`);
-        const payload = (await response.json().catch(() => ({}))) as {
-          project?: Project;
-        };
-        const p = response.ok ? (payload.project ?? null) : null;
+        // Public endpoint first so certificates work logged-out; fall back to
+        // the authenticated endpoint for private-event team members/organizers.
+        let p: Project | null = null;
+        for (const url of [
+          `/api/projects?public=true&projectId=${projectId}`,
+          `/api/projects?projectId=${projectId}`,
+        ]) {
+          const response = await fetch(url);
+          const payload = (await response.json().catch(() => ({}))) as {
+            project?: Project;
+          };
+          if (response.ok && payload.project) {
+            p = payload.project;
+            break;
+          }
+        }
         setProject(p);
 
         if (p?.event_id) {
@@ -124,8 +132,23 @@ export default function CertificatePage() {
     return null;
   }, [personParam, viewerEmail, teamEmails, nameByEmail, project]);
 
+  // Tier: winner (prize assigned) > finalist (advanced past round 1) > participant
   const isWinner = (project?.prizes_won?.length ?? 0) > 0;
-  const prize = project?.prizes_won?.[0];
+  const isFinalist = !isWinner && !!project?.is_finalist;
+  const rawPrize = project?.prizes_won?.[0] as
+    | (Prize & { prizes?: { prize_description?: string } })
+    | undefined;
+  const prizeDescription =
+    rawPrize?.prize_description ?? rawPrize?.prizes?.prize_description ?? null;
+  const tier = isWinner ? "winner" : isFinalist ? "finalist" : "participant";
+  const certTitle =
+    tier === "winner"
+      ? "Certificate of Achievement"
+      : tier === "finalist"
+        ? "Certificate of Distinction"
+        : "Certificate of Participation";
+  const roleLabel =
+    tier === "winner" ? "Winner" : tier === "finalist" ? "Finalist" : "Builder";
 
   const certUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -139,7 +162,7 @@ export default function CertificatePage() {
     if (!event) return;
     const url =
       "https://www.linkedin.com/profile/add?startTask=CERTIFICATION" +
-      `&name=${encodeURIComponent(`${isWinner ? "Winner" : "Builder"} — ${event.event_name}`)}` +
+      `&name=${encodeURIComponent(`${roleLabel} — ${event.event_name}`)}` +
       "&organizationName=MentorMates" +
       (issueDate
         ? `&issueYear=${issueDate.getFullYear()}&issueMonth=${issueDate.getMonth() + 1}`
@@ -212,14 +235,18 @@ export default function CertificatePage() {
           className="mx-auto mb-8 h-10 w-auto object-contain"
         />
         <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
-          {isWinner ? "Certificate of Achievement" : "Certificate of Participation"}
+          {certTitle}
         </p>
         <p className="mt-8 text-sm text-neutral-600">This certifies that</p>
         <h1 className="mt-2 font-serif text-4xl font-semibold text-neutral-900">
           {subject.name}
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-neutral-700">
-          {isWinner ? "won recognition for building" : "built and submitted"}{" "}
+          {tier === "winner"
+            ? "won recognition for building"
+            : tier === "finalist"
+              ? "was selected as a finalist for building"
+              : "built and submitted"}{" "}
           <span className="font-semibold">{project.project_name}</span>
           {event ? (
             <>
@@ -228,10 +255,15 @@ export default function CertificatePage() {
             </>
           ) : null}
         </p>
-        {isWinner && prize ? (
+        {tier === "winner" ? (
           <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-neutral-800">
             <Trophy className="h-4 w-4" />
-            {prize.prize_description || "Prize winner"}
+            {prizeDescription || "Prize winner"}
+          </p>
+        ) : tier === "finalist" ? (
+          <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-neutral-800">
+            <Award className="h-4 w-4" />
+            Finalist — advanced to the final round
           </p>
         ) : null}
         <p className="mt-6 text-sm text-neutral-500">
