@@ -352,6 +352,8 @@ export interface Project {
   has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
+  /** Advanced past round 1 via project_round_advancements (organizer-selected finalists). */
+  is_finalist?: boolean;
   contextus_project_id?: string;
   submitted?: boolean;
 }
