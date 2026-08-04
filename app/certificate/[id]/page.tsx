@@ -7,7 +7,7 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Award, BadgeCheck, Copy, Loader, Printer, Trophy } from "lucide-react";
+import { Award, Copy, Loader, Plus, Printer, Trophy } from "lucide-react";
 import { Prize, Project } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -288,8 +288,8 @@ export default function CertificatePage() {
             <Printer className="mr-2 h-4 w-4" />
             Download PDF
           </Button>
-          <Button onClick={handleAddToLinkedIn} variant="secondary" size="sm">
-            <BadgeCheck className="mr-2 h-4 w-4" />
+          <Button onClick={handleAddToLinkedIn} variant="outline" size="sm">
+            <Plus className="mr-2 h-4 w-4" />
             Add to LinkedIn profile
           </Button>
           <Button

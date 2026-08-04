@@ -56,6 +56,7 @@ export function ProjectShareSection({
   videoUrl,
   showCertificateLink,
 }: ProjectShareSectionProps) {
+  
   const handleShare = (platform: string) => {
     const url = publicProjectUrl(projectId);
     const caption = buildShareCaption({
