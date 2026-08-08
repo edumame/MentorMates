@@ -202,7 +202,8 @@ export default function CertificatePage() {
         <h1 className="text-xl font-semibold">Certificate not available</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Certificates are issued for submitted projects. If this is your
-          project, make sure it has been submitted.
+          project, make sure it has been submitted — or if you think this is
+          a mistake, try refreshing the page.
         </p>
         <Link
           href={`/projects/public/${projectId}`}
@@ -226,7 +227,7 @@ export default function CertificatePage() {
         }
       `}</style>
 
-      <div className="certificate-card rounded-xl border-4 border-double border-neutral-800 bg-white p-10 text-center shadow-sm sm:p-14">
+      <div className="certificate-card rounded-xl border-4 border-double border-neutral-800 bg-white p-6 text-center shadow-sm sm:p-10 md:p-14">
         <Image
           src="/mentormate.png"
           alt="MentorMates"
@@ -238,7 +239,7 @@ export default function CertificatePage() {
           {certTitle}
         </p>
         <p className="mt-8 text-sm text-neutral-600">This certifies that</p>
-        <h1 className="mt-2 font-serif text-4xl font-semibold text-neutral-900">
+        <h1 className="mt-2 break-words font-serif text-2xl font-semibold text-neutral-900 sm:text-4xl">
           {subject.name}
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-neutral-700">
@@ -247,7 +248,9 @@ export default function CertificatePage() {
             : tier === "finalist"
               ? "was selected as a finalist for building"
               : "built and submitted"}{" "}
-          <span className="font-semibold">{project.project_name}</span>
+          <span className="break-words font-semibold">
+            {project.project_name}
+          </span>
           {event ? (
             <>
               {" "}
