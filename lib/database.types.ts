@@ -582,12 +582,15 @@ export type Database = {
           event_resources: Json | null
           event_schedule: Json
           event_type: string[]
+          expected_attendance: number | null
           external_redirect_enabled: boolean
           external_url: string | null
           faq: Json | null
           featured: boolean | null
+          featured_requested: boolean
           finalist_recommendation_enabled: boolean | null
           location: string | null
+          organizer_affiliation: string | null
           owner_id: string | null
           paid: boolean | null
           participant_capacity: number | null
@@ -605,6 +608,7 @@ export type Database = {
           submission_time_cutoff: string | null
           submission_time_start: string | null
           submitter_email: string | null
+          submitter_name: string | null
           team_formation_enabled: boolean
           visibility: Database["public"]["Enums"]["event_visibility"]
         }
@@ -623,12 +627,15 @@ export type Database = {
           event_resources?: Json | null
           event_schedule?: Json
           event_type?: string[]
+          expected_attendance?: number | null
           external_redirect_enabled?: boolean
           external_url?: string | null
           faq?: Json | null
           featured?: boolean | null
+          featured_requested?: boolean
           finalist_recommendation_enabled?: boolean | null
           location?: string | null
+          organizer_affiliation?: string | null
           owner_id?: string | null
           paid?: boolean | null
           participant_capacity?: number | null
@@ -646,6 +653,7 @@ export type Database = {
           submission_time_cutoff?: string | null
           submission_time_start?: string | null
           submitter_email?: string | null
+          submitter_name?: string | null
           team_formation_enabled?: boolean
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
@@ -664,12 +672,15 @@ export type Database = {
           event_resources?: Json | null
           event_schedule?: Json
           event_type?: string[]
+          expected_attendance?: number | null
           external_redirect_enabled?: boolean
           external_url?: string | null
           faq?: Json | null
           featured?: boolean | null
+          featured_requested?: boolean
           finalist_recommendation_enabled?: boolean | null
           location?: string | null
+          organizer_affiliation?: string | null
           owner_id?: string | null
           paid?: boolean | null
           participant_capacity?: number | null
@@ -687,6 +698,7 @@ export type Database = {
           submission_time_cutoff?: string | null
           submission_time_start?: string | null
           submitter_email?: string | null
+          submitter_name?: string | null
           team_formation_enabled?: boolean
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
