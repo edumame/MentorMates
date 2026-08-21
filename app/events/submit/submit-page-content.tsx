@@ -20,13 +20,14 @@ export function SubmitEventPageContent() {
         }
       >
         <h1 className="font-geist text-[32px] sm:text-[36px] font-semibold tracking-[-0.04em] text-black">
-          Submit Event
+          Submit Your Event
         </h1>
         <p className="mt-2 text-[15px] text-[rgba(0,0,0,0.65)]">
-          List your hackathon or event on the MentorMates events calendar.
-          Attendees are sent to your own registration page — no sign-in
-          required to submit. An admin will review your submission and reach
-          out to your email if your event is approved.
+          Got a hackathon coming up? Get it in front of builders who are
+          actually looking for events to join. List it on the MentorMates
+          events calendar — we&apos;ll send attendees straight to your own
+          registration page. No sign-in needed to submit. Once an admin
+          reviews it, we&apos;ll reach out to your email to get it live.
         </p>
         <div className="mt-8">
           <SubmitEventForm />
