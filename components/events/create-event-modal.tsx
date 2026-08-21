@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Paperclip, Globe } from "lucide-react";
+import { Paperclip, Globe, ExternalLink } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 
 type CreateEventModalView = "options" | "ai" | "devpost" | "import";
@@ -172,8 +172,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
   const renderOptions = () => (
     <div className={dialogSizeClass}>
-      {/* Left panel – 50% on lg; padding-top & padding-left 24px per design */}
-      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12">
+      {/* Left panel – 50% on lg; padding-top & padding-left 24px per design.
+          Flex column with a scrollable card list so the pinned external-event
+          link never overflows the fixed dialog height. */}
+      <div className="w-full lg:w-1/2 p-6 flex flex-col min-h-0">
         <DialogTitle className="sr-only">Create event</DialogTitle>
 
         <h2
@@ -191,7 +193,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           Create new event
         </h2>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Create from scratch – 默认未选中，hover 出现蓝边+渐变 */}
           <button
             onClick={() => {
@@ -319,7 +321,31 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
               </div>
             </div>
           </button>
+
         </div>
+
+        {/* List an external event — pinned below the cards so it always fits */}
+        <button
+          onClick={() => {
+            closeModal(false);
+            router.push("/events/submit");
+          }}
+          className="group mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-[12px] px-4 py-2.5 transition-colors hover:bg-[#F4F7FE]"
+        >
+          <ExternalLink className="size-4 shrink-0 text-gray-500 group-hover:text-[#4B89EF]" />
+          <span
+            className="font-inter font-normal text-[rgba(0,0,0,0.60)] group-hover:text-[#4B89EF] transition-colors"
+            style={{
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: "14px",
+              fontStyle: "normal",
+              fontWeight: 400,
+              lineHeight: "150%",
+            }}
+          >
+            Hosting elsewhere? List an external event on our calendar
+          </span>
+        </button>
       </div>
 
       <PrimaryCard />
