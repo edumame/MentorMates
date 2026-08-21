@@ -20,13 +20,19 @@ export function SubmitEventPageContent() {
         }
       >
         <h1 className="font-geist text-[32px] sm:text-[36px] font-semibold tracking-[-0.04em] text-black">
-          Submit Event
+          Submit Your Event
         </h1>
         <p className="mt-2 text-[15px] text-[rgba(0,0,0,0.65)]">
-          List your hackathon or event on the MentorMates events calendar.
-          Attendees are sent to your own registration page — no sign-in
-          required to submit. An admin will review your submission and reach
-          out to your email if your event is approved.
+          MentorMates is the one-stop shop for Silicon Valley resources — and
+          listing your hackathon here is more than a calendar spot. We connect
+          organizers to sponsors from YC, a16z (Speedrun), and the latest AI
+          startups actively looking to get in front of builders. Last year
+          alone, we helped organizers raise over $100,000 from leading AI
+          companies. We also help your hackers: our core focus is talent
+          development and access — connecting builders to top incubators and
+          accelerators so your event creates real career momentum. Submit your
+          event below and our team will reach out to connect you with the right
+          resources.
         </p>
         <div className="mt-8">
           <SubmitEventForm />
