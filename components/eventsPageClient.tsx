@@ -336,9 +336,9 @@ export function EventsPageClient({
         <div className="min-w-0 max-w-full">
           <div
             className={cn(
-              "sticky z-30 bg-white pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]",
+              "sticky z-30 -mx-2 mb-6 border-b border-[rgba(0,0,0,0.08)] bg-white px-2 pb-0",
               isAuthenticated
-                ? "top-0 -mt-[24px] pt-[27px]"
+                ? "top-0 lg:-mt-[24px] lg:pt-[27px]"
                 : "top-[72px] pt-3"
             )}
           >
