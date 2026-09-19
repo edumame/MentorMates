@@ -2,7 +2,13 @@
 
 Invite-gated, rate-limited pass-through to Typesafe's Jev model via OpenRouter. Built so we can let a few people try Jev through MentorMates without handing out anyone's personal key, and so we can revoke at any time.
 
-## How a caller uses it
+## Playground (what we actually send people)
+
+`https://www.mentormates.ai/internal/jev?invite=<code>` renders a small page: paste your MentorMates API key (kept in the browser's localStorage only), type a question, see Jev's answer, latency, and calls left this minute. An invalid, revoked, expired, or exhausted invite renders the normal 404 page, so the URL is not discoverable. `robots: noindex`.
+
+Files: `app/internal/jev/page.tsx` (server-side invite check), `components/internal/jev-playground.tsx`, `lib/internal/jev-client.ts` (tests next to each).
+
+## How a caller uses it (API)
 
 ```bash
 curl -s https://www.mentormates.ai/api/internal/jev?invite=<code> \
@@ -33,7 +39,7 @@ values ('jev-aikagra-0919', 'Aikagra (SEA Hacks winner)', 'jev', 500, now() + in
 returning code;
 ```
 
-Hand out: `https://www.mentormates.ai/api/internal/jev?invite=jev-aikagra-0919` plus "create an API key in your MentorMates profile".
+Hand out: `https://www.mentormates.ai/internal/jev?invite=jev-aikagra-0919` (the playground) plus "create an API key in your MentorMates profile". Programmatic callers use the same code against `/api/internal/jev`.
 
 Revoke: `update public.internal_invites set revoked_at = now() where code = '...';` Revoking the caller's `agent_api_keys` row also cuts them off immediately.
 
