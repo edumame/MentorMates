@@ -1,5 +1,5 @@
 /**
- * Internal, invite-gated proxy for Typesafe's Jev model (via OpenRouter).
+ * Internal, invite-gated proxy for Typesafe's Jev API (POST /v1/systemone).
  *
  * Pure helpers live here so the route stays thin and the rules are unit-tested:
  *   - checkInvite: is this invite usable for this service right now?
@@ -8,7 +8,7 @@
  */
 
 export const JEV_SERVICE = "jev";
-export const JEV_MODEL = process.env.JEV_MODEL || "typesafe/jev-1.13";
+export const JEV_MODEL = process.env.JEV_MODEL || "jev-latest";
 export const JEV_RATE_LIMIT = Number(process.env.INTERNAL_JEV_RATE_LIMIT || 5);
 export const JEV_WINDOW_MS = 60_000;
 export const JEV_MAX_BODY_BYTES = 32 * 1024;
@@ -62,34 +62,53 @@ export function decideRateLimit(
   return { allowed: false, remaining: 0, retryAfterSeconds: Math.max(1, Math.ceil(msUntilFree / 1000)) };
 }
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+export type JevQuestionType = "noul" | "choice" | "score";
+export type JevQuestion = {
+  type: JevQuestionType;
+  instructions: unknown;
+  criteria?: unknown;
+};
 export type UpstreamBody = {
   model: string;
-  messages: ChatMessage[];
-  stream: false;
-  response_format?: unknown;
-  temperature?: number;
-  max_tokens?: number;
+  state: unknown;
+  questions: Record<string, JevQuestion>;
 };
 
+const QUESTION_TYPES: JevQuestionType[] = ["noul", "choice", "score"];
+const MAX_QUESTIONS = 10;
+
+/** Validate a caller's Typesafe-shaped body and pin the model. */
 export function buildUpstreamBody(input: unknown): UpstreamBody {
-  if (!input || typeof input !== "object") throw new Error("Body must be a JSON object with messages");
+  if (!input || typeof input !== "object") throw new Error("Body must be a JSON object with state and questions");
   const raw = input as Record<string, unknown>;
-  if (raw.stream) throw new Error("stream is not supported on this endpoint");
-  const messages = raw.messages;
-  if (!Array.isArray(messages) || messages.length === 0) throw new Error("messages[] is required");
-  if (messages.length > 50) throw new Error("messages[] is limited to 50 entries");
-  const clean: ChatMessage[] = messages.map((m) => {
-    if (!m || typeof m !== "object") throw new Error("Each message needs a role and content");
-    const { role, content } = m as { role?: unknown; content?: unknown };
-    if (role !== "user" && role !== "assistant") throw new Error("role must be user or assistant");
-    if (typeof content !== "string" || !content) throw new Error("content must be a non-empty string");
-    return { role, content };
-  });
-  const body: UpstreamBody = { model: JEV_MODEL, messages: clean, stream: false };
-  if (raw.response_format !== undefined) body.response_format = raw.response_format;
-  if (typeof raw.temperature === "number") body.temperature = raw.temperature;
-  if (typeof raw.max_tokens === "number") body.max_tokens = Math.min(raw.max_tokens, 4096);
+  const state = raw.state;
+  if (state === undefined || state === null || state === "") throw new Error("state is required (the text, object, or array to evaluate)");
+  const questions = raw.questions;
+  if (!questions || typeof questions !== "object" || Array.isArray(questions) || Object.keys(questions).length === 0)
+    throw new Error("questions must be a non-empty object of named questions");
+  const entries = Object.entries(questions as Record<string, unknown>);
+  if (entries.length > MAX_QUESTIONS) throw new Error(`At most ${MAX_QUESTIONS} questions per call`);
+  const clean: Record<string, JevQuestion> = {};
+  for (const [id, q] of entries) {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error(`Question id "${id}" must be 1-64 letters, digits, _ or -`);
+    if (!q || typeof q !== "object") throw new Error(`Question "${id}" must be an object`);
+    const { type, instructions, criteria } = q as Record<string, unknown>;
+    if (!QUESTION_TYPES.includes(type as JevQuestionType)) throw new Error(`Question "${id}": type must be noul, choice, or score`);
+    if (instructions === undefined || instructions === null || instructions === "") throw new Error(`Question "${id}": instructions are required`);
+    const out: JevQuestion = { type: type as JevQuestionType, instructions };
+    if (type === "choice") {
+      if (!criteria || typeof criteria !== "object" || Array.isArray(criteria) || Object.keys(criteria).length < 2)
+        throw new Error(`Question "${id}": choice needs criteria with at least 2 options`);
+      out.criteria = criteria;
+    } else if (type === "score") {
+      if (!Array.isArray(criteria) || criteria.length < 2) throw new Error(`Question "${id}": score needs criteria with at least 2 ordered levels`);
+      out.criteria = criteria;
+    } else if (criteria !== undefined) {
+      out.criteria = criteria;
+    }
+    clean[id] = out;
+  }
+  const body: UpstreamBody = { model: JEV_MODEL, state, questions: clean };
   if (JSON.stringify(body).length > JEV_MAX_BODY_BYTES) throw new Error("Payload must be under 32 KB");
   return body;
 }

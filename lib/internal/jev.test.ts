@@ -1,9 +1,4 @@
-import {
-  checkInvite,
-  decideRateLimit,
-  buildUpstreamBody,
-  JEV_MODEL,
-} from "./jev";
+import { checkInvite, decideRateLimit, buildUpstreamBody, JEV_MODEL } from "./jev";
 
 const now = new Date("2026-09-19T10:00:00Z");
 
@@ -67,30 +62,46 @@ describe("decideRateLimit", () => {
   });
 });
 
-describe("buildUpstreamBody", () => {
-  it("forces the Jev model and passes messages through", () => {
-    const body = buildUpstreamBody({ model: "gpt-5.4", messages: [{ role: "user", content: "Is 2+2=4?" }] });
-    expect(body).toEqual({ model: JEV_MODEL, messages: [{ role: "user", content: "Is 2+2=4?" }], stream: false });
+describe("buildUpstreamBody (Typesafe /v1/systemone shape)", () => {
+  const q = { verdict: { type: "noul", instructions: "Is this urgent?" } };
+
+  it("pins the model and passes state and questions through", () => {
+    expect(buildUpstreamBody({ model: "gpt-5.4", state: "Payouts failing for 3 days", questions: q })).toEqual({
+      model: JEV_MODEL,
+      state: "Payouts failing for 3 days",
+      questions: q,
+    });
   });
 
-  it("keeps a response_format the caller sets", () => {
-    const body = buildUpstreamBody({ messages: [{ role: "user", content: "x" }], response_format: { type: "json_object" } });
-    expect(body.response_format).toEqual({ type: "json_object" });
+  it("accepts object state", () => {
+    const body = buildUpstreamBody({ state: { subject: "x", body: "y" }, questions: q });
+    expect(body.state).toEqual({ subject: "x", body: "y" });
   });
 
-  it("rejects a body with no messages", () => {
-    expect(() => buildUpstreamBody({})).toThrow(/messages/);
+  it("rejects a body with no state", () => {
+    expect(() => buildUpstreamBody({ questions: q })).toThrow(/state/);
   });
 
-  it("rejects a system role from the client", () => {
-    expect(() => buildUpstreamBody({ messages: [{ role: "system", content: "x" }] })).toThrow(/role/);
+  it("rejects a body with no questions", () => {
+    expect(() => buildUpstreamBody({ state: "x" })).toThrow(/questions/);
+    expect(() => buildUpstreamBody({ state: "x", questions: {} })).toThrow(/questions/);
   });
 
-  it("rejects streaming", () => {
-    expect(() => buildUpstreamBody({ messages: [{ role: "user", content: "x" }], stream: true })).toThrow(/stream/);
+  it("rejects an unknown question type", () => {
+    expect(() => buildUpstreamBody({ state: "x", questions: { a: { type: "essay", instructions: "?" } } })).toThrow(/type/);
+  });
+
+  it("requires criteria for choice and score questions", () => {
+    expect(() => buildUpstreamBody({ state: "x", questions: { a: { type: "choice", instructions: "?" } } })).toThrow(/criteria/);
+    expect(() => buildUpstreamBody({ state: "x", questions: { a: { type: "score", instructions: "?", criteria: ["only one"] } } })).toThrow(/criteria/);
+  });
+
+  it("caps the number of questions at 10", () => {
+    const many = Object.fromEntries(Array.from({ length: 11 }, (_, i) => [`q${i}`, { type: "noul", instructions: "?" }]));
+    expect(() => buildUpstreamBody({ state: "x", questions: many })).toThrow(/10/);
   });
 
   it("rejects a payload over 32 KB", () => {
-    expect(() => buildUpstreamBody({ messages: [{ role: "user", content: "x".repeat(33_000) }] })).toThrow(/32 KB/);
+    expect(() => buildUpstreamBody({ state: "x".repeat(33_000), questions: q })).toThrow(/32 KB/);
   });
 });

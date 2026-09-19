@@ -1,6 +1,6 @@
 # Internal Jev proxy (`POST /api/internal/jev`)
 
-Invite-gated, rate-limited pass-through to Typesafe's Jev model via OpenRouter. Built so we can let a few people try Jev through MentorMates without handing out anyone's personal key, and so we can revoke at any time.
+Invite-gated, rate-limited pass-through to Typesafe's Jev API (`POST https://api.typesafe.ai/v1/systemone`). Built so a few people can try Jev through MentorMates while the Typesafe key stays on the server, with per-key limits and instant revocation.
 
 ## Playground (what we actually send people)
 
@@ -10,23 +10,32 @@ Files: `app/internal/jev/page.tsx` (server-side invite check), `components/inter
 
 ## How a caller uses it (API)
 
+Same body as Typesafe's `/v1/systemone`, minus `model` (pinned server-side):
+
 ```bash
-curl -s https://www.mentormates.ai/api/internal/jev?invite=<code> \
+curl -s "https://www.mentormates.ai/api/internal/jev?invite=<code>" \
   -H "Authorization: Bearer mm_sk_..." \
   -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Is this email a sales pitch? Answer true or false."}]}'
+  -d '{
+    "state": "Help! My payouts have been failing for 3 days.",
+    "questions": {
+      "is_urgent": { "type": "noul", "instructions": "Does this convey urgency?" },
+      "department": { "type": "choice", "instructions": "Which team?", "criteria": { "billing": null, "technical": null, "sales": null } }
+    }
+  }'
 ```
 
 - `invite` can be a query param (the link we hand out) or an `x-invite-code` header.
-- The Bearer token is any MentorMates agent API key (Profile > API Keys). Organizer or participant keys both work; only the key's identity is used.
-- Body is OpenAI chat format: `messages` (user/assistant only), optional `response_format`, `temperature`, `max_tokens`. `model` is ignored and pinned server-side. No streaming.
+- The Bearer token is any MentorMates agent API key (Profile > API Keys).
+- `state` is the text/object/array to evaluate. `questions` is a map of up to 10 named questions of type `noul` (yes/no, returns a 0 to 1 probability), `choice` (needs `criteria` map of options), or `score` (needs `criteria` array of at least 2 ordered levels). Under 32 KB.
+- The response is Typesafe's, unchanged: `answers.<id>.noul | choice + probabilities + confidence | score`, plus `usage`.
 - Limit: `INTERNAL_JEV_RATE_LIMIT` calls per minute per key (default 5). Over the limit returns 429 with `Retry-After`.
 - Without a valid invite the route answers 404, so it is not discoverable.
 
 ## Server config (Vercel env)
 
-- `OPENROUTER_API_KEY` — a MentorMates-owned OpenRouter key with credit. Never a personal Typesafe key.
-- `JEV_MODEL` — defaults to `typesafe/jev-1.13`.
+- `TYPESAFE_API_KEY` — the Typesafe key (`apikey_…`). Jeffery's for now; it never leaves the server and can be rotated at any time.
+- `JEV_MODEL` — defaults to `jev-latest`.
 - `INTERNAL_JEV_RATE_LIMIT` — defaults to `5`.
 
 ## Issuing an invite

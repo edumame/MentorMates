@@ -15,18 +15,18 @@ import {
 /**
  * POST /api/internal/jev
  *
- * Invite-gated, rate-limited proxy to Typesafe's Jev model via OpenRouter.
+ * Invite-gated, rate-limited proxy to Typesafe's Jev API (/v1/systemone).
  * Not discoverable: without a valid invite code the route answers 404.
  *
  *   headers:  x-invite-code: <code>      (or ?invite=<code> in the link we hand out)
  *             Authorization: Bearer mm_sk_…   (any MentorMates agent API key)
- *   body:     { messages: [{ role: "user" | "assistant", content }], response_format?, temperature?, max_tokens? }
+ *   body:     { state, questions: { <id>: { type: noul|choice|score, instructions, criteria? } } }  (model pinned server-side)
  *   limit:    INTERNAL_JEV_RATE_LIMIT calls per minute per key (default 5) → 429 + Retry-After
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-const UPSTREAM_URL = "https://openrouter.ai/api/v1/chat/completions";
+const UPSTREAM_URL = "https://api.typesafe.ai/v1/systemone";
 const ROUTE = "/api/internal/jev";
 
 const notFound = () => NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
 
-  const upstreamKey = process.env.OPENROUTER_API_KEY?.trim();
+  const upstreamKey = process.env.TYPESAFE_API_KEY?.trim();
   if (!upstreamKey) {
     logAgentEvent("internal_jev_not_configured", { route: ROUTE, keyId: auth.keyId }, undefined, "warn");
     return NextResponse.json({ error: "Jev is not configured on this server yet" }, { status: 503 });
@@ -117,8 +117,6 @@ export async function POST(request: NextRequest) {
       headers: {
         Authorization: `Bearer ${upstreamKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://www.mentormates.ai",
-        "X-Title": "MentorMates internal Jev proxy",
       },
       body: JSON.stringify(upstreamBody),
     });
@@ -128,7 +126,7 @@ export async function POST(request: NextRequest) {
     logAgentEvent("internal_jev_upstream_failed", { route: ROUTE, keyId: auth.keyId }, e);
   }
   const latencyMs = Date.now() - startedAt;
-  const usage = (payload as { usage?: { prompt_tokens?: number; completion_tokens?: number } })?.usage;
+  const usage = (payload as { usage?: { input_tokens?: number; output_tokens?: number } })?.usage;
 
   const { error: insertError } = await supabase.from("internal_api_usage").insert({
     service: JEV_SERVICE,
@@ -136,8 +134,8 @@ export async function POST(request: NextRequest) {
     invite_id: invite.id,
     status,
     latency_ms: latencyMs,
-    prompt_tokens: usage?.prompt_tokens ?? null,
-    completion_tokens: usage?.completion_tokens ?? null,
+    prompt_tokens: usage?.input_tokens ?? null,
+    completion_tokens: usage?.output_tokens ?? null,
   });
   if (insertError) logAgentEvent("internal_usage_insert_failed", { route: ROUTE, keyId: auth.keyId }, insertError);
   void supabase.rpc("increment_internal_invite_uses", { p_invite_id: invite.id });

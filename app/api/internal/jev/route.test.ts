@@ -77,13 +77,14 @@ function req(opts: { method?: string; invite?: string; body?: unknown; auth?: st
 
 const liveInvite = { id: "inv-1", code: "beta-2026", service: "jev", revoked_at: null, expires_at: null, max_uses: null, uses: 0 };
 const authed = { userId: "user-1", eventId: "", scopes: [], keyId: "key-1" };
-const upstreamJson = { id: "gen-1", choices: [{ message: { role: "assistant", content: "true" } }], usage: { prompt_tokens: 12, completion_tokens: 1 } };
+const upstreamJson = { model: "jev-1.13.0", answers: { verdict: { type: "noul", noul: 0.92 } }, usage: { input_tokens: 312, output_tokens: 48 } };
+const goodBody = { state: "Payouts failing for 3 days", questions: { verdict: { type: "noul", instructions: "Is this urgent?" } } };
 
 describe("/api/internal/jev", () => {
   const realFetch = global.fetch;
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.OPENROUTER_API_KEY = "or-test-key";
+    process.env.TYPESAFE_API_KEY = "apikey_test";
     global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => upstreamJson });
   });
   afterAll(() => {
@@ -98,7 +99,7 @@ describe("/api/internal/jev", () => {
   it("returns 404 (not 401) when the invite code is missing, so the route stays hidden", async () => {
     const { client } = fakeSupabase({ invite: null, usage: [] });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
-    const res = await POST(req({ body: { messages: [{ role: "user", content: "hi" }] } }));
+    const res = await POST(req({ body: goodBody }));
     expect(res.status).toBe(404);
     expect(authenticateAgentRequest).not.toHaveBeenCalled();
   });
@@ -106,7 +107,7 @@ describe("/api/internal/jev", () => {
   it("returns 404 for a revoked invite", async () => {
     const { client } = fakeSupabase({ invite: { ...liveInvite, revoked_at: "2026-09-18T00:00:00Z" }, usage: [] });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
-    const res = await POST(req({ invite: "beta-2026", body: { messages: [{ role: "user", content: "hi" }] } }));
+    const res = await POST(req({ invite: "beta-2026", body: goodBody }));
     expect(res.status).toBe(404);
   });
 
@@ -115,7 +116,7 @@ describe("/api/internal/jev", () => {
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
     const { NextResponse } = jest.requireMock("next/server");
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(NextResponse.json({ error: "Invalid API key" }, { status: 401 }));
-    const res = await POST(req({ invite: "beta-2026", body: { messages: [{ role: "user", content: "hi" }] } }));
+    const res = await POST(req({ invite: "beta-2026", body: goodBody }));
     expect(res.status).toBe(401);
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -126,7 +127,7 @@ describe("/api/internal/jev", () => {
     const { client, inserted } = fakeSupabase({ invite: liveInvite, usage });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
-    const res = await POST(req({ invite: "beta-2026", body: { messages: [{ role: "user", content: "hi" }] } }));
+    const res = await POST(req({ invite: "beta-2026", body: goodBody }));
     expect(res.status).toBe(429);
     expect(Number(res.headers.get("Retry-After"))).toBeGreaterThanOrEqual(1);
     expect(global.fetch).not.toHaveBeenCalled();
@@ -137,31 +138,32 @@ describe("/api/internal/jev", () => {
     const { client } = fakeSupabase({ invite: liveInvite, usage: [] });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
-    const res = await POST(req({ invite: "beta-2026", body: { messages: [] } }));
+    const res = await POST(req({ invite: "beta-2026", body: { state: "x" } }));
     expect(res.status).toBe(400);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("forwards to OpenRouter with the pinned model and server key, logs usage, and returns the upstream JSON", async () => {
+  it("forwards to Typesafe with the pinned model and server key, logs usage, and returns the upstream JSON", async () => {
     const { client, inserted, rpc } = fakeSupabase({ invite: liveInvite, usage: [] });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
     const res = await POST(
-      req({ invite: "beta-2026", auth: "Bearer mm_sk_x", body: { model: "gpt-5.4", messages: [{ role: "user", content: "Is water wet?" }] } })
+      req({ invite: "beta-2026", auth: "Bearer mm_sk_x", body: { model: "gpt-5.4", ...goodBody } })
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(upstreamJson);
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("4");
 
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
-    expect(init.headers.Authorization).toBe("Bearer or-test-key");
+    expect(url).toBe("https://api.typesafe.ai/v1/systemone");
+    expect(init.headers.Authorization).toBe("Bearer apikey_test");
     const sent = JSON.parse(init.body);
-    expect(sent.model).toBe("typesafe/jev-1.13");
-    expect(sent.messages).toEqual([{ role: "user", content: "Is water wet?" }]);
+    expect(sent.model).toBe("jev-latest");
+    expect(sent.state).toBe(goodBody.state);
+    expect(sent.questions).toEqual(goodBody.questions);
 
     expect(inserted).toHaveLength(1);
-    expect(inserted[0]).toMatchObject({ service: "jev", key_id: "key-1", invite_id: "inv-1", status: 200, prompt_tokens: 12, completion_tokens: 1 });
+    expect(inserted[0]).toMatchObject({ service: "jev", key_id: "key-1", invite_id: "inv-1", status: 200, prompt_tokens: 312, completion_tokens: 48 });
     expect(rpc).toHaveBeenCalledWith("increment_internal_invite_uses", { p_invite_id: "inv-1" });
   });
 
@@ -170,17 +172,17 @@ describe("/api/internal/jev", () => {
     const { client, inserted } = fakeSupabase({ invite: liveInvite, usage: [] });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
-    const res = await POST(req({ invite: "beta-2026", body: { messages: [{ role: "user", content: "hi" }] } }));
+    const res = await POST(req({ invite: "beta-2026", body: goodBody }));
     expect(res.status).toBe(502);
     expect(inserted[0]).toMatchObject({ status: 503 });
   });
 
   it("returns 503 when the server has no upstream key configured", async () => {
-    delete process.env.OPENROUTER_API_KEY;
+    delete process.env.TYPESAFE_API_KEY;
     const { client } = fakeSupabase({ invite: liveInvite, usage: [] });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
-    const res = await POST(req({ invite: "beta-2026", body: { messages: [{ role: "user", content: "hi" }] } }));
+    const res = await POST(req({ invite: "beta-2026", body: goodBody }));
     expect(res.status).toBe(503);
     expect(global.fetch).not.toHaveBeenCalled();
   });
