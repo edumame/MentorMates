@@ -97,6 +97,11 @@ export function Footer() {
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-700">
                   <li>
+                    <Link href="/modules" className="hover:text-gray-900">
+                      Modules
+                    </Link>
+                  </li>
+                  <li>
                     <Link href="/host" className="hover:text-gray-900">
                       Host a hackathon
                     </Link>
