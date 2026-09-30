@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import {
-  createSupabaseClient,
-  createSupabaseServiceClient,
-} from "@/app/utils/supabase/server";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
+// The cookie-based client in app/utils/supabase/server sends the caller's
+// session JWT, so RLS still applies; writes need this pure service client.
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import {
   buildReportBody,
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const service = await createSupabaseServiceClient();
+    const service = createSupabaseServiceClient();
     const id = crypto.randomUUID();
 
     const screenshotUrls: string[] = [];
