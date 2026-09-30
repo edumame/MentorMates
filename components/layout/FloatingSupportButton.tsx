@@ -20,6 +20,7 @@ const XIcon = ({ className }: { className?: string }) => (
 );
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { BugReportDialog } from "@/components/layout/BugReportDialog";
 
 interface SocialItem {
   label: string;
@@ -84,10 +85,13 @@ const docs: DocItem[] = [
 
 export function FloatingSupportButton() {
   const [open, setOpen] = React.useState(false);
+  const [reportOpen, setReportOpen] = React.useState(false);
   const pathname = usePathname();
   const isChatPage = pathname?.startsWith("/chat");
 
   return (
+    <>
+    <BugReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
@@ -143,11 +147,13 @@ export function FloatingSupportButton() {
                   <p className="text-xs text-gray-500 truncate">contact@outreach.mentormates.ai</p>
                 </div>
               </a>
-              <a
-                href="https://forms.gle/RazbHHjkvHhK4SGk6"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setReportOpen(true);
+                }}
+                className="flex w-full items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group text-left"
               >
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-500 group-hover:bg-red-100 transition-colors">
                   <Bug className="h-4 w-4" />
@@ -156,7 +162,7 @@ export function FloatingSupportButton() {
                   <p className="text-sm font-medium text-gray-900">Report a Bug</p>
                   <p className="text-xs text-gray-500 truncate">Help us improve MentorMates</p>
                 </div>
-              </a>
+              </button>
             </div>
           </section>
 
@@ -211,5 +217,6 @@ export function FloatingSupportButton() {
         </div>
       </PopoverContent>
     </Popover>
+    </>
   );
 }
