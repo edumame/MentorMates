@@ -115,7 +115,7 @@
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "resend": "^4.8.0",
-    "shipcue": "https://github.com/cyu60/shipcue/releases/download/v0.10.2/shipcue-0.10.2.tgz",
+    "shipcue": "https://github.com/cyu60/shipcue/releases/download/v0.10.5/shipcue-0.10.5.tgz",
     "sonner": "^2.0.7",
     "stream-chat": "9.25.0",
     "stream-chat-react": "13.11.0",
