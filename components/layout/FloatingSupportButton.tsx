@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug, PlayCircle } from "lucide-react";
+import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug, Lightbulb, PlayCircle } from "lucide-react";
+import { openReport } from "shipcue/react";
 
 // Custom Discord icon since lucide-react doesn't have one
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -20,7 +21,7 @@ const XIcon = ({ className }: { className?: string }) => (
 );
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { BugReportDialog } from "@/components/layout/BugReportDialog";
+import { floatingPlacement, type FloatingPlacement } from "@/lib/shipcue/placement";
 
 interface SocialItem {
   label: string;
@@ -83,21 +84,46 @@ const docs: DocItem[] = [
   },
 ];
 
+// Stacked directly above shipcue's report bubble (48px, 16px from the corner),
+// in the same column. Keep in step with the shipcue rules in app/globals.css.
+const SUPPORT_POSITION: Record<FloatingPlacement, string> = {
+  default: "bottom-[76px]",
+  chat: "bottom-[172px] md:bottom-[188px]",
+  "mobile-bar": "bottom-[140px] sm:bottom-[76px]",
+};
+
+/**
+ * Bug reports and feature requests are shipcue's (ShipcueReportButton); the
+ * items here open its panel. This popover keeps contact, socials and docs.
+ */
+const reportItems = [
+  {
+    type: "bug" as const,
+    label: "Report a Bug",
+    description: "Help us improve MentorMates",
+    icon: <Bug className="h-4 w-4" />,
+    tone: "bg-red-50 text-red-500 group-hover:bg-red-100",
+  },
+  {
+    type: "feature" as const,
+    label: "Request a Feature",
+    description: "Tell us what would help",
+    icon: <Lightbulb className="h-4 w-4" />,
+    tone: "bg-amber-50 text-amber-600 group-hover:bg-amber-100",
+  },
+];
+
 export function FloatingSupportButton() {
   const [open, setOpen] = React.useState(false);
-  const [reportOpen, setReportOpen] = React.useState(false);
   const pathname = usePathname();
-  const isChatPage = pathname?.startsWith("/chat");
 
   return (
-    <>
-    <BugReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "fixed right-4 z-40 md:right-6",
-            isChatPage ? "bottom-28 md:bottom-32" : "bottom-4 md:bottom-6",
+            "fixed right-4 z-40",
+            SUPPORT_POSITION[floatingPlacement(pathname)],
             "flex items-center justify-center w-12 h-12 rounded-full",
             "bg-[#4B89EF] text-white",
             "shadow-lg hover:bg-[#3E7EEA] transition-all duration-200",
@@ -147,22 +173,30 @@ export function FloatingSupportButton() {
                   <p className="text-xs text-gray-500 truncate">contact@outreach.mentormates.ai</p>
                 </div>
               </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  setReportOpen(true);
-                }}
-                className="flex w-full items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group text-left"
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-500 group-hover:bg-red-100 transition-colors">
-                  <Bug className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">Report a Bug</p>
-                  <p className="text-xs text-gray-500 truncate">Help us improve MentorMates</p>
-                </div>
-              </button>
+              {reportItems.map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    openReport(item.type);
+                  }}
+                  className="flex w-full items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group text-left"
+                >
+                  <div
+                    className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-full transition-colors",
+                      item.tone
+                    )}
+                  >
+                    {item.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                    <p className="text-xs text-gray-500 truncate">{item.description}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           </section>
 
@@ -217,6 +251,5 @@ export function FloatingSupportButton() {
         </div>
       </PopoverContent>
     </Popover>
-    </>
   );
 }
