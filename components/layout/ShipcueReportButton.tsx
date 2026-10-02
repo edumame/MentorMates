@@ -9,6 +9,7 @@ import {
   PUBLIC_TYPES,
   SHIPCUE_AREAS,
   SHIPCUE_BASE_PATH,
+  shipcueConfig,
 } from "@/lib/shipcue/config";
 import { floatingPlacement } from "@/lib/shipcue/placement";
 import { useIsAdmin } from "@/lib/shipcue/use-is-admin";
@@ -67,6 +68,8 @@ export function ShipcueReportButton() {
         {...(userId
           ? { uploadVideo: uploadReportVideo }
           : { submit: submitAnonymous })}
+        // The handler's own limits; signed-out reports go through submit, so pass them too.
+        limits={shipcueConfig}
         successMessage="Thanks! The MentorMates team has it."
         trigger={false}
       />
