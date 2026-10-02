@@ -346,8 +346,8 @@ importers:
         specifier: ^4.8.0
         version: 4.8.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       shipcue:
-        specifier: https://github.com/cyu60/shipcue/releases/download/v0.6.1/shipcue-0.6.1.tgz
-        version: https://github.com/cyu60/shipcue/releases/download/v0.6.1/shipcue-0.6.1.tgz(react@18.3.1)
+        specifier: https://github.com/cyu60/shipcue/releases/download/v0.6.2/shipcue-0.6.2.tgz
+        version: https://github.com/cyu60/shipcue/releases/download/v0.6.2/shipcue-0.6.2.tgz(react@18.3.1)
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -6997,9 +6997,9 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
-  shipcue@https://github.com/cyu60/shipcue/releases/download/v0.6.1/shipcue-0.6.1.tgz:
-    resolution: {tarball: https://github.com/cyu60/shipcue/releases/download/v0.6.1/shipcue-0.6.1.tgz}
-    version: 0.6.1
+  shipcue@https://github.com/cyu60/shipcue/releases/download/v0.6.2/shipcue-0.6.2.tgz:
+    resolution: {tarball: https://github.com/cyu60/shipcue/releases/download/v0.6.2/shipcue-0.6.2.tgz}
+    version: 0.6.2
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -15750,7 +15750,7 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
-  shipcue@https://github.com/cyu60/shipcue/releases/download/v0.6.1/shipcue-0.6.1.tgz(react@18.3.1):
+  shipcue@https://github.com/cyu60/shipcue/releases/download/v0.6.2/shipcue-0.6.2.tgz(react@18.3.1):
     dependencies:
       '@modelcontextprotocol/sdk': 1.31.0(zod@4.6.5)
       zod: 4.6.5
