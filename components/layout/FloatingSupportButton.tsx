@@ -3,7 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug, Lightbulb, PlayCircle } from "lucide-react";
+import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug, Lightbulb, PlayCircle, Bot } from "lucide-react";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { useIsAdmin } from "@/lib/shipcue/use-is-admin";
 import { openReport } from "shipcue/react";
 
 // Custom Discord icon since lucide-react doesn't have one
@@ -84,12 +86,13 @@ const docs: DocItem[] = [
   },
 ];
 
-// Stacked directly above shipcue's report bubble (48px, 16px from the corner),
-// in the same column. Keep in step with the shipcue rules in app/globals.css.
+// The one button in the bottom-right corner: shipcue draws no bubble of its own
+// and its panel opens just above this one. Pages with their own controls in the
+// corner move it up. Keep in step with the shipcue rules in app/globals.css.
 const SUPPORT_POSITION: Record<FloatingPlacement, string> = {
-  default: "bottom-[76px]",
-  chat: "bottom-[172px] md:bottom-[188px]",
-  "mobile-bar": "bottom-[140px] sm:bottom-[76px]",
+  default: "bottom-4",
+  chat: "bottom-[112px] md:bottom-[128px]",
+  "mobile-bar": "bottom-20 sm:bottom-4",
 };
 
 /**
@@ -113,9 +116,21 @@ const reportItems = [
   },
 ];
 
+/** Admins can also hand work straight to a coding agent. */
+const agentTaskItem = {
+  type: "task" as const,
+  label: "Agent task",
+  description: "Hand a task to a coding agent",
+  icon: <Bot className="h-4 w-4" />,
+  tone: "bg-violet-50 text-violet-600 group-hover:bg-violet-100",
+};
+
 export function FloatingSupportButton() {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
+  const { session } = useAuth();
+  const isAdmin = useIsAdmin(session?.user?.id);
+  const items = isAdmin ? [...reportItems, agentTaskItem] : reportItems;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -173,7 +188,7 @@ export function FloatingSupportButton() {
                   <p className="text-xs text-gray-500 truncate">contact@outreach.mentormates.ai</p>
                 </div>
               </a>
-              {reportItems.map((item) => (
+              {items.map((item) => (
                 <button
                   key={item.type}
                   type="button"

@@ -1,6 +1,5 @@
-// Where the two bottom-right buttons sit. shipcue's report bubble takes the
-// corner; the support button stacks directly above it. Some pages have their
-// own controls in that corner, so both buttons move up together there.
+// Where the bottom-right support circle (and shipcue's panel above it) sits.
+// Some pages have their own controls in that corner, so it moves up there.
 
 /**
  * - "chat": the chat composer fills the bottom of the screen on every size.

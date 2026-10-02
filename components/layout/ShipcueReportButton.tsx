@@ -4,7 +4,6 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { ReportButton, type SubmitResult } from "shipcue/react";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-import { supabase } from "@/lib/supabase";
 import {
   ADMIN_TYPES,
   PUBLIC_TYPES,
@@ -12,6 +11,7 @@ import {
   SHIPCUE_BASE_PATH,
 } from "@/lib/shipcue/config";
 import { floatingPlacement } from "@/lib/shipcue/placement";
+import { useIsAdmin } from "@/lib/shipcue/use-is-admin";
 import { uploadReportVideo } from "@/lib/shipcue/upload-video";
 
 const ACCENT = "#4B89EF";
@@ -38,30 +38,13 @@ async function submitAnonymous(form: FormData): Promise<SubmitResult> {
   return { error: body.error ?? "Could not send the report. Please try again." };
 }
 
-function useIsAdmin(userId: string | undefined): boolean {
-  const [isAdmin, setIsAdmin] = React.useState(false);
-  React.useEffect(() => {
-    if (!userId) {
-      setIsAdmin(false);
-      return;
-    }
-    let live = true;
-    void Promise.resolve(supabase.rpc("is_admin_user", { user_id: userId })).then(
-      ({ data }) => live && setIsAdmin(Boolean(data)),
-      () => live && setIsAdmin(false)
-    );
-    return () => {
-      live = false;
-    };
-  }, [userId]);
-  return isAdmin;
-}
 
 /**
  * shipcue's report button (github.com/cyu60/shipcue): bug reports, feature
  * requests and, for admins, agent tasks, all into the shipcue_reports queue
- * that coding agents work over MCP. Sits in the bottom-right corner; the
- * support button stacks above it (see FloatingSupportButton). Hotkeys:
+ * that coding agents work over MCP. It draws no button of its own
+ * (trigger={false}): the support circle (FloatingSupportButton) opens it, as
+ * do the hotkeys. The panel opens just above that circle. Hotkeys:
  * ⌃B bug, ⌃F feature, ⌘J agent task on a Mac; Alt+Shift+B/F/J elsewhere.
  */
 export function ShipcueReportButton() {
@@ -85,6 +68,7 @@ export function ShipcueReportButton() {
           ? { uploadVideo: uploadReportVideo }
           : { submit: submitAnonymous })}
         successMessage="Thanks! The MentorMates team has it."
+        trigger={false}
       />
     </div>
   );
