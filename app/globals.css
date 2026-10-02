@@ -406,3 +406,24 @@ body {
   width: 20px;
   height: 20px;
 }
+
+/* shipcue report button (components/layout/ShipcueReportButton.tsx). It sits in
+   the bottom-right corner with the support button stacked above it; on pages
+   with their own controls in that corner both move up (lib/shipcue/placement.ts).
+   shipcue positions itself with inline styles, hence !important. */
+[data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] {
+  bottom: calc(7rem + env(safe-area-inset-bottom)) !important;
+}
+[data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] [role="dialog"] {
+  max-height: calc(100dvh - 12rem) !important;
+}
+@media (min-width: 768px) {
+  [data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] {
+    bottom: calc(8rem + env(safe-area-inset-bottom)) !important;
+  }
+}
+@media (max-width: 639px) {
+  [data-mm-shipcue][data-placement="mobile-bar"] [data-shipcue="floating"] {
+    bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
+  }
+}
