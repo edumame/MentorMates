@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { openReport } from "shipcue/react";
 import userEvent from "@testing-library/user-event";
 import { ShipcueReportButton } from "@/components/layout/ShipcueReportButton";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
@@ -16,9 +17,11 @@ const signedIn = (id = "u1") =>
   mockUseAuth.mockReturnValue({ session: { user: { id } }, isLoading: false, isAuthenticated: true });
 const signedOut = () => mockUseAuth.mockReturnValue({ session: null, isLoading: false, isAuthenticated: false });
 
+// shipcue draws no button here; the support circle opens it with openReport().
 const openPanel = async () => {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: /report a bug or request a feature/i }));
+  act(() => openReport("bug"));
+  await screen.findByRole("dialog");
   return user;
 };
 
@@ -26,6 +29,12 @@ describe("ShipcueReportButton", () => {
   beforeEach(() => {
     mockPathname = "/events";
     mockRpc.mockReset();
+  });
+
+  it("draws no button of its own, so the support circle is the only one", () => {
+    signedOut();
+    render(<ShipcueReportButton />);
+    expect(screen.queryByRole("button", { name: /report a bug or request a feature/i })).not.toBeInTheDocument();
   });
 
   it("shows bug and feature tabs, the areas, and the shipcue watermark to signed-out visitors", async () => {
