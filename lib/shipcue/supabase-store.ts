@@ -5,7 +5,7 @@
 // in the state it needs (open to claim, claimed to release, no video yet to
 // attach one). Taking the next report is the shipcue_claim_next() SQL function,
 // which locks with FOR UPDATE SKIP LOCKED so two agents never get the same one.
-import type { Report, Status } from "shipcue";
+import { toClaimant, type Claimant, type Report, type Status } from "shipcue";
 import type { ReportStore } from "shipcue/server";
 import type { ServiceSupabaseClient, ShipcueReportRow } from "@/lib/supabase/service";
 
@@ -67,6 +67,13 @@ function unwrap(op: string, { data, error }: Result): Row | null {
   return (data as Row | null) ?? null;
 }
 
+/**
+ * shipcue 0.13+ passes a claimant (a person or an agent) where it used to pass a name. This
+ * table keeps only the name in claimed_by, as before; the claim model's extra columns and its
+ * optional store methods (assign, heartbeat, review, events) are not used here.
+ */
+const claimantName = (who: string | Claimant) => toClaimant(who).name;
+
 export function supabaseStore(db: ServiceSupabaseClient): ReportStore {
   const now = () => new Date().toISOString();
   const one = (op: string, res: Result) => {
@@ -110,7 +117,8 @@ export function supabaseStore(db: ServiceSupabaseClient): ReportStore {
 
     async list(filter: { status?: Status } = {}) {
       let query = db.from(TABLE).select(COLUMNS).eq("is_deleted", false);
-      if (filter.status) query = query.eq("status", filter.status);
+      // in_review (shipcue 0.13+) is never stored in this table, so it simply matches nothing.
+      if (filter.status) query = query.eq("status", filter.status as Row["status"]);
       const { data, error } = await query
         .order("priority_rank", { ascending: false })
         .order("created_at", { ascending: true })
@@ -119,19 +127,19 @@ export function supabaseStore(db: ServiceSupabaseClient): ReportStore {
       return ((data ?? []) as Row[]).map(toReport);
     },
 
-    async claimNext(agent) {
-      const { data, error } = await db.rpc("shipcue_claim_next", { p_agent: agent });
+    async claimNext(who) {
+      const { data, error } = await db.rpc("shipcue_claim_next", { p_agent: claimantName(who) });
       if (error) throw new Error(`shipcue store claimNext: ${error.message}`);
       const row = (Array.isArray(data) ? data[0] : data) as Row | undefined;
       return row ? toReport(row) : null;
     },
 
-    async claim(id, agent) {
+    async claim(id, who) {
       if (!UUID.test(id)) return null;
       const t = now();
       const res = await db
         .from(TABLE)
-        .update({ status: "claimed", claimed_by: agent, claimed_at: t, updated_at: t })
+        .update({ status: "claimed", claimed_by: claimantName(who), claimed_at: t, updated_at: t })
         .eq("id", id)
         .eq("status", "open")
         .eq("is_deleted", false)
