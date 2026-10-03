@@ -173,6 +173,15 @@ describe("supabaseStore", () => {
     ]);
   });
 
+  it("keeps the claimant's name when shipcue 0.13+ passes a person or an agent", async () => {
+    const { client, calls } = fakeClient({ data: null, error: null });
+    await supabaseStore(client).claim(ID, { kind: "person", id: "pat@example.com", name: "Pat" });
+    expect(named(calls, "update")[0][0]).toMatchObject({ status: "claimed", claimed_by: "Pat" });
+    const next = fakeClient({ data: [], error: null });
+    await supabaseStore(next.client).claimNext({ kind: "agent", id: "claude-code", name: "claude-code" });
+    expect(named(next.calls, "rpc")).toEqual([["shipcue_claim_next", { p_agent: "claude-code" }]]);
+  });
+
   it("releases only a claimed report", async () => {
     const { client, calls } = fakeClient({ data: row(), error: null });
     await supabaseStore(client).release(ID);
