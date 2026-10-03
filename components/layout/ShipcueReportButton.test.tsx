@@ -10,6 +10,12 @@ jest.mock("next/navigation", () => ({ usePathname: () => mockPathname }));
 jest.mock("@/features/user/authentication/auth/AuthContext", () => ({ useAuth: jest.fn() }));
 jest.mock("@/lib/supabase", () => ({ supabase: { rpc: jest.fn(), storage: { from: jest.fn() } } }));
 
+// Signed in, the panel asks the handler for /capabilities; jsdom has no fetch.
+// A failed request makes shipcue fall back to the limits prop, as it would offline.
+beforeAll(() => {
+  global.fetch = jest.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
+});
+
 const mockUseAuth = useAuth as jest.Mock;
 const mockRpc = supabase.rpc as jest.Mock;
 
