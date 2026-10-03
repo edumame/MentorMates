@@ -72,6 +72,11 @@ export function ShipcueReportButton() {
         limits={shipcueConfig}
         successMessage="Thanks! The MentorMates team has it."
         trigger={false}
+        // No page tint when the panel opens (shipcue 0.21+ default). The panel opens from
+        // the support menu for mostly signed-out, non-technical visitors, and often over a
+        // Radix dialog that owns Esc and outside clicks; a dark page there reads as broken.
+        // Select area (its tile, or ⌃⇧A) still captures part of the page on demand.
+        captureOnOpen={false}
       />
     </div>
   );
