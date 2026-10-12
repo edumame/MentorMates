@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "../../utils/supabase/server";
 import { hasPersistedOnboardingState } from "@/features/user/onboarding/metadata";
+import { getSafeRedirectPath } from "@/features/user/authentication/redirect/redirect-url";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -65,10 +66,10 @@ export async function GET(request: Request) {
   }
 
   // Default redirect for non-mentor users
-  const returnUrl = searchParams.get("returnUrl") || "";
-  const cleanReturnUrl = returnUrl.startsWith("/")
-    ? returnUrl.slice(1)
-    : returnUrl;
+  const returnUrl = getSafeRedirectPath(
+    searchParams.get("returnUrl"),
+    cleanBaseUrl
+  );
 
   // If onboarding metadata is missing or empty, redirect to onboarding flow
   const needsOnboarding = !hasPersistedOnboardingState(
@@ -76,10 +77,12 @@ export async function GET(request: Request) {
   );
 
   if (needsOnboarding) {
-    const onboardingUrl = `${cleanBaseUrl}/onboarding${cleanReturnUrl ? `?returnUrl=${encodeURIComponent(`/${cleanReturnUrl}`)}` : ""}`;
+    const onboardingUrl = new URL("/onboarding", cleanBaseUrl);
+    if (returnUrl && returnUrl !== "/") {
+      onboardingUrl.searchParams.set("returnUrl", returnUrl);
+    }
     return NextResponse.redirect(onboardingUrl);
   }
 
-  const participantRedirectUrl = `${cleanBaseUrl}/${cleanReturnUrl}`;
-  return NextResponse.redirect(participantRedirectUrl);
+  return NextResponse.redirect(new URL(returnUrl ?? "/", cleanBaseUrl));
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
@@ -109,12 +109,21 @@ interface ProjectData {
 
 interface SubmissionsTabProps {
   eventId: string;
+  /**
+   * When false, hide the SubmissionFieldsSettings configuration block so
+   * the page leads with the project submissions list. Defaults to true
+   * for back-compat. See issue #778.
+   */
+  showFieldsSettings?: boolean;
 }
 
 type SortField = "project_name" | "lead_name" | "team_size" | "submitted" | "created_at";
 type SortDirection = "asc" | "desc";
 
-export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
+export function SubmissionsTab({
+  eventId,
+  showFieldsSettings = true,
+}: SubmissionsTabProps) {
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
@@ -508,17 +517,15 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   }, [submissionFieldColumns]);
 
   return (
-    <div className="space-y-6">
-      <SubmissionFieldsSettings eventId={eventId} />
-      <Card>
-        <CardHeader>
-          <CardTitle>Project Submissions</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <div className="w-full min-w-0 space-y-6">
+      {showFieldsSettings && <SubmissionFieldsSettings eventId={eventId} />}
+      <Card className="w-full min-w-0 overflow-hidden">
+        <CardContent className="pt-6">
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">Project Submissions</h3>
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-medium shrink-0">Project Submissions</h3>
+              <div className="scroll-x-tabs no-scrollbar w-full min-w-0 sm:w-auto sm:overflow-visible">
+                <div className="flex w-max flex-nowrap items-center gap-2 sm:w-auto sm:flex-wrap">
                 {selectedProjects.size > 0 && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -555,8 +562,8 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-                <Button disabled={loading} onClick={exportSubmissions} className="rounded-[12px]">Export Submissions</Button>
-                <Button disabled={loading} onClick={exportFeedback} variant="outline" className="rounded-[12px]">
+                <Button disabled={loading} onClick={exportSubmissions} className="shrink-0 whitespace-nowrap rounded-[12px]">Export Submissions</Button>
+                <Button disabled={loading} onClick={exportFeedback} variant="outline" className="shrink-0 whitespace-nowrap rounded-[12px]">
                   Export Feedback
                 </Button>
                 <DropdownMenu>
@@ -564,7 +571,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                     <Button
                       disabled={loading || submissionFieldColumns.length === 0}
                       variant="outline"
-                      className="rounded-[12px]"
+                      className="shrink-0 whitespace-nowrap rounded-[12px]"
                     >
                       <Columns3 className="mr-2 h-4 w-4" />
                       Columns
@@ -594,14 +601,15 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </div>
               </div>
             </div>
 
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
             ) : (
-              <div className="overflow-x-auto">
-              <Table>
+              <div className="scroll-x-tabs w-full min-w-0 rounded-md border">
+              <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">

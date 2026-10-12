@@ -23,8 +23,9 @@ const eventId = "11111111-1111-4111-8111-111111111111";
 
 function buildOrganizerSupabase() {
   const updateBuilder = { eq: jest.fn().mockResolvedValue({ error: null }) };
-  const upsertResolved = { error: null };
+  const upsertMock = jest.fn().mockResolvedValue({ error: null });
   return {
+    __upsertMock: upsertMock,
     auth: {
       getUser: jest.fn().mockResolvedValue({
         data: { user: { id: "organizer-1" } },
@@ -46,7 +47,7 @@ function buildOrganizerSupabase() {
       if (table === "event_submission_fields") {
         return {
           update: jest.fn().mockReturnValue(updateBuilder),
-          upsert: jest.fn().mockResolvedValue(upsertResolved),
+          upsert: upsertMock,
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           order: jest
@@ -168,5 +169,93 @@ describe("PUT /api/events/[eventId]/submission-fields", () => {
     );
 
     expect(response.status).toBe(200);
+  });
+
+  it("persists max_files for multi_file fields and clears it for other types", async () => {
+    const supabase = buildOrganizerSupabase();
+    mockCreateSupabaseClient.mockResolvedValue(supabase);
+
+    const response = await PUT(
+      buildRequest({
+        fields: [
+          {
+            key: "project_name",
+            label: "Project name",
+            field_type: "short_text",
+            required: true,
+          },
+          {
+            key: "project_description",
+            label: "Project description",
+            field_type: "long_text",
+            required: true,
+          },
+          {
+            key: "screenshots",
+            label: "Screenshots",
+            field_type: "multi_file",
+            required: false,
+            max_files: 8,
+          },
+          {
+            key: "default_limit",
+            label: "Default limit",
+            field_type: "multi_file",
+            required: false,
+          },
+          {
+            key: "one_file",
+            label: "One file",
+            field_type: "file",
+            required: false,
+            max_files: 10,
+          },
+        ],
+      }),
+      { params: Promise.resolve({ eventId }) },
+    );
+
+    expect(response.status).toBe(200);
+    const upsertedRows = supabase.__upsertMock.mock.calls[0][0] as Array<{
+      key: string;
+      max_files: number | null;
+    }>;
+    const rowByKey = new Map(upsertedRows.map((row) => [row.key, row]));
+    expect(rowByKey.get("screenshots")?.max_files).toBe(8);
+    expect(rowByKey.get("default_limit")?.max_files).toBe(5);
+    expect(rowByKey.get("one_file")?.max_files).toBeNull();
+  });
+
+  it("rejects out-of-range max_files values", async () => {
+    mockCreateSupabaseClient.mockResolvedValue(buildOrganizerSupabase());
+
+    const response = await PUT(
+      buildRequest({
+        fields: [
+          {
+            key: "project_name",
+            label: "Project name",
+            field_type: "short_text",
+            required: true,
+          },
+          {
+            key: "project_description",
+            label: "Project description",
+            field_type: "long_text",
+            required: true,
+          },
+          {
+            key: "screenshots",
+            label: "Screenshots",
+            field_type: "multi_file",
+            required: false,
+            max_files: 50,
+          },
+        ],
+      }),
+      { params: Promise.resolve({ eventId }) },
+    );
+
+    expect(response.status).toBe(400);
   });
 });
