@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { blogContent } from "@/components/blog/Content";
 import { Button } from "@/components/ui/button";
+import { BlogThumbnail } from "./BlogThumbnail";
 
 function parseDate(d: string) {
     return new Date(d);
@@ -37,22 +38,7 @@ export function LatestAside({ currentSlug }: { currentSlug: string }) {
                         className="block h-full"
                     >
                         <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.02)] transition-all hover:-translate-y-0.5 hover:shadow-md">
-                            {/* Image */}
-                            <div className="relative aspect-[16/9] w-full bg-slate-100">
-                                {post.thumbnail ? (
-                                    <Image
-                                        src={post.thumbnail}
-                                        alt={post.title}
-                                        fill
-                                        sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
-                                        className="object-cover"
-                                    />
-                                ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
-                                        Placeholder Image
-                                    </div>
-                                )}
-                            </div>
+                            <BlogThumbnail thumbnail={post.thumbnail} title={post.title} />
 
                             {/* Content */}
                             <div className="flex flex-1 flex-col p-5 md:p-6">
