@@ -75,8 +75,8 @@ export function ApprovalSettingsTab({
           join this event.
         </p>
 
-        <div className="flex items-center justify-between py-4">
-          <div className="space-y-0.5">
+        <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-0.5">
             <Label htmlFor="require-approval" className="text-base">
               Require Participant Approval
             </Label>

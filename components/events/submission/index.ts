@@ -12,6 +12,7 @@ export {
   type ChatMessage,
   DEFAULT_SUBMISSION_FIELDS,
   createSubmissionTemplateFields,
+  createLockedStarterSubmissionFields,
   editorTypeToDb,
   dbTypeToEditor,
   fieldsToApiPayload,

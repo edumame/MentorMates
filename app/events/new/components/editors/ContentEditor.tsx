@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { markdownRemarkPlugins } from "@/components/markdown/plugins";
 import type { WizardEventData } from "@/lib/types/wizard";
 
 interface ContentEditorProps {
@@ -64,7 +65,9 @@ export function ContentEditor({ event, update }: ContentEditorProps) {
         <div className="min-h-[400px] overflow-auto rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-900">
           {event.event_description ? (
             <div className="prose prose-sm max-w-none">
-              <ReactMarkdown>{event.event_description}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={markdownRemarkPlugins}>
+                {event.event_description}
+              </ReactMarkdown>
             </div>
           ) : (
             <p className="italic text-gray-400">No description added yet.</p>

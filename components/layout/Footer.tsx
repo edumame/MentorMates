@@ -27,7 +27,7 @@ export function Footer() {
 
   return (
     <footer className="w-full bg-white">
-      <div className="mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24 py-20">
+      <div className="mx-auto w-full max-w-10xl px-4 md:px-10 py-20">
         {/* Card */}
         <div className="rounded-xl border border-gray-200 px-[24px] md:p-[64px]">
           <div className="grid grid-cols-1 justify-around gap-10 md:grid-cols-2 py-12">
@@ -107,7 +107,7 @@ export function Footer() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="/project" className="hover:text-gray-900">
+                    <Link href="/projects" className="hover:text-gray-900">
                       Projects
                     </Link>
                   </li>

@@ -32,7 +32,7 @@ const buttonVariants = cva(
           + "[box-shadow:0_0_0_1px_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_-2px_1px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_1px_2px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] "
           + "hover:bg-[#B91C1C] hover:[box-shadow:0_0_0_1px_rgba(0,0,0,0.08)_inset,0_-2px_1px_0_rgba(0,0,0,0.08)_inset,0_1px_2px_0_rgba(0,0,0,0.08)]",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "rounded-[12px] border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         /** Back / 次级按钮：设计稿样式，可复用于弹窗「返回」等 */
@@ -72,7 +72,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size }), className)}
         ref={ref}
         {...props}
       />

@@ -27,6 +27,7 @@ import {
   Eye,
   Calendar,
   Trash2,
+  Globe,
 } from "lucide-react";
 import {
   Select,
@@ -135,7 +136,14 @@ export default function AdminPage() {
           featured,
           approval_status,
           rejection_reason,
-          created_at
+          created_at,
+          external_url,
+          external_redirect_enabled,
+          submitter_email,
+          submitter_name,
+          organizer_affiliation,
+          expected_attendance,
+          featured_requested
         `
         )
         .order("created_at", { ascending: true });
@@ -352,10 +360,18 @@ export default function AdminPage() {
   const getOrganizerPrimaryLabel = (organizer: EventOrganizer) =>
     organizer.displayName || organizer.email || "Unknown organizer";
 
-  const getOrganizerSummary = (event: AdminEventItem) =>
-    event.organizers.length > 0
-      ? event.organizers.map(getOrganizerPrimaryLabel).join(", ")
-      : "No organizers assigned";
+  const isExternalEvent = (event: AdminEventItem) =>
+    Boolean(event.external_url && event.external_redirect_enabled);
+
+  const getOrganizerSummary = (event: AdminEventItem) => {
+    if (event.organizers.length > 0) {
+      return event.organizers.map(getOrganizerPrimaryLabel).join(", ");
+    }
+    if (event.submitter_email) {
+      return `${event.submitter_name || "External submission"} <${event.submitter_email}>`;
+    }
+    return "No organizers assigned";
+  };
 
   const renderOrganizerDetails = (event: AdminEventItem) => (
     <div>
@@ -453,10 +469,10 @@ export default function AdminPage() {
     queueDescription: string,
     emptyMessage: string
   ) => (
-    <div className="mb-12">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">{queueTitle}</h2>
-        <p className="text-gray-600 text-sm">{queueDescription}</p>
+    <div className="mb-12 min-w-0">
+      <div className="mb-6 min-w-0">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 break-words">{queueTitle}</h2>
+        <p className="text-gray-600 text-xs sm:text-sm break-words">{queueDescription}</p>
       </div>
 
       {queueEvents.length === 0 ? (
@@ -473,11 +489,11 @@ export default function AdminPage() {
                 className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Queue Item Header */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start gap-2 sm:gap-4">
                     <button
                       onClick={() => toggleEventExpanded(event.event_id)}
-                      className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                      className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors mt-0.5"
                       aria-label={isExpanded ? "Collapse" : "Expand"}
                     >
                       {isExpanded ? (
@@ -487,36 +503,47 @@ export default function AdminPage() {
                       )}
                     </button>
 
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 hidden sm:flex items-center justify-center">
                       <span className="text-sm font-semibold text-gray-600">
                         {index + 1}
                       </span>
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">
+                      <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
                         {event.event_name}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {new Date(event.event_date).toLocaleDateString()} •{" "}
                         {event.location}
                       </p>
                       <p className="text-xs text-gray-500 truncate mt-1">
                         Organizers: {getOrganizerSummary(event)}
                       </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {event.featured && (
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded flex items-center gap-1">
-                          <Star className="w-3 h-3" />
-                          Featured
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {event.featured && (
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            Featured
+                          </span>
+                        )}
+                        {isExternalEvent(event) && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded flex items-center gap-1">
+                            <Globe className="w-3 h-3" />
+                            External
+                          </span>
+                        )}
+                        {event.featured_requested && !event.featured && (
+                          <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            Featured requested
+                          </span>
+                        )}
+                        {getApprovalStatusBadge(event.approval_status)}
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                          {event.visibility || "draft"}
                         </span>
-                      )}
-                      {getApprovalStatusBadge(event.approval_status)}
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                        {event.visibility || "draft"}
-                      </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -524,10 +551,10 @@ export default function AdminPage() {
                 {/* Expanded Event Details */}
                 {isExpanded && (
                   <div className="border-t border-gray-200">
-                    <div className="p-4 bg-gray-50">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="p-3 sm:p-4 bg-gray-50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Event Information - Left Side */}
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-900 mb-3">
                             Event Information
                           </h4>
@@ -568,6 +595,58 @@ export default function AdminPage() {
                             </div>
 
                             {renderOrganizerDetails(event)}
+
+                            {event.submitter_email && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  Submitted By
+                                </label>
+                                <p className="text-gray-900 mt-0.5">
+                                  {event.submitter_name || "Unknown"} —{" "}
+                                  <a
+                                    href={`mailto:${event.submitter_email}`}
+                                    className="text-blue-600 hover:underline"
+                                  >
+                                    {event.submitter_email}
+                                  </a>
+                                </p>
+                                {event.organizer_affiliation && (
+                                  <p className="text-gray-700 mt-0.5">
+                                    {event.organizer_affiliation}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {event.expected_attendance != null && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  Expected Attendance
+                                </label>
+                                <p className="text-gray-900 mt-0.5">
+                                  ~{event.expected_attendance.toLocaleString()}{" "}
+                                  attendees
+                                </p>
+                              </div>
+                            )}
+
+                            {event.external_url && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  External Link
+                                </label>
+                                <p className="mt-0.5">
+                                  <a
+                                    href={event.external_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline break-all"
+                                  >
+                                    {event.external_url}
+                                  </a>
+                                </p>
+                              </div>
+                            )}
 
                             {event.event_blurb && (
                               <div>
@@ -653,7 +732,7 @@ export default function AdminPage() {
                         {/* Admin Controls and Approval Log - Right Side */}
                         <div className="space-y-4">
                           {/* Admin Controls */}
-                          <div className="bg-white rounded-lg p-4 border border-gray-200 relative">
+                          <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 relative">
                             <h4 className="text-sm font-semibold text-gray-900 mb-3">
                               Admin Controls
                             </h4>
@@ -916,7 +995,7 @@ export default function AdminPage() {
                           </div>
 
                           {/* Approval Log */}
-                          <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                             <ApprovalLog eventId={event.event_id} />
                           </div>
                         </div>
@@ -936,21 +1015,21 @@ export default function AdminPage() {
   const featuredEvents = events.filter((event) => event.featured);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 py-4 px-3 sm:py-8 sm:px-4">
+      <div className="max-w-7xl mx-auto w-full min-w-0">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <div className="mb-6 sm:mb-8 min-w-0">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 break-words">
             Event Management Dashboard
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm sm:text-base break-words">
             Manage featured events and review approval requests.
           </p>
         </div>
 
         {/* Tab Navigation */}
         <div className="mb-6 border-b border-gray-200">
-          <nav className="flex gap-8">
+          <nav className="flex gap-4 sm:gap-8">
             <button
               onClick={() => setActiveTab("featured")}
               className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -1059,12 +1138,12 @@ export default function AdminPage() {
 
                 {/* Featured Events List */}
                 <div className="bg-white rounded-lg border border-gray-200">
-                  <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <div className="p-3 sm:p-4 border-b border-gray-200">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <Star className="w-5 h-5 text-yellow-500" />
                       Featured Events Management
                     </h2>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
                       Events marked as featured will appear on the homepage.
                       Manage their visibility and approval status below.
                     </p>
@@ -1090,13 +1169,13 @@ export default function AdminPage() {
                             className="hover:bg-gray-50 transition-colors"
                           >
                             {/* Featured Event Row */}
-                            <div className="p-4 flex items-center justify-between">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <div className="p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-4">
                                 <button
                                   onClick={() =>
                                     toggleEventExpanded(event.event_id)
                                   }
-                                  className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                                  className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors mt-0.5"
                                   aria-label={
                                     isExpanded ? "Collapse" : "Expand"
                                   }
@@ -1109,15 +1188,15 @@ export default function AdminPage() {
                                 </button>
 
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold text-gray-900 truncate">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
                                       {event.event_name}
                                     </h3>
                                     <span className="flex-shrink-0 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">
-                                      ⭐ Featured
+                                      Featured
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 text-xs sm:text-sm text-gray-500">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="w-3.5 h-3.5" />
                                       {new Date(
@@ -1130,40 +1209,37 @@ export default function AdminPage() {
                                   <p className="text-xs text-gray-500 truncate mt-1">
                                     Organizers: {getOrganizerSummary(event)}
                                   </p>
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                    {getApprovalStatusBadge(
+                                      event.approval_status
+                                    )}
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                                      {event.visibility || "draft"}
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="ml-auto text-xs h-7 sm:h-8"
+                                      onClick={() =>
+                                        router.push(
+                                          `/events/${event.slug || event.event_id}/overview`
+                                        )
+                                      }
+                                    >
+                                      View Event
+                                    </Button>
+                                  </div>
                                 </div>
-
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {getApprovalStatusBadge(
-                                    event.approval_status
-                                  )}
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                                    {event.visibility || "draft"}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    router.push(
-                                      `/events/${event.slug || event.event_id}/overview`
-                                    )
-                                  }
-                                >
-                                  View Event
-                                </Button>
                               </div>
                             </div>
 
                             {/* Expanded Details */}
                             {isExpanded && (
                               <div className="border-t border-gray-200 bg-gray-50">
-                                <div className="p-4">
-                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div className="p-3 sm:p-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Event Information */}
-                                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                                       <h4 className="text-sm font-semibold text-gray-900 mb-3">
                                         Event Information
                                       </h4>
@@ -1290,7 +1366,7 @@ export default function AdminPage() {
                                     {/* Admin Controls and Approval Log */}
                                     <div className="space-y-4">
                                       {/* Admin Controls */}
-                                      <div className="bg-white rounded-lg p-4 border border-gray-200 relative">
+                                      <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 relative">
                                         <h4 className="text-sm font-semibold text-gray-900 mb-3">
                                           Admin Controls
                                         </h4>
@@ -1578,7 +1654,7 @@ export default function AdminPage() {
                                       </div>
 
                                       {/* Approval Log */}
-                                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                                      <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                                         <ApprovalLog eventId={event.event_id} />
                                       </div>
                                     </div>
