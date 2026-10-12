@@ -111,17 +111,15 @@ export function normalizeSubmissionValue(
   rawValue: SubmissionValue | null | undefined
 ): SubmissionValue {
   if (isMultiValueSubmissionFieldType(field.field_type)) {
-    if (!Array.isArray(rawValue)) {
-      return [];
-    }
+    const values = Array.isArray(rawValue) ? rawValue : [rawValue ?? ""];
 
-    return rawValue
+    return values
       .map((item) => (typeof item === "string" ? item.trim() : ""))
       .filter((item) => item.length > 0);
   }
 
   if (Array.isArray(rawValue)) {
-    return rawValue[0] ?? "";
+    return rawValue[0]?.trim() ?? "";
   }
 
   return typeof rawValue === "string" ? rawValue : "";
@@ -144,6 +142,28 @@ function getLegacyProjectValue(project: Partial<Project>, key: BuiltInFieldKey):
     default:
       return "";
   }
+}
+
+// Form state may retain legacy URL arrays even when an event uses a single-file
+// field. Use the configured type consistently for rendering, validation and saves.
+export function buildSubmissionFormValues(
+  fields: EffectiveSubmissionField[],
+  getValue: (field: EffectiveSubmissionField) => SubmissionValue
+): Record<string, SubmissionValue> {
+  return Object.fromEntries(
+    fields.map((field) => [field.key, normalizeSubmissionValue(field, getValue(field))])
+  );
+}
+
+export function findMissingRequiredSubmissionField(
+  fields: EffectiveSubmissionField[],
+  values: Record<string, SubmissionValue>
+): EffectiveSubmissionField | undefined {
+  return fields.find((field) => {
+    if (!field.required) return false;
+    const value = normalizeSubmissionValue(field, values[field.key]);
+    return Array.isArray(value) ? value.length === 0 : value.trim().length === 0;
+  });
 }
 
 export function buildSubmissionAnswerMapByFieldId(
@@ -193,7 +213,10 @@ export function buildSubmissionValuesFromProject(
     }
 
     if (BUILT_IN_SUBMISSION_FIELD_KEYS.has(field.key)) {
-      values[field.key] = getLegacyProjectValue(project, field.key as BuiltInFieldKey);
+      values[field.key] = normalizeSubmissionValue(
+        field,
+        getLegacyProjectValue(project, field.key as BuiltInFieldKey)
+      );
       continue;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 // TODO: CHECK TO SEE IF THIS IS STILL USED/NEEDED, ELSE DELETE!!!
+import { saveProjectMaterials } from "@/features/projects/client-actions/client-materials";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
@@ -222,6 +223,10 @@ export default function ProjectDashboardSection({
 
         additionalMaterialsUrl = publicUrl;
         setCurrentFileName(fileName);
+      }
+
+      if (projectData && additionalMaterialsUrl !== projectData.additional_materials_url) {
+        await saveProjectMaterials(projectData, additionalMaterialsUrl || "");
       }
 
       const { error } = await supabase
