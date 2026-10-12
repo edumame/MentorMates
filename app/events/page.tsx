@@ -1,9 +1,9 @@
 import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
-import { EventRole, EventVisibility, ApprovalStatus } from "@/lib/types";
+import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { isEventManagerRole } from "@/lib/events/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +58,11 @@ export default async function EventsPage() {
           const userRole =
             userRoles.find((role) => role.event_id === event.event_id)?.role ||
             null;
-          return { ...event, userRole };
+          return {
+            ...event,
+            userRole,
+            canManageEvent: isAdmin || isEventManagerRole(userRole),
+          };
         })
         .sort(
           (a, b) =>
@@ -100,11 +104,20 @@ export default async function EventsPage() {
   const eventsList = events || [];
 
   return (
-    <PageContainer showBorder={isAuthenticated}>
-      <PageContent className="pt-[24px] pb-8">
-        <div className="flex flex-col gap-[24px] px-[32px]">
+    <>
+      <div className={isAuthenticated ? "pt-[24px] pb-8" : "pt-16 pb-8"}>
+        <div
+          className={
+            isAuthenticated
+              ? "flex min-w-0 max-w-full flex-col gap-[24px] overflow-x-clip px-[32px]"
+              : "mx-auto flex min-w-0 w-full max-w-10xl flex-col overflow-x-clip px-4 md:px-10"
+          }
+        >
           <div className="flex flex-col gap-[24px]">
-            <EventsPageClient eventsList={eventsList} />
+            <EventsPageClient
+              eventsList={eventsList}
+              initialIsAuthenticated={isAuthenticated}
+            />
 
             {/* Discord CTA on events page */}
             <div className="mt-12">
@@ -112,8 +125,8 @@ export default async function EventsPage() {
             </div>
           </div>
         </div>
-      </PageContent>
+      </div>
       <Footer />
-    </PageContainer>
+    </>
   );
 }

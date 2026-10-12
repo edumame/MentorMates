@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { getPopularVotePermission } from "@/features/voting/utils/voting-permissions";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MAX_VOTES_PER_USER = 3;
+
+async function getUserRoleForEvent(
+  supabase: SupabaseClient,
+  userId: string,
+  eventId: string
+) {
+  const { data, error } = await supabase
+    .from("user_event_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    return { role: null, error };
+  }
+
+  return { role: data?.role ?? null, error: null };
+}
 
 // GET: Get vote counts for all projects in an event + user's votes
 export async function GET(
@@ -19,6 +40,25 @@ export async function GET(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    let userRole: string | null = null;
+    if (user) {
+      const { role, error: roleError } = await getUserRoleForEvent(
+        supabase,
+        user.id,
+        eventId
+      );
+      if (roleError) {
+        console.error("Error fetching user role:", roleError);
+        return NextResponse.json(
+          { error: "Failed to verify voting permissions" },
+          { status: 500 }
+        );
+      }
+      userRole = role;
+    }
+
+    const permission = getPopularVotePermission(userRole);
 
     // Get all votes for this event grouped by project
     const { data: votes, error: votesError } = await supabase
@@ -45,8 +85,14 @@ export async function GET(
     return NextResponse.json({
       voteCounts,
       userVotes,
-      remainingVotes: user ? MAX_VOTES_PER_USER - userVotes.length : 0,
+      remainingVotes:
+        user && permission.canVote
+          ? Math.max(0, MAX_VOTES_PER_USER - userVotes.length)
+          : 0,
       maxVotes: MAX_VOTES_PER_USER,
+      canVote: Boolean(user) && permission.canVote,
+      blockedReason: permission.blockedReason,
+      userRole,
     });
   } catch (error) {
     console.error("GET /events/[eventId]/votes error:", error);
@@ -74,6 +120,27 @@ export async function POST(
 
     if (!eventId) {
       return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
+    }
+
+    const { role: userRole, error: roleError } = await getUserRoleForEvent(
+      supabase,
+      user.id,
+      eventId
+    );
+    if (roleError) {
+      console.error("Error fetching user role:", roleError);
+      return NextResponse.json(
+        { error: "Failed to verify voting permissions" },
+        { status: 500 }
+      );
+    }
+
+    const permission = getPopularVotePermission(userRole);
+    if (!permission.canVote) {
+      return NextResponse.json(
+        { error: permission.blockedReason || "You cannot vote in this event" },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
@@ -161,6 +228,27 @@ export async function DELETE(
 
     if (!eventId) {
       return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
+    }
+
+    const { role: userRole, error: roleError } = await getUserRoleForEvent(
+      supabase,
+      user.id,
+      eventId
+    );
+    if (roleError) {
+      console.error("Error fetching user role:", roleError);
+      return NextResponse.json(
+        { error: "Failed to verify voting permissions" },
+        { status: 500 }
+      );
+    }
+
+    const permission = getPopularVotePermission(userRole);
+    if (!permission.canVote) {
+      return NextResponse.json(
+        { error: permission.blockedReason || "You cannot vote in this event" },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

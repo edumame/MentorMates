@@ -5,8 +5,13 @@ import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
 
 export async function POST(request: Request) {
   // TODO: Consider implementing rate limiting to prevent invite spam
@@ -52,6 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const serviceSupabase = createSupabaseServiceClient();
 
   // Fetch event details for the email
   const { data: eventData } = await supabase
@@ -75,7 +81,7 @@ export async function POST(request: Request) {
     ? `${inviterProfile.display_name}`.trim()
     : 'A MentorMates organizer';
 
-  const { data: user } = await supabase
+  const { data: user } = await serviceSupabase
     .from('user_profiles')
     .select('uid')
     .eq('email', email.trim().toLowerCase())
@@ -98,35 +104,45 @@ export async function POST(request: Request) {
     }
 
     // Send invitation email for existing user
-    try {
-      const emailTemplate = getOrganizerInvitationEmailTemplate(
-        eventData.event_name,
-        eventId,
-        inviterName,
-        eventData.slug,
-        false // isNewUser
-      );
+    const resend = getResend();
+    if (resend) {
+      try {
+        const emailTemplate = getOrganizerInvitationEmailTemplate(
+          eventData.event_name,
+          eventId,
+          inviterName,
+          eventData.slug,
+          false // isNewUser
+        );
 
-      const { error: emailError } = await resend.emails.send({
-        from: NOTIFICATIONS_EMAIL_FROM,
-        to: email.trim(),
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-      });
+        const { error: emailError } = await resend.emails.send({
+          from: NOTIFICATIONS_EMAIL_FROM,
+          to: email.trim(),
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
 
-      if (emailError) {
-        console.error('Failed to send organizer invitation email:', emailError);
-        // Don't fail the entire request if email fails, but log it
+        if (emailError) {
+          console.error('Failed to send organizer invitation email:', emailError);
+          // Don't fail the entire request if email fails, but log it
+        }
+      } catch (emailError) {
+        console.error('Error sending organizer invitation email:', emailError);
+        // Don't fail the entire request if email fails
       }
-    } catch (emailError) {
-      console.error('Error sending organizer invitation email:', emailError);
-      // Don't fail the entire request if email fails
     }
 
     return NextResponse.json({ success: true, userExists: true });
   }
 
   // User doesn't exist - send magic link invite
+  const resend = getResend();
+  if (!resend) {
+    return NextResponse.json(
+      { error: 'Email is not configured (RESEND_API_KEY missing)' },
+      { status: 503 }
+    );
+  }
   try {
     const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventData.slug || eventId}/accept-organizer?email=${encodeURIComponent(email.trim())}`;
 

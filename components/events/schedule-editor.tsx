@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Calendar, Clock, Search, Type, Users } from "lucide-react";
+import { Calendar, Clock, Type, Users } from "lucide-react";
 
 export type ScheduleEvent = {
   id: string;
@@ -304,28 +305,30 @@ export function ScheduleEditor({ value, onChange }: ScheduleEditorProps) {
                     </button>
                   </div>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                    <Input
+                    <EventSearchInput
                       value={ev.guests}
                       onChange={(e) =>
                         updateDraftEvent(ev.id, { guests: e.target.value })
                       }
                       placeholder="Search guests"
-                      className="h-[44px] pl-11 pr-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                      inputClassName="h-[44px] rounded-[12px] pr-10 text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:border-[rgba(0,0,0,0.15)] focus:ring-2 focus:ring-blue-500 sm:text-[16px]"
+                      iconWrapperClassName="text-gray-600"
+                      rightAdornment={
+                        <svg
+                          className="h-5 w-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      }
                     />
-                    <svg
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
                   </div>
                 </div>
 

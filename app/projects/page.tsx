@@ -9,30 +9,34 @@ import { Project, ProjectBoardContext } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { Search } from "lucide-react";
+import { PublicProjectsGallery } from "@/features/projects/components/displays/PublicProjectsGallery/PublicProjectsGallery";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 
-type FilterType = "all" | "public" | "mine";
+type FilterType = "all" | "public" | "mine" | "archived";
+type SortType = "newest" | "oldest" | "name-asc" | "name-desc";
 
 export default function ProjectsPage() {
-  const { session, isAuthenticated } = useAuth();
+  const { session, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isUserProjectsLoading, setIsUserProjectsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
+  const [sortType, setSortType] = useState<SortType>("newest");
 
   useEffect(() => {
-    const getSession = async () => {
-      if (session?.user?.email) {
-        await fetchProjects();
-      }
-      setIsLoading(false);
-    };
+    // Logged-in: fetch user's projects.
+    if (session?.user?.email) {
+      void fetchProjects();
+      return;
+    }
 
-    getSession();
+    // Logged-out: stop the "user projects" spinner.
+    setIsUserProjectsLoading(false);
   }, [session]);
 
   const fetchProjects = async () => {
+    setIsUserProjectsLoading(true);
     try {
       const response = await fetch("/api/projects/user");
       if (!response.ok) {
@@ -43,6 +47,8 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error("Error fetching projects:", error);
       setProjects([]);
+    } finally {
+      setIsUserProjectsLoading(false);
     }
   };
 
@@ -65,6 +71,9 @@ export default function ProjectsPage() {
       filtered = filtered.filter(
         (p) => p.lead_email === session?.user?.email
       );
+    } else if (filterType === "archived") {
+      // "Archived" maps to unsubmitted drafts in current project model.
+      filtered = filtered.filter((p) => p.submitted !== true);
     }
     // "all" shows all projects, no additional filtering needed
 
@@ -76,15 +85,46 @@ export default function ProjectsPage() {
       );
     }
 
-    return filtered;
-  }, [projects, searchTerm, filterType, session?.user?.email]);
+    return [...filtered].sort((a, b) => {
+      if (sortType === "name-asc") {
+        return (a.project_name || "").localeCompare(b.project_name || "");
+      }
+      if (sortType === "name-desc") {
+        return (b.project_name || "").localeCompare(a.project_name || "");
+      }
+
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return sortType === "oldest" ? aTime - bTime : bTime - aTime;
+    });
+  }, [projects, searchTerm, filterType, sortType, session?.user?.email]);
 
   // All deletion and QR actions are handled inside the ProjectBoard component menu.
 
+  if (isAuthLoading) {
+    return (
+      <>
+        <Toaster />
+        <div className="pt-[24px] pb-8">
+          <div className="container mx-auto px-5 sm:px-8">
+            <div className="flex items-center justify-center py-24">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  if (!session) {
+    return <PublicProjectsGallery />;
+  }
+
   return (
-    <PageContainer showBorder={isAuthenticated}>
+    <>
       <Toaster />
-      <PageContent className="pt-[24px] pb-8">
+      <div className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-[8px]">
@@ -99,109 +139,96 @@ export default function ProjectsPage() {
                 </div>
               )}
             </div>
-            {isAuthenticated && (
-              <Button asChild className="h-10">
-                <Link href="/projects/submit">Create a project</Link>
-              </Button>
-            )}
           </div>
 
           {/* Search Section - mirrors events page styling */}
           {/** hide search section for now */}
-          {false && session && !isLoading && (
+          {false && session && !isUserProjectsLoading && (
             <div className="flex flex-col mb-5 gap-4">
               <div className="flex items-end justify-between gap-4">
                 {/* Search Input */}
-                <div className="relative flex-1">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-[rgba(0,0,0,0.6)]">
-                    <Search className="w-full h-full" strokeWidth={2} />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-12 py-2 text-xs sm:text-base font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Create Project Button - Desktop only */}
-                {isAuthenticated && (
-                  <Button asChild className="h-10 hidden sm:inline-flex">
-                    <Link href="/projects/submit">Create a project</Link>
-                  </Button>
-                )}
+                <EventSearchInput
+                  wrapperClassName="flex-1"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-
-              {/* Create Project Button - Mobile only */}
-              {isAuthenticated && (
-                <Button asChild className="h-10 sm:hidden w-full">
-                  <Link href="/projects/submit">Create a project</Link>
-                </Button>
-              )}
             </div>
           )}
 
           {/* Project Filter */}
-          {session && !isLoading && projects.length > 0 && (
-            <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 w-full sm:w-fit">
-              <button
-                onClick={() => setFilterType("all")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "all"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterType("public")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "public"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                Public
-              </button>
-              <button
-                onClick={() => setFilterType("mine")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "mine"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                Mine
-              </button>
+          {session && !isUserProjectsLoading && projects.length > 0 && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+                <button
+                  onClick={() => setFilterType("all")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "all"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilterType("public")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "public"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Public
+                </button>
+                <button
+                  onClick={() => setFilterType("mine")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "mine"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Mine
+                </button>
+                <button
+                  onClick={() => setFilterType("archived")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "archived"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Archived
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="projects-sort" className="text-sm text-black/70">
+                  Sort by
+                </label>
+                <select
+                  id="projects-sort"
+                  value={sortType}
+                  onChange={(e) => setSortType(e.target.value as SortType)}
+                  className="h-10 rounded-lg border border-[rgba(0,0,0,0.15)] bg-white px-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                </select>
+              </div>
             </div>
           )}
 
-          {isLoading && (
+          {isUserProjectsLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
             </div>
           )}
 
-          {!session && !isLoading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-4">
-                  Please log in to view your projects
-                </h2>
-                <Link href="/login">
-                  <Button className="bg-blue-900 text-white hover:bg-blue-800">
-                    Login
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {session && !isLoading && (
+          {session && !isUserProjectsLoading && (
             <>
               {/* Filtered Projects List */}
               {filteredProjects.length > 0 ? (
                 <ProjectBoard
-                  isLoading={isLoading}
+                  isLoading={isUserProjectsLoading}
                   projectList={filteredProjects}
                   session={session}
                   projectBoardContext={ProjectBoardContext.MyProjects}
@@ -218,9 +245,6 @@ export default function ProjectsPage() {
                       ? `No projects match your search "${searchTerm}". Try adjusting your search terms.`
                       : "Join the event to submit a project or create a project directly."}
                   </p>
-                  <Button className="mt-4">
-                    <Link href="/projects/submit">Create a project</Link>
-                  </Button>
                 </div>
               )}
 
@@ -233,8 +257,8 @@ export default function ProjectsPage() {
             </>
           )}
         </div>
-      </PageContent>
+      </div>
       <Footer />
-    </PageContainer>
+    </>
   );
 }

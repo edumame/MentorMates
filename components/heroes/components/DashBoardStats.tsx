@@ -141,12 +141,7 @@ export function DashBoardStats() {
         href: "/events",
         icon: svgIcons.event,
         label: "Join an event",
-      },
-      {
-        href: "/projects/submit",
-        icon: svgIcons.createProject,
-        label: "Create a project",
-      },
+      }
     ],
     []
   );
@@ -174,15 +169,15 @@ export function DashBoardStats() {
 
   return (
     <section className="w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-2">
-          <div className="relative grid gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:items-stretch">
+        <div className="lg:col-span-2 flex min-h-0">
+          <div className="relative flex flex-1 flex-col gap-3 min-h-0">
             {ctas.map((cta) => (
               <Card
                 key={cta.label}
-                className="border border-gray-200 shadow-none hover:shadow-sm transition rounded-2xl"
+                className="border border-gray-200 shadow-none hover:shadow-sm transition rounded-2xl flex flex-1 flex-col min-h-0"
               >
-                <CardContent className="py-4 px-4">
+                <CardContent className="flex flex-1 flex-col justify-center py-4 px-4">
                   <Button
                     asChild
                     variant="ghost"
@@ -204,7 +199,7 @@ export function DashBoardStats() {
         </div>
 
         {/* Right stat cards */}
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 lg:h-full lg:min-h-0">
           {stats.map((stat) => (
             <Card
               key={stat.label}

@@ -2,25 +2,379 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import {
   EventRole,
+  EventSubmissionField,
   EventTrack,
   Prize,
   ProjectFromDatabase,
+  ProjectSubmissionAnswer,
   ProjectWithPrizes,
 } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { createContextusProject } from "@/lib/integrations/contextus";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
+
+type ArtifactRow = {
+  project_id: string;
+  id: string;
+  kind: "project_link" | "video_link" | "additional_material";
+  label: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+  metadata: Record<string, unknown> | null;
+};
+
+type OrganizerProjectRow = {
+  id: string;
+  project_tracks?: { track_id: string }[] | null;
+  project_url?: string | null;
+  additional_materials_url?: string | null;
+  video_url?: string | null;
+  [key: string]: unknown;
+};
+
+type SubmissionAnswerRow = ProjectSubmissionAnswer;
+
+async function fetchSubmissionFieldsByEventIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  eventIds: string[]
+) {
+  if (eventIds.length === 0) {
+    return new Map<string, EventSubmissionField[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("event_submission_fields")
+    .select("*")
+    .in("event_id", eventIds)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  if (error || !data) {
+    return new Map<string, EventSubmissionField[]>();
+  }
+
+  const map = new Map<string, EventSubmissionField[]>();
+  for (const row of data as EventSubmissionField[]) {
+    const existing = map.get(row.event_id) || [];
+    existing.push(row);
+    map.set(row.event_id, existing);
+  }
+
+  return map;
+}
+
+async function fetchSubmissionAnswersByProjectIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectIds: string[]
+) {
+  if (projectIds.length === 0) {
+    return new Map<string, SubmissionAnswerRow[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("project_submission_answers")
+    .select("id, project_id, event_submission_field_id, answer")
+    .in("project_id", projectIds);
+
+  if (error || !data) {
+    return new Map<string, SubmissionAnswerRow[]>();
+  }
+
+  const map = new Map<string, SubmissionAnswerRow[]>();
+  for (const row of data as SubmissionAnswerRow[]) {
+    const existing = map.get(row.project_id) || [];
+    existing.push(row);
+    map.set(row.project_id, existing);
+  }
+
+  return map;
+}
+
+async function fetchArtifactsByProjectIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectIds: string[]
+) {
+  if (projectIds.length === 0) {
+    return new Map<string, ArtifactRow[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("project_artifacts")
+    .select(
+      "id, project_id, kind, label, url, sort_order, is_primary, metadata"
+    )
+    .in("project_id", projectIds)
+    .order("sort_order", { ascending: true });
+
+  if (error || !data) {
+    return new Map<string, ArtifactRow[]>();
+  }
+
+  const map = new Map<string, ArtifactRow[]>();
+  for (const row of data as ArtifactRow[]) {
+    const existing = map.get(row.project_id) || [];
+    existing.push(row);
+    map.set(row.project_id, existing);
+  }
+  return map;
+}
+
+async function fetchTeammateProfiles(
+  emails: string[]
+): Promise<Map<string, ExportMemberProfile>> {
+  if (emails.length === 0) return new Map();
+
+  const serviceClient = createSupabaseServiceClient();
+  const { data, error } = await serviceClient
+    .from("user_profiles")
+    .select("email, display_name, affiliation")
+    .in("email", emails);
+
+  if (error || !data) return new Map();
+
+  return new Map(
+    (data as ExportMemberProfile[]).map((profile) => [profile.email, profile])
+  );
+}
+
+// Winner + finalist status for certificates. Prizes are readable through the
+// caller's client (prize_winners RLS is open); round advancements are
+// judge/organizer-only under RLS, so finalist status goes through the service
+// client — it only ever leaks a boolean.
+async function fetchCertificateExtras(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectId: string
+): Promise<{ prizes_won: Prize[]; is_finalist: boolean }> {
+  const { data: prizeRows } = await supabase
+    .from("prize_winners")
+    .select(
+      `
+        id,
+        project_id,
+        prizes (
+          track_id,
+          prize_amount,
+          prize_description
+        )
+      `
+    )
+    .eq("project_id", projectId)
+    .overrideTypes<
+      Array<{
+        id: string;
+        project_id: string;
+        prizes: {
+          track_id: string;
+          prize_amount: string;
+          prize_description: string;
+        } | null;
+      }>
+    >();
+
+  const prizes = (prizeRows ?? []).map((row) => ({
+    id: row.id,
+    track_id: row.prizes?.track_id,
+    prize_amount: row.prizes?.prize_amount,
+    prize_description: row.prizes?.prize_description,
+    winning_project_id: row.project_id,
+  })) as Prize[];
+
+  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId) };
+}
+
+async function fetchIsFinalist(projectId: string): Promise<boolean> {
+  try {
+    const serviceClient = createSupabaseServiceClient();
+    const { data: advancements } = await serviceClient
+      .from("project_round_advancements")
+      .select("id")
+      .eq("project_id", projectId)
+      .limit(1);
+    return (advancements?.length ?? 0) > 0;
+  } catch {
+    // Service key may not exist in local dev; finalist status is best-effort.
+    return false;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseClient();
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
+    const eventSlugRaw = searchParams.get("eventSlug") ?? searchParams.get("event");
     const projectId = searchParams.get("projectId");
     const isPublic = searchParams.get("public") === "true";
     const submitted = searchParams.get("submitted") === "true";
 
-    // For public gallery view, no authentication required
-    if (isPublic && eventId) {
+    // For public views, no authentication required (guarded by visibility checks).
+    if (isPublic) {
+      // Prefer anon client by default (service key may not exist in local dev).
+      let resolvedEventId = eventId;
+      const eventSlug = eventSlugRaw?.trim() ?? null;
+
+      // Public single-project view (e.g. logged-out project page).
+      if (projectId) {
+        const { data: project, error } = await supabase
+          .from("projects")
+          .select(
+            `
+            id,
+            project_name,
+            lead_name,
+            lead_email,
+            project_description,
+            teammates,
+            project_url,
+            video_url,
+            additional_materials_url,
+            cover_image_url,
+            event_id,
+            contextus_project_id,
+            private,
+            created_at,
+            submitted,
+            project_tracks (
+              event_tracks (
+                track_id,
+                event_id,
+                name,
+                description,
+                label,
+                prize_amount,
+                prize_description,
+                scoring_criteria,
+                created_at,
+                updated_at
+              )
+            )
+          `
+          )
+          .eq("id", projectId)
+          .eq("submitted", true)
+          .maybeSingle()
+          .overrideTypes<{
+            project_tracks: Array<{ event_tracks: EventTrack }>;
+          }>();
+
+        if (error || !project) {
+          return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+
+        // Ensure the owning event is public.
+        const { data: eventMeta, error: eventMetaError } = await supabase
+          .from("events")
+          .select("visibility")
+          .eq("event_id", project.event_id)
+          .maybeSingle();
+
+        if (eventMetaError || eventMeta?.visibility !== "public") {
+          return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+        const [artifactMap, fieldMap, answerMap] = await Promise.all([
+          fetchArtifactsByProjectIds(supabase, [project.id]),
+          fetchSubmissionFieldsByEventIds(supabase, [project.event_id]),
+          fetchSubmissionAnswersByProjectIds(supabase, [project.id]),
+        ]);
+        const fallbackArtifacts = buildArtifactsFromLegacy({
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          video_url: (
+            project as unknown as { video_url?: string | null }
+          ).video_url,
+        });
+
+        const transformedProject = applyEffectiveSubmissionToProject({
+          id: project.id,
+          project_name: project.project_name,
+          lead_name: project.lead_name,
+          lead_email: project.lead_email,
+          project_description: project.project_description,
+          teammates: project.teammates,
+          is_private: Boolean((project as { private?: boolean | null }).private),
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          cover_image_url: project.cover_image_url,
+          event_id: project.event_id,
+          contextus_project_id: (
+            project as unknown as { contextus_project_id?: string }
+          ).contextus_project_id,
+          submitted: (project as unknown as { submitted?: boolean }).submitted ?? true,
+          tracks:
+            project.project_tracks?.filter((pt) => Boolean(pt.event_tracks)).map(
+              (pt) => pt.event_tracks
+            ) || [],
+          track_ids:
+            project.project_tracks
+              ?.map((pt) => pt.event_tracks?.track_id)
+              .filter(Boolean) || [],
+          created_at: project.created_at,
+        },
+        fieldMap.get(project.event_id) || [],
+        answerMap.get(project.id),
+        artifactMap.get(project.id) || fallbackArtifacts
+        );
+
+        const extras = await fetchCertificateExtras(supabase, project.id);
+        (transformedProject as unknown as ProjectWithPrizes).prizes_won =
+          extras.prizes_won;
+        (
+          transformedProject as unknown as { is_finalist?: boolean }
+        ).is_finalist = extras.is_finalist;
+
+        return NextResponse.json({ project: transformedProject });
+      }
+
+      if (!resolvedEventId && eventSlug) {
+        // Resolve slug -> event_id (case-insensitive exact match).
+        const { data: eventData, error: eventError } = await supabase
+          .from("events")
+          .select("event_id")
+          .ilike("slug", eventSlug)
+          .maybeSingle();
+
+        if (eventError) {
+          console.error("Error resolving event slug:", eventError);
+          return NextResponse.json(
+            { error: "Failed to resolve event" },
+            { status: 500 }
+          );
+        }
+
+        resolvedEventId = eventData?.event_id ?? null;
+      }
+
+      if (!resolvedEventId) {
+        if (eventSlug) {
+          return NextResponse.json(
+            {
+              error: "Event not found",
+              eventSlug,
+            },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Missing required parameters" },
+          { status: 400 }
+        );
+      }
+
+      // Ensure the event itself is public before returning any projects.
+      const { data: eventMeta, error: eventMetaError } = await supabase
+        .from("events")
+        .select("visibility")
+        .eq("event_id", resolvedEventId)
+        .maybeSingle();
+
+      if (eventMetaError || eventMeta?.visibility !== "public") {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      }
+
       // Public view - fetch all projects for the event
       const { data: allProjects, error } = await supabase
         .from("projects")
@@ -33,10 +387,12 @@ export async function GET(request: NextRequest) {
           project_description,
           teammates,
           project_url,
+          video_url,
           additional_materials_url,
           cover_image_url,
           event_id,
           contextus_project_id,
+          private,
           created_at,
           submitted,
           project_tracks (
@@ -55,7 +411,7 @@ export async function GET(request: NextRequest) {
           )
         `
         )
-        .eq("event_id", eventId)
+        .eq("event_id", resolvedEventId)
         .eq("submitted", true)
         .order("project_name")
         .overrideTypes<
@@ -77,7 +433,9 @@ export async function GET(request: NextRequest) {
         lead_email: item.lead_email,
         project_description: item.project_description,
         teammates: item.teammates,
+        is_private: Boolean((item as { private?: boolean | null }).private),
         project_url: item.project_url,
+        video_url: item.video_url,
         additional_materials_url: item.additional_materials_url,
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
@@ -87,18 +445,44 @@ export async function GET(request: NextRequest) {
         submitted:
           (item as unknown as { submitted?: boolean }).submitted ?? true,
         tracks:
-          item.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
-          [],
+          item.project_tracks
+            ?.map((pt) => pt.event_tracks)
+            .filter((track): track is EventTrack => Boolean(track)) || [],
         track_ids:
           item.project_tracks
             ?.map((pt) => pt.event_tracks?.track_id)
-            .filter(Boolean) || [],
+            .filter((trackId): trackId is string => Boolean(trackId)) || [],
         created_at: item.created_at,
       }));
 
+      const [artifactMap, fieldMap, answerMap] = await Promise.all([
+        fetchArtifactsByProjectIds(
+          supabase,
+          projects.map((project) => project.id)
+        ),
+        fetchSubmissionFieldsByEventIds(supabase, [resolvedEventId]),
+        fetchSubmissionAnswersByProjectIds(
+          supabase,
+          projects.map((project) => project.id)
+        ),
+      ]);
+      const projectsWithArtifacts = projects.map((project) =>
+        applyEffectiveSubmissionToProject(
+          project,
+          fieldMap.get(project.event_id) || [],
+          answerMap.get(project.id),
+          artifactMap.get(project.id) ||
+            buildArtifactsFromLegacy({
+              project_url: project.project_url,
+              additional_materials_url: project.additional_materials_url,
+              video_url: (project as { video_url?: string | null }).video_url,
+            })
+        )
+      );
+
       // Fetch prizes for all projects
-      if (projects.length > 0) {
-        const projectIds = projects.map((p) => p.id);
+      if (projectsWithArtifacts.length > 0) {
+        const projectIds = projectsWithArtifacts.map((p) => p.id);
         const { data: prizesData } = await supabase
           .from("prizes")
           .select(
@@ -148,16 +532,18 @@ export async function GET(request: NextRequest) {
             }
           });
 
-          projects.forEach(
-            (project: { id: string; [key: string]: unknown }) => {
-              (project as unknown as ProjectWithPrizes).prizes_won =
-                (prizesByProject[project.id] || []) as Prize[];
+          projectsWithArtifacts.forEach((project) => {
+            if (!project.id) {
+              return;
             }
-          );
+
+            (project as unknown as ProjectWithPrizes).prizes_won =
+              (prizesByProject[project.id] || []) as Prize[];
+          });
         }
       }
 
-      return NextResponse.json({ projects });
+      return NextResponse.json({ projects: projectsWithArtifacts });
     }
 
     // For all other requests, require authentication
@@ -182,10 +568,12 @@ export async function GET(request: NextRequest) {
           project_description,
           teammates,
           project_url,
+          video_url,
           additional_materials_url,
           cover_image_url,
           event_id,
           contextus_project_id,
+          private,
           created_at,
           submitted,
           project_tracks (
@@ -218,15 +606,23 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const [artifactMap, fieldMap, answerMap] = await Promise.all([
+        fetchArtifactsByProjectIds(supabase, [project.id]),
+        fetchSubmissionFieldsByEventIds(supabase, [project.event_id]),
+        fetchSubmissionAnswersByProjectIds(supabase, [project.id]),
+      ]);
+
       // Transform project data
-      const transformedProject = {
+      const transformedProject = applyEffectiveSubmissionToProject({
         id: project.id,
         project_name: project.project_name,
         lead_name: project.lead_name,
         lead_email: project.lead_email,
+        is_private: Boolean((project as { private?: boolean | null }).private),
         project_description: project.project_description,
         teammates: project.teammates,
         project_url: project.project_url,
+        video_url: (project as unknown as { video_url?: string | null }).video_url,
         additional_materials_url: project.additional_materials_url,
         cover_image_url: project.cover_image_url,
         event_id: project.event_id,
@@ -237,14 +633,23 @@ export async function GET(request: NextRequest) {
           (project as unknown as { submitted?: boolean }).submitted ?? false,
         tracks:
           project.project_tracks
-            ?.map((pt) => pt.event_tracks)
-            .filter(Boolean) || [],
+            ?.filter((pt) => Boolean(pt.event_tracks))
+            .map((pt) => pt.event_tracks) || [],
         track_ids:
           project.project_tracks
             ?.map((pt) => pt.event_tracks?.track_id)
             .filter(Boolean) || [],
         created_at: project.created_at,
-      };
+      },
+      fieldMap.get(project.event_id) || [],
+      answerMap.get(project.id),
+      artifactMap.get(project.id) ||
+        buildArtifactsFromLegacy({
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          video_url: (project as unknown as { video_url?: string | null }).video_url,
+        })
+      );
 
       // Fetch prizes for this project by starting from prize_winners
       const { data: prizeWinnersData } = await supabase
@@ -284,10 +689,14 @@ export async function GET(request: NextRequest) {
           prizeWinnersData as unknown as Prize[];
       }
 
+      (
+        transformedProject as unknown as { is_finalist?: boolean }
+      ).is_finalist = await fetchIsFinalist(transformedProject.id);
+
       return NextResponse.json({ project: transformedProject });
     }
 
-    // Handle projects by event (for organizers)
+    // Handle projects by event
     if (eventId) {
       // Check if user is organizer for this event
       const { data: userRole } = await supabase
@@ -297,30 +706,38 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .single();
 
-      if (
-        !userRole ||
-        !canAccessRole(userRole.role as EventRole, EventRole.Organizer)
-      ) {
-        return NextResponse.json(
-          { error: "Insufficient permissions" },
-          { status: 403 }
-        );
-      }
+      const isOrganizer =
+        userRole &&
+        canAccessRole(userRole.role as EventRole, EventRole.Organizer);
 
-      // Organizer view - fetch all projects with track relationships
+      // Build query with track relationships
       const query = supabase
         .from("projects")
         .select(
           `
             *,
             project_tracks (
-              track_id
+              track_id,
+              event_tracks (
+                track_id,
+                name,
+                label
+              )
+            ),
+            feedback (
+              feedback_text,
+              mentor_name,
+              mentor_email
             )
           `
         )
         .eq("event_id", eventId);
 
-      if (submitted) {
+      // Non-organizers can only see submitted projects
+      if (!isOrganizer) {
+        query.eq("submitted", true);
+      } else if (submitted) {
+        // Organizers can optionally filter by submitted
         query.eq("submitted", true);
       }
 
@@ -334,20 +751,75 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const transformedProjects = (projectsData || []).map(
-        (project: {
-          project_tracks?: { track_id: string }[];
-          [key: string]: unknown;
-        }) => ({
+      const transformedProjects: Array<
+        OrganizerProjectRow & { track_ids: string[] }
+      > = ((projectsData as OrganizerProjectRow[] | null) || []).map(
+        (project) => ({
           ...project,
-          track_ids:
-            project.project_tracks?.map(
-              (pt: { track_id: string }) => pt.track_id
-            ) || [],
+          track_ids: project.project_tracks?.map((pt) => pt.track_id) || [],
         })
       );
+      const artifactMap = await fetchArtifactsByProjectIds(
+        supabase,
+        transformedProjects.map((project) => project.id)
+      );
 
-      return NextResponse.json({ projects: transformedProjects });
+      // Collect all unique teammate + lead emails for batch profile enrichment
+      const allEmails = new Set<string>();
+      for (const project of transformedProjects) {
+        const p = project as { lead_email?: string; teammates?: string[] };
+        if (p.lead_email) allEmails.add(p.lead_email);
+        for (const email of p.teammates ?? []) allEmails.add(email);
+      }
+
+      const [fieldMap, answerMap, profileMap] = await Promise.all([
+        fetchSubmissionFieldsByEventIds(supabase, [eventId]),
+        fetchSubmissionAnswersByProjectIds(
+          supabase,
+          transformedProjects.map((project) => project.id)
+        ),
+        fetchTeammateProfiles([...allEmails]),
+      ]);
+
+      const transformedProjectsWithArtifacts = transformedProjects.map((project) => {
+        const p = project as {
+          lead_email?: string;
+          teammates?: string[];
+        };
+        const leadProfile = p.lead_email ? profileMap.get(p.lead_email) : undefined;
+        const nonLeadTeammates = (p.teammates ?? []).filter(
+          (e) => e !== p.lead_email
+        );
+        const teammateProfiles = nonLeadTeammates
+          .map((email) => profileMap.get(email))
+          .filter((profile): profile is ExportMemberProfile => profile !== undefined);
+
+        return applyEffectiveSubmissionToProject(
+          {
+            ...project,
+            is_private: Boolean((project as { private?: boolean | null }).private),
+            project_url: project.project_url ?? undefined,
+            additional_materials_url:
+              project.additional_materials_url ?? undefined,
+            video_url: project.video_url ?? undefined,
+            lead_school: leadProfile?.affiliation ?? null,
+            teammate_profiles: teammateProfiles,
+          },
+          fieldMap.get(eventId) || [],
+          answerMap.get(project.id),
+          artifactMap.get(project.id) ||
+            buildArtifactsFromLegacy({
+              project_url: (project as { project_url?: string | null })
+                .project_url,
+              additional_materials_url: (
+                project as { additional_materials_url?: string | null }
+              ).additional_materials_url,
+              video_url: (project as { video_url?: string | null }).video_url,
+            })
+        );
+      });
+
+      return NextResponse.json({ projects: transformedProjectsWithArtifacts });
     }
 
     // If no specific parameters, return error

@@ -77,6 +77,18 @@ export const meetingsProcessing = inngest.createFunction(
 
     const supabase = await createSupabaseServiceClient();
     const response = await step.run("fetch-transcript", async () => {
+      // Support either a transcript URL (original flow) or a raw transcriptText
+      // If `transcriptText` is provided on the event, use it directly. This
+      // avoids calling `fetch(undefined)` which causes a runtime error when
+      // `transcriptUrl` is missing.
+      if (event.data && event.data.transcriptText) {
+        return event.data.transcriptText as string;
+      }
+
+      if (!event.data || !event.data.transcriptUrl) {
+        throw new Error("Missing transcriptUrl and transcriptText on event data");
+      }
+
       return fetch(event.data.transcriptUrl).then((res) => res.text());
     });
 
@@ -102,9 +114,12 @@ export const meetingsProcessing = inngest.createFunction(
       const speakers = [...(userSpeakers ?? []), ...(agentSpeakers ?? [])];
 
       return transcript.map((item) => {
-        const speaker = speakers.find(
-          (speaker) =>
-            speaker.id === item.speaker_id || speaker.uid === item.speaker_id
+        // Speakers are either user profiles (keyed by uid, named via
+        // display_name) or agents (keyed by id, named via name).
+        const speaker = speakers.find((candidate) =>
+          "uid" in candidate
+            ? candidate.uid === item.speaker_id
+            : candidate.id === item.speaker_id
         );
 
         if (!speaker) {
@@ -119,7 +134,9 @@ export const meetingsProcessing = inngest.createFunction(
         return {
           ...item,
           user: {
-            name: speaker.name,
+            name:
+              ("uid" in speaker ? speaker.display_name : speaker.name) ??
+              "Unknown",
           },
         };
       });

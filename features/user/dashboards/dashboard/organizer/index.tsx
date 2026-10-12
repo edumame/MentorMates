@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -14,27 +14,27 @@ import {
   FolderKanban,
   DollarSign,
   Bell,
+  Bot,
+  KeyRound,
 } from "lucide-react";
 
 import {
   EventDetails,
   EventRole,
   EventScoringConfig,
-  EventTrack,
-  ScoringCriterion,
 } from "@/lib/types";
 
 // Tab components
 import { SubmissionsTab } from "./submissions";
 import { ScoresTab } from "./scores";
-import { ParticipantsTab } from "./participants";
+import { AssignTab } from "./assign";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
-import { AssignTab } from "./assign";
-import { ProjectImport } from "./import/ProjectImportButton";
-import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
+import { AgentsTab } from "./agents/AgentsTab";
+import { ApiKeysTab } from "./api-keys/ApiKeysTab";
+import { IntakeResponsesTab } from "./registration";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
 import { ContentTab } from "./details/ContentTab";
@@ -44,6 +44,7 @@ import { RulesTab } from "./details/RulesTab";
 import { FAQTab } from "./details/FAQTab";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -57,7 +58,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const isDevNoAuthMode =
+    process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true" &&
+    searchParams.get("devNoAuth") === "1";
+  const devBypassUserId = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID;
 
   // Redirect from pricing tab if user is not admin
   useEffect(() => {
@@ -75,6 +81,8 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     { value: "tracks", label: "Tracks", icon: FolderKanban },
     { value: "pricing", label: "Pricing", icon: DollarSign },
     { value: "notify", label: "Notify", icon: Bell },
+    { value: "agents", label: "Agents", icon: Bot },
+    { value: "api-keys", label: "API Keys", icon: KeyRound },
   ];
 
   // Sub-tabs under Overview matching Figma design
@@ -91,34 +99,50 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   useEffect(() => {
     async function fetchEvent() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/login");
-          return;
+        let userId: string | null = null;
+
+        if (isDevNoAuthMode) {
+          userId = devBypassUserId || null;
+        } else {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session) {
+            router.push("/login");
+            return;
+          }
+
+          userId = session.user.id;
+
+          // Fetch user's role for this event and check access in app code
+          const { data: roleData } = await supabase
+            .from("user_event_roles")
+            .select("role")
+            .eq("user_id", userId)
+            .eq("event_id", eventId)
+            .maybeSingle();
+
+          if (
+            !roleData ||
+            !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
+          ) {
+            toast({
+              title: "Error",
+              description: "You don't have permission to edit this event",
+              variant: "destructive",
+            });
+            router.push(`/events/${eventId}/dashboard`);
+            return;
+          }
         }
 
-        const userId = session.user.id;
-
-        // Fetch user's role for this event and check access in app code
-        const { data: roleData } = await supabase
-          .from("user_event_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .eq("event_id", eventId)
-          .maybeSingle();
-
-        if (
-          !roleData ||
-          !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
-        ) {
+        if (!userId) {
           toast({
-            title: "Error",
-            description: "You don't have permission to edit this event",
+            title: "Bypass not configured",
+            description:
+              "Set NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID to test without login.",
             variant: "destructive",
           });
-          router.push(`/events/${eventId}/dashboard`);
           return;
         }
 
@@ -126,7 +150,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         const { data: adminData } = await supabase.rpc("is_admin_user", {
           user_id: userId,
         });
-        setIsAdmin(adminData || false);
+        setIsAdmin(Boolean(adminData) || isDevNoAuthMode);
 
         const { data: eventData, error } = await supabase
           .from("events")
@@ -166,51 +190,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         eventData.event_lessons = lessonsData || [];
         setEvent(eventData);
 
-        // Map event tracks to scoring_config structure if needed
-        if (eventData && eventData.event_tracks) {
-          const tracksConfig: Record<
-            string,
-            {
-              name: string;
-              criteria: Array<{
-                id: string;
-                name: string;
-                description: string;
-                weight: number;
-                min: number;
-                max: number;
-              }>;
-            }
-          > = {};
-
-          eventData.event_tracks.forEach((track: EventTrack) => {
-            if (track.track_id && track.scoring_criteria) {
-              tracksConfig[track.track_id] = {
-                name: track.name,
-                criteria: track.scoring_criteria.criteria.map(
-                  (criterion: ScoringCriterion) => ({
-                    id: criterion.id,
-                    name: criterion.name,
-                    description: criterion.description,
-                    weight: criterion.weight || 1,
-                    min: criterion.min || 1,
-                    max: criterion.max || 10,
-                    type: criterion.type || "numeric",
-                    options: criterion.options || [],
-                  })
-                ),
-              };
-            }
-          });
-
-          const scoreConfig = {
-            tracks: tracksConfig,
-            defaultMin: 1,
-            defaultMax: 10,
-            defaultWeight: 1,
-          };
-          setScoringConfig(scoreConfig);
-        }
+        setScoringConfig(buildEventScoringConfig(eventData));
       } catch (error) {
         console.error("Error fetching event:", error);
         toast({
@@ -224,7 +204,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     }
 
     fetchEvent();
-  }, [eventId, router, toast, refetchTrigger]);
+  }, [eventId, router, toast, refetchTrigger, isDevNoAuthMode, devBypassUserId]);
 
   const { isArchived } = useEventArchiveStatus(event);
 
@@ -369,14 +349,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
               </TabsContent>
 
               <TabsContent value="registration" className="mt-0">
-                <div className="rounded-lg border bg-card p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Registration Settings
-                  </h3>
-                  <p className="text-gray-500">
-                    Registration configuration coming soon
-                  </p>
-                </div>
+                <IntakeResponsesTab eventId={eventId} />
               </TabsContent>
 
               <TabsContent value="project" className="mt-0">
@@ -384,7 +357,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   <h3 className="text-lg font-semibold mb-4">
                     Project Settings
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <SubmissionsTab eventId={eventId} />
                     <ScoresTab
                       eventId={eventId}
@@ -396,7 +369,14 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                           defaultWeight: 1,
                         }
                       }
+                      onScoringConfigSaved={setScoringConfig}
                     />
+                    <div className="pt-6 border-t">
+                      <h4 className="text-base font-semibold mb-4">
+                        Assign Judges & Mentors to Projects
+                      </h4>
+                      <AssignTab eventId={eventId} />
+                    </div>
                   </div>
                 </div>
               </TabsContent>
@@ -419,6 +399,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   setEvent={setEvent}
                   saving={saving}
                   setSaving={setSaving}
+                  activeSubTab="password"
                 />
               </TabsContent>
 
@@ -440,6 +421,14 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   eventId={eventId}
                   eventName={event.event_name}
                 />
+              </TabsContent>
+
+              <TabsContent value="agents" className="mt-0">
+                <AgentsTab eventId={eventId} />
+              </TabsContent>
+
+              <TabsContent value="api-keys" className="mt-0">
+                <ApiKeysTab eventId={eventId} />
               </TabsContent>
             </Tabs>
           </div>

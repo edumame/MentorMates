@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -16,8 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const DISCORD_INVITE = "https://discord.gg/6pbUzK44eW";
-const MENTOR_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
+const MENTOR_FORM_URL = "https://judges.mentormates.ai";
 
 // Discord icon component
 function DiscordIcon({
@@ -45,6 +45,7 @@ function DiscordIcon({
 export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { clearReturnUrl, setReturnUrl } = useRedirect();
   const [isOpen, setIsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -78,12 +79,7 @@ export function Navbar() {
   }, []);
 
   const handleLoginClick = () => {
-    if (typeof window !== "undefined") {
-      const currentPath = window.location.pathname;
-      if (currentPath !== "/mentor") {
-        localStorage.setItem("returnUrl", currentPath);
-      }
-    }
+    setReturnUrl(pathname);
     router.push("/login");
   };
 
@@ -93,7 +89,7 @@ export function Navbar() {
       console.error("Error signing out:", error);
     } else {
       setSession(null);
-      localStorage.removeItem("returnUrl");
+      clearReturnUrl();
       router.push("/");
     }
   };
@@ -174,6 +170,9 @@ export function Navbar() {
                   <Link href="/about">About us</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href="/projects">Projects</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/research">Research</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
@@ -225,9 +224,9 @@ export function Navbar() {
                 >
                   Log in
                 </Button>
-                <Link href="/login">
+                <Link href="/events/submit">
                   <Button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm xl:px-4 xl:py-3 xl:rounded-xl xl:text-base whitespace-nowrap">
-                    Get started
+                    Submit event
                   </Button>
                 </Link>
               </>
@@ -342,6 +341,12 @@ export function Navbar() {
                   About us
                 </Link>
                 <Link
+                  href="/projects"
+                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
+                >
+                  Projects
+                </Link>
+                <Link
                   href="/research"
                   className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
                 >
@@ -397,9 +402,9 @@ export function Navbar() {
                   >
                     Log in
                   </Button>
-                  <Link href="/login" className="block">
+                  <Link href="/events/submit" className="block">
                     <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-base font-medium">
-                      Get started
+                      Submit event
                     </Button>
                   </Link>
                 </div>

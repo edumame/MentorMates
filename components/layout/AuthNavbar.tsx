@@ -3,56 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, Close, NotificationsNone } from "@mui/icons-material";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useAdmin } from "@/lib/hooks/use-admin";
+import { Menu, Close } from "@mui/icons-material";
 import posthog from "posthog-js";
-import { UserProfile } from "@/lib/types";
-import { GraduationCap } from "lucide-react";
-
-interface ExtendedUserProfile extends UserProfile {
-  // Onboarding data is stored as JSON in the database.
-  // We keep it flexible here because different onboarding versions can add fields over time.
-  onboarding_metadata: Record<string, unknown> | null;
-
-  // The user's school/university/company.
-  affiliation: string | null;
-
-  // Stored as text because phone numbers vary by country/format.
-  // We do NOT display it here (sensitive), only use it to decide if the profile is complete.
-  phone_number?: string | null;
-
-  // Social links are stored as JSON on `user_profiles.links`.
-  // Example: { linkedin: "https://www.linkedin.com/in/..." }
-  links?: Record<string, string> | null;
-}
+import { AuthNavbarRight } from "./AuthNavbarRight";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 export function AuthNavbar() {
   const router = useRouter();
+  const { clearReturnUrl } = useRedirect();
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const isAdmin = useAdmin();
-  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(
-    null
-  );
 
-  // fetch & subscribe to session
   useEffect(() => {
     supabase.auth
       .getSession()
@@ -65,48 +30,8 @@ export function AuthNavbar() {
     };
   }, []);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      const { data: userProfileData } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("uid", session?.user?.id)
-        .single();
-      setUserProfile(userProfileData);
-    };
-    if (session) {
-      fetchUserProfile();
-    }
-  }, [session]);
-
-  // Helper checks for "profile completion" notification.
-  const hasAffiliation = Boolean(userProfile?.affiliation?.trim());
-  const hasPhoneNumber = Boolean(userProfile?.phone_number?.trim());
-  const hasLinkedIn = Boolean(userProfile?.links?.linkedin?.trim());
-
-  // If we are logged in but have no `user_profiles` row yet, we still consider the profile incomplete.
-  const needsProfileCompletion =
-    Boolean(session) &&
-    (!userProfile || !hasAffiliation || !hasPhoneNumber || !hasLinkedIn);
-
-  const missingProfileFields: string[] = [];
-  if (session) {
-    if (!hasAffiliation) missingProfileFields.push("affiliation");
-    if (!hasPhoneNumber) missingProfileFields.push("phone number");
-    if (!hasLinkedIn) missingProfileFields.push("LinkedIn");
-  }
-
-  const handleLogin = () => {
-    if (typeof window !== "undefined") {
-      const returnUrl = window.location.pathname;
-      if (returnUrl !== "/mentor") localStorage.setItem("returnUrl", returnUrl);
-    }
-    router.push("/login");
-    setIsOpen(false);
-  };
-
   const handleSignOut = async () => {
-    localStorage.removeItem("returnUrl");
+    clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
     router.push("/");
@@ -129,159 +54,7 @@ export function AuthNavbar() {
           </Link>
 
           {/* Desktop Right Controls: notifications (popover) + avatar */}
-          <div className="hidden lg:flex items-center gap-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  aria-label="Notifications"
-                  className="p-2 rounded-full hover:bg-gray-100 text-gray-800 relative"
-                >
-                  <NotificationsNone className="h-6 w-6" />
-                  {/* Show badge if profile incomplete */}
-                  {needsProfileCompletion && (
-                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full" />
-                  )}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                className="w-[420px] p-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl"
-              >
-                {/* Header with Title and Badge */}
-                <div className="p-4">
-                  <div className="flex items-center gap-1">
-                    <h3 className="text-[20px] font-semibold leading-7 tracking-[-0.5px] text-black">
-                      Notification
-                    </h3>
-                    <div className="border border-[rgba(0,0,0,0.15)] border-solid rounded-[50px] px-2 py-0">
-                      <p className="text-[14px] font-normal leading-[1.5] text-black">
-                        {needsProfileCompletion ? "1" : "0"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Profile Completion Notification */}
-                {needsProfileCompletion ? (
-                  <div className="px-4 pb-4">
-                    <Link
-                      href={`/profile/${session?.user?.id}?edit=1`}
-                      className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                        <GraduationCap className="h-5 w-5 text-amber-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[15px] font-medium text-zinc-900">
-                          Complete your profile
-                        </p>
-                        <p className="text-[14px] text-zinc-500 mt-0.5">
-                          Add your{" "}
-                          {missingProfileFields.length > 0
-                            ? missingProfileFields.join(", ")
-                            : "details"}{" "}
-                          to help others connect with you.
-                        </p>
-                      </div>
-                    </Link>
-                  </div>
-                ) : (
-                  /* Empty State - No Notifications */
-                  <div className="px-4 pb-4">
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <NotificationsNone className="h-12 w-12 text-gray-300 mb-3" />
-                      <p className="text-[16px] font-medium text-zinc-900 mb-1">
-                        No notifications
-                      </p>
-                      <p className="text-[14px] text-zinc-500">
-                        You&apos;re all caught up!
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
-
-            {session ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger aria-label="Account menu">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={session.user.user_metadata?.avatar_url} />
-                    <AvatarFallback>
-                      {session.user.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <div className="p-3">
-                    <div className="px-2 pb-3">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xl font-bold leading-tight">
-                          {session.user.user_metadata?.full_name ||
-                            session.user.user_metadata?.name ||
-                            session.user.email?.split("@")[0]}
-                        </p>
-                        {isAdmin && (
-                          <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5">
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-base text-gray-700 mt-1">
-                        {session.user.email}
-                      </p>
-
-                      {!userProfile?.onboarding_metadata ? (
-                        <Button
-                          variant="defaultGray"
-                          onClick={() => router.push("/onboarding")}
-                          className="mt-4 w-full text-base"
-                        >
-                          Set up profile
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="defaultGray"
-                          onClick={() =>
-                            router.push(`/profile/${session?.user?.id}`)
-                          }
-                          className="mt-4 w-full text-base"
-                        >
-                          View profile
-                        </Button>
-                      )}
-                    </div>
-                    <DropdownMenuSeparator />
-                    <div className="py-1">
-                      <DropdownMenuItem onSelect={() => router.push("/help")}>
-                        Support
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => router.push("/blog")}>
-                        Blog
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => void handleSignOut()}
-                        className="text-red-600 hover:bg-red-50"
-                      >
-                        Log out
-                      </DropdownMenuItem>
-                    </div>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <button
-                onClick={handleLogin}
-                aria-label="Log in"
-                className="rounded-full focus:outline-none"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="" />
-                  <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-              </button>
-            )}
-          </div>
+          <AuthNavbarRight className="hidden lg:flex items-center gap-4" />
 
           {/* Mobile Menu Button */}
           <button

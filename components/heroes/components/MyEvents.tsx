@@ -3,8 +3,9 @@ import { createClient } from "@/app/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { EventCard } from "@/components/events/event-card";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { EventItem, EventVisibility, ApprovalStatus } from "@/lib/types";
-import { Search, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useAdmin } from "@/lib/hooks/use-admin";
 
 type APIEvent = {
@@ -21,6 +22,7 @@ type APIEvent = {
   user_event_roles?: { role: number }[];
   visibility?: EventVisibility | null;
   approval_status?: ApprovalStatus | null;
+  event_type?: string[] | [];
 };
 
 type UIEvent = {
@@ -36,6 +38,7 @@ type UIEvent = {
   roleLabel?: string;
   visibility?: EventVisibility;
   approvalStatus?: ApprovalStatus;
+  event_type?: string[];
 };
 
 function toEventItem(event: UIEvent): EventItem {
@@ -49,6 +52,7 @@ function toEventItem(event: UIEvent): EventItem {
     slug: event.slug,
     event_blurb: event.blurb,
     event_description: event.description,
+    event_type: event.event_type,
   };
 }
 
@@ -114,6 +118,7 @@ export function MyEvents() {
             roleLabel,
             visibility: e.visibility as EventVisibility,
             approvalStatus: e.approval_status as ApprovalStatus,
+            event_type: e.event_type ?? [],
           };
         });
 
@@ -233,24 +238,19 @@ export function MyEvents() {
   return (
     <section className="w-full">
       <div className="flex justify-between items-center mb-3 flex-wrap gap-4">
-        <h2 className="text-2xl font-semibold">My events</h2>
+        <h2 className="text-2xl font-semibold font-geist tracking-[-0.06em]">My events</h2>
         
         {/* Search and Sort Section */}
         {!loading && !error && events.length > 0 && (
           <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
             {/* Search Input */}
-            <div className="relative w-full sm:w-[240px]">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[rgba(0,0,0,0.6)]">
-                <Search className="w-full h-full" strokeWidth={2} />
-              </div>
-              <input
-                type="text"
-                placeholder="Search events"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl pl-10 pr-3 py-2 text-sm font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <EventSearchInput
+              wrapperClassName="w-full sm:w-[240px]"
+              placeholder="Search events"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              inputClassName="text-sm sm:text-sm"
+            />
 
             {/* Sort By Dropdown */}
             <div className="relative">
@@ -383,7 +383,10 @@ export function MyEvents() {
       ) : (
         <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
           {filteredAndSortedEvents.map((e) => (
-            <div key={e.id} className="relative w-full max-w-[420px] mx-auto">
+            <div
+              key={e.id}
+              className={`relative w-full max-w-[420px] ${filteredAndSortedEvents.length === 1 ? "" : "mx-auto"}`}
+            >
               <EventCard event={toEventItem(e)} />
               {e.roleLabel && (
                 <div className="absolute top-3 left-3 z-10">

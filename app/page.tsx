@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
-import { supabase } from "@/lib/supabase";
 import { Footer } from "@/components/layout/Footer";
 import { LandingHero } from "@/components/heroes/LandingHero";
-import posthog from "posthog-js";
-import { AuthHero } from "@/components/heroes/AuthHero";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
+import { AuthHero } from "@/components/heroes/AuthHero";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { useEffect, useRef } from "react";
+import posthog from "posthog-js";
+import { supabase } from "@/lib/supabase";
 
+/**
+ * Server component — the landing page content (LandingHero, Footer) is
+ * rendered as static HTML at build time, making it visible to search
+ * engine crawlers in the initial response.
+ *
+ * HomePageClient wraps the content and swaps it for the auth dashboard
+ * when a user is logged in (client-side only).
+ */
 export default function HomePage() {
   // Use the shared auth context instead of managing own state
   const { session, isLoading } = useAuth();
@@ -38,7 +46,9 @@ export default function HomePage() {
           .select();
 
         if (error) {
-          console.error("Error syncing profile:", error);
+          const msg = error.message ?? String(error);
+          const code = (error as { code?: string }).code;
+          console.error("Error syncing profile:", code ? `[${code}] ${msg}` : msg);
         }
 
         posthog.identify(user.id, {
@@ -70,7 +80,7 @@ export default function HomePage() {
   }
 
   return (
-    <SidebarLayout>
+    <SidebarLayout showLogoInSidebar>
       <AuthHero />
       <ServiceWorkerRegistration />
     </SidebarLayout>
