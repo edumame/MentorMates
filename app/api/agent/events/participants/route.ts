@@ -22,7 +22,15 @@ export async function GET(request: NextRequest) {
     if (access instanceof NextResponse) return access;
 
     const supabase = createSupabaseServiceClient();
-    const role = request.nextUrl.searchParams.get("role"); // filter by role
+    const roleParam = request.nextUrl.searchParams.get("role"); // filter by role
+    const roleParse = z
+      .enum(["participant", "mentor", "judge", "organizer", "admin", "event"])
+      .nullable()
+      .safeParse(roleParam);
+    if (!roleParse.success) {
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+    const role = roleParse.data;
     const limit = Math.min(
       parseInt(request.nextUrl.searchParams.get("limit") || "100"),
       500

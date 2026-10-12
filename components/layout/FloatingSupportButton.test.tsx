@@ -1,0 +1,71 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { openReport } from "shipcue/react";
+import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { supabase } from "@/lib/supabase";
+
+let mockPathname = "/events";
+jest.mock("next/navigation", () => ({ usePathname: () => mockPathname }));
+jest.mock("shipcue/react", () => ({ openReport: jest.fn() }));
+jest.mock("@/features/user/authentication/auth/AuthContext", () => ({ useAuth: jest.fn() }));
+jest.mock("@/lib/supabase", () => ({ supabase: { rpc: jest.fn() } }));
+
+function signIn(admin: boolean) {
+  (useAuth as jest.Mock).mockReturnValue({ session: { user: { id: "u1" } } });
+  (supabase.rpc as jest.Mock).mockResolvedValue({ data: admin });
+}
+
+describe("FloatingSupportButton", () => {
+  beforeEach(() => {
+    mockPathname = "/events";
+    (openReport as jest.Mock).mockReset();
+    (useAuth as jest.Mock).mockReturnValue({ session: null });
+    (supabase.rpc as jest.Mock).mockReset();
+  });
+
+  it.each([
+    ["Report a Bug", "bug"],
+    ["Request a Feature", "feature"],
+  ])("%s opens shipcue's panel on the %s tab", async (label, type) => {
+    const user = userEvent.setup();
+    render(<FloatingSupportButton />);
+    await user.click(screen.getByRole("button", { name: "Support" }));
+    await user.click(await screen.findByRole("button", { name: new RegExp(label, "i") }));
+    expect(openReport).toHaveBeenCalledWith(type);
+  });
+
+  it("keeps contact and docs in the support popover", async () => {
+    const user = userEvent.setup();
+    render(<FloatingSupportButton />);
+    await user.click(screen.getByRole("button", { name: "Support" }));
+    expect(await screen.findByText("contact@outreach.mentormates.ai")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /faq/i })).toBeInTheDocument();
+  });
+
+  it("is the one button in the corner, moved up on chat pages", () => {
+    const { rerender } = render(<FloatingSupportButton />);
+    expect(screen.getByRole("button", { name: "Support" })).toHaveClass("bottom-4", "right-4");
+    mockPathname = "/chat/1";
+    rerender(<FloatingSupportButton />);
+    expect(screen.getByRole("button", { name: "Support" })).toHaveClass("bottom-[112px]");
+  });
+
+  it("gives admins an Agent task item that opens shipcue's task tab", async () => {
+    signIn(true);
+    const user = userEvent.setup();
+    render(<FloatingSupportButton />);
+    await user.click(screen.getByRole("button", { name: "Support" }));
+    await user.click(await screen.findByRole("button", { name: /agent task/i }));
+    expect(openReport).toHaveBeenCalledWith("task");
+  });
+
+  it("does not offer Agent task to members who are not admins", async () => {
+    signIn(false);
+    const user = userEvent.setup();
+    render(<FloatingSupportButton />);
+    await user.click(screen.getByRole("button", { name: "Support" }));
+    await screen.findByRole("button", { name: /report a bug/i });
+    expect(screen.queryByRole("button", { name: /agent task/i })).toBeNull();
+  });
+});

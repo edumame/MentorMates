@@ -30,7 +30,8 @@ import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
 import type { UserProfile } from "@/lib/types";
-import { hasCompletedOnboarding } from "@/features/user/onboarding/metadata";
+import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 const HomeIcon = (
   <svg
@@ -159,6 +160,9 @@ const bottomLinksBase = [
 
 interface ExtendedUserProfile extends UserProfile {
   onboarding_metadata: Record<string, unknown> | null;
+  affiliation: string | null;
+  phone_number?: string | null;
+  links?: Record<string, string> | null;
 }
 
 interface SideNavProps {
@@ -171,13 +175,11 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(null);
   const pathname = usePathname();
+  const { clearReturnUrl } = useRedirect();
   const { needsProfileCompletion } = useNotificationData();
   const isAdmin = useAdmin();
-  const hasCompletedOnboardingFlow = hasCompletedOnboarding(
-    userProfile?.onboarding_metadata
-  );
-  const showOnboardingWarning = Boolean(
-    session && userProfile && !hasCompletedOnboardingFlow
+  const showProfileCompletionWarning = Boolean(
+    session && profileNeedsCompletion(userProfile)
   );
 
   useEffect(() => {
@@ -206,7 +208,7 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
   }, [session]);
 
   const handleSignOut = async () => {
-    localStorage.removeItem("returnUrl");
+    clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
     router.push("/");
@@ -313,7 +315,7 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                 aria-label="Account menu"
                 className="relative w-full h-[64px] flex items-center gap-4 px-3 self-stretch rounded-xl border border-[#E9EAEB] bg-white text-left hover:bg-gray-50/80 transition-colors"
               >
-                {showOnboardingWarning && (
+                {showProfileCompletionWarning && (
                   <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#EF4444] text-xs font-semibold text-white">
                     !
                   </span>
@@ -367,10 +369,12 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                 <p className="mt-2 text-sm text-gray-700 break-all">
                   {session.user.email}
                 </p>
-                {!hasCompletedOnboardingFlow ? (
+                {profileNeedsCompletion(userProfile) ? (
                   <Button
                     variant="defaultGray"
-                    onClick={() => router.push("/onboarding")}
+                    onClick={() =>
+                      router.push(`/profile/${session?.user?.id}?edit=1`)
+                    }
                     className="mt-4 w-full text-base"
                   >
                     Set up profile

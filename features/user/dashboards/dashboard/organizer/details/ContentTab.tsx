@@ -4,7 +4,10 @@ import { EventDetails, Lesson } from "@/lib/types";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,7 +246,7 @@ export function ContentTab({
     <div className="space-y-4 w-full min-w-0">
       <Tabs defaultValue="edit" className="w-full">
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-[16px] font-semibold text-black">
               Exclusive Content for Participants
             </h3>
@@ -281,6 +284,7 @@ export function ContentTab({
             <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
               {event.paywall_content ? (
                 <ReactMarkdown
+                  remarkPlugins={markdownRemarkPlugins}
                   rehypePlugins={markdownRehypePlugins}
                   components={customMarkdownComponents}
                 >
@@ -300,7 +304,7 @@ export function ContentTab({
       {/* Lessons Editor */}
       <div className="w-full mt-4 space-y-4">
         <Tabs defaultValue="edit" className="w-full">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h3 className="text-[16px] font-semibold text-black">
               Lessons {loadingLessons && <span className="text-sm text-gray-500">(Loading...)</span>}
             </h3>

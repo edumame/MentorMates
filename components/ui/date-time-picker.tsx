@@ -75,6 +75,7 @@ export function DateTimePicker({
     return timezone || getUserTimezone();
   }, [timezone]);
 
+  const timeInputId = React.useId();
   const [open, setOpen] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     value ? new Date(value) : undefined
@@ -230,42 +231,58 @@ export function DateTimePicker({
           </div>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-0"
+          className="w-[min(100vw-1rem,var(--radix-popover-trigger-width)+120px)] max-w-[min(100vw-1rem,36rem)] p-0"
           align="start"
           sideOffset={8}
+          collisionPadding={{ top: 12, bottom: 28 }}
         >
-          <div className="p-4 space-y-4">
-            <Calendar 
-              selected={selectedDate} 
-              onSelect={handleDateSelect}
-            />
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Time
-              </label>
-              <Input
-                type="time"
-                value={timeString}
-                onChange={(e) => handleTimeChange(e.target.value)}
-                disabled={disabled}
-                className="h-[44px]"
+          {/* Scroll + safe-area: keeps time controls reachable on mobile */}
+          <div
+            className={cn(
+              "max-h-[min(82dvh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain touch-pan-y",
+              "p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
+            )}
+          >
+            {/* On narrow screens show time first so it stays above the fold */}
+            <div className="flex flex-col-reverse gap-4 md:flex-col md:gap-4">
+              <Calendar
+                selected={selectedDate}
+                onSelect={handleDateSelect}
               />
-              <p className="text-xs text-gray-500">
-                {selectedTimezone === "UTC" 
-                  ? "Time in UTC" 
-                  : `Time in ${selectedTimezone.replace(/_/g, " ")} (${
-                      (() => {
+
+              <div className="space-y-2 shrink-0">
+                <label
+                  htmlFor={timeInputId}
+                  className="text-sm font-medium flex items-center gap-2"
+                >
+                  <Clock className="w-4 h-4 shrink-0" aria-hidden />
+                  Time
+                </label>
+                <Input
+                  id={timeInputId}
+                  type="time"
+                  value={timeString}
+                  onChange={(e) => handleTimeChange(e.target.value)}
+                  disabled={disabled}
+                  className="h-[44px] text-[16px]"
+                  step={60}
+                />
+                <p className="text-xs text-gray-500">
+                  {selectedTimezone === "UTC"
+                    ? "Time in UTC"
+                    : `Time in ${selectedTimezone.replace(/_/g, " ")} (${(() => {
                         try {
-                          return formatInTimeZone(new Date(), selectedTimezone, "zzz");
+                          return formatInTimeZone(
+                            new Date(),
+                            selectedTimezone,
+                            "zzz"
+                          );
                         } catch {
                           return selectedTimezone;
                         }
-                      })()
-                    })`
-                }
-              </p>
+                      })()})`}
+                </p>
+              </div>
             </div>
           </div>
         </PopoverContent>

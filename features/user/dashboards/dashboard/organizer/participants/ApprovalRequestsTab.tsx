@@ -276,9 +276,9 @@ export function ApprovalRequestsTab({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="w-full min-w-0 space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-4">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by status" />
@@ -324,8 +324,8 @@ export function ApprovalRequestsTab({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="border rounded-lg">
-            <Table>
+          <div className="scroll-x-tabs w-full min-w-0 border rounded-lg">
+            <Table className="min-w-[560px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
