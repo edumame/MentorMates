@@ -141,7 +141,7 @@ export function RoleLabelsTab({
             ))}
         </div>
 
-        <div className="flex gap-4 justify-end">
+        <div className="flex flex-wrap gap-2 justify-end">
           <Button
             variant="defaultGray"
             className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium"

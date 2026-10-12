@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /^\/profile\/[a-zA-Z0-9_-]+($|\/.*$)/, // Matches /profile/user-id and all its sub-routes
       /^\/blog($|\/.*$)/, // Make blog index and all posts public
       /^\/article($|\/.*$)/, // Alias article routes public too
+      /^\/certificate($|\/.*$)/, // Certificates are shareable logged-out (per-person via ?p=)
     ];
   }, []);
 

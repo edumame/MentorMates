@@ -50,7 +50,10 @@ export function LandingHero() {
 
   return (
     <div className="relative bg-white overflow-x-hidden">
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 pt-24 sm:pt-20 lg:pt-24 pb-8 sm:pb-16 lg:pb-20">
+      {/* Top padding adds var(--banner-h) so hero content clears the fixed
+          navbar + announcement banner stack (banner height is set by
+          StickyBanner and drops to 0 when dismissed). */}
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 pt-[calc(var(--banner-h,0px)+6rem)] sm:pt-[calc(var(--banner-h,0px)+5rem)] lg:pt-[calc(var(--banner-h,0px)+6rem)] pb-8 sm:pb-16 lg:pb-20">
         <div className="grid lg:grid-cols-12 gap-2 items-start">
           {/* Left: Huge headline */}
           <div className="lg:col-span-7 min-w-0">
