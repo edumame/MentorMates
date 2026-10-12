@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      internal_api_usage: {
+        Row: {
+          completion_tokens: number | null
+          created_at: string
+          id: number
+          invite_id: string | null
+          key_id: string | null
+          latency_ms: number | null
+          prompt_tokens: number | null
+          service: string
+          status: number | null
+        }
+        Insert: {
+          completion_tokens?: number | null
+          created_at?: string
+          id?: number
+          invite_id?: string | null
+          key_id?: string | null
+          latency_ms?: number | null
+          prompt_tokens?: number | null
+          service: string
+          status?: number | null
+        }
+        Update: {
+          completion_tokens?: number | null
+          created_at?: string
+          id?: number
+          invite_id?: string | null
+          key_id?: string | null
+          latency_ms?: number | null
+          prompt_tokens?: number | null
+          service?: string
+          status?: number | null
+        }
+        Relationships: []
+      }
+      internal_invites: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          label: string | null
+          max_uses: number | null
+          revoked_at: string | null
+          service: string
+          uses: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          label?: string | null
+          max_uses?: number | null
+          revoked_at?: string | null
+          service?: string
+          uses?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          label?: string | null
+          max_uses?: number | null
+          revoked_at?: string | null
+          service?: string
+          uses?: number
+        }
+        Relationships: []
+      }
       agent_api_keys: {
         Row: {
           created_at: string | null
@@ -2368,6 +2443,10 @@ export type Database = {
       }
     }
     Functions: {
+      increment_internal_invite_uses: {
+        Args: { p_invite_id: string }
+        Returns: undefined
+      }
       can_view_feedback: {
         Args: { p_feedback_id: string; p_user_id: string }
         Returns: boolean
