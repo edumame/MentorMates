@@ -7,6 +7,14 @@
 
 A Next.js application designed to streamline the process of collecting and managing mentor feedback for projects and hackathons, with comprehensive role-based access control and project scoring systems.
 
+## 🌱 Open source and non-profit
+
+MentorMates is **open source** under the [MIT License](LICENSE), and we are **in the process of registering as a non-profit**.
+
+**Mission.** Hackathons are a great way to learn new technology, but they often intimidate beginners and people from underrepresented backgrounds. MentorMates gives every participant structured mentorship, feedback and support, so a hackathon is a place where anyone can confidently build something meaningful.
+
+**Community.** We build in the open, with the students, mentors, organizers and partners who use MentorMates. Issues, ideas and pull requests are welcome, and so are hackathon partnerships and collaborations: write to us at [contact@mentormates.ai](mailto:contact@mentormates.ai).
+
 ## 🚀 Features
 
 - **Multi-Role Support**: Participants, Mentors, Judges, Organizers, and Admins
@@ -406,6 +414,8 @@ For detailed architecture documentation, migration history, and technical decisi
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+Questions, partnership or hackathon ideas: [contact@mentormates.ai](mailto:contact@mentormates.ai).
+
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MentorMates is open source under the MIT License: see the [LICENSE](LICENSE) file. The website shows the same text at `/license`.

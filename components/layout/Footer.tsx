@@ -7,6 +7,7 @@ import XIcon from "@mui/icons-material/X";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { LicenseNotice } from "@/components/layout/LicenseNotice";
 
 const SUBSTACK_BASE = "https://mentormates.substack.com/";
 
@@ -197,7 +198,7 @@ export function Footer() {
           </div>
 
           <p className="order-2 md:order-1 text-xs md:text-sm text-gray-600">
-            &copy; 2025 MentorMates. All rights reserved.
+            <LicenseNotice />
           </p>
         </div>
       </div>
