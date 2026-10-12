@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
          location, visibility, approval_status, participant_capacity,
          submission_time_start, submission_time_cutoff, event_schedule,
          event_prizes, event_resources, scoring_config, cover_image_url, slug,
-         paid, require_participant_approval, require_registration_questionnaire,
+         paid, require_participant_approval,
          finalist_recommendation_enabled, featured, event_type, rules, faq,
          role_labels`
       )
@@ -181,7 +181,6 @@ const updateEventSchema = z
     submission_time_cutoff: z.string().nullable().optional(),
     // booleans
     require_participant_approval: z.boolean().optional(),
-    require_registration_questionnaire: z.boolean().optional(),
     finalist_recommendation_enabled: z.boolean().optional(),
     paid: z.boolean().optional(),
     // numerics
@@ -353,7 +352,6 @@ export async function POST(request: NextRequest) {
       owner_id: auth.userId,
       approval_status: "not_submitted",
       featured: false,
-      require_registration_questionnaire: event.require_participant_approval,
       event_type: event.event_type ?? [],
     };
 

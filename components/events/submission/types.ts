@@ -15,6 +15,8 @@ export interface SubmissionField {
   options?: string[];
   multiple?: boolean;
   maxFiles?: number;
+  /** Collect append-only per-teammate entries (e.g. a submission log) instead of one shared answer. */
+  allowsMultipleEntries?: boolean;
 }
 
 export interface ChatMessage {
@@ -40,10 +42,14 @@ const DB_TO_EDITOR: Record<string, string> = {
   url: "url",
   multi_url: "url",
   file: "file",
+  multi_file: "file",
   select: "select",
   multi_select: "multi_select",
   checkbox: "checkbox",
 };
+
+/** DB field types that represent an editor type with "Allow multiple entries" on. */
+const MULTIPLE_DB_TYPES = new Set(["multi_url", "multi_file"]);
 
 /** Convert editor field type → DB submission_field_type. */
 export function editorTypeToDb(
@@ -52,6 +58,10 @@ export function editorTypeToDb(
 ): string {
   if (editorType === "url" && multiple) {
     return "multi_url";
+  }
+
+  if (editorType === "file" && multiple) {
+    return "multi_file";
   }
 
   return EDITOR_TO_DB[editorType] ?? "short_text";
@@ -270,6 +280,11 @@ export function createMLHSubmissionTemplateFields(): SubmissionField[] {
   }));
 }
 
+/** Field ids that map onto built-in project columns and cannot become entry logs. */
+export const BUILT_IN_FIELD_IDS = new Set(
+  DEFAULT_SUBMISSION_FIELDS.map((field) => field.id)
+);
+
 /** Convert a SubmissionField array → API payload for PUT /api/events/[eventId]/submission-fields */
 export function fieldsToApiPayload(fields: SubmissionField[]) {
   return fields.map((field, index) => ({
@@ -284,6 +299,10 @@ export function fieldsToApiPayload(fields: SubmissionField[]) {
     options: (field.options || [])
       .map((option) => option.trim())
       .filter((option) => option.length > 0),
+    allows_multiple_entries:
+      (field.allowsMultipleEntries ?? false) && !BUILT_IN_FIELD_IDS.has(field.id),
+    max_files:
+      field.type === "file" && field.multiple ? (field.maxFiles ?? 5) : null,
   }));
 }
 
@@ -297,6 +316,8 @@ export function apiFieldsToEditor(
     field_type: string;
     required: boolean;
     options?: unknown;
+    allows_multiple_entries?: boolean;
+    max_files?: number | null;
   }>
 ): SubmissionField[] {
   return apiFields.map((f) => ({
@@ -307,6 +328,8 @@ export function apiFieldsToEditor(
     placeholder: f.placeholder || "",
     helperText: f.description || undefined,
     options: Array.isArray(f.options) && f.options.length > 0 ? f.options : undefined,
-    multiple: f.field_type === "multi_url",
+    multiple: MULTIPLE_DB_TYPES.has(f.field_type),
+    maxFiles: f.field_type === "multi_file" ? (f.max_files ?? undefined) : undefined,
+    allowsMultipleEntries: f.allows_multiple_entries || undefined,
   }));
 }

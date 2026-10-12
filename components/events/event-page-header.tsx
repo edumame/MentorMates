@@ -3,6 +3,8 @@
 import { CalendarDays, MapPin, ArrowUpRight, Plus, Pencil } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { JoinEventButton } from "./join-event-button";
+import { RsvpButton } from "@/features/events/rsvp/RsvpButton";
+import { PostSurveyButton } from "@/features/events/post-survey/PostSurveyButton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { parseEventDateLocal } from "@/lib/utils/date";
@@ -60,8 +62,7 @@ export function EventPageHeader({
   })();
   return (
     <div
-      className="bg-white flex flex-col w-full"
-      style={{ maxWidth: "100vw" }}
+      className="bg-white flex min-w-0 max-w-full flex-col w-full overflow-x-clip"
     >
       {/* Cover Image */}
       <div className="h-[200px] sm:h-[224px] w-full relative overflow-hidden">
@@ -173,6 +174,15 @@ export function EventPageHeader({
                       );
                     })()}
                   </div>
+
+                  {/* RSVP and post-event survey (only for joined users, when
+                      the corresponding form is published) */}
+                  {hasJoined && (
+                    <div className="w-full space-y-2">
+                      <RsvpButton eventId={eventId} />
+                      <PostSurveyButton eventId={eventId} />
+                    </div>
+                  )}
 
                   {/* Manage / Edit Event Buttons (organizer + admin) */}
                   {(userRole === "organizer" || userRole === "admin") && (

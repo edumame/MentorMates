@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import type { IntakeFormContext, IntakeFormSchema } from "@/features/intake-forms/types";
+import {
+  INTAKE_FORM_CONTEXTS,
+  type IntakeFormContext,
+  type IntakeFormSchema,
+} from "@/features/intake-forms/types";
 import { getAuthContext } from "../intake-forms/_shared";
 
 const querySchema = z.object({
-  context: z.enum(["registration", "project_submission"]),
+  context: z.enum(INTAKE_FORM_CONTEXTS),
 });
 
 export async function GET(
@@ -29,10 +33,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Project submission flow: user must have a role in the event, unless admin.
-    // Registration flow is accessible to any authenticated user so they can complete
+    // All non-registration flows (project submission, RSVP, post-survey):
+    // user must have a role in the event, unless admin. Registration flow is
+    // accessible to any authenticated user so they can complete the
     // questionnaire before joining.
-    if (!auth.isAdmin && context === "project_submission") {
+    if (!auth.isAdmin && context !== "registration") {
       const { data: roleRow } = await auth.supabase
         .from("user_event_roles")
         .select("id")

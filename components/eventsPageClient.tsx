@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { EventRole } from "@/lib/types";
@@ -13,6 +13,8 @@ import { EventsList } from "@/components/events/events-list";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
 import { EventRow, type EventWithRole } from "@/components/events/event-row";
+import { DEFAULT_PAGE_SIZE } from "@/lib/config/constants";
+
 
 type EventsPageClientProps = {
   eventsList: EventWithRole[];
@@ -94,6 +96,7 @@ export function EventsPageClient({
     start: null,
     end: null,
   });
+  const [visibleLimit, setVisibleLimit] = useState(DEFAULT_PAGE_SIZE);
   const {
     isAuthenticated: clientIsAuthenticated,
     isLoading: isAuthLoading,
@@ -104,6 +107,26 @@ export function EventsPageClient({
   const isAuthenticated = isAuthLoading
     ? initialIsAuthenticated
     : clientIsAuthenticated;
+
+  // Body has `overflow-x: hidden` globally, which turns body into an intermediate
+  // scroll container and breaks `position: sticky` for the calendar sidebar on the
+  // unauthed desktop view. html already clips horizontal overflow, so dropping body's
+  // overflow on large screens is safe and lets sticky anchor to the document scroll.
+  useEffect(() => {
+    if (isAuthenticated) return;
+
+    const media = window.matchMedia("(min-width: 1024px)");
+    const apply = () => {
+      document.body.style.overflowX = media.matches ? "visible" : "";
+    };
+
+    apply();
+    media.addEventListener("change", apply);
+    return () => {
+      media.removeEventListener("change", apply);
+      document.body.style.overflowX = "";
+    };
+  }, [isAuthenticated]);
 
   const availableTypes = useMemo(() => {
     const set = new Set<string>();
@@ -195,6 +218,77 @@ export function EventsPageClient({
 
   const totalVisible = filteredEvents.length;
 
+  const filterFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        tab: activeTab,
+        search: searchTerm,
+        locations: [...selectedLocations].sort(),
+        types: [...selectedTypes].sort(),
+        dateStart: dateRange.start?.toISOString() ?? null,
+        dateEnd: dateRange.end?.toISOString() ?? null,
+        count: filteredEvents.length,
+        ids: filteredEvents.map((e) => e.event_id).join(","),
+      }),
+    [
+      activeTab,
+      searchTerm,
+      selectedLocations,
+      selectedTypes,
+      dateRange.start,
+      dateRange.end,
+      filteredEvents,
+    ]
+  );
+
+  useEffect(() => {
+    setVisibleLimit(DEFAULT_PAGE_SIZE);
+  }, [filterFingerprint]);
+
+  const orderedEvents = useMemo(() => {
+    const nonFeatured = DATE_ORDER.flatMap((bucket) => groupedByDate[bucket]);
+    return [...featuredEvents, ...nonFeatured];
+  }, [featuredEvents, groupedByDate]);
+
+  const visibleEvents = useMemo(
+    () => orderedEvents.slice(0, visibleLimit),
+    [orderedEvents, visibleLimit]
+  );
+
+  const visibleEventIds = useMemo(
+    () => new Set(visibleEvents.map((e) => e.event_id)),
+    [visibleEvents]
+  );
+
+  const visibleFeatured = useMemo(
+    () => featuredEvents.filter((e) => visibleEventIds.has(e.event_id)),
+    [featuredEvents, visibleEventIds]
+  );
+
+  const visibleGroupedByDate = useMemo(() => {
+    const buckets: Record<DateBucket, EventWithRole[]> = {
+      today: [],
+      tomorrow: [],
+      thisWeek: [],
+      nextWeek: [],
+      later: [],
+      past: [],
+    };
+    for (const bucket of DATE_ORDER) {
+      buckets[bucket] = groupedByDate[bucket].filter((e) =>
+        visibleEventIds.has(e.event_id)
+      );
+    }
+    return buckets;
+  }, [groupedByDate, visibleEventIds]);
+
+  const hasMoreEvents = visibleLimit < orderedEvents.length;
+  const loadMore = () => {
+    setVisibleLimit((prev) =>
+      Math.min(prev + DEFAULT_PAGE_SIZE, orderedEvents.length)
+    );
+  };
+
   const toggleLocation = (key: string) => {
     setSelectedLocations((prev) => {
       const next = new Set(prev);
@@ -237,12 +331,12 @@ export function EventsPageClient({
     : ["discover"];
 
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
-        <div className="min-w-0">
+    <div className="w-full min-w-0 max-w-full overflow-x-clip">
+      <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+        <div className="min-w-0 max-w-full">
           <div
             className={cn(
-              "sticky z-30 bg-white -mx-2 px-2 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]",
+              "sticky z-30 bg-white pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]",
               isAuthenticated
                 ? "top-0 -mt-[24px] pt-[27px]"
                 : "top-[72px] pt-3"
@@ -314,7 +408,7 @@ export function EventsPageClient({
             />
           ) : (
             <div className="flex flex-col gap-10">
-              {featuredEvents.length > 0 && (
+              {visibleFeatured.length > 0 && (
                 <section aria-labelledby="featured-heading">
                   <h2
                     id="featured-heading"
@@ -323,10 +417,10 @@ export function EventsPageClient({
                     Featured
                   </h2>
                   <div className="lg:hidden">
-                    <EventsList events={featuredEvents} />
+                    <EventsList events={visibleFeatured} />
                   </div>
                   <div className="hidden lg:flex lg:flex-col">
-                    {featuredEvents.map((event) => (
+                    {visibleFeatured.map((event) => (
                       <EventRow key={event.event_id} event={event} />
                     ))}
                   </div>
@@ -334,7 +428,7 @@ export function EventsPageClient({
               )}
 
               {DATE_ORDER.map((bucket) => {
-                const items = groupedByDate[bucket];
+                const items = visibleGroupedByDate[bucket];
                 if (items.length === 0) return null;
                 return (
                   <section key={bucket} aria-labelledby={`date-${bucket}-heading`}>
@@ -355,6 +449,15 @@ export function EventsPageClient({
                   </section>
                 );
               })}
+
+              {orderedEvents.length > DEFAULT_PAGE_SIZE && (
+                <EventsListPagination
+                  shownCount={visibleEvents.length}
+                  totalCount={orderedEvents.length}
+                  hasMore={hasMoreEvents}
+                  onLoadMore={loadMore}
+                />
+              )}
             </div>
           )}
         </div>
@@ -362,8 +465,10 @@ export function EventsPageClient({
         <aside className="hidden lg:block">
           <div
             className={cn(
-              "sticky flex flex-col gap-5",
-              isAuthenticated ? "top-[24px]" : "top-[88px]"
+              "sticky flex flex-col gap-5 overflow-y-auto",
+              isAuthenticated
+                ? "top-[24px] max-h-[calc(100vh-48px)]"
+                : "top-[88px] max-h-[calc(100vh-112px)]"
             )}
           >
             <MiniCalendar
@@ -609,6 +714,38 @@ function FilterCard({
         })}
       </div>
     </div>
+  );
+}
+
+function EventsListPagination({
+  shownCount,
+  totalCount,
+  hasMore,
+  onLoadMore,
+}: {
+  shownCount: number;
+  totalCount: number;
+  hasMore: boolean;
+  onLoadMore: () => void;
+}) {
+  return (
+    <nav
+      aria-label="Events list pagination"
+      className="flex flex-col items-center gap-3 border-t border-[rgba(0,0,0,0.08)] pt-8"
+    >
+      <p className="text-[13px] text-[rgba(0,0,0,0.5)]">
+        Showing {shownCount} of {totalCount} events
+      </p>
+      {hasMore ? (
+        <Button type="button" variant="outline" onClick={onLoadMore}>
+          Load more
+        </Button>
+      ) : (
+        <p className="text-[13px] text-[rgba(0,0,0,0.45)]">
+          All {totalCount} events shown
+        </p>
+      )}
+    </nav>
   );
 }
 

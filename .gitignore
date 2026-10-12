@@ -60,3 +60,5 @@ supabase/migrations/scripts_*
 
 #plan directories
 plans/*
+
+.playwright-mcp
