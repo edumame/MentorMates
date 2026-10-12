@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 
 interface VideoEmbedProps {
@@ -20,17 +22,26 @@ export interface EmbedDescriptor {
   kind: EmbedKind;
 }
 
+function safeVideoUrl(value: string): URL | null {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url : null;
+  } catch { return null; }
+}
+
 const DIRECT_VIDEO_REGEX = /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i;
 
 // Utility function to convert video URLs to embed URLs (iframe src or direct media src).
 export const getEmbedDescriptor = (url: string): EmbedDescriptor | null => {
-  if (!url) return null;
+  const parsed = safeVideoUrl(url);
+  if (!parsed) return null;
+  const host = parsed.hostname.toLowerCase();
 
   // YouTube patterns
   const youtubeRegex =
     /(?:youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
   const youtubeMatch = url.match(youtubeRegex);
-  if (youtubeMatch) {
+  if (youtubeMatch && ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(host)) {
     return {
       src: `https://www.youtube.com/embed/${youtubeMatch[1]}`,
       kind: "iframe",
@@ -40,7 +51,7 @@ export const getEmbedDescriptor = (url: string): EmbedDescriptor | null => {
   // Vimeo patterns
   const vimeoRegex = /(?:vimeo\.com\/)(\d+)/;
   const vimeoMatch = url.match(vimeoRegex);
-  if (vimeoMatch) {
+  if (vimeoMatch && ["vimeo.com", "www.vimeo.com"].includes(host)) {
     return {
       src: `https://player.vimeo.com/video/${vimeoMatch[1]}`,
       kind: "iframe",
@@ -50,24 +61,20 @@ export const getEmbedDescriptor = (url: string): EmbedDescriptor | null => {
   // Loom patterns
   const loomRegex = /(?:loom\.com\/(?:share|embed)\/)([a-zA-Z0-9]+)/;
   const loomMatch = url.match(loomRegex);
-  if (loomMatch) {
+  if (loomMatch && ["loom.com", "www.loom.com"].includes(host)) {
     return {
       src: `https://www.loom.com/embed/${loomMatch[1]}`,
       kind: "iframe",
     };
   }
 
-  // Already an embed URL
+  // Restrict iframe destinations to the provider's actual host and path.
   if (
-    url.includes("youtube.com/embed/") ||
-    url.includes("player.vimeo.com/video/") ||
-    url.includes("loom.com/embed/") ||
-    url.includes("dailymotion.com/embed/") ||
-    url.includes("twitch.tv/videos/") ||
-    url.includes("facebook.com/plugins/video.php")
-  ) {
-    return { src: url, kind: "iframe" };
-  }
+    (host === "player.vimeo.com" && parsed.pathname.startsWith("/video/")) ||
+    (["dailymotion.com", "www.dailymotion.com"].includes(host) && parsed.pathname.startsWith("/embed/")) ||
+    (["twitch.tv", "www.twitch.tv"].includes(host) && parsed.pathname.startsWith("/videos/")) ||
+    (["facebook.com", "www.facebook.com"].includes(host) && parsed.pathname === "/plugins/video.php")
+  ) return { src: url, kind: "iframe" };
 
   // Direct video files (mp4/webm/mov/m4v/ogg)
   if (DIRECT_VIDEO_REGEX.test(url)) {
@@ -98,9 +105,16 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
   onLoadError,
 }) => {
   const descriptor = getEmbedDescriptor(url);
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  React.useEffect(() => {
+    const frame = iframeRef.current;
+    const handleError = () => onLoadError?.();
+    frame?.addEventListener("error", handleError);
+    return () => frame?.removeEventListener("error", handleError);
+  }, [url, onLoadError]);
 
   if (!descriptor) {
-    if (!fallback || !url) return null;
+    if (!fallback || !safeVideoUrl(url)) return null;
     return (
       <div className={`w-full ${className}`}>
         <a
@@ -120,6 +134,7 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
       <div className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden shadow-md bg-black">
         {descriptor.kind === "iframe" ? (
           <iframe
+            ref={iframeRef}
             sandbox="allow-same-origin allow-presentation allow-scripts"
             src={descriptor.src}
             loading="lazy"
@@ -127,9 +142,6 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title={title}
-            onError={() => {
-              onLoadError?.();
-            }}
           />
         ) : (
           <video
