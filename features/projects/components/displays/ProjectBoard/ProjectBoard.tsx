@@ -33,6 +33,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import QRCode from "react-qr-code";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 export interface ProjectBoardProps {
   isLoading: boolean;
@@ -106,10 +107,8 @@ const ProjectBoard = ({
 
                       {/* Thumbnail Section - same aspect as event card (335/223) */}
                       <div className="relative w-full aspect-[335/223] bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 overflow-hidden">
-                        <img
-                          src={
-                            project.cover_image_url || "/img/placeholder.png"
-                          }
+                        <CoverImageWithFallback
+                          src={project.cover_image_url}
                           alt={`${project.project_name || "Project"} thumbnail`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"

@@ -7,7 +7,10 @@ import { FolderOpen, ConfirmationNumber, BarChart } from "@mui/icons-material";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { useHasJoinedEvent } from "@/lib/hooks/use-has-joined-event";
 import { Loader2 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
@@ -294,6 +297,7 @@ export function ParticipantDashboard({ eventId, canCreateProjects = true }: Part
               <CardContent>
                 <div className="prose prose-blue max-w-none">
                   <ReactMarkdown
+                    remarkPlugins={markdownRemarkPlugins}
                     rehypePlugins={markdownRehypePlugins}
                     components={customMarkdownComponents}
                   >

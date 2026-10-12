@@ -13,9 +13,9 @@ interface SubmissionStepProps {
 }
 
 export function SubmissionStep({ fields, onChange }: SubmissionStepProps) {
+  const [stepMode, setStepMode] = useState<"edit" | "preview">("edit");
   const previewFields =
     fields.length > 0 ? fields : createSubmissionTemplateFields();
-  const [stepMode, setStepMode] = useState<"edit" | "preview">("edit");
 
   return (
     <div className="space-y-6 w-full">

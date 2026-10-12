@@ -34,6 +34,7 @@ import UserSearch from "@/components/utils/UserSearch";
 import { Card } from "@/components/ui/card";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { Project, FeedbackItem } from "@/lib/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { fetchProjectById } from "@/features/projects/utils/projects";
 import { getFileNameFromUrl } from "@/lib/utils/file";
 import { getInitials } from "@/lib/utils/string";
@@ -387,12 +388,13 @@ export default function ProjectDashboardSection({
     <Card className="p-0 overflow-hidden">
       <Toaster />
       {projectData.cover_image_url ? (
-        <div
-          className="w-full h-[200px] bg-[#000080] bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${projectData.cover_image_url})`,
-          }}
-        />
+        <div className="relative w-full h-[200px] overflow-hidden bg-[#000080]">
+          <CoverImageWithFallback
+            src={projectData.cover_image_url}
+            alt={`${projectData.project_name ?? "Project"} cover`}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
+        </div>
       ) : (
         <div className="w-full h-[200px] bg-[#000080]" />
       )}

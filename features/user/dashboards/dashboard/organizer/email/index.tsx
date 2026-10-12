@@ -223,7 +223,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="font-geist flex items-center gap-2">
@@ -256,7 +256,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               onClick={() => setShowTemplates(!showTemplates)}
@@ -369,11 +369,11 @@ export function EmailTab({ eventId }: EmailTabProps) {
           </div>
 
           {/* Send Button */}
-          <div className="flex justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button
               onClick={handleSendEmail}
               disabled={isSending || selectedRecipients.length === 0}
-              className="flex items-center gap-2"
+              className="flex w-full items-center justify-center gap-2 sm:w-auto"
             >
               {isSending ? (
                 <Loader2 className="h-4 w-4 animate-spin text-blue-900" />

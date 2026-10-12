@@ -1,9 +1,12 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Project } from "@/lib/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface MyProjectSectionProps {
   eventId: string;
@@ -79,18 +82,17 @@ export default function MyProjectSection({ eventId }: MyProjectSectionProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div
-        className="h-[200px] w-full bg-[#000080]"
-        style={
-          project.cover_image_url
-            ? {
-                backgroundImage: `url(${project.cover_image_url})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : undefined
-        }
-      />
+      {project.cover_image_url ? (
+        <div className="relative h-[200px] w-full overflow-hidden bg-[#000080]">
+          <CoverImageWithFallback
+            src={project.cover_image_url}
+            alt={`${project.project_name ?? "Project"} cover`}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
+        </div>
+      ) : (
+        <div className="h-[200px] w-full bg-[#000080]" />
+      )}
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>

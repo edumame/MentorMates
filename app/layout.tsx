@@ -10,6 +10,7 @@ import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
 import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
+import { ShipcueReportButton } from "@/components/layout/ShipcueReportButton";
 import { JsonLd } from "./JsonLd";
 import { seoMetadata } from "./seo-metadata";
 
@@ -35,7 +36,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="MentorMates" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={inter.className} suppressHydrationWarning>
         {/* Remove extension-injected node before/during hydration to avoid hydration mismatch */}
@@ -57,6 +58,7 @@ export default function RootLayout({
                 </AuthProvider>
                 <FloatingSupportButton />
                 <ServiceWorkerRegistration />
+                <ShipcueReportButton />
               </LayoutConfigProvider>
             </AuthContextProvider>
           </Providers>

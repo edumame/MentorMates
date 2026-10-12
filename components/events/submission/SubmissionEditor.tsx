@@ -12,7 +12,22 @@ import {
   Send,
 } from "lucide-react";
 import type { SubmissionField, ChatMessage } from "./types";
-import { createSubmissionTemplateFields } from "./types";
+import {
+  createSubmissionTemplateFields,
+  createLockedStarterSubmissionFields,
+  createMLHSubmissionTemplateFields,
+  BUILT_IN_FIELD_IDS,
+} from "./types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   FIELD_TYPE_OPTIONS,
   FIELD_TYPE_ICONS,
@@ -32,9 +47,9 @@ const INITIAL_MESSAGE: ChatMessage = {
 };
 
 export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
-  const editorFields =
-    fields.length > 0 ? fields : createSubmissionTemplateFields();
+  const editorFields = fields;
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [showMLHConfirm, setShowMLHConfirm] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
@@ -77,6 +92,11 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
       required: false,
       placeholder: "",
     };
+    if (editorFields.length === 0) {
+      onChange([...createLockedStarterSubmissionFields(), newField]);
+      setEditingFieldId(newField.id);
+      return;
+    }
     const updated = [...editorFields];
     if (position !== undefined) {
       updated.splice(position, 0, newField);
@@ -147,16 +167,54 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
       <div className="flex-1 min-w-0">
         <div className="bg-white rounded-xl border border-[rgba(0,0,0,0.15)]">
           <div className="px-4 py-4 sm:px-8 sm:py-6">
-            <div className="space-y-1 mb-6">
-              <h1 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                Submission Form
-              </h1>
-              <p className="text-base text-[#7f7f7f]">
-                Configure the fields participants will fill out when submitting their project. Click any field to edit it, or use the + buttons to add new questions.
-              </p>
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div className="space-y-1">
+                <h1 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                  Submission Form
+                </h1>
+                <p className="text-base text-[#7f7f7f]">
+                  Configure the fields participants will fill out when submitting their project. Click any field to edit it, or use the + buttons to add new questions.
+                </p>
+              </div>
+              {editorFields.length > 0 && (
+                <button
+                  onClick={() => setShowMLHConfirm(true)}
+                  className="shrink-0 rounded-lg border border-[#4B89EF] px-3 py-2 text-sm font-medium text-[#4B89EF] hover:bg-blue-50 whitespace-nowrap"
+                >
+                  MLH Template
+                </button>
+              )}
             </div>
 
             <div className="space-y-0">
+              {editorFields.length === 0 && (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                  <p className="text-sm text-gray-600">
+                    No submission fields yet. Using the starter template by default. Use the buttons below to create custom forms.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      onClick={() => onChange(createSubmissionTemplateFields())}
+                      className="rounded-lg border border-[#4B89EF] px-3 py-2 text-sm font-medium text-[#4B89EF] hover:bg-blue-50"
+                    >
+                      Add starter template
+                    </button>
+                    <button
+                      onClick={() => onChange(createMLHSubmissionTemplateFields())}
+                      className="rounded-lg border border-[#4B89EF] px-3 py-2 text-sm font-medium text-[#4B89EF] hover:bg-blue-50"
+                    >
+                      MLH Compliance Template
+                    </button>
+                    <button
+                      onClick={() => addFieldAt(0)}
+                      className="rounded-lg bg-[#4B89EF] px-3 py-2 text-sm font-medium text-white hover:bg-[#3E7EEA]"
+                    >
+                      Add custom field
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {editorFields.map((field, idx) => {
                 const isLocked = LOCKED_FIELD_IDS.includes(field.id);
                 const isEditing = editingFieldId === field.id;
@@ -235,9 +293,11 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
                 );
               })}
 
-              <AddFieldDivider
-                onClick={() => addFieldAt(editorFields.length)}
-              />
+              {editorFields.length > 0 && (
+                <AddFieldDivider
+                  onClick={() => addFieldAt(editorFields.length)}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -325,6 +385,29 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
           </div>
         </div>
       </div>
+    <AlertDialog open={showMLHConfirm} onOpenChange={setShowMLHConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Apply MLH Compliance Template?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will replace all current submission fields with the MLH-required
+            field set (GitHub URL, Built With, GenAI tools, and more). Any custom
+            fields you&apos;ve added will be removed.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              onChange(createMLHSubmissionTemplateFields());
+              setShowMLHConfirm(false);
+            }}
+          >
+            Apply template
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </div>
   );
 }
@@ -432,6 +515,38 @@ function FieldDisplay({
   );
 }
 
+/** Elements with this attribute are visited in order when pressing Enter (move next or close on last). */
+const FIELD_EDITOR_STEP = "data-field-editor-step";
+
+function focusNextFieldEditorStep(
+  root: HTMLElement,
+  active: HTMLElement,
+  onLast: () => void
+): boolean {
+  if (active.tagName === "SELECT") return false;
+  if (active instanceof HTMLInputElement && active.type === "checkbox")
+    return false;
+  if (!active.hasAttribute(FIELD_EDITOR_STEP)) return false;
+
+  const steps = Array.from(
+    root.querySelectorAll<HTMLElement>(`[${FIELD_EDITOR_STEP}]`)
+  ).filter((el) => {
+    if (el.hasAttribute("disabled")) return false;
+    if (el instanceof HTMLInputElement && el.type === "checkbox") return false;
+    return true;
+  });
+
+  const idx = steps.indexOf(active);
+  if (idx === -1) return false;
+
+  if (idx < steps.length - 1) {
+    steps[idx + 1]?.focus();
+  } else {
+    onLast();
+  }
+  return true;
+}
+
 // ── Inline Field Editor ───────────────────────────────────────────────
 
 function FieldEditor({
@@ -469,13 +584,24 @@ function FieldEditor({
     onUpdate({ options: nextOptions });
   };
 
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    if (e.nativeEvent.isComposing) return;
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return;
+    if (focusNextFieldEditorStep(e.currentTarget, active, onClose)) {
+      e.preventDefault();
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onKeyDown={handleEditorKeyDown}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-[#4B89EF]">
           Editing Field
         </span>
         <button
+          type="button"
           onClick={onClose}
           className="rounded-md p-1 text-gray-400 hover:text-gray-600"
         >
@@ -491,12 +617,14 @@ function FieldEditor({
             onChange={(e) => onUpdate({ label: e.target.value })}
             placeholder="e.g., What inspired your project?"
             autoFocus
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           />
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-600">Type</label>
           <select
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             value={field.type}
             onChange={(e) => {
               const nextType = e.target.value as SubmissionField["type"];
@@ -539,6 +667,7 @@ function FieldEditor({
             value={field.placeholder}
             onChange={(e) => onUpdate({ placeholder: e.target.value })}
             placeholder="Hint text shown to participants"
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           />
         </div>
@@ -553,6 +682,7 @@ function FieldEditor({
               onUpdate({ helperText: e.target.value || undefined })
             }
             placeholder="e.g., Markdown supported: use headings, lists..."
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           />
         </div>
@@ -575,6 +705,7 @@ function FieldEditor({
                           ? "Yes"
                           : `Option ${index + 1}`
                       }
+                      {...{ [FIELD_EDITOR_STEP]: "" }}
                       className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
                     />
                     {(field.type !== "checkbox" || optionValues.length > 0) && (
@@ -631,12 +762,39 @@ function FieldEditor({
                       ),
                     })
                   }
+                  {...{ [FIELD_EDITOR_STEP]: "" }}
                   className="w-16 h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-center outline-none focus:border-[#4B89EF]"
                 />
               </div>
             )}
           </div>
         )}
+
+        {(field.type === "text" ||
+          field.type === "textarea" ||
+          field.type === "url" ||
+          field.type === "file") &&
+          !BUILT_IN_FIELD_IDS.has(field.id) && (
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={field.allowsMultipleEntries ?? false}
+                  onChange={(e) =>
+                    onUpdate({ allowsMultipleEntries: e.target.checked || undefined })
+                  }
+                  className="size-4 rounded border-gray-300 text-[#4B89EF] focus:ring-blue-500"
+                />
+                Collect as team log (each teammate can add multiple entries)
+              </label>
+              {field.allowsMultipleEntries && (
+                <p className="mt-1 pl-6 text-xs text-gray-500">
+                  This question moves off the submission form — teammates add
+                  entries directly on the project page instead.
+                </p>
+              )}
+            </div>
+          )}
 
         <div className="sm:col-span-2 flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -649,6 +807,8 @@ function FieldEditor({
             Required field
           </label>
           <button
+            type="button"
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             onClick={onClose}
             className="rounded-xl bg-[#4b89ef] hover:bg-[#3d75d9] text-white px-4 py-2 text-sm font-medium shadow-sm transition-colors"
           >

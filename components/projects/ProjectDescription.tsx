@@ -3,7 +3,10 @@
 import { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { cn } from "@/lib/utils";
 
 interface ProjectDescriptionProps {
@@ -109,6 +112,7 @@ export function ProjectDescription({
     <div className={containerClassName}>
       <div ref={contentRef} className={proseClassName} style={clampStyle}>
         <ReactMarkdown
+          remarkPlugins={markdownRemarkPlugins}
           rehypePlugins={markdownRehypePlugins}
           components={customMarkdownComponents}
         >
