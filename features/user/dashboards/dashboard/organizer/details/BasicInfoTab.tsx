@@ -20,6 +20,7 @@ import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import { markdownRemarkPlugins } from "@/components/markdown/plugins";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -179,6 +180,8 @@ export function BasicInfoTab({
           location: event.location,
           event_description: event.event_description,
           event_blurb: event.event_blurb,
+          external_url: event.external_url?.trim() || null,
+          external_redirect_enabled: event.external_redirect_enabled ?? false,
           event_type: event.event_type,
           paywall_content: event.paywall_content,
           cover_image_url: coverImageUrl ?? null,
@@ -196,6 +199,8 @@ export function BasicInfoTab({
       setEvent({
         ...event,
         cover_image_url: coverImageUrl ?? undefined,
+        external_url: event.external_url?.trim() || null,
+        external_redirect_enabled: event.external_redirect_enabled ?? false,
       });
       setSelectedCoverImage(null);
       setPreviewUrl(null);
@@ -649,7 +654,7 @@ export function BasicInfoTab({
 
         {/* Description */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <label className="text-[16px] font-normal text-black">
               Description
             </label>
@@ -701,7 +706,9 @@ export function BasicInfoTab({
           ) : (
             <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
               {event.event_description ? (
-                <ReactMarkdown>{event.event_description}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={markdownRemarkPlugins}>
+                  {event.event_description}
+                </ReactMarkdown>
               ) : (
                 <em>No description added yet.</em>
               )}
@@ -799,6 +806,41 @@ export function BasicInfoTab({
           <p className="text-xs text-gray-500">
             URL-friendly identifier for your event (lowercase, hyphens only)
           </p>
+        </div>
+
+        {/* External link */}
+        <div className="space-y-2">
+          <label className="text-[16px] font-normal text-black">
+            External link
+          </label>
+          <Input
+            type="url"
+            value={event.external_url || ""}
+            disabled={isArchived}
+            onChange={(e) =>
+              setEvent({ ...event, external_url: e.target.value })
+            }
+            placeholder="https://example.com/your-event"
+            className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+          />
+          <div className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-white px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-black">
+                Redirect visitors to external link
+              </p>
+              <p className="text-xs text-gray-500">
+                Turn off to keep the MentorMates event page open while storing
+                the external URL.
+              </p>
+            </div>
+            <Switch
+              checked={event.external_redirect_enabled === true}
+              disabled={isArchived || !(event.external_url || "").trim()}
+              onCheckedChange={(checked) =>
+                setEvent({ ...event, external_redirect_enabled: checked })
+              }
+            />
+          </div>
         </div>
 
         {/* Finalist Recommendation Toggle */}

@@ -34,11 +34,16 @@ import {
   buildSubmissionAnswersPayload,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
+import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import {
+  ProjectFieldEntriesSection,
+  type ProjectFieldEntriesSectionHandle,
+} from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 
 interface EventParticipant {
   user_id: string;
@@ -98,6 +103,10 @@ export function NewProjectSubmissionFormSinglePage({
 
   // Ref to track if draft creation has been attempted
   const draftCreationAttempted = useRef(false);
+
+  // Lets publish flush any multi-entry field drafts the submitter typed
+  // but didn't explicitly add.
+  const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
 
   // State
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -630,10 +639,7 @@ export function NewProjectSubmissionFormSinglePage({
     const missingRequiredField = effectiveSubmissionFields.find((field) => {
       if (!field.required) return false;
       const value = submissionFieldValues[field.key];
-      if (
-        field.field_type === "multi_url" ||
-        field.field_type === "multi_select"
-      ) {
+      if (isMultiValueSubmissionFieldType(field.field_type)) {
         return !Array.isArray(value) || value.every((url) => !url.trim());
       }
       return typeof value !== "string" || value.trim().length === 0;
@@ -649,6 +655,16 @@ export function NewProjectSubmissionFormSinglePage({
     }
 
     try {
+      // Save the submitter's own multi-entry field drafts before publishing
+      // so their contribution lands on the project automatically.
+      const entriesFlushed =
+        (await fieldEntriesRef.current?.flushPendingEntries()) ?? true;
+      if (!entriesFlushed) {
+        // The section already toasted; stop so the draft text isn't lost.
+        setIsSubmitting(false);
+        return;
+      }
+
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
       const payload = {
@@ -884,7 +900,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white mb-8 sm:pb-0 pb-24">
+    <div className="min-h-full bg-gradient-to-br from-blue-100/45 via-transparent to-transparent sm:pb-8 pb-24">
       <Toaster />
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
@@ -955,16 +971,16 @@ export function NewProjectSubmissionFormSinglePage({
                 #4b89ef primary, Inter). The mobile Publish button is already
                 available in a sticky bottom bar (PR #639), so the top version
                 can be more compact. */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:w-auto">
-                  <ProjectPrivacySelect
-                    value={isPrivate}
-                    onValueChange={setIsPrivate}
-                  />
+                <ProjectPrivacySelect
+                  value={isPrivate}
+                  onValueChange={setIsPrivate}
+                />
               </div>
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                 {/* Desktop actions */}
-                <div className="hidden sm:flex items-center gap-1">
+                <div className="hidden items-center gap-1 sm:flex">
                   <Button
                     variant="secondary"
                     onClick={() =>
@@ -1050,7 +1066,7 @@ export function NewProjectSubmissionFormSinglePage({
                 </div>
               </div>
             </div>
-            <div className="flex justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
+          <div className="flex items-start justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
               {/* Left Side - Form */}
               <div className="flex-1 space-y-6">
                 <div className="space-y-1">
@@ -1068,37 +1084,55 @@ export function NewProjectSubmissionFormSinglePage({
                     fields={effectiveSubmissionFields}
                     values={submissionFieldValues}
                     onValueChange={handleSubmissionFieldChange}
-                    onFileUpload={async (fieldKey, file) => {
+                    onFileUpload={async (fieldKey, files) => {
                       if (fieldKey === "cover_image") {
                         const event = {
-                          target: { files: [file] },
+                          target: { files: [files[0]] },
                         } as unknown as React.ChangeEvent<HTMLInputElement>;
                         await handleCoverImageUpload(event);
                         return;
                       }
 
-                      const uploadedUrl = await uploadAdditionalMaterialFile(file);
-                      if (!uploadedUrl) return;
+                      const uploadedUrls: string[] = [];
+                      for (const file of files) {
+                        const uploadedUrl =
+                          await uploadAdditionalMaterialFile(file);
+                        if (uploadedUrl) uploadedUrls.push(uploadedUrl);
+                      }
+                      if (uploadedUrls.length === 0) return;
 
-                      if (fieldKey === "additional_materials") {
+                      const targetField = effectiveSubmissionFields.find(
+                        (field) => field.key === fieldKey
+                      );
+                      if (
+                        targetField &&
+                        isMultiValueSubmissionFieldType(targetField.field_type)
+                      ) {
+                        const currentValue = submissionFieldValues[fieldKey];
                         handleSubmissionFieldChange(fieldKey, [
-                          ...(
-                            Array.isArray(submissionFieldValues.additional_materials)
-                              ? submissionFieldValues.additional_materials
-                              : []
-                          ),
-                          uploadedUrl,
+                          ...(Array.isArray(currentValue) ? currentValue : []),
+                          ...uploadedUrls,
                         ]);
                         return;
                       }
 
-                      handleSubmissionFieldChange(fieldKey, uploadedUrl);
+                      handleSubmissionFieldChange(fieldKey, uploadedUrls[0]);
                     }}
                     showDescriptionPreview={showDescriptionPreview}
                     onToggleDescriptionPreview={() =>
                       setShowDescriptionPreview((prev) => !prev)
                     }
                   />
+
+                  {/* Multi-entry fields: the submitter adds their own entry
+                      here; teammates can add theirs from the project page. */}
+                  {projectId && (
+                    <ProjectFieldEntriesSection
+                      ref={fieldEntriesRef}
+                      projectId={projectId}
+                      canContribute
+                    />
+                  )}
 
                   {/* Tracks Selection (if event has tracks) */}
                   {eventId && availableTracks && availableTracks.length > 0 && (

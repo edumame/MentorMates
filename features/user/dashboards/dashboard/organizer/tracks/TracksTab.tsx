@@ -140,8 +140,8 @@ export function TracksTab({
   return (
     <div className="space-y-6 w-full">
       {/* Top bar: title + Edit/Preview toggle */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 min-w-0">
           Tracks &amp; Judging
         </h2>
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">

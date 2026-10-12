@@ -5,9 +5,10 @@ import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
 import { parseEventDateLocal } from "@/lib/utils/date";
+import { getEventNavigationTarget, type EventNavigationRole } from "@/lib/events/navigation";
 
 interface EventCardProps {
-  event: EventItem;
+  event: EventItem & { userRole?: EventNavigationRole };
 }
 
 export function EventCard({ event }: EventCardProps) {
@@ -38,15 +39,11 @@ export function EventCard({ event }: EventCardProps) {
     normalizeSummary(event.event_description) ||
     "";
 
-  return (
-    <Link
-      href={`/events/${event.slug || event.event_id}/overview`}
-      className="block h-full"
-      prefetch={false}
-    >
-      <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
+  const { href, isExternal } = getEventNavigationTarget(event);
+  const cardInner = (
+    <div className="min-w-0 max-w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
-        <div className="relative w-full aspect-[335/223] overflow-hidden">
+        <div className="relative min-w-0 w-full max-w-full aspect-[335/223] overflow-hidden">
           {event.cover_image_url ? (
             <Image
               src={event.cover_image_url}
@@ -109,6 +106,28 @@ export function EventCard({ event }: EventCardProps) {
           </p>
         </div>
       </div>
+  );
+
+  if (isExternal) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block h-full min-w-0 max-w-full"
+      >
+        {cardInner}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className="block h-full min-w-0 max-w-full"
+      prefetch={false}
+    >
+      {cardInner}
     </Link>
   );
 }

@@ -159,6 +159,42 @@ UI parity is required: core project-detail layout, section order, copy, and visu
 - Development includes Stagewise toolbar for debugging
 - Database setup via `npm run setup-db` command
 
+## MLH Compliance Registration Forms
+
+Hackathons affiliated with Major League Hacking (MLH) must collect specific fields. Use the one-click template via the **Apply MLH Template** button in the intake form builder, or call `createMLHComplianceTemplate()` from `features/intake-forms/templates/mlhCompliance.ts`.
+
+Reference: https://guide.mlh.io/general-information/managing-registrations/registrations
+
+### Required fields
+
+| Field | Type | Notes |
+|---|---|---|
+| First Name | Short text | |
+| Last Name | Short text | |
+| Age | Single select | Dropdown only — do **not** use date of birth |
+| Phone Number | Short text | |
+| Email | Email | |
+| School | Short text | Should match MLH verified schools list |
+| Level of Study | Single select | Use exact MLH-specified option strings (see template) |
+| Country of Residence | Single select | ISO 3166 country names (see template) |
+| LinkedIn URL | Short text | Optional field — display but do not require |
+
+### Mandatory MLH compliance checkboxes
+
+All three must appear on every MLH-affiliated registration form. The first two are required; the third must be displayed but may be left unchecked.
+
+1. **Code of Conduct** *(required)* — "I have read and agree to the MLH Code of Conduct. (https://github.com/MLH/mlh-policies/blob/main/code-of-conduct.md)"
+2. **Data sharing** *(required)* — "I authorize you to share my application/registration information with Major League Hacking for event administration, ranking, and MLH administration in-line with the MLH Privacy Policy (https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md). I further agree to the terms of both the MLH Contest Terms and Conditions (https://github.com/MLH/mlh-policies/blob/main/contest-terms.md) and the MLH Privacy Policy (https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md)."
+3. **Email opt-in** *(optional — display only)* — "I authorize MLH to send me occasional emails about relevant events, career opportunities, and community announcements."
+
+### Pre-membership disclaimer
+
+Before official MLH membership is confirmed, add this disclaimer to the form description:
+
+> "We are currently in the process of partnering with MLH. The following 3 checkboxes are for this partnership. If we do not end up partnering with MLH, your information will not be shared."
+
+Remove it once you have moved into the official MLH Membership Stage. The disclaimer text is exported as `MLH_PRE_MEMBERSHIP_DISCLAIMER` from `features/intake-forms/templates/mlhCompliance.ts` for reference.
+
 ## Branching and Pull Requests
 
 - **Always use Pull Requests (PRs).** Do not push directly to main.

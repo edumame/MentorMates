@@ -38,6 +38,7 @@ export interface PricingTier {
   tier_id: string; // Unique identifier within the event (e.g., "early-bird", "regular")
   name: string;
   price: number; // Price in cents
+  currency?: string; // Currency used for display and should match the Stripe price
   stripe_price_id?: string;
   description?: string;
   available_until?: string; // ISO date string for limited-time offers
@@ -126,6 +127,14 @@ export type EventItem = {
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
+  external_url?: string | null; // Optional outside event URL
+  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
+  team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
+  submitter_email?: string | null; // Contact email from the public submit form
+  submitter_name?: string | null; // Submitter name from the public submit form
+  organizer_affiliation?: string | null; // University/company affiliation from the public submit form
+  expected_attendance?: number | null; // Informational estimate; not a registration cap
+  featured_requested?: boolean | null; // Submitter asked for featured placement
 };
 
 export interface EventApprovalLog {
@@ -149,6 +158,8 @@ export interface ScheduleParticipant {
 }
 
 export interface ScheduleEvent {
+  /** Stable identifier used for drag-and-drop and React keys; generated client-side for legacy data. */
+  id?: string;
   name: string;
   time: string;
   description?: string;
@@ -334,7 +345,7 @@ export interface ProjectArtifact {
   updated_at?: string;
 }
 
-export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "multi_file" | "select" | "multi_select" | "checkbox";
 
 export interface EventSubmissionField {
   id: string;
@@ -348,7 +359,26 @@ export interface EventSubmissionField {
   sort_order: number;
   is_active: boolean;
   options?: unknown;
+  allows_multiple_entries?: boolean;
+  max_files?: number | null;
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectFieldEntryAttachment {
+  name: string;
+  url: string;
+}
+
+export interface ProjectFieldEntry {
+  id: string;
+  project_id: string;
+  event_submission_field_id: string;
+  submitter_user_id: string;
+  content: string;
+  attachments?: ProjectFieldEntryAttachment[];
+  submitter_display_name?: string | null;
+  created_at: string;
   updated_at?: string;
 }
 
@@ -385,6 +415,8 @@ export interface Project {
   has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
+  /** Advanced past round 1 via project_round_advancements (organizer-selected finalists). */
+  is_finalist?: boolean;
   contextus_project_id?: string;
   submitted?: boolean;
 }
