@@ -141,6 +141,66 @@ async function fetchTeammateProfiles(
   );
 }
 
+// Winner + finalist status for certificates. Prizes are readable through the
+// caller's client (prize_winners RLS is open); round advancements are
+// judge/organizer-only under RLS, so finalist status goes through the service
+// client — it only ever leaks a boolean.
+async function fetchCertificateExtras(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectId: string
+): Promise<{ prizes_won: Prize[]; is_finalist: boolean }> {
+  const { data: prizeRows } = await supabase
+    .from("prize_winners")
+    .select(
+      `
+        id,
+        project_id,
+        prizes (
+          track_id,
+          prize_amount,
+          prize_description
+        )
+      `
+    )
+    .eq("project_id", projectId)
+    .overrideTypes<
+      Array<{
+        id: string;
+        project_id: string;
+        prizes: {
+          track_id: string;
+          prize_amount: string;
+          prize_description: string;
+        } | null;
+      }>
+    >();
+
+  const prizes = (prizeRows ?? []).map((row) => ({
+    id: row.id,
+    track_id: row.prizes?.track_id,
+    prize_amount: row.prizes?.prize_amount,
+    prize_description: row.prizes?.prize_description,
+    winning_project_id: row.project_id,
+  })) as Prize[];
+
+  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId) };
+}
+
+async function fetchIsFinalist(projectId: string): Promise<boolean> {
+  try {
+    const serviceClient = createSupabaseServiceClient();
+    const { data: advancements } = await serviceClient
+      .from("project_round_advancements")
+      .select("id")
+      .eq("project_id", projectId)
+      .limit(1);
+    return (advancements?.length ?? 0) > 0;
+  } catch {
+    // Service key may not exist in local dev; finalist status is best-effort.
+    return false;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseClient();
@@ -258,6 +318,13 @@ export async function GET(request: NextRequest) {
         answerMap.get(project.id),
         artifactMap.get(project.id) || fallbackArtifacts
         );
+
+        const extras = await fetchCertificateExtras(supabase, project.id);
+        (transformedProject as unknown as ProjectWithPrizes).prizes_won =
+          extras.prizes_won;
+        (
+          transformedProject as unknown as { is_finalist?: boolean }
+        ).is_finalist = extras.is_finalist;
 
         return NextResponse.json({ project: transformedProject });
       }
@@ -631,6 +698,10 @@ export async function GET(request: NextRequest) {
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
           prizeWinnersData as unknown as Prize[];
       }
+
+      (
+        transformedProject as unknown as { is_finalist?: boolean }
+      ).is_finalist = await fetchIsFinalist(transformedProject.id);
 
       return NextResponse.json({ project: transformedProject });
     }

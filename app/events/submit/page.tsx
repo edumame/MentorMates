@@ -1,5 +1,4 @@
-import { Footer } from "@/components/layout/Footer";
-import { SubmitEventForm } from "./submit-form";
+import { SubmitEventPageContent } from "./submit-page-content";
 
 export const dynamic = "force-static";
 
@@ -10,20 +9,5 @@ export const metadata = {
 };
 
 export default function SubmitEventPage() {
-  return (
-    <>
-      <div className="mx-auto w-full max-w-xl px-5 pt-28 pb-12 lg:pt-32 lg:pb-16">
-        <h1 className="font-geist text-[32px] sm:text-[36px] font-semibold tracking-[-0.04em] text-black">
-          Submit Event
-        </h1>
-        <p className="mt-2 text-[15px] text-[rgba(0,0,0,0.65)]">
-          Submit your event for placement on the MentorMates events calendar. An admin will review your submission and reach out to your email.
-        </p>
-        <div className="mt-8">
-          <SubmitEventForm />
-        </div>
-      </div>
-      <Footer />
-    </>
-  );
+  return <SubmitEventPageContent />;
 }

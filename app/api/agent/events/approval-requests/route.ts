@@ -20,7 +20,13 @@ export async function GET(request: NextRequest) {
     if (access instanceof NextResponse) return access;
 
     const supabase = createSupabaseServiceClient();
-    const status = request.nextUrl.searchParams.get("status") || "pending";
+    const statusParse = z
+      .enum(["pending", "approved", "rejected", "withdrawn"])
+      .safeParse(request.nextUrl.searchParams.get("status") || "pending");
+    if (!statusParse.success) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+    const status = statusParse.data;
     const limit = Math.min(
       parseInt(request.nextUrl.searchParams.get("limit") || "50"),
       200

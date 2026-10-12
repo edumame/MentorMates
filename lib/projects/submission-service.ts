@@ -51,6 +51,7 @@ type ConfiguredSubmissionField = {
     | "url"
     | "multi_url"
     | "file"
+    | "multi_file"
     | "select"
     | "multi_select"
     | "checkbox";
@@ -388,6 +389,9 @@ async function validateProjectEventContext(
     .select("id, event_id, key, field_type, is_active")
       .eq("event_id", eventId)
       .eq("is_active", true)
+      // Multi-entry fields live in project_field_entries, not the
+      // single-answer submission flow.
+      .eq("allows_multiple_entries", false)
       .order("sort_order", { ascending: true })
       .overrideTypes<
         Array<{

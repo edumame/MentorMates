@@ -94,14 +94,14 @@ export function EventsList({ events }: EventsListProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:auto-rows-fr">
+    <div className="grid min-w-0 max-w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:auto-rows-fr">
       {events.map((event) => {
         const userRole = getUserRoleForEvent(event.event_id);
 
         return (
           <div
             key={event.event_id}
-            className="relative w-full"
+            className="relative min-w-0 w-full max-w-full"
           >
             <EventCard event={{ ...event, userRole }} />
             {/* User Role Badge Overlay */}

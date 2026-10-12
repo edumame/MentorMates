@@ -41,9 +41,9 @@ export function EventCard({ event }: EventCardProps) {
 
   const { href, isExternal } = getEventNavigationTarget(event);
   const cardInner = (
-    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
+    <div className="min-w-0 max-w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
-        <div className="relative w-full aspect-[335/223] overflow-hidden">
+        <div className="relative min-w-0 w-full max-w-full aspect-[335/223] overflow-hidden">
           {event.cover_image_url ? (
             <Image
               src={event.cover_image_url}
@@ -114,7 +114,7 @@ export function EventCard({ event }: EventCardProps) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="block h-full"
+        className="block h-full min-w-0 max-w-full"
       >
         {cardInner}
       </a>
@@ -124,7 +124,7 @@ export function EventCard({ event }: EventCardProps) {
   return (
     <Link
       href={href}
-      className="block h-full"
+      className="block h-full min-w-0 max-w-full"
       prefetch={false}
     >
       {cardInner}
