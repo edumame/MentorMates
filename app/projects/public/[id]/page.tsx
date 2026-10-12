@@ -1,4 +1,5 @@
 "use client";
+import { projectBackTarget } from "@/features/projects/utils/back-navigation";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -384,21 +385,12 @@ export default function PublicProjectPage() {
   const judgeBackReady = isJudge && !isCheckingJudgeStatus;
 
   const handleBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-      return;
-    }
-
-    if (eventIdForNav) {
-      if (judgeBackReady) {
-        router.push(`/events/${eventIdForNav}/gallery`);
-        return;
-      }
-      router.push(`/events/${eventIdForNav}/overview`);
-      return;
-    }
-
-    router.push("/projects");
+    // Judge-only navigation: this public scoring view returns to its gallery;
+    // the private owner view intentionally retains ordinary back navigation.
+    const target = projectBackTarget(eventIdForNav, judgeBackReady,
+      typeof window !== "undefined" && window.history.length > 1);
+    if (target) router.push(target);
+    else router.back();
   };
 
   return (
