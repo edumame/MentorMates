@@ -713,11 +713,7 @@ export async function saveProjectSubmission(
         >
       >();
     if (error || !createdProject) {
-      console.error("[submit] create project failed", {
-        eventId: input.eventId,
-        leadEmail: input.leadEmail,
-        error,
-      });
+      console.error("Failed to create project:", error);
       return { error: "Failed to create project", status: 500 as const };
     }
 
@@ -788,57 +784,6 @@ export async function saveProjectSubmission(
   }
 
   if (input.submissionAnswers !== undefined || hasConfiguredSubmissionFields) {
-    const fieldById = new Map(
-      configuredSubmissionFields.map((field) => [
-        field.id,
-        field.field_type as
-          | "short_text"
-          | "long_text"
-          | "url"
-          | "multi_url"
-          | "file"
-          | "select"
-          | "multi_select"
-          | "checkbox",
-      ]),
-    );
-
-    const answerFieldIds = [
-      ...new Set(parsedAnswers.map((answer) => answer.eventSubmissionFieldId)),
-    ];
-    if (answerFieldIds.some((fieldId) => !fieldById.has(fieldId))) {
-      const unknownFieldIds = answerFieldIds.filter(
-        (fieldId) => !fieldById.has(fieldId),
-      );
-      console.error("[submit] invalid submission field IDs", {
-        projectId: finalProjectId,
-        unknownFieldIds,
-      });
-      return { error: "Invalid submission field IDs", status: 400 as const };
-    }
-
-    const normalizedAnswers = parsedAnswers
-      .map((answer) => {
-        const fieldType = fieldById.get(answer.eventSubmissionFieldId);
-        if (!fieldType) return null;
-        const coerced = coerceSubmissionAnswerValue(fieldType, answer.answer);
-        if (coerced === null) return null;
-        if (typeof coerced === "string" && coerced.length === 0) return null;
-        if (Array.isArray(coerced) && coerced.length === 0) return null;
-
-        return {
-          project_id: finalProjectId,
-          event_submission_field_id: answer.eventSubmissionFieldId,
-          answer: coerced as Json,
-        };
-      })
-      .filter(
-        (
-          answer,
-        ): answer is Database["public"]["Tables"]["project_submission_answers"]["Insert"] =>
-          Boolean(answer),
-      );
-
     const { error: deleteAnswersError } = await supabase
       .from("project_submission_answers")
       .delete()
@@ -870,7 +815,7 @@ export async function saveProjectSubmission(
       if (insertAnswersError) {
         console.error("[submit] insert submission answers failed", {
           projectId: finalProjectId,
-          answerCount: normalizedAnswers.length,
+          answerCount: normalizedSubmissionAnswers.length,
           error: insertAnswersError,
         });
         return {
