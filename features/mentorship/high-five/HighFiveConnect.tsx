@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useAnimation } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CartoonHand } from "./CartoonHand";
 import { SparkBurst } from "./SparkBurst";
 import { ImpactFlash, ImpactLines } from "./ImpactFlash";
@@ -24,11 +24,10 @@ export function HighFiveConnect({
   const [phase, setPhase] = useState<"fly" | "smack" | "done">("fly");
   const [showSparks, setShowSparks] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
-  const hasRun = useRef(false);
 
   useEffect(() => {
-    if (hasRun.current) return;
-    hasRun.current = true;
+    let cancelled = false;
+    let completionTimer: ReturnType<typeof setTimeout> | undefined;
 
     const run = async () => {
       await Promise.all([
@@ -42,6 +41,7 @@ export function HighFiveConnect({
         }),
       ]);
 
+      if (cancelled) return;
       setPhase("smack");
       setShowSparks(true);
       setShowFlash(true);
@@ -52,10 +52,17 @@ export function HighFiveConnect({
         transition: { duration: 0.28 },
       });
 
+      if (cancelled) return;
       setPhase("done");
-      setTimeout(onComplete, 1100);
+      completionTimer = setTimeout(onComplete, 1100);
     };
     void run();
+    return () => {
+      cancelled = true;
+      clearTimeout(completionTimer);
+      controls.stop();
+      participantControls.stop();
+    };
   }, [controls, participantControls, onComplete, playHighFive]);
 
   return (
