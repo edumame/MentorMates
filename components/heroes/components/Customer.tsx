@@ -8,7 +8,7 @@ export function Customer() {
         {/* Header */}
         <header className="mb-10">
           <h2 className="text-3xl md:text-5xl font-semibold text-black font-geist tracking-[-0.06em]">
-            Customer testimonials
+            Testimonials
           </h2>
         </header>
 
