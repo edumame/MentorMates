@@ -92,4 +92,6 @@ const nextConfig = {
   // },
 };
 
-export default withNextIntl(nextConfig);
+export default process.env.NEXT_PUBLIC_I18N_ENABLED === "1"
+  ? withNextIntl(nextConfig)
+  : nextConfig;
