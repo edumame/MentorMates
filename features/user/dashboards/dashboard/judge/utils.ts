@@ -5,7 +5,7 @@ export function isProjectFullyScored(
   scoredProjects: Map<string, Set<string>>
 ): boolean {
   if (project.track_ids.length === 0) {
-    return true;
+    return false;
   }
 
   const scoredTrackIds = scoredProjects.get(project.id);

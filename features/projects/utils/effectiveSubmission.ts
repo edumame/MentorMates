@@ -2,6 +2,7 @@ import {
   DEFAULT_SUBMISSION_FIELDS,
   type SubmissionField,
 } from "@/components/events/submission";
+import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
 import type {
   EventSubmissionField,
   Project,
@@ -42,7 +43,9 @@ function defaultEditorFieldToEffectiveField(
           ? "multi_url"
           : field.type === "url"
             ? "url"
-            : field.type === "file"
+            : field.type === "file" && field.multiple
+              ? "multi_file"
+              : field.type === "file"
               ? "file"
               : field.type === "select"
                 ? "select"
@@ -62,6 +65,7 @@ function defaultEditorFieldToEffectiveField(
     sort_order: index,
     is_active: true,
     options: field.options ?? [],
+    max_files: field.type === "file" && field.multiple ? (field.maxFiles ?? 5) : null,
     is_virtual: true,
   };
 }
@@ -77,8 +81,10 @@ export function buildDefaultSubmissionFields(
 export function sortActiveSubmissionFields(
   fields: EventSubmissionField[]
 ): EventSubmissionField[] {
+  // Multi-entry ("team log") fields collect per-teammate entries on the
+  // project page, not a single shared answer on the submission form.
   return [...fields]
-    .filter((field) => field.is_active)
+    .filter((field) => field.is_active && !field.allows_multiple_entries)
     .sort((a, b) => a.sort_order - b.sort_order);
 }
 
@@ -104,7 +110,7 @@ export function normalizeSubmissionValue(
   field: Pick<EffectiveSubmissionField, "field_type">,
   rawValue: SubmissionValue | null | undefined
 ): SubmissionValue {
-  if (field.field_type === "multi_url" || field.field_type === "multi_select") {
+  if (isMultiValueSubmissionFieldType(field.field_type)) {
     if (!Array.isArray(rawValue)) {
       return [];
     }
@@ -152,6 +158,25 @@ export function buildSubmissionAnswerMapByFieldId(
   return answerMap;
 }
 
+export function hasSubmissionFieldMismatch(
+  answers: ProjectSubmissionAnswer[] | undefined,
+  fields: EventSubmissionField[] | EffectiveSubmissionField[]
+): boolean {
+  const activeFieldIds = new Set(
+    fields
+      .filter((field) => field.is_active)
+      .map((field) => field.id)
+  );
+
+  if (activeFieldIds.size === 0) {
+    return (answers?.length || 0) > 0;
+  }
+
+  return (answers || []).some(
+    (answer) => !activeFieldIds.has(answer.event_submission_field_id)
+  );
+}
+
 export function buildSubmissionValuesFromProject(
   project: Partial<Project>,
   fields: EffectiveSubmissionField[]
@@ -172,10 +197,9 @@ export function buildSubmissionValuesFromProject(
       continue;
     }
 
-    values[field.key] =
-      field.field_type === "multi_url" || field.field_type === "multi_select"
-        ? []
-        : "";
+    values[field.key] = isMultiValueSubmissionFieldType(field.field_type)
+      ? []
+      : "";
   }
 
   return values;

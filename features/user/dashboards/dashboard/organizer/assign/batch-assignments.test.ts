@@ -1,4 +1,7 @@
-import { buildJudgeProjectPairs } from "./batch-assignments";
+import {
+  buildJudgeProjectPairs,
+  getAssignableTracks,
+} from "./batch-assignments";
 
 describe("buildJudgeProjectPairs", () => {
   it("builds a full judge-project cartesian product", () => {
@@ -38,5 +41,35 @@ describe("buildJudgeProjectPairs", () => {
       { judgeId: "judge-a", projectId: "project-1" },
     ]);
     expect(pairsWithNoSelections).toEqual([]);
+  });
+});
+
+describe("getAssignableTracks", () => {
+  it("deduplicates tracks and counts submitted projects in each track", () => {
+    const tracks = getAssignableTracks([
+      {
+        tracks: [
+          { track_id: "track-b", name: "Backend" },
+          { track_id: "track-a", label: "AI" },
+        ],
+      },
+      {
+        tracks: [{ track_id: "track-a", label: "AI" }],
+      },
+      {
+        tracks: [{ track_id: "track-c", name: null, label: null }],
+      },
+      {},
+    ]);
+
+    expect(tracks).toEqual([
+      { track_id: "track-a", name: "AI", projectCount: 2 },
+      { track_id: "track-b", name: "Backend", projectCount: 1 },
+      { track_id: "track-c", name: "Unnamed Track", projectCount: 1 },
+    ]);
+  });
+
+  it("returns an empty list when there are no track assignments", () => {
+    expect(getAssignableTracks([{ tracks: [] }, {}])).toEqual([]);
   });
 });

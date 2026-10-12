@@ -58,7 +58,9 @@ const defaultFaqs: FAQItem[] = [
 ];
 
 export function FAQContent({ faqs, contactEmail }: FAQContentProps) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openIndexes, setOpenIndexes] = useState<Set<number>>(
+    () => new Set()
+  );
   const normalizedEmail =
     contactEmail?.trim() && contactEmail.includes("@")
       ? contactEmail.trim()
@@ -68,7 +70,15 @@ export function FAQContent({ faqs, contactEmail }: FAQContentProps) {
   const displayFaqs = faqs && faqs.length > 0 ? faqs : defaultFaqs;
 
   const toggleAccordion = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
+    setOpenIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
 
   return (
@@ -92,7 +102,7 @@ export function FAQContent({ faqs, contactEmail }: FAQContentProps) {
               <h3 className="font-semibold text-[22px] leading-[1.4] tracking-[-0.06em] text-black">
                 {faq.question}
               </h3>
-              {openIndex === index ? (
+              {openIndexes.has(index) ? (
                 <ChevronUp className="w-6 h-6 text-black shrink-0" />
               ) : (
                 <ChevronDown className="w-6 h-6 text-black shrink-0" />
@@ -100,7 +110,7 @@ export function FAQContent({ faqs, contactEmail }: FAQContentProps) {
             </button>
 
             {/* Answer (collapsible) */}
-            {openIndex === index && (
+            {openIndexes.has(index) && (
               <div className="mt-4">
                 <p className="font-normal text-[16px] leading-[1.5] text-black">
                   {faq.answer}
