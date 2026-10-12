@@ -1,58 +1,21 @@
 "use client"
 
 import React, { useEffect, useRef } from 'react'
-import { useCallStateHooks, useCall } from '@stream-io/video-react-sdk'
+import { resolveScreenStreamFromParticipant } from './screen-stream'
+import { useCallStateHooks } from '@stream-io/video-react-sdk'
 
 interface Props {
   meetingId: string
-}
-
-// Fallback hook to keep hook call order stable when the bindings don't
-// expose `useScreenShareState`. Named with `use` to satisfy the hooks lint
-// rule and always return a stable shape.
-function useFallbackLocalParticipant() {
-  return {}
 }
 
 // Client-side component: captures frames from the screen-share media stream
 // and POSTs compressed JPEG frames to /api/call/vision at ~1 FPS max.
 export const ScreenCapture: React.FC<Props> = ({ meetingId }) => {
   // useCallStateHooks exposes all call-state hooks; obtain local participant hook
-  const call = useCall()
-  const callStateHooks: any = useCallStateHooks()
-  const useLocalParticipant: any = callStateHooks?.useLocalParticipant ?? useFallbackLocalParticipant
-  const localParticipant: any = useLocalParticipant() || {}
-
-  // screenStreamRef holds the resolved MediaStream for the local participant's published screen share
+  const { useLocalParticipant } = useCallStateHooks()
+  const localParticipant = useLocalParticipant()
   const screenStreamRef = useRef<MediaStream | null>(null)
 
-  // Helpers to resolve MediaStream from various possible shapes
-  const resolveCandidateStream = (c: any): MediaStream | null => {
-    if (!c) return null
-    if (c instanceof MediaStream) return c
-    if (c?.stream instanceof MediaStream) return c.stream
-    if (c?.mediaStream instanceof MediaStream) return c.mediaStream
-    if (c?.tracks) {
-      try {
-        const ms = new MediaStream(c.tracks)
-        return ms
-      } catch {
-        return null
-      }
-    }
-    return null
-  }
-
-  const resolveScreenStreamFromParticipant = (p: any): MediaStream | null => {
-    if (!p) return null
-    return (
-      resolveCandidateStream(p.screenShareStream) ||
-      resolveCandidateStream(p.screenShare?.stream) ||
-      resolveCandidateStream(p.publishedTracks?.screenShare?.stream) ||
-      resolveCandidateStream(p.streams?.screenShare) ||
-      null
-    )
-  }
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const isSendingRef = useRef(false)
