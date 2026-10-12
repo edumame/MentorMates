@@ -625,11 +625,14 @@ export async function GET(request: NextRequest) {
       // Determine whether this viewer should see real identities.
       // Project lead + teammates always see real identities (it's their own
       // project). Organizers + global admins always see real identities.
-      const { data: eventFlagRow } = await supabase
+      const { data: eventFlagRow, error: eventFlagError } = await supabase
         .from("events")
         .select("submissions_anonymized")
         .eq("event_id", project.event_id)
         .maybeSingle();
+      if (eventFlagError || (project.event_id && !eventFlagRow)) {
+        return NextResponse.json({ error: "Unable to verify project privacy settings" }, { status: 503 });
+      }
       const eventAnonymized = Boolean(eventFlagRow?.submissions_anonymized);
 
       let viewerIsOrganizerOrAdmin = false;
@@ -774,7 +777,7 @@ export async function GET(request: NextRequest) {
         canAccessRole(userRole.role as EventRole, EventRole.Organizer);
 
       // Fetch the event's anonymized flag in parallel with the admin check.
-      const [{ data: eventFlagRow }, { data: isAdminRpc }] = await Promise.all([
+      const [{ data: eventFlagRow, error: eventFlagError }, { data: isAdminRpc }] = await Promise.all([
         supabase
           .from("events")
           .select("submissions_anonymized")
@@ -785,6 +788,9 @@ export async function GET(request: NextRequest) {
           ? Promise.resolve({ data: false })
           : supabase.rpc("is_admin_user", { user_id: user.id }),
       ]);
+      if (eventFlagError || !eventFlagRow) {
+        return NextResponse.json({ error: "Unable to verify project privacy settings" }, { status: 503 });
+      }
       const eventAnonymized = Boolean(eventFlagRow?.submissions_anonymized);
       const isOrganizerOrAdmin = Boolean(isOrganizer) || isAdminRpc === true;
 
