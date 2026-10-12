@@ -79,7 +79,7 @@ export function Navbar() {
   }, []);
 
   const handleLoginClick = () => {
-    setReturnUrl(pathname);
+    setReturnUrl(pathname + window.location.search);
     router.push("/login");
   };
 

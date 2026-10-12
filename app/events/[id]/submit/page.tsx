@@ -1,18 +1,10 @@
 import { redirect } from "next/navigation";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-/**
- * Direct submission link: /events/[id]/submit
- * Redirects to the project submission form with the event pre-filled.
- * Share this link with participants for one-click project submission.
- *
- * `/projects/submit` is listed in `AuthProvider` public paths so unauthenticated
- * users keep `?eventId=` through sign-in (see PR #628 review).
- */
-export default async function EventSubmitPage({ params }: PageProps) {
+export default async function EventSubmitPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  redirect(`/projects/submit?eventId=${encodeURIComponent(id)}`);
+  const target = `/projects/submit?eventId=${encodeURIComponent(id)}`;
+  const supabase = await createSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  redirect(user && !error ? target : `/login?returnUrl=${encodeURIComponent(target)}`);
 }
