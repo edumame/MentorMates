@@ -1,6 +1,7 @@
 import { blogContent } from "./Content";
 import Image from "next/image";
 import Link from "next/link";
+import { BlogThumbnail } from "./BlogThumbnail";
 
 export function BlogCard() {
     return (
@@ -12,23 +13,7 @@ export function BlogCard() {
             className="block h-full"
             >
             <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.02)] transition-all hover:-translate-y-0.5 hover:shadow-md">
-                {/* Image */}
-                <div className="relative aspect-[16/9] w-full bg-slate-100">
-                {post.thumbnail ? (
-                    <Image
-                    src={post.thumbnail}
-                    alt={post.title}
-                    fill
-                    sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
-                    className="object-cover"
-                    priority={index < 3}
-                    />
-                ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
-                    Placeholder Image
-                    </div>
-                )}
-                </div>
+                <BlogThumbnail thumbnail={post.thumbnail} title={post.title} priority={index < 3} />
 
                 {/* Content */}
                 <div className="flex flex-1 flex-col p-5 md:p-6">
