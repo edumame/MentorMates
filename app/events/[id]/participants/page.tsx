@@ -3,17 +3,24 @@ import { UUID } from "crypto";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
-import { ParticipantsContent } from "@/components/events/participants-content";
+import {
+  ParticipantsContent,
+  type ParticipantWithRole,
+} from "@/components/events/participants-content";
 import { headers } from "next/headers";
-
-interface Participant {
-  uid: string;
-  display_name: string | null;
-}
+import { EventRole } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
+
+const ALL_ROLES = [
+  EventRole.Organizer,
+  EventRole.Admin,
+  EventRole.Participant,
+  EventRole.Mentor,
+  EventRole.Judge,
+].join(",");
 
 export default async function PublicParticipantsPage({ params }: PageProps) {
   const supabase = await createSupabaseClient();
@@ -28,6 +35,7 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     event_date,
     location,
     cover_image_url,
+    role_labels,
     slug,
     paid
   `);
@@ -44,12 +52,13 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     notFound();
   }
 
-  // Check if user has joined
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   let hasJoined = false;
+  let viewerRole: EventRole | null = null;
+  let isAdmin = false;
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -58,13 +67,25 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       .eq("user_id", user.id)
       .eq("event_id", eventData.event_id)
       .maybeSingle();
+    if (userEventRole) {
+      hasJoined = true;
+      viewerRole = userEventRole.role as EventRole;
+    }
 
-    hasJoined = !!userEventRole;
+    const { data: isAdminRpc } = await supabase.rpc("is_admin_user", {
+      user_id: user.id,
+    });
+    isAdmin = Boolean(isAdminRpc);
   }
 
-  let participantsList: Participant[] = [];
+  const canViewMultipleRoles =
+    isAdmin ||
+    viewerRole === EventRole.Organizer ||
+    viewerRole === EventRole.Admin;
 
-  if (hasJoined) {
+  let participantsList: ParticipantWithRole[] = [];
+
+  if (hasJoined || isAdmin) {
     const requestHeaders = await headers();
     const host =
       requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
@@ -74,8 +95,11 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       (host ? `${protocol}://${host}` : "");
 
     if (baseUrl) {
+      const rolesParam = canViewMultipleRoles
+        ? ALL_ROLES
+        : EventRole.Participant;
       const response = await fetch(
-        `${baseUrl}/api/events/${eventData.event_id}/users?roles=participant&limit=500`,
+        `${baseUrl}/api/events/${eventData.event_id}/users?roles=${rolesParam}&limit=500`,
         {
           cache: "no-store",
           headers: {
@@ -87,13 +111,15 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       if (response.ok) {
         const payload = await response.json();
         participantsList = (payload.users || []).map(
-          (participant: {
+          (u: {
             user_id: UUID;
             uid: UUID;
             display_name: string | null;
+            role: EventRole;
           }) => ({
-            uid: participant.uid || participant.user_id,
-            display_name: participant.display_name,
+            uid: u.uid || u.user_id,
+            display_name: u.display_name,
+            role: u.role,
           })
         );
       } else {
@@ -116,7 +142,11 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     >
       <ParticipantsContent
         participants={participantsList}
-        canViewParticipants={hasJoined}
+        canViewParticipants={hasJoined || isAdmin}
+        showRoleFilter={canViewMultipleRoles}
+        eventRoleLabels={
+          (eventData.role_labels as Record<string, string> | null) || null
+        }
       />
     </EventPageLayout>
   );

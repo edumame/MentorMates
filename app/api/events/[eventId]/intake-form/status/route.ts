@@ -1,12 +1,30 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { PER_USER_INTAKE_FORM_CONTEXTS } from "@/features/intake-forms/types";
+
+// Project submissions are per-project, not per-user, so they have no
+// meaningful per-user completion status and are excluded here.
+const querySchema = z.object({
+  context: z.enum(PER_USER_INTAKE_FORM_CONTEXTS),
+});
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { eventId } = await params;
+    const parsed = querySchema.safeParse({
+      context: request.nextUrl.searchParams.get("context"),
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid context" }, { status: 400 });
+    }
+
+    const { context } = parsed.data;
     const supabase = await createSupabaseClient();
 
     const {
@@ -32,18 +50,16 @@ export async function GET(
       .from("event_intake_form_bindings")
       .select("form_version_id")
       .eq("event_id", eventId)
-      .eq("context", "registration")
+      .eq("context", context)
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     const hasActiveForm = Boolean(binding?.form_version_id);
-    const requiresQuestionnaire = hasActiveForm;
 
     if (!hasActiveForm) {
       return NextResponse.json({
-        requiresQuestionnaire,
         hasActiveForm,
         completed: false,
       });
@@ -53,21 +69,23 @@ export async function GET(
       .from("intake_form_submissions")
       .select("id")
       .eq("event_id", eventId)
-      .eq("context", "registration")
+      .eq("context", context)
       .eq("submitter_user_id", user.id)
       .eq("status", "submitted")
       .maybeSingle();
 
     return NextResponse.json({
-      requiresQuestionnaire,
       hasActiveForm,
       completed: Boolean(submission?.id),
     });
   } catch (error) {
     console.error(
-      "Error in GET /api/events/[eventId]/registration/questionnaire-status:",
+      "Error in GET /api/events/[eventId]/intake-form/status:",
       error
     );
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

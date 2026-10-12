@@ -121,8 +121,8 @@ export function SubmissionFieldsSettings({
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+    <Card className="w-full min-w-0 overflow-hidden">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <CardTitle>Submission Form</CardTitle>
           <p className="text-sm text-muted-foreground">

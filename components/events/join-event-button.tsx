@@ -1,10 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 // import { createClient } from "@/app/utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 import {
   Dialog,
   DialogContent,
@@ -38,12 +39,25 @@ import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import {
   getAvailablePricingTiers,
-  getCheapestPricingTier,
-  formatPrice,
+  getPaidEventJoinLabel,
 } from "@/lib/utils/pricing";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { Ticket, Users, Lock, Loader2 } from "lucide-react";
-import { RegistrationQuestionnaireDialog } from "@/features/events/registration/RegistrationQuestionnaireDialog";
+import { IntakeFormDialog } from "@/features/intake-forms/components/IntakeFormDialog";
+import {
+  clearJoinEventIntent,
+  createJoinEventIntent,
+  readJoinEventIntent,
+  type JoinEventIntent,
+  writeJoinEventIntent,
+} from "@/features/events/join-flow/join-event-intent";
+import { getPaidJoinNextStep } from "@/features/events/join-flow/join-event-next-step";
+import {
+  addJoinEventFlowQuery,
+  hasJoinEventFlowQuery,
+  removeJoinEventFlowQuery,
+} from "@/features/events/join-flow/join-event-url";
+import { useResumeJoinEventIntent } from "@/features/events/join-flow/use-resume-join-event-intent";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -70,6 +84,19 @@ function JoinEventButtonSkeleton() {
   );
 }
 
+type JoinEventOptions = {
+  skipRegistrationQuestionnaireCheck?: boolean;
+  role?: EventRole;
+  password?: string;
+  pricingTierId?: string;
+};
+
+function getCurrentBrowserPath() {
+  if (typeof window === "undefined") return null;
+
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
 export function JoinEventButton({
   eventId,
   eventName,
@@ -93,6 +120,8 @@ export function JoinEventButton({
     null
   );
   const router = useRouter();
+  const { setReturnUrl } = useRedirect();
+  const hasHandledJoinFlowQueryRef = useRef(false);
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
   const [selectedPricingTierId, setSelectedPricingTierId] =
     useState<string>("");
@@ -287,55 +316,135 @@ export function JoinEventButton({
     setPassword("");
   };
 
-  const handlePricingTierContinue = async () => {
-    try {
-      setIsLoading(true);
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        localStorage.setItem("returnUrl", window.location.pathname);
-        router.push("/login");
-        return;
-      }
-
-      // Store the event join intent in localStorage for after payment
-      localStorage.setItem(
-        "joinEventIntent",
-        JSON.stringify({
+  const storeLoginJoinIntent = useCallback(
+    (
+      role: EventRole = selectedRole,
+      intentPassword = password,
+      pricingTierId = selectedPricingTierId
+    ) => {
+      writeJoinEventIntent(
+        createJoinEventIntent({
           eventId,
-          role: selectedRole,
-          password: showPasswordInput ? password : undefined,
-          userId: session.user.id,
-          pricingTierId: selectedPricingTierId,
+          role,
+          password: passwordProtectedRoles[role] ? intentPassword : undefined,
+          pricingTierId,
         })
       );
 
-      // Redirect to checkout with event and pricing tier information
-      const searchParams = new URLSearchParams({
-        eventId: eventId,
-        eventSlug: event?.slug || eventId,
-        eventName: event?.event_name || eventName,
-        pricingTierId: selectedPricingTierId,
-      });
+      const currentPath = getCurrentBrowserPath();
+      setReturnUrl(addJoinEventFlowQuery(currentPath) ?? currentPath);
+      router.push("/login");
+    },
+    [
+      eventId,
+      password,
+      passwordProtectedRoles,
+      router,
+      selectedPricingTierId,
+      selectedRole,
+      setReturnUrl,
+    ]
+  );
 
-      router.push(`/checkout?${searchParams.toString()}`);
-    } catch (error) {
-      console.error("Error processing pricing tier selection:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process pricing tier selection",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handlePricingTierContinue = useCallback(
+    async (
+      pricingTierIdOverride?: string,
+      role: EventRole = selectedRole,
+      intentPassword = password
+    ) => {
+      try {
+        setIsLoading(true);
 
-  const handleJoinEvent = async (
-    skipRegistrationQuestionnaireCheck: boolean = false
-  ) => {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          storeLoginJoinIntent(role, intentPassword, pricingTierIdOverride);
+          return;
+        }
+
+        const pricingTierId = pricingTierIdOverride || selectedPricingTierId;
+        if (!pricingTierId) {
+          toast({
+            title: "Select a ticket",
+            description: "Please select a pricing tier to continue.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Store the event join intent in localStorage for after payment.
+        writeJoinEventIntent(
+          createJoinEventIntent({
+            eventId,
+            role,
+            password: passwordProtectedRoles[role] ? intentPassword : undefined,
+            userId: session.user.id,
+            pricingTierId,
+          })
+        );
+
+        const searchParams = new URLSearchParams({
+          eventId: eventId,
+          eventSlug: event?.slug || eventId,
+          eventName: event?.event_name || eventName,
+          pricingTierId,
+        });
+
+        router.push(`/checkout?${searchParams.toString()}`);
+      } catch (error) {
+        console.error("Error processing pricing tier selection:", error);
+        toast({
+          title: "Error",
+          description: "Failed to process pricing tier selection",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [
+      event,
+      eventId,
+      eventName,
+      password,
+      passwordProtectedRoles,
+      router,
+      selectedPricingTierId,
+      selectedRole,
+      storeLoginJoinIntent,
+    ]
+  );
+
+  const openPricingStep = useCallback(
+    (preferredPricingTierId?: string) => {
+      const nextStep = getPaidJoinNextStep(pricingTiers, preferredPricingTierId);
+
+      if (nextStep.type === "unavailable") {
+        toast({
+          title: "Error",
+          description:
+            "This event requires payment but no pricing tiers are available. Please contact the organizer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (nextStep.defaultPricingTierId) {
+        setSelectedPricingTierId(nextStep.defaultPricingTierId);
+      }
+
+      setShowPricingTiers(true);
+      setIsDialogOpen(true);
+    },
+    [pricingTiers]
+  );
+
+  const handleJoinEvent = useCallback(async (options: JoinEventOptions = {}) => {
+    const role = options.role ?? selectedRole;
+    const intentPassword = options.password ?? password;
+    const pricingTierId = options.pricingTierId ?? selectedPricingTierId;
+
     try {
       setIsLoading(true);
 
@@ -343,17 +452,16 @@ export function JoinEventButton({
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        localStorage.setItem("returnUrl", window.location.pathname);
-        router.push("/login");
+        storeLoginJoinIntent(role, intentPassword, pricingTierId);
         return;
       }
 
       if (
-        !skipRegistrationQuestionnaireCheck &&
-        selectedRole === EventRole.Participant
+        !options.skipRegistrationQuestionnaireCheck &&
+        role === EventRole.Participant
       ) {
         const questionnaireStatusResponse = await fetch(
-          `/api/events/${eventId}/registration/questionnaire-status`,
+          `/api/events/${eventId}/intake-form/status?context=registration`,
           { cache: "no-store" }
         );
 
@@ -371,26 +479,11 @@ export function JoinEventButton({
         }
 
         const statusData = (await questionnaireStatusResponse.json()) as {
-          requiresQuestionnaire: boolean;
           hasActiveForm: boolean;
           completed: boolean;
         };
 
-        if (
-          statusData.requiresQuestionnaire &&
-          !statusData.hasActiveForm &&
-          !statusData.completed
-        ) {
-          toast({
-            title: "Registration unavailable",
-            description:
-              "This event requires a registration questionnaire, but no published registration form is configured.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (statusData.requiresQuestionnaire && !statusData.completed) {
+        if (statusData.hasActiveForm && !statusData.completed) {
           setIsDialogOpen(false);
           setShowRegistrationQuestionnaireDialog(true);
           return;
@@ -401,7 +494,7 @@ export function JoinEventButton({
       if (
         event?.paid &&
         requiresApproval &&
-        selectedRole === EventRole.Participant
+        role === EventRole.Participant
       ) {
         const { data: userTicket } = await supabase
           .from("event_tickets")
@@ -420,8 +513,8 @@ export function JoinEventButton({
             },
             body: JSON.stringify({
               eventId,
-              role: selectedRole,
-              password: showPasswordInput ? password : undefined,
+              role,
+              password: passwordProtectedRoles[role] ? intentPassword : undefined,
               userId: session.user.id,
             }),
           });
@@ -445,6 +538,7 @@ export function JoinEventButton({
             setHasPendingRequest(true);
             setPendingRequestStatus(ParticipantRequestStatus.Pending);
             setIsDialogOpen(false);
+            clearJoinEventIntent(eventId);
             toast({
               title: "Request Submitted",
               description:
@@ -458,8 +552,8 @@ export function JoinEventButton({
       // Check if event is paid and handle pricing tier selection
       if (
         event?.paid &&
-        selectedRole !== EventRole.Organizer &&
-        selectedRole !== EventRole.Judge
+        role !== EventRole.Organizer &&
+        role !== EventRole.Judge
       ) {
         const { data: userTicket } = await supabase
           .from("event_tickets")
@@ -469,20 +563,8 @@ export function JoinEventButton({
           .maybeSingle();
 
         if (!userTicket?.ticket_status) {
-          // For paid events, always require pricing tier selection
-          if (pricingTiers.length > 0) {
-            setShowPricingTiers(true);
-            return;
-          } else {
-            // No pricing tiers available for paid event
-            toast({
-              title: "Error",
-              description:
-                "This event requires payment but no pricing tiers are available. Please contact the organizer.",
-              variant: "destructive",
-            });
-            return;
-          }
+          openPricingStep(pricingTierId);
+          return;
         }
       }
 
@@ -494,8 +576,8 @@ export function JoinEventButton({
         },
         body: JSON.stringify({
           eventId,
-          role: selectedRole,
-          password: showPasswordInput ? password : undefined,
+          role,
+          password: passwordProtectedRoles[role] ? intentPassword : undefined,
           userId: session.user.id,
         }),
       });
@@ -512,6 +594,7 @@ export function JoinEventButton({
           if (data.requires_approval) {
             setHasPendingRequest(true);
             setPendingRequestStatus(ParticipantRequestStatus.Pending);
+            clearJoinEventIntent(eventId);
           } else {
             setIsFull(true);
           }
@@ -524,6 +607,7 @@ export function JoinEventButton({
         setHasPendingRequest(true);
         setPendingRequestStatus(ParticipantRequestStatus.Pending);
         setIsDialogOpen(false);
+        clearJoinEventIntent(eventId);
         toast({
           title: "Request Submitted",
           description:
@@ -534,6 +618,7 @@ export function JoinEventButton({
 
       setHasJoined(true);
       setIsDialogOpen(false);
+      clearJoinEventIntent(eventId);
 
       // Redirect to overview page after successful acceptance
       const overviewUrl = `/events/${event?.slug || eventId}/overview`;
@@ -549,21 +634,122 @@ export function JoinEventButton({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    event,
+    eventId,
+    openPricingStep,
+    password,
+    passwordProtectedRoles,
+    requiresApproval,
+    router,
+    selectedPricingTierId,
+    selectedRole,
+    storeLoginJoinIntent,
+  ]);
+
+  const handleResumeJoinIntent = useCallback(
+    (intent: JoinEventIntent) => {
+      setSelectedRole(intent.role);
+      setPassword(intent.password ?? "");
+      if (intent.pricingTierId) {
+        setSelectedPricingTierId(intent.pricingTierId);
+      }
+
+      if (passwordProtectedRoles[intent.role] && !intent.password) {
+        setShowPricingTiers(false);
+        setIsDialogOpen(true);
+        return;
+      }
+
+      void handleJoinEvent({
+        role: intent.role,
+        password: intent.password,
+        pricingTierId: intent.pricingTierId,
+      });
+    },
+    [handleJoinEvent, passwordProtectedRoles]
+  );
+
+  useResumeJoinEventIntent({
+    eventId,
+    enabled: !isInitializing && isAuthenticated && !hasJoined && !isLoading,
+    onResume: handleResumeJoinIntent,
+  });
+
+  useEffect(() => {
+    if (
+      isInitializing ||
+      hasJoined ||
+      isLoading ||
+      hasHandledJoinFlowQueryRef.current ||
+      typeof window === "undefined" ||
+      !hasJoinEventFlowQuery(window.location.search)
+    ) {
+      return;
+    }
+
+    hasHandledJoinFlowQueryRef.current = true;
+
+    const currentPath = getCurrentBrowserPath();
+    const pathWithoutJoinFlowQuery = removeJoinEventFlowQuery(currentPath);
+    const intent = readJoinEventIntent();
+
+    if (!isAuthenticated) {
+      if (intent?.eventId === eventId) {
+        setReturnUrl(
+          addJoinEventFlowQuery(pathWithoutJoinFlowQuery) ?? currentPath
+        );
+        router.push("/login");
+        return;
+      }
+
+      if (pathWithoutJoinFlowQuery) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          pathWithoutJoinFlowQuery
+        );
+      }
+
+      setSelectedRole(EventRole.Participant);
+      setPassword("");
+      setShowPricingTiers(false);
+      setIsDialogOpen(true);
+      return;
+    }
+
+    if (pathWithoutJoinFlowQuery) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        pathWithoutJoinFlowQuery
+      );
+    }
+
+    if (intent?.eventId === eventId) {
+      return;
+    }
+
+    setSelectedRole(EventRole.Participant);
+    setPassword("");
+    setShowPricingTiers(false);
+    setIsDialogOpen(true);
+  }, [
+    eventId,
+    hasJoined,
+    isAuthenticated,
+    isInitializing,
+    isLoading,
+    router,
+    setReturnUrl,
+  ]);
 
   const getDefaultLabel = () => {
-    if (!event?.paid || !isAuthenticated) {
+    if (!event?.paid) {
       return "Join Event";
     }
 
-    if (pricingTiers.length > 0) {
-      const cheapestTier = getCheapestPricingTier(pricingTiers);
-      return cheapestTier
-        ? `Join Event - From ${formatPrice(cheapestTier.price)}`
-        : "Join Event - Multiple Tiers Available";
-    }
-
-    return "Join Event - Paid Event";
+    return getPaidEventJoinLabel(pricingTiers);
   };
 
   // Show loading skeleton while initializing
@@ -751,11 +937,14 @@ export function JoinEventButton({
 
   return (
     <>
-      <RegistrationQuestionnaireDialog
+      <IntakeFormDialog
         open={showRegistrationQuestionnaireDialog}
         eventId={eventId}
+        context="registration"
         onClose={() => setShowRegistrationQuestionnaireDialog(false)}
-        onCompleted={() => handleJoinEvent(true)}
+        onCompleted={() =>
+          handleJoinEvent({ skipRegistrationQuestionnaireCheck: true })
+        }
       />
       <Dialog
         open={isDialogOpen}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mail, Bug, BookOpen, FileQuestion, HelpCircle, Instagram, Linkedin } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
+import { OpenReportButton } from "@/components/layout/OpenReportButton";
 
 // Custom Discord icon
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -140,18 +141,24 @@ export default function SupportPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">Report a Bug</h2>
                   <p className="text-gray-500 text-sm mt-1">
-                    Found an issue? Let us know so we can fix it.
+                    Found an issue or want something new? Let us know.
                   </p>
                 </div>
-                <a
-                  href="https://forms.gle/RazbHHjkvHhK4SGk6"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors"
-                >
-                  <Bug className="w-4 h-4" />
-                  Submit Bug Report
-                </a>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <OpenReportButton
+                    type="bug"
+                    className="inline-flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors"
+                  >
+                    <Bug className="w-4 h-4" />
+                    Submit Bug Report
+                  </OpenReportButton>
+                  <OpenReportButton
+                    type="feature"
+                    className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Request a Feature
+                  </OpenReportButton>
+                </div>
               </div>
             </div>
           </div>
