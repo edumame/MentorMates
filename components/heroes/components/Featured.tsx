@@ -19,6 +19,7 @@ type APIEvent = {
   category?: string | null;
   cover_image_url?: string | null;
   slug?: string | null;
+  featured?: boolean | null;
   // visibility, userRole, etc. may appear but are not required here
 };
 
@@ -96,6 +97,7 @@ export function Featured() {
   const [events, setEvents] = useState<UIEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFeatured, setIsFeatured] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -114,10 +116,23 @@ export function Featured() {
         const payload: { events?: APIEvent[] } = await res.json();
         const all = payload.events ?? [];
 
-        // compute nearest 3 on the client
-        const nearest3 = pickNearest(all, 3);
+        // First, try to get featured events
+        const featuredEvents = all.filter((e) => e.featured === true);
+        
+        let eventsToDisplay: APIEvent[];
+        let showingFeatured = false;
 
-        const ui: UIEvent[] = nearest3.map((e) => {
+        if (featuredEvents.length > 0) {
+          // Use featured events (limit to 3)
+          eventsToDisplay = featuredEvents.slice(0, 3);
+          showingFeatured = true;
+        } else {
+          // Fall back to nearest 3 events
+          eventsToDisplay = pickNearest(all, 3);
+          showingFeatured = false;
+        }
+
+        const ui: UIEvent[] = eventsToDisplay.map((e) => {
           const id = String(e.event_id ?? e.id ?? "");
           const dateISO = e.event_date ?? null;
           return {
@@ -136,8 +151,12 @@ export function Featured() {
           };
         });
 
-        if (alive) setEvents(ui);
+        if (alive) {
+          setEvents(ui);
+          setIsFeatured(showingFeatured);
+        }
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         console.error(err);
         if (alive) setError("Failed to load events");
       } finally {
@@ -193,7 +212,7 @@ export function Featured() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2 font-geist tracking-[-0.06em]">
-            Featured Events
+            {isFeatured ? "Featured Events" : "Upcoming Events"}
           </h2>
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400 mt-2">
@@ -285,3 +304,4 @@ export function Featured() {
     </section>
   );
 }
+

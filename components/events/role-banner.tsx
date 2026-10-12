@@ -57,11 +57,11 @@ export function RoleBanner({
   };
 
   return (
-    <div className="sticky top-0 z-50 bg-sky-50 border-b border-[rgba(0,0,0,0.15)]">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-2 sm:gap-4">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-[#4c4c4c] flex-shrink-0" />
-          
+    <div className="sticky top-0 z-50 mb-8 w-full min-w-0 max-w-full overflow-hidden border-b border-[rgba(0,0,0,0.15)] bg-sky-50">
+      <div className="max-w-full mx-auto px-4 sm:px-6 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0 w-full sm:w-auto">
+          <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-[#4c4c4c] flex-shrink-0 mt-0.5 sm:mt-0" />
+
           {/* Desktop: Text with optional chevron dropdown */}
           <div className="hidden sm:flex items-center gap-2 flex-1 min-w-0">
             <p className="text-[#4c4c4c] text-base sm:text-lg font-medium tracking-[-0.06em] leading-[1.4]">
@@ -70,9 +70,13 @@ export function RoleBanner({
             {canSwitchRoles && (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-1 text-[#4c4c4c] hover:text-black transition-colors">
+                  <span className="font-medium tracking-[-0.06em] leading-[1.4] underline text-black/[0.6]">
+                    View as {getRoleLabel(activeRole, eventRoleLabels).toLowerCase()}
+                  </span>
                   <ChevronDown className="h-5 w-5" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[240px]">
+                  <span className="inline-block mb-2 text-sm font-medium tracking-[-0.06em] leading-[1.4] text-[#4c4c4c] pl-3 pt-1.5">Switch Dashboard View</span>
                   {accessibleRoles.map((role) => {
                     const isActive = role === activeRole;
                     const isActualRole = role === actualRole;
@@ -87,16 +91,14 @@ export function RoleBanner({
                       >
                         <div className="flex items-center justify-between w-full gap-3">
                           <div className="flex items-center gap-2">
-                            {!isActualRole && (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
+                            <Eye className="h-4 w-4 text-muted-foreground" />
                             <span>
-                              {isActualRole ? label : `View as ${label}`}
+                              {`View as ${label}`}
                             </span>
                           </div>
 
                           {isActualRole && (
-                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full border border-[#7CD4FD] text-[#7CD4FD] bg-[#F0F9FF]">
                               Your Role
                             </span>
                           )}
@@ -104,9 +106,8 @@ export function RoleBanner({
                       </DropdownMenuItem>
                     );
                   })}
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    Switch between role views
+                  <div className="px-2 py-1.5 text-xs text-[#aaa]">
+                    Switch between role views based on your permission
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -117,13 +118,11 @@ export function RoleBanner({
           <div className="sm:hidden flex-1 min-w-0">
             {canSwitchRoles ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-start gap-1 w-full text-left text-[#4c4c4c] hover:text-black transition-colors">
-                  <div className="flex items-center gap-2 rounded-md bg-blue-200">
-                    <span className="text-sm font-medium tracking-[-0.06em] leading-[1.4] max-w-40 line-clamp-2">
-                      {getRoleText()}
-                    </span>
-                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                  </div>
+                <DropdownMenuTrigger className="flex items-center gap-1.5 w-full min-w-0 text-left text-[#4c4c4c] hover:text-black transition-colors">
+                  <span className="text-sm font-medium tracking-[-0.06em] leading-[1.4] min-w-0 flex-1">
+                    {getRoleText()}
+                  </span>
+                  <ChevronDown className="h-4 w-4 flex-shrink-0" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[240px]">
                   {accessibleRoles.map((role) => {
@@ -140,11 +139,9 @@ export function RoleBanner({
                       >
                         <div className="flex items-center justify-between w-full gap-3">
                           <div className="flex items-center gap-2">
-                            {!isActualRole && (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
+                            <Eye className="h-4 w-4 text-muted-foreground" />
                             <span>
-                              {isActualRole ? label : `View as ${label}`}
+                              {`View as ${label}`}
                             </span>
                           </div>
 
@@ -174,7 +171,7 @@ export function RoleBanner({
         {onCancelRegistration && (
           <button
             onClick={onCancelRegistration}
-            className="text-[#d92d20] text-sm sm:text-base font-medium leading-[1.5] underline hover:no-underline whitespace-nowrap flex-shrink-0"
+            className="text-[#d92d20] text-sm sm:text-base font-medium leading-[1.5] underline hover:no-underline whitespace-nowrap flex-shrink-0 self-end sm:self-auto"
           >
             Cancel registration
           </button>

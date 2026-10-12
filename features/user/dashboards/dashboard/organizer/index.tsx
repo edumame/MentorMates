@@ -1,47 +1,50 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/lib/hooks/use-toast";
 import { canAccessRole } from "@/features/user/roles/roles";
 import {
-  Edit,
-  Users,
-  Shield,
+  Sparkles,
+  Calendar,
   FileText,
-  BarChart,
+  Shield,
   FolderKanban,
-  UserCheck,
-  Import,
   DollarSign,
-  Mail,
   Bell,
+  Bot,
+  KeyRound,
 } from "lucide-react";
 
 import {
   EventDetails,
   EventRole,
   EventScoringConfig,
-  EventTrack,
-  ScoringCriterion,
 } from "@/lib/types";
 
 // Tab components
 import { SubmissionsTab } from "./submissions";
 import { ScoresTab } from "./scores";
-import { EventDetailsTab } from "./details";
-import { ParticipantsTab } from "./participants";
+import { AssignTab } from "./assign";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
-import { AssignTab } from "./assign";
-import { ProjectImport } from "./import/ProjectImportButton";
-import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
+import { AgentsTab } from "./agents/AgentsTab";
+import { ApiKeysTab } from "./api-keys/ApiKeysTab";
+import { IntakeResponsesTab } from "./registration";
+// Overview sub-tab components
+import { BasicInfoTab } from "./details/BasicInfoTab";
+import { ContentTab } from "./details/ContentTab";
+import { ScheduleTab } from "./details/ScheduleTab";
+import { ResourcesTab } from "./details/ResourcesTab";
+import { RulesTab } from "./details/RulesTab";
+import { FAQTab } from "./details/FAQTab";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -50,69 +53,96 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(
     null
   );
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("overview");
+  const [activeSubTab, setActiveSubTab] = useState("basics");
   const [isAdmin, setIsAdmin] = useState(false);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const isDevNoAuthMode =
+    process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true" &&
+    searchParams.get("devNoAuth") === "1";
+  const devBypassUserId = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID;
 
   // Redirect from pricing tab if user is not admin
   useEffect(() => {
     if (activeTab === "pricing" && !isAdmin) {
-      setActiveTab("details");
+      setActiveTab("overview");
     }
   }, [activeTab, isAdmin]);
 
+  // Main tabs matching Figma design
   const primaryTabs = [
-    { value: "details", label: "Event Details", icon: Edit },
+    { value: "overview", label: "Overview", icon: Sparkles },
+    { value: "registration", label: "Registration", icon: Calendar },
+    { value: "project", label: "Project", icon: FileText },
     { value: "access", label: "Access", icon: Shield },
     { value: "tracks", label: "Tracks", icon: FolderKanban },
-    { value: "participants", label: "Participants", icon: Users },
-    { value: "assign", label: "Assign", icon: UserCheck },
-    { value: "submissions", label: "Submissions", icon: FileText },
-    { value: "scores", label: "Live Scores", icon: BarChart },
     { value: "pricing", label: "Pricing", icon: DollarSign },
-  ];
-
-  const overflowTabs = [
-    { value: "import", label: "Import", icon: Import },
     { value: "notify", label: "Notify", icon: Bell },
-    { value: "email", label: "Email", icon: Mail },
+    { value: "agents", label: "Agents", icon: Bot },
+    { value: "api-keys", label: "API Keys", icon: KeyRound },
   ];
 
-  const allTabs = [...primaryTabs, ...overflowTabs];
+  // Sub-tabs under Overview matching Figma design
+  const overviewSubTabs = [
+    { value: "basics", label: "Basics" },
+    { value: "content", label: "Content" },
+    { value: "schedule", label: "Schedule" },
+    { value: "resources", label: "Resources" },
+    { value: "rules", label: "Rules" },
+    { value: "faqs", label: "FAQs" },
+    { value: "gallery", label: "Gallery" },
+  ];
 
   useEffect(() => {
     async function fetchEvent() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/login");
-          return;
+        let userId: string | null = null;
+
+        if (isDevNoAuthMode) {
+          userId = devBypassUserId || null;
+        } else {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session) {
+            router.push("/login");
+            return;
+          }
+
+          userId = session.user.id;
+
+          // Fetch user's role for this event and check access in app code
+          const { data: roleData } = await supabase
+            .from("user_event_roles")
+            .select("role")
+            .eq("user_id", userId)
+            .eq("event_id", eventId)
+            .maybeSingle();
+
+          if (
+            !roleData ||
+            !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
+          ) {
+            toast({
+              title: "Error",
+              description: "You don't have permission to edit this event",
+              variant: "destructive",
+            });
+            router.push(`/events/${eventId}/dashboard`);
+            return;
+          }
         }
 
-        const userId = session.user.id;
-
-        // Fetch user's role for this event and check access in app code
-        const { data: roleData } = await supabase
-          .from("user_event_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .eq("event_id", eventId)
-          .maybeSingle();
-
-        if (
-          !roleData ||
-          !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
-        ) {
+        if (!userId) {
           toast({
-            title: "Error",
-            description: "You don't have permission to edit this event",
+            title: "Bypass not configured",
+            description:
+              "Set NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID to test without login.",
             variant: "destructive",
           });
-          router.push(`/events/${eventId}/dashboard`);
           return;
         }
 
@@ -120,7 +150,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         const { data: adminData } = await supabase.rpc("is_admin_user", {
           user_id: userId,
         });
-        setIsAdmin(adminData || false);
+        setIsAdmin(Boolean(adminData) || isDevNoAuthMode);
 
         const { data: eventData, error } = await supabase
           .from("events")
@@ -160,51 +190,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         eventData.event_lessons = lessonsData || [];
         setEvent(eventData);
 
-        // Map event tracks to scoring_config structure if needed
-        if (eventData && eventData.event_tracks) {
-          const tracksConfig: Record<
-            string,
-            {
-              name: string;
-              criteria: Array<{
-                id: string;
-                name: string;
-                description: string;
-                weight: number;
-                min: number;
-                max: number;
-              }>;
-            }
-          > = {};
-
-          eventData.event_tracks.forEach((track: EventTrack) => {
-            if (track.track_id && track.scoring_criteria) {
-              tracksConfig[track.track_id] = {
-                name: track.name,
-                criteria: track.scoring_criteria.criteria.map(
-                  (criterion: ScoringCriterion) => ({
-                    id: criterion.id,
-                    name: criterion.name,
-                    description: criterion.description,
-                    weight: criterion.weight || 1,
-                    min: criterion.min || 1,
-                    max: criterion.max || 10,
-                    type: criterion.type || "numeric",
-                    options: criterion.options || [],
-                  })
-                ),
-              };
-            }
-          });
-
-          const scoreConfig = {
-            tracks: tracksConfig,
-            defaultMin: 1,
-            defaultMax: 10,
-            defaultWeight: 1,
-          };
-          setScoringConfig(scoreConfig);
-        }
+        setScoringConfig(buildEventScoringConfig(eventData));
       } catch (error) {
         console.error("Error fetching event:", error);
         toast({
@@ -218,7 +204,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     }
 
     fetchEvent();
-  }, [eventId, router, toast, refetchTrigger]);
+  }, [eventId, router, toast, refetchTrigger, isDevNoAuthMode, devBypassUserId]);
 
   const { isArchived } = useEventArchiveStatus(event);
 
@@ -263,35 +249,140 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="-mx-2 mb-6 overflow-x-auto pb-2 sm:mx-0 sm:overflow-visible">
                 <TabsList className="flex h-auto min-w-full gap-2 overflow-x-auto rounded-none bg-transparent p-0 sm:min-w-0 sm:flex-wrap sm:rounded-lg sm:bg-muted sm:p-1">
-                  {allTabs.map((item) => (
+                  {primaryTabs.map((item) => (
                     <TabsTrigger
                       key={item.value}
                       value={item.value}
                       title={item.label}
-                      className="flex-shrink-0 gap-2 px-3 py-2 text-xs sm:flex-1 sm:flex-shrink sm:text-sm"
+                      className="flex-shrink-0 gap-2 px-4 py-2 text-sm font-medium"
                     >
                       <item.icon className="h-4 w-4" />
-                      <span className="whitespace-nowrap font-medium">{item.label}</span>
+                      <span className="whitespace-nowrap">{item.label}</span>
                     </TabsTrigger>
                   ))}
                 </TabsList>
               </div>
 
-              <TabsContent value="details">
-                <EventDetailsTab
-                  event={event}
-                  setEvent={setEvent}
-                  saving={saving}
-                  setSaving={setSaving}
-                  router={router}
-                  toast={toast}
-                  refetchEvent={refetchEvent}
-                  isArchived={isArchived}
-                />
+              <TabsContent value="overview" className="mt-0">
+                <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+                  <TabsList className="flex h-auto gap-2 overflow-x-auto rounded-lg bg-transparent p-0 mb-6 border-b border-gray-200">
+                    {overviewSubTabs.map((subTab) => (
+                      <TabsTrigger
+                        key={subTab.value}
+                        value={subTab.value}
+                        className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                      >
+                        {subTab.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+
+                  <TabsContent value="basics" className="mt-0">
+                    <BasicInfoTab
+                      event={event}
+                      setEvent={setEvent}
+                      saving={saving}
+                      setSaving={setSaving}
+                      toast={toast}
+                      router={router}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="content" className="mt-0">
+                    <ContentTab
+                      event={event}
+                      setEvent={setEvent}
+                      refetchEvent={refetchEvent}
+                      isArchived={isArchived}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="schedule" className="mt-0">
+                    <ScheduleTab
+                      event={event}
+                      setEvent={setEvent}
+                      saving={saving}
+                      setSaving={setSaving}
+                      toast={toast}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="resources" className="mt-0">
+                    <ResourcesTab
+                      event={event}
+                      setEvent={setEvent}
+                      saving={saving}
+                      setSaving={setSaving}
+                      toast={toast}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="rules" className="mt-0">
+                    <RulesTab
+                      event={event}
+                      setEvent={setEvent}
+                      saving={saving}
+                      setSaving={setSaving}
+                      toast={toast}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="faqs" className="mt-0">
+                    <FAQTab
+                      event={event}
+                      setEvent={setEvent}
+                      saving={saving}
+                      setSaving={setSaving}
+                      toast={toast}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="gallery" className="mt-0">
+                    <div className="rounded-lg border bg-card p-6">
+                      <h3 className="text-lg font-semibold mb-4">Gallery</h3>
+                      <p className="text-gray-500">
+                        Gallery management coming soon
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </TabsContent>
+
+              <TabsContent value="registration" className="mt-0">
+                <IntakeResponsesTab eventId={eventId} />
+              </TabsContent>
+
+              <TabsContent value="project" className="mt-0">
+                <div className="rounded-lg border bg-card p-6">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Project Settings
+                  </h3>
+                  <div className="space-y-6">
+                    <SubmissionsTab eventId={eventId} />
+                    <ScoresTab
+                      eventId={eventId}
+                      scoringConfig={
+                        scoringConfig || {
+                          tracks: {},
+                          defaultMin: 1,
+                          defaultMax: 10,
+                          defaultWeight: 1,
+                        }
+                      }
+                      onScoringConfigSaved={setScoringConfig}
+                    />
+                    <div className="pt-6 border-t">
+                      <h4 className="text-base font-semibold mb-4">
+                        Assign Judges & Mentors to Projects
+                      </h4>
+                      <AssignTab eventId={eventId} />
+                    </div>
+                  </div>
+                </div>
               </TabsContent>
 
               {isAdmin && (
-                <TabsContent value="pricing">
+                <TabsContent value="pricing" className="mt-0">
                   <PricingTab
                     event={event}
                     setEvent={setEvent}
@@ -301,17 +392,18 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                 </TabsContent>
               )}
 
-              <TabsContent value="access">
+              <TabsContent value="access" className="mt-0">
                 <AccessTab
                   eventId={eventId}
                   event={event}
                   setEvent={setEvent}
                   saving={saving}
                   setSaving={setSaving}
+                  activeSubTab="password"
                 />
               </TabsContent>
 
-              <TabsContent value="tracks">
+              <TabsContent value="tracks" className="mt-0">
                 <EventTracksContainer
                   eventId={eventId}
                   event={event}
@@ -324,42 +416,19 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                 />
               </TabsContent>
 
-              <TabsContent value="participants">
-                <ParticipantsTab eventId={eventId} />
-              </TabsContent>
-
-              <TabsContent value="assign">
-                <AssignTab eventId={eventId} />
-              </TabsContent>
-
-              <TabsContent value="submissions">
-                <SubmissionsTab eventId={eventId} />
-              </TabsContent>
-
-              <TabsContent value="scores">
-                <ScoresTab
+              <TabsContent value="notify" className="mt-0">
+                <EmailDashboard
                   eventId={eventId}
-                  scoringConfig={
-                    scoringConfig || {
-                      tracks: {},
-                      defaultMin: 1,
-                      defaultMax: 10,
-                      defaultWeight: 1,
-                    }
-                  }
+                  eventName={event.event_name}
                 />
               </TabsContent>
 
-              <TabsContent value="import">
-                <ProjectImport eventId={eventId} />
+              <TabsContent value="agents" className="mt-0">
+                <AgentsTab eventId={eventId} />
               </TabsContent>
 
-              <TabsContent value="email">
-                <EmailTab eventId={eventId} />
-              </TabsContent>
-
-              <TabsContent value="notify">
-                <EmailDashboard eventId={eventId} eventName={event.event_name} />
+              <TabsContent value="api-keys" className="mt-0">
+                <ApiKeysTab eventId={eventId} />
               </TabsContent>
             </Tabs>
           </div>

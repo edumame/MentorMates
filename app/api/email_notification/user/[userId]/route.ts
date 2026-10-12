@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import {
   getCheckinQRCodeEmail,
   getEventScheduleUpdateNotificationEmail,
@@ -30,6 +31,7 @@ export async function POST(
     return NextResponse.json({ error: "User ID is required" }, { status: 400 });
   }
   const supabase = await createSupabaseClient();
+  const serviceSupabase = createSupabaseServiceClient();
 
   const {
     data: { user },
@@ -43,7 +45,7 @@ export async function POST(
     );
   }
 
-  const { data: userEmail, error: emailError } = await supabase
+  const { data: userEmail, error: emailError } = await serviceSupabase
     .from("user_profiles")
     .select("email")
     .eq("uid", userId)
@@ -56,7 +58,7 @@ export async function POST(
     );
   }
 
-  if (!userEmail) {
+  if (!userEmail?.email) {
     return NextResponse.json(
       { error: "User email not found" },
       { status: 404 }

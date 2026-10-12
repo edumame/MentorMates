@@ -5,5 +5,5 @@ export default function ProjectsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <SidebarLayout>{children}</SidebarLayout>;
+  return <SidebarLayout showLogoInSidebar>{children}</SidebarLayout>;
 }

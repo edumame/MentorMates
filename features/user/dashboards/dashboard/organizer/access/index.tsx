@@ -1,20 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { PasswordTab } from "./PasswordTab";
 import { RoleLabelsTab } from "./RoleLabelsTab";
+import { InviteJudgesTab } from "./InviteJudgesTab";
 import { InviteOrganizersTab } from "./InviteOrganizersTab";
+import { AssignTab } from "../assign";
 import { EventDetails } from "@/lib/types";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+const ACCESS_SUBTAB_VALUES = [
+  "password",
+  "role-labels",
+  "invite-judges",
+  "invite-organizers",
+  "assign-roles",
+] as const;
+export type AccessSubTab = (typeof ACCESS_SUBTAB_VALUES)[number];
 
 interface AccessTabProps {
   eventId: string;
@@ -22,6 +29,7 @@ interface AccessTabProps {
   setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
   saving: boolean;
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
+  activeSubTab: AccessSubTab;
 }
 
 export function AccessTab({
@@ -30,14 +38,13 @@ export function AccessTab({
   setEvent,
   saving,
   setSaving,
+  activeSubTab,
 }: AccessTabProps) {
-  const [activeTab, setActiveTab] = useState("password");
   const { isArchived } = useEventArchiveStatus(event);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Access Controls</CardTitle>
+    <Card className="border-0 shadow-none bg-transparent">
+      <CardHeader className="p-0 pb-0">
         {isArchived && (
           <div className="mt-2 py-4">
             <Alert className="border-orange-200 bg-orange-50">
@@ -52,39 +59,35 @@ export function AccessTab({
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid-cols-3">
-            <TabsTrigger value="password">Password</TabsTrigger>
-            <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
-            <TabsTrigger value="invite-organizers">
-              Invite Organizers
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="password" className="mt-6">
-            <PasswordTab
-              eventId={eventId}
-              roleLabels={event.role_labels}
-              isArchived={isArchived}
-            />
-          </TabsContent>
-
-          <TabsContent value="role-labels" className="mt-6">
-            <RoleLabelsTab
-              eventId={eventId}
-              event={event}
-              setEvent={setEvent}
-              saving={saving}
-              setSaving={setSaving}
-              isArchived={isArchived}
-            />
-          </TabsContent>
-
-          <TabsContent value="invite-organizers" className="mt-6">
-            <InviteOrganizersTab eventId={eventId} isArchived={isArchived} />
-          </TabsContent>
-        </Tabs>
+      <CardContent className="space-y-6 px-0">
+        {activeSubTab === "password" && (
+          <PasswordTab
+            eventId={eventId}
+            roleLabels={event.role_labels}
+            isArchived={isArchived}
+            event={event}
+            setEvent={setEvent}
+          />
+        )}
+        {activeSubTab === "role-labels" && (
+          <RoleLabelsTab
+            eventId={eventId}
+            event={event}
+            setEvent={setEvent}
+            saving={saving}
+            setSaving={setSaving}
+            isArchived={isArchived}
+          />
+        )}
+        {activeSubTab === "invite-judges" && (
+          <InviteJudgesTab eventId={eventId} isArchived={isArchived} />
+        )}
+        {activeSubTab === "invite-organizers" && (
+          <InviteOrganizersTab eventId={eventId} isArchived={isArchived} />
+        )}
+        {activeSubTab === "assign-roles" && (
+          <AssignTab eventId={eventId} />
+        )}
       </CardContent>
     </Card>
   );

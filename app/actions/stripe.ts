@@ -2,8 +2,7 @@
 
 import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe/stripe";
-import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
-import Stripe from "stripe";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 interface CheckoutOptions {
   eventId?: string | null;
@@ -14,7 +13,8 @@ interface CheckoutOptions {
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
   const origin = (await headers()).get("origin");
-  const supabase = await createSupabaseServiceClient();
+  const supabase = await createSupabaseClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -110,7 +110,7 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   });
 
   // greedily create a user event payment record for the user in the processing state
-  const { data: userEventPayment } = await supabase
+  const { data: userEventPayment, error: userEventPaymentError } = await supabase
     .from("user_event_payments")
     .upsert(
       {
@@ -130,7 +130,8 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     )
     .select();
 
-  if (!userEventPayment) {
+  if (!userEventPayment || userEventPaymentError) {
+    console.error("Failed to create user event payment: ", userEventPaymentError);
     throw new Error("Failed to create user event payment");
   }
 
@@ -151,7 +152,7 @@ export async function fetchGuideClientSecret() {
   // Best effort: attach customer email if logged in, but do not require auth
   let customerEmail: string | undefined = undefined;
   try {
-    const supabase = await createSupabaseServiceClient();
+    const supabase = await createSupabaseClient();
     const { data } = await supabase.auth.getUser();
     customerEmail = data.user?.email ?? undefined;
   } catch {
@@ -217,7 +218,7 @@ export async function fetchMasterclassClientSecret() {
   // Best effort: attach customer email if logged in, but do not require auth
   let customerEmail: string | undefined = undefined;
   try {
-    const supabase = await createSupabaseServiceClient();
+    const supabase = await createSupabaseClient();
     const { data } = await supabase.auth.getUser();
     customerEmail = data.user?.email ?? undefined;
   } catch {

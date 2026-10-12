@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EVENT_PAGE_SHELL_CLASS } from "./event-page-shell";
 
 interface EventPageClientWrapperProps {
   userRole: EventRole;
@@ -32,7 +33,7 @@ interface EventPageClientWrapperProps {
   displayEventId: string;
   hasJoined: boolean;
   paid: boolean;
-  eventType: string;
+  eventType: string[];
   tabsAndContent: ReactNode; // The tabs and main content to show for non-organizer roles
 }
 
@@ -136,7 +137,7 @@ export function EventPageClientWrapper({
   const currentRole = activeRole || userRole;
   if (currentRole === EventRole.Organizer || currentRole === EventRole.Admin) {
     return (
-      <>
+      <div className="flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
         <RoleBanner
           actualRole={userRole}
           activeRole={currentRole}
@@ -145,7 +146,9 @@ export function EventPageClientWrapper({
           onCancelRegistration={handleCancelRegistration}
           eventRoleLabels={eventRoleLabels}
         />
-        <OrganizerEditOverview eventId={eventId} />
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+          <OrganizerEditOverview eventId={eventId} />
+        </div>
 
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
           <AlertDialogContent>
@@ -167,7 +170,7 @@ export function EventPageClientWrapper({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </>
+      </div>
     );
   }
 
@@ -193,8 +196,13 @@ export function EventPageClientWrapper({
         userRole={userRole}
         activeRole={currentRole}
         onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
+        onEditEventClick={() => {
+          handleRoleChange(EventRole.Organizer);
+          router.push(`?tab=overview`);
+        }}
         paid={paid}
         eventType={eventType}
+        containerClassName={EVENT_PAGE_SHELL_CLASS}
       />
       {tabsAndContent}
 

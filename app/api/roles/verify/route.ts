@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { EventRole, EventVisibility } from "@/lib/types";
+import { EventRole } from "@/lib/types";
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { joinParticipantEvent } from "@/lib/events/participant-access";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
@@ -33,9 +34,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: event, error: eventError } = await supabase
+    const { error: eventError } = await supabase
       .from("events")
-      .select("*")
+      .select("event_id")
       .eq("event_id", eventId)
       .maybeSingle();
 
@@ -46,123 +47,60 @@ export async function POST(request: Request) {
       );
     }
 
-    // First check if the event is private, which means all roles need a password
-    if (
-      event?.visibility === EventVisibility.Private &&
-      role !== EventRole.Judge &&
-      role !== EventRole.Organizer
-    ) {
+    // If this role has a configured password, require and verify it.
+    const { data: rolePassword, error: rolePasswordError } = await supabase
+      .from("role_passwords")
+      .select("password_hash")
+      .eq("event_id", eventId)
+      .eq("role", role)
+      .maybeSingle();
+
+    if (rolePasswordError) {
+      return NextResponse.json(
+        { error: "Failed to verify role password" },
+        { status: 500 }
+      );
+    }
+
+    if (rolePassword) {
       if (!password) {
         return NextResponse.json(
-          { error: "Password required for this event" },
+          { error: "Password required for this role" },
           { status: 400 }
         );
       }
 
-      // Verify role password
-      const { data: rolePassword, error: rolePassError } = await supabase
-        .from("role_passwords")
-        .select("password_hash")
-        .eq("event_id", eventId)
-        .eq("role", role)
-        .single();
+      const isValid = await bcrypt.compare(password, rolePassword.password_hash);
 
-      if (rolePassError || !rolePassword) {
+      if (!isValid) {
         return NextResponse.json(
-          { error: "No password set for this role" },
-          { status: 404 }
-        );
-      }
-
-      // Verify password
-      const isValidRolePass = await bcrypt.compare(
-        password,
-        rolePassword.password_hash
-      );
-
-      if (!isValidRolePass) {
-        return NextResponse.json(
-          { error: "Invalid role password" },
+          { error: "Invalid password" },
           { status: 401 }
         );
       }
     }
-    // For non-private events, check if the role itself requires a password
-    else {
-      const isProtectedRole =
-        role === EventRole.Judge || role === EventRole.Organizer;
-
-      if (isProtectedRole) {
-        if (!password) {
-          return NextResponse.json(
-            { error: "Password required for this role" },
-            { status: 400 }
-          );
-        }
-
-        // Get the stored password hash
-        const { data: rolePassword, error: fetchError } = await supabase
-          .from("role_passwords")
-          .select("password_hash")
-          .eq("event_id", eventId)
-          .eq("role", role)
-          .single();
-
-        if (fetchError || !rolePassword) {
-          return NextResponse.json(
-            { error: "No password set for this role" },
-            { status: 404 }
-          );
-        }
-
-        // Verify password
-        const isValid = await bcrypt.compare(
-          password,
-          rolePassword.password_hash
-        );
-
-        if (!isValid) {
-          return NextResponse.json(
-            { error: "Invalid password" },
-            { status: 401 }
-          );
-        }
-      } else {
-        // For non-protected roles (Participant or Mentor), verify the role is valid
-        const validRoles = [EventRole.Participant, EventRole.Mentor];
-        if (!validRoles.includes(role)) {
-          return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-        }
-      }
-    }
 
     // At this point, either:
-    // 1. It's a private event and the role password was verified
-    // 2. It's a protected role and the role password was verified
-    // 3. It's a non-protected role
-    // Enforce participant capacity if set
+    // 1. This role has a configured password and it was verified
+    // 2. No password is configured for this role
+    if (role === EventRole.Participant) {
+      const joinResult = await joinParticipantEvent(supabase, {
+        eventId,
+        userId,
+        channel: "web",
+      });
 
-    if (role === EventRole.Participant && event?.participant_capacity != null) {
-      // Count current participants for this event
-      const { count, error: countError } = await supabase
-        .from("user_event_roles")
-        .select("id", { count: "exact", head: true })
-        .eq("event_id", eventId)
-        .eq("role", EventRole.Participant);
-
-      if (countError) {
-        return NextResponse.json(
-          { error: "Failed to check capacity" },
-          { status: 500 }
-        );
+      if (joinResult.status === "error") {
+        return NextResponse.json(joinResult.payload, { status: joinResult.httpStatus });
       }
 
-      if ((count || 0) >= event.participant_capacity) {
-        return NextResponse.json(
-          { error: "Event is full. No seats available." },
-          { status: 409 }
-        );
-      }
+      return NextResponse.json({
+        success: true,
+        requires_approval: joinResult.requiresApproval,
+        request_id: joinResult.requestId,
+        request_status: joinResult.requestStatus,
+        message: joinResult.message,
+      });
     }
 
     // Now we can proceed with role assignment

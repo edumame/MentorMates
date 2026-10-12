@@ -1,8 +1,10 @@
 "use client";
 
-import { CalendarDays, MapPin, ArrowUpRight, Plus } from "lucide-react";
+import { CalendarDays, MapPin, ArrowUpRight, Plus, Pencil } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { JoinEventButton } from "./join-event-button";
+import { RsvpButton } from "@/features/events/rsvp/RsvpButton";
+import { PostSurveyButton } from "@/features/events/post-survey/PostSurveyButton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { parseEventDateLocal } from "@/lib/utils/date";
@@ -23,8 +25,10 @@ interface EventPageHeaderProps {
    */
   activeRole?: EventRole | null;
   onManageEventClick?: () => void;
+  onEditEventClick?: () => void;
   paid: boolean;
-  eventType: string;
+  eventType: string[];
+  containerClassName?: string;
 }
 
 export function EventPageHeader({
@@ -38,8 +42,10 @@ export function EventPageHeader({
   userRole,
   activeRole,
   onManageEventClick,
+  onEditEventClick,
   paid,
   eventType,
+  containerClassName,
 }: EventPageHeaderProps) {
   // Format date
   const { dayOfWeek, day, monthYear } = (() => {
@@ -56,11 +62,10 @@ export function EventPageHeader({
   })();
   return (
     <div
-      className="bg-white flex flex-col w-full"
-      style={{ maxWidth: "100vw" }}
+      className="bg-white flex min-w-0 max-w-full flex-col w-full overflow-x-clip"
     >
       {/* Cover Image */}
-      <div className="h-[200px] sm:h-[240px] w-full relative overflow-hidden">
+      <div className="h-[200px] sm:h-[224px] w-full relative overflow-hidden">
         {coverImageUrl ? (
           <>
             <img
@@ -80,13 +85,13 @@ export function EventPageHeader({
 
         {/* Event Tags */}
         <div className="absolute left-4 md:left-6 top-4 md:top-6 flex flex-wrap gap-1 z-10">
-          <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
-            <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
-              {eventType
-                ? eventType.charAt(0).toUpperCase() + eventType.slice(1)
-                : "Hackathon"}
-            </p>
-          </div>
+          {(eventType.length ? eventType : ["Hackathon"]).map((type) => (
+            <div key={type} className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+              <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </p>
+            </div>
+          ))}
           <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
             {paid ? (
               <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
@@ -103,31 +108,37 @@ export function EventPageHeader({
 
       {/* Content Section - responsive container */}
       <div
-        className="box-border flex flex-col gap-[24px] items-start w-full bg-gradient-to-b from-blue-100/25 to-white"
+        className="box-border flex flex-col gap-[24px] items-start pb-[24px] pt-[24px] px-0 w-full"
         style={{
           background:
-            "linear-gradient(180deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(180deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
+            "linear-gradient(to bottom, #DBEAFE 13.19%, rgba(255, 255, 255, 0.00) 65.83%)",
         }}
       >
-        <div className="box-border flex flex-col gap-[16px] md:gap-[24px] items-start justify-end py-[24px] px-4 w-full max-w-8xl mx-auto">
-          <div className="flex flex-col gap-[16px] items-start w-full min-w-0">
-            <div className="flex flex-col lg:flex-row items-start lg:items-start justify-between w-full gap-6 lg:gap-8">
+        <div className={containerClassName ?? "w-full px-4 md:px-6"}>
+          <div className="flex flex-col gap-[16px] items-start w-full">
+            <div className="flex items-start w-full flex-wrap md:flex-nowrap gap-6">
               {/* Left: Event Info */}
-              <div className="flex flex-col gap-[8px] items-start w-full lg:flex-1 lg:max-w-[617px]">
-                <div className="flex flex-col items-start text-black w-full min-w-0">
-                  <h1 className="font-semibold text-[22px] md:text-[28px] leading-[1.4] tracking-[-0.04em] text-black w-full">
+              <div className="flex flex-col gap-[8px] items-start w-full min-w-0 md:max-w-[747px]">
+                <div className="flex flex-col items-start text-black w-full">
+                  <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full">
                     {eventName}
                   </h1>
                   <p className="font-normal text-sm md:text-base leading-[1.5] text-black w-full break-words">
                     {eventBlurb}
                   </p>
                 </div>
+
+                {/* TODO: Add back when sponsorships are implemented */}
+                {/* <Link href={`/events/${eventId}/sponsorships`}>
+                  <img src="{{sponsorsImageUrl}}" />
+                  <span className="font-normal text-sm leading-[1.5] text-black text-nowrap whitespace-pre">Sponsors</span>
+                </Link> */}
               </div>
 
               {/* Right: Join Button and Meta */}
-              <div className="flex flex-col gap-[12px] items-stretch lg:items-end justify-center w-full lg:w-auto min-w-0">
-                <div className="flex flex-col gap-[12px] lg:gap-[16px] items-stretch lg:items-center justify-center w-full min-w-0">
-                  <div className="flex gap-[16px] items-start w-full min-w-0">
+              <div className="flex flex-col gap-[12px] items-end justify-center w-full md:w-[341px] md:shrink-0">
+                <div className="flex flex-col gap-[16px] items-center justify-center w-full">
+                  <div className="flex gap-[16px] items-start w-full">
                     {(() => {
                       const roleForView = activeRole ?? userRole ?? null;
                       const isPresenterView =
@@ -136,10 +147,7 @@ export function EventPageHeader({
                       if (isPresenterView) {
                         return (
                           <Button
-                            asChild
-                            variant="default"
-                            size="lg"
-                            className="rounded-full px-6 py-5 gap-2"
+                            asChild variant="default" className="rounded-full gap-2 w-full"
                           >
                             <Link href={`/projects/submit?eventId=${eventId}`}>
                               <Plus className="h-6 w-6" /> Create Project
@@ -167,29 +175,52 @@ export function EventPageHeader({
                     })()}
                   </div>
 
-                  {/* Manage Event Button */}
+                  {/* RSVP and post-event survey (only for joined users, when
+                      the corresponding form is published) */}
+                  {hasJoined && (
+                    <div className="w-full space-y-2">
+                      <RsvpButton eventId={eventId} />
+                      <PostSurveyButton eventId={eventId} />
+                    </div>
+                  )}
+
+                  {/* Manage / Edit Event Buttons (organizer + admin) */}
                   {(userRole === "organizer" || userRole === "admin") && (
-                    <button
-                      onClick={onManageEventClick}
-                      className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] w-full md:w-[341px]"
-                    >
-                      <ArrowUpRight className="w-6 h-6 text-black" />
-                      <p className="font-medium text-sm sm:text-base leading-[1.5] text-black whitespace-pre md:text-nowrap">
-                        Manage event
-                      </p>
-                    </button>
+                    <div className="flex gap-2 w-full">
+                      <button
+                        onClick={onManageEventClick}
+                        className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex-1"
+                      >
+                        <ArrowUpRight className="w-6 h-6 text-black" />
+                        <p className="font-medium text-sm sm:text-base leading-[1.5] text-black whitespace-pre md:text-nowrap">
+                          Manage event
+                        </p>
+                      </button>
+                      {onEditEventClick && (
+                        <button
+                          onClick={onEditEventClick}
+                          aria-label="Edit event"
+                          className="bg-[#4b89ef] hover:bg-[#3d75d9] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex-1"
+                        >
+                          <Pencil className="w-5 h-5 text-white" />
+                          <p className="font-medium text-sm sm:text-base leading-[1.5] text-white whitespace-pre md:text-nowrap">
+                            Edit event
+                          </p>
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
                 {/* Date and Location */}
-                <div className="flex gap-[8px] items-start w-full md:w-[341px] flex-col md:flex-row">
-                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                <div className="flex gap-[8px] items-center justify-between w-full flex-wrap">
+                  <div className="flex gap-[8px] items-center flex-wrap">
                     <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">
                       {dayOfWeek}, {day} {monthYear}
                     </p>
                   </div>
-                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                  <div className="flex gap-[8px] items-center flex-wrap">
                     <MapPin className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">
                       {location}
@@ -200,7 +231,7 @@ export function EventPageHeader({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

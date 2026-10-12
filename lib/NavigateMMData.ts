@@ -1,30 +1,20 @@
+import { ROLE_VIDEO_KEYS, VIDEO_SOURCES } from "@/lib/config/video-sources";
+
 interface NavigateMMProps {
-    id: number;
-    source: string;
-    title: string;
+  id: number;
+  url: string;
+  title: string;
 }
 
-export const data: NavigateMMProps[] = [
-    {
-        id: 1,
-        source: "https://youtube.com/embed/GMHO4vdLgD0",
-        title: "As a participant",
-    },
-    {
-        id: 2,
-        source: "https://youtube.com/embed/mAm-LnMK5dA",
-        title: "As a mentor",
-    },
+const ROLE_LABELS: Record<(typeof ROLE_VIDEO_KEYS)[number], string> = {
+  participant: "As a participant",
+  mentor: "As a mentor",
+  judge: "As a judge",
+  organizer: "As an organizer",
+};
 
-    {
-        id: 3,
-        source: "https://youtube.com/embed/o1iCt7qE5UY",
-        title: "As a judge",
-    },
-
-    {
-        id: 4,
-        source: "https://youtube.com/embed/DFGjGusKtdo",
-        title: "As an organizer",
-    },
-];
+export const data: NavigateMMProps[] = ROLE_VIDEO_KEYS.map((key, index) => ({
+  id: index + 1,
+  url: VIDEO_SOURCES[key].url,
+  title: ROLE_LABELS[key],
+}));

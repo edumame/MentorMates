@@ -1,36 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRef, useState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Archive, Trash2, ArrowUpRight } from "lucide-react";
+import { Archive, Trash2, ArrowUpRight, Send, ChevronDown } from "lucide-react";
 import {
+  ApprovalStatus,
   EventDetails,
   EventScoringConfig,
-  EventTrack,
   EventVisibility,
-  ScoringCriterion,
 } from "@/lib/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
+import { OrganizerTeamsTab } from "@/features/user/dashboards/dashboard/organizer/teams";
 import { AccessTab } from "@/features/user/dashboards/dashboard/organizer/access";
 import { EventTracksContainer } from "@/features/user/dashboards/dashboard/organizer/tracks";
-import { AssignTab } from "@/features/user/dashboards/dashboard/organizer/assign";
 import { SubmissionsTab } from "@/features/user/dashboards/dashboard/organizer/submissions";
 import { ScoresTab } from "@/features/user/dashboards/dashboard/organizer/scores";
 import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/pricing/PricingTab";
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
+import { IntakeFormBuilder } from "@/features/intake-forms/components/IntakeFormBuilder";
+import { SubmissionFieldsSettings } from "@/features/user/dashboards/dashboard/organizer/submissions/SubmissionFieldsSettings";
 
 // Import sub-tab components for Overview
 import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
@@ -39,9 +36,19 @@ import { ScheduleTab } from "@/features/user/dashboards/dashboard/organizer/deta
 import { ResourcesTab } from "@/features/user/dashboards/dashboard/organizer/details/ResourcesTab";
 import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details/RulesTab";
 import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/FAQTab";
+import { IntakeResponsesTab } from "@/features/user/dashboards/dashboard/organizer/registration";
 
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -53,6 +60,21 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ApiKeysTab } from "@/features/user/dashboards/dashboard/organizer/api-keys/ApiKeysTab";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
 interface OrganizerEditOverviewProps {
   eventId: string;
@@ -71,27 +93,81 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  // Get tab state from URL or use defaults
-  const tabFromUrl = searchParams.get("tab") || "overview";
-  const subTabFromUrl = searchParams.get("subtab") || "basics";
-  const [activeTab, setActiveTabState] = useState<string>(tabFromUrl);
-  const [activeSubTab, setActiveSubTabState] = useState<string>(subTabFromUrl);
+  const [submittingForApproval, setSubmittingForApproval] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [submitVisibility, setSubmitVisibility] = useState<EventVisibility>(
+    EventVisibility.Public
+  );
+
+  // Use URL as single source of truth for tab state (default to Registration)
+  const activeTab = searchParams.get("tab") || "participants";
+  const activeSubTab = searchParams.get("subtab") || "basics";
+
+  const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
+    null
+  );
 
   const [participantCount, setParticipantCount] = useState<number>(0);
+  const [projectCount, setProjectCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Main tabs matching Figma design
+  // Primary tabs in the bar (Advanced Settings is a dropdown)
   const mainTabs = [
-    { value: "overview", label: "Overview" },
-    { value: "participants", label: "Participants", badge: participantCount },
+    { value: "participants", label: "People", badge: participantCount },
+    { value: "teams", label: "Teams" },
+    { value: "project", label: "Projects", badge: projectCount },
     { value: "access", label: "Access" },
-    { value: "tracks", label: "Tracks" },
-    { value: "assign", label: "Assign" },
-    { value: "project-submission", label: "Project Submission" },
-    { value: "live-scores", label: "Live Scores" },
+    { value: "tracks", label: "Tracks & Prizes" },
+    { value: "agent-keys", label: "Agent Keys" },
+    { value: "advanced-settings", label: "Advanced Settings" },
+  ];
+
+  const advancedTabValues = [
+    "overview",
+    "intake-forms",
+    "intake-responses",
+    "ticketing",
+    "notify",
+  ] as const;
+  const advancedTabs = [
+    { value: "overview", label: "Edit Event" },
+    { value: "intake-forms", label: "Intake Forms" },
+    { value: "intake-responses", label: "Intake Responses" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
   ];
+  const isAdvancedTab = (tab: string) => advancedTabValues.includes(tab as (typeof advancedTabValues)[number]);
+  // Issue #778: split former "Submission" sub-tab into "Browse" (default,
+  // list-only) and "Submission Settings" (form fields + import). "submission"
+  // remains valid in URLs for backwards compatibility and aliases to "browse".
+  const projectSubTabValues = ["browse", "submission-settings", "live-scores"] as const;
+  const rawProjectSubTab = activeTab === "project"
+    ? searchParams.get("subtab")
+    : null;
+  const projectSubTab: (typeof projectSubTabValues)[number] = activeTab === "project"
+    ? (rawProjectSubTab === "submission"
+        ? "browse"
+        : (projectSubTabValues.includes(rawProjectSubTab as (typeof projectSubTabValues)[number])
+            ? (rawProjectSubTab as (typeof projectSubTabValues)[number])
+            : "browse"))
+    : "browse";
+  const isProjectTab = (tab: string) => tab === "project-submission" || tab === "live-scores" || tab === "project";
+  const tabsValue = isAdvancedTab(activeTab) ? "advanced-settings" : isProjectTab(activeTab) ? "project" : activeTab;
+
+  const accessSubTabValues = [
+    "password",
+    "role-labels",
+    "invite-judges",
+    "invite-organizers",
+    "assign-roles",
+  ] as const;
+  const accessSubTab: (typeof accessSubTabValues)[number] =
+    activeTab === "access"
+      ? (accessSubTabValues.includes(searchParams.get("subtab") as (typeof accessSubTabValues)[number])
+          ? (searchParams.get("subtab") as (typeof accessSubTabValues)[number]) ?? "password"
+          : "password")
+      : "password";
 
   // Sub-tabs under Overview matching Figma design
   const overviewSubTabs = [
@@ -104,44 +180,127 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "gallery", label: "Gallery" },
   ];
 
-  // Update URL when tabs change
+  // Update URL when tabs change with optimistic UI
   const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    const params = new URLSearchParams(searchParams);
-    params.set("tab", tab);
-    // Reset subtab to basics when changing main tabs
-    if (tab === "overview") {
-      params.set("subtab", "basics");
-      setActiveSubTabState("basics");
-    } else {
-      params.delete("subtab");
-    }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("tab", tab);
+      if (tab === "overview") {
+        params.set("subtab", "basics");
+      } else if (tab === "project") {
+        params.set("subtab", "submission");
+      } else if (tab === "access") {
+        params.set("subtab", "password");
+      } else {
+        params.delete("subtab");
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const setActiveSubTab = (subtab: string) => {
-    setActiveSubTabState(subtab);
-    const params = new URLSearchParams(searchParams);
-    params.set("subtab", subtab);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("subtab", subtab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
-  // Sync state with URL changes
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    const subtabParam = searchParams.get("subtab");
+  const handleAccessVisibilityChange = async (value: EventVisibility) => {
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ visibility: value })
+        .eq("event_id", eventId);
 
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTabState(tabParam);
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update event visibility",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setEvent((prev) => {
+        if (!prev) return prev;
+        return { ...prev, visibility: value };
+      });
+
+      toast({
+        title: "Success",
+        description: "Event visibility updated successfully",
+      });
+    } catch (err) {
+      console.error("Error updating event visibility:", err);
+      toast({
+        title: "Error",
+        description: "Failed to update event visibility",
+        variant: "destructive",
+      });
     }
-    if (subtabParam && subtabParam !== activeSubTab) {
-      setActiveSubTabState(subtabParam);
+  };
+
+  // Redirect legacy tab=assign to participants (Assign is now under Participants → Assign Roles)
+  useEffect(() => {
+    if (searchParams.get("tab") === "assign") {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        params.set("tab", "participants");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      });
     }
-  }, [searchParams, activeTab, activeSubTab]);
+  }, [pathname, router, searchParams]);
+
+  // Redirect legacy project-submission / live-scores to Project tab with subtab.
+  // Old `?subtab=submission` maps to the new "browse" sub-tab (#778).
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const subtab = searchParams.get("subtab");
+    if (tab === "project-submission" || tab === "live-scores") {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        params.set("tab", "project");
+        params.set("subtab", tab === "live-scores" ? "live-scores" : "browse");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      });
+      return;
+    }
+    if (tab === "project" && subtab === "submission") {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        params.set("subtab", "browse");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      });
+      return;
+    }
+    if (tab === "project" && !projectSubTabValues.includes(subtab as (typeof projectSubTabValues)[number])) {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        params.set("tab", "project");
+        params.set("subtab", "browse");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      });
+    }
+  }, [pathname, router, searchParams]);
+
+  // Redirect access tab to valid subtab
+  useEffect(() => {
+    if (activeTab !== "access") return;
+    const subtab = searchParams.get("subtab");
+    if (subtab && accessSubTabValues.includes(subtab as (typeof accessSubTabValues)[number])) return;
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("tab", "access");
+      params.set("subtab", "password");
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
+  }, [activeTab, pathname, router, searchParams]);
 
   useEffect(() => {
     fetchEvent();
     fetchParticipantCount();
+    fetchProjectCount();
     checkAdminStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
@@ -176,6 +335,19 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   };
 
+  const fetchProjectCount = async () => {
+    try {
+      const { count } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("event_id", eventId);
+
+      setProjectCount(count || 0);
+    } catch (error) {
+      console.error("Error fetching project count:", error);
+    }
+  };
+
   const fetchEvent = async () => {
     try {
       const { data, error } = await supabase
@@ -204,52 +376,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       setEvent(data as EventDetails);
 
-      // Map event tracks to scoring_config structure
-      if (data && data.event_tracks) {
-        const tracksConfig: Record<
-          string,
-          {
-            name: string;
-            criteria: Array<{
-              id: string;
-              name: string;
-              description: string;
-              weight: number;
-              min: number;
-              max: number;
-            }>;
-          }
-        > = {};
-        data.event_tracks.forEach((track: EventTrack) => {
-          if (track.track_id && track.scoring_criteria) {
-            tracksConfig[track.track_id] = {
-              name: track.name,
-              criteria: track.scoring_criteria.criteria.map(
-                (criterion: ScoringCriterion) => ({
-                  id: criterion.id,
-                  name: criterion.name,
-                  description: criterion.description,
-                  weight: criterion.weight || 1,
-                  min: criterion.min || 1,
-                  max: criterion.max || 10,
-                  type: criterion.type || "numeric",
-                  options: criterion.options || [],
-                })
-              ),
-            };
-          }
-        });
-
-        const scoreConfig = {
-          tracks: tracksConfig,
-          defaultMin: 1,
-          defaultMax: 10,
-          defaultWeight: 1,
-        };
-        setScoringConfig(scoreConfig);
-      }
+      setScoringConfig(buildEventScoringConfig(data));
     } catch (error) {
-      console.error("Error fetching event:", error);
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      const message = error instanceof Error ? error.message : String(error);
+      const code = error && typeof error === "object" && "code" in error ? (error as { code?: string }).code : undefined;
+      console.error("Error fetching event:", message, code ?? "");
       toast({
         title: "Error",
         description: "Failed to load event details",
@@ -266,7 +398,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     const previewUrl = `/events/${event.slug || event.event_id}/overview?view=participant`;
 
     return (
-      <div className="flex-shrink-0 space-y-3 w-full lg:w-[335px]">
+      <div className="flex-shrink-0 space-y-3 w-full lg:w-[335px] overflow-x-hidden order-first lg:order-last">
         <div className="w-full lg:w-[335px]">
           <EventCard event={event} />
         </div>
@@ -275,7 +407,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           href={previewUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1 text-[#7f7f7f] hover:text-[#4b89ef] transition-colors cursor-pointer"
+          className="flex items-center justify-center gap-1 text-[#7f7f7f] hover:text-[#4b89ef] transition-colors cursor-pointer mt-3"
         >
           <span className="text-[16px]">Preview event page</span>
           <ArrowUpRight className="w-[18px] h-[18px]" />
@@ -358,9 +490,71 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    if (!event) return;
+
+    try {
+      setSubmittingForApproval(true);
+
+      if (event.visibility !== EventVisibility.Private) {
+        const { error: visibilityError } = await supabase
+          .from("events")
+          .update({ visibility: EventVisibility.Private })
+          .eq("event_id", event.event_id);
+
+        if (visibilityError) {
+          throw new Error("Failed to set event visibility to private before submission");
+        }
+
+        setEvent((prev) =>
+          prev ? { ...prev, visibility: EventVisibility.Private } : prev
+        );
+      }
+
+      const res = await fetch("/api/events/request-approval", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ eventId: event.event_id }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to submit event for approval");
+      }
+
+      await res.json();
+
+      // Update local state with new visibility + approval status
+      setEvent({
+        ...event,
+        visibility: EventVisibility.Private,
+        approval_status: ApprovalStatus.Submitted,
+      });
+
+      toast({
+        title: "Success",
+        description: "Event submitted for approval. An admin will review it soon.",
+      });
+
+      // Refresh the page to update any cached data
+      router.refresh();
+    } catch (error) {
+      console.error("Error submitting event for approval:", error);
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingForApproval(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 h-screen">
         <p className="text-lg">Loading...</p>
       </div>
     );
@@ -368,367 +562,737 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   if (!event) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 h-screen">
         <p className="text-lg text-red-600">Event not found</p>
       </div>
     );
   }
 
   return (
-    <div
-      className="w-full min-h-screen"
-      style={{
-        background:
-          "linear-gradient(209.28deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
-      }}
-    >
-      <div className="px-4 md:px-8 py-6 space-y-6">
-        {/* Header with title and action buttons */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1
-            className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black"
-            style={{ fontFamily: "Geist, sans-serif" }}
-          >
-            Manage Event
-          </h1>
-
-          <div className="flex gap-1 w-full sm:w-auto">
-            {/* Archive Event Dialog */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="defaultGray"
-                  className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
-                  disabled={
-                    archiving || event.visibility === EventVisibility.Archived
-                  }
-                >
-                  <Archive className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">{archiving ? "Archiving..." : "Archive"}</span>
-                  <span className="sm:hidden">{archiving ? "..." : "Archive"}</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {event.visibility === EventVisibility.Archived
-                      ? "Unarchive this event?"
-                      : "Archive this event?"}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {event.visibility === EventVisibility.Archived
-                      ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                      : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleArchiveToggle}>
-                    {event.visibility === EventVisibility.Archived
-                      ? "Confirm Unarchive"
-                      : "Confirm Archive"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            {/* Delete Event Dialog */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  disabled={deleting}
-                  className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
-                >
-                  <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">Delete</span>
-                  <span className="sm:hidden">Delete</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently remove the event and related data
-                    (tickets, payments, tracks, feedback). This cannot be
-                    undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"onClick={handleDelete}>
-                    Confirm Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-
-        {/* Main tabs - Desktop */}
-        <div className="hidden md:flex gap-6 items-center border-b border-[#d2d7e7]">
-          {mainTabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className={`flex items-center gap-2 px-0 py-2 text-[16px] ${
-                activeTab === tab.value
-                  ? "font-medium border-b-2 border-[#4b89ef] text-black"
-                  : "font-normal text-black"
-              }`}
-            >
-              {tab.label}
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Main tabs - Mobile Dropdown */}
-        <div className="md:hidden">
-          <Select value={activeTab} onValueChange={setActiveTab}>
-            <SelectTrigger className="w-full h-12 text-[16px] font-medium">
-              <SelectValue>
-                {mainTabs.find((tab) => tab.value === activeTab)?.label}
-                {mainTabs.find((tab) => tab.value === activeTab)?.badge !== undefined &&
-                  mainTabs.find((tab) => tab.value === activeTab)!.badge! > 0 && (
-                    <span className="ml-2 bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
-                      {mainTabs.find((tab) => tab.value === activeTab)!.badge}
-                    </span>
-                  )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {mainTabs.map((tab) => (
-                <SelectItem key={tab.value} value={tab.value}>
-                  <span className="flex items-center gap-2">
-                    {tab.label}
-                    {tab.badge !== undefined && tab.badge > 0 && (
-                      <span className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[12px] font-normal">
-                        {tab.badge}
-                      </span>
-                    )}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Sub-tabs for Overview - Desktop */}
-        {activeTab === "overview" && (
-          <div className="hidden md:inline-flex justify-start items-center">
-            {overviewSubTabs.map((subTab) => (
-              <button
-                key={subTab.value}
-                onClick={() => setActiveSubTab(subTab.value)}
-                className={`px-4 py-2.5 rounded-[100px] text-base leading-normal ${
-                  activeSubTab === subTab.value
-                    ? "font-medium bg-white outline outline-1 outline-offset-[-1px] outline-[rgba(0,0,0,0.15)] text-black"
-                    : "font-normal text-black"
-                }`}
-                style={{ fontFamily: "Inter, sans-serif" }}
+    <div className="w-full min-w-0 flex flex-col flex-1 min-h-0">
+      <div className="w-full min-w-0 flex flex-col flex-1 min-h-0">
+        {/* 头部 + Tabs 固定，仅下方内容区滚动；背景由右侧 100dvh 区域统一提供 */}
+        <div className="px-4 sm:px-6 lg:px-10 pt-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
+          {/* Header with title, action buttons, and notification+avatar (below left nav) */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <h1
+                className="flex flex-col justify-center flex-1 min-w-0 self-stretch font-geist text-[28px] font-semibold leading-[140%] tracking-[-1.68px] text-[var(--Color-Scheme-1-Text,#000)]"
               >
-                {subTab.label}
-              </button>
-            ))}
-          </div>
-        )}
+                Manage Event
+              </h1>
+              {event.visibility && (
+                <Badge
+                  className={`ml-1 font-sans font-normal text-[11px] leading-[1.5] ${
+                    event.visibility === EventVisibility.Draft
+                      ? "bg-orange-500/20 hover:bg-orange-500/20 text-black border-none"
+                      : event.visibility === EventVisibility.Public
+                        ? "bg-green-500/20 hover:bg-green-500/20 text-black border-none"
+                        : "bg-gray-500/20 hover:bg-gray-500/20 text-black border-none"
+                  }`}
+                >
+                  {event.visibility.toUpperCase()}
+                </Badge>
+              )}
 
-        {/* Sub-tabs for Overview - Mobile Dropdown */}
-        {activeTab === "overview" && (
-          <div className="md:hidden">
-            <Select value={activeSubTab} onValueChange={setActiveSubTab}>
-              <SelectTrigger className="w-full h-12 text-[14px] font-medium bg-blue-300">
-                <SelectValue>
-                  {overviewSubTabs.find((tab) => tab.value === activeSubTab)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {overviewSubTabs.map((subTab) => (
-                  <SelectItem key={subTab.value} value={subTab.value}>
-                    {subTab.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+              <Badge
+                variant="secondary"
+                className={`font-sans font-normal text-[11px] leading-[1.5] ${
+                  event.approval_status === ApprovalStatus.Submitted
+                    ? "bg-blue-500/20 hover:bg-blue-500/20 text-black border-none"
+                    : event.approval_status === ApprovalStatus.Approved
+                      ? "bg-green-500/20 hover:bg-green-500/20 text-black border-none"
+                      : event.approval_status === ApprovalStatus.Rejected
+                        ? "bg-red-500/20 hover:bg-red-500/20 text-black border-none"
+                        : "bg-gray-500/20 hover:bg-gray-500/20 text-black border-none"
+                }`}
+              >
+                {event.approval_status?.replace(/_/g, ' ').toUpperCase() || "NOT SUBMITTED"}
+              </Badge>
+            </div>
 
-        {/* Content Area */}
-        <div className="w-full">
-          {/* Overview Tab Content with Two-Column Layout */}
-          {activeTab === "overview" && (
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start">
-              {/* Left Column - Form Content */}
-              <div className="flex-1 w-full">
-                {activeSubTab === "basics" && event && (
-                  <BasicInfoTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                    router={router}
-                  />
+            <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 w-full sm:w-auto">
+              {/* Profile lives in left nav (SideNav) below Notification */}
+              {/* Submit for Approval for not-submitted / rejected events. */}
+              {(event.approval_status === ApprovalStatus.NotSubmitted ||
+                event.approval_status === ApprovalStatus.Rejected ||
+                !event.approval_status) &&
+                event.visibility !== EventVisibility.Archived && (
+                  <Button
+                    variant="default"
+                    className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium whitespace-nowrap"
+                    disabled={submittingForApproval || archiving || deleting}
+                    onClick={() => {
+                      // Default dropdown selection: Public (per UX request).
+                      setSubmitVisibility(EventVisibility.Public);
+                      setSubmitDialogOpen(true);
+                    }}
+                  >
+                    <Send className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-center">
+                      {submittingForApproval
+                        ? "Submitting..."
+                        : "Submit"}
+                    </span>
+                  </Button>
                 )}
-                {activeSubTab === "content" && event && (
-                  <ContentTab
-                    event={event}
-                    setEvent={setEvent}
-                    isArchived={event.visibility === "archived"}
-                  />
+
+              <div className="flex gap-2 w-full sm:w-auto">
+                {/* Archive Event Dialog */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="defaultGray"
+                      className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none"
+                      disabled={
+                        archiving || event.visibility === EventVisibility.Archived
+                      }
+                    >
+                      <Archive className="w-4 h-4" />
+                      <span>
+                        {archiving ? "Archiving..." : "Archive"}
+                      </span>
+                    </Button>
+                  </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {event.visibility === EventVisibility.Archived
+                        ? "Unarchive this event?"
+                        : "Archive this event?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {event.visibility === EventVisibility.Archived
+                        ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
+                        : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleArchiveToggle}>
+                      {event.visibility === EventVisibility.Archived
+                        ? "Confirm Unarchive"
+                        : "Confirm Archive"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+                {/* Delete Event Dialog */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="delete"
+                      disabled={deleting}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove the event and related data
+                      (tickets, payments, tracks, feedback). This cannot be
+                      undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      onClick={handleDelete}
+                    >
+                      Confirm Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+                {/* Update Event (Save Changes) */}
+                {activeTab === "overview" && activeSubTab === "basics" && (
+                  <Button
+                    variant="default"
+                    className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#3d75d9]"
+                    disabled={
+                      saving ||
+                      archiving ||
+                      deleting ||
+                      event.visibility === EventVisibility.Archived ||
+                      !basicInfoSaveHandlerRef.current
+                    }
+                    onClick={() => {
+                      void basicInfoSaveHandlerRef.current?.();
+                    }}
+                  >
+                    <span>{saving ? "Updating..." : "Update Event"}</span>
+                  </Button>
                 )}
-                {activeSubTab === "schedule" && event && (
-                  <ScheduleTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Tabs */}
+          <Tabs
+            value={tabsValue}
+            onValueChange={(value) => {
+              if (value !== "advanced-settings") setActiveTab(value);
+            }}
+            className="flex flex-col flex-1 min-h-0 w-full min-w-0"
+          >
+            <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-[24px] flex-shrink-0 border-b border-[#d2d7e7]">
+              <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                <TabsList className="flex h-auto gap-4 sm:gap-6 items-center p-0 justify-start bg-transparent rounded-none flex-nowrap w-max border-0 shadow-none">
+                {mainTabs.map((tab) =>
+                  tab.value === "advanced-settings" ? (
+                    <DropdownMenu key={tab.value}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={`px-0 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] border-b-2 rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-center gap-1 cursor-pointer hover:opacity-80 ${
+                            tabsValue === "advanced-settings"
+                              ? "font-medium text-[var(--Color-Scheme-1-Text,#000)] text-base leading-[1.5] border-[#4b89ef]"
+                                                   : "border-transparent"
+                          }`}
+                        >
+                          {tab.label}
+                          <ChevronDown className="h-4 w-4 flex-shrink-0 opacity-70" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-[180px]">
+                        {advancedTabs.map((adv) => (
+                          <DropdownMenuItem
+                            key={adv.value}
+                            onClick={() => setActiveTab(adv.value)}
+                            className={activeTab === adv.value ? "bg-accent" : ""}
+                          >
+                            {adv.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="px-0 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:text-[var(--Color-Scheme-1-Text,#000)] data-[state=active]:text-base data-[state=active]:leading-[1.5] data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-center gap-3"
+                    >
+                      {tab.label}
+                      {tab.badge !== undefined && (
+                        <span
+                          className="inline-flex items-center font-normal text-[12px] text-[var(--Color-Scheme-1-Text,#000)] rounded-[50px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-white py-0 px-2"
+                        >
+                          {tab.badge}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  )
                 )}
-                {activeSubTab === "resources" && event && (
-                  <ResourcesTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
-                )}
-                {activeSubTab === "rules" && event && (
-                  <RulesTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
-                )}
-                {activeSubTab === "faqs" && event && (
-                  <FAQTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
-                )}
-                {activeSubTab === "gallery" && (
-                  <div className="text-center py-12">
-                    <p className="text-lg text-gray-500">
-                      Gallery section coming soon
-                    </p>
+                </TabsList>
+              </div>
+            </div>
+
+            {tabsValue === "access" && event && (
+              <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-0 flex-shrink-0">
+                <Tabs
+                  value={accessSubTab}
+                  onValueChange={(v) => setActiveSubTab(v)}
+                  className="w-full min-w-0"
+                >
+                  <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                    <TabsList className="flex h-auto gap-1 sm:gap-0 bg-transparent p-0 justify-start items-center flex-nowrap w-max border-0 shadow-none rounded-none">
+                        <TabsTrigger
+                          value="password"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Password
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="role-labels"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Role Labels
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="invite-judges"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Invite Judges
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="invite-organizers"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Invite Organizers
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="assign-roles"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Assign Roles
+                        </TabsTrigger>
+                    </TabsList>
                   </div>
-                )}
+                    {accessSubTab === "password" && (
+                      <div className="mt-[24px] flex items-center justify-start px-4 sm:px-6 lg:px-10">
+                        <Select
+                          value={event.visibility || ""}
+                          onValueChange={(value) =>
+                            handleAccessVisibilityChange(value as EventVisibility)
+                          }
+                          disabled={event.visibility === "archived"}
+                        >
+                          <SelectTrigger className="flex w-[142px] h-11 items-center gap-2 rounded-[12px] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)] px-3 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] shadow-none">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              className="h-5 w-5 shrink-0"
+                              aria-hidden
+                            >
+                              <path
+                                d="M12.0086 22.1487C10.6052 22.1487 9.28823 21.8831 8.05756 21.3517C6.8269 20.8204 5.75056 20.0938 4.82856 19.1718C3.90656 18.2498 3.1799 17.1731 2.64856 15.9417C2.11723 14.7104 1.85156 13.3923 1.85156 11.9875C1.85156 10.5828 2.11723 9.2645 2.64856 8.0325C3.1799 6.80067 3.90623 5.72783 4.82756 4.814C5.7489 3.9 6.8254 3.1765 8.05706 2.6435C9.28873 2.11033 10.6071 1.84375 12.0123 1.84375C13.4173 1.84375 14.7361 2.11017 15.9686 2.643C17.2009 3.17583 18.2738 3.89892 19.1873 4.81225C20.101 5.72558 20.8242 6.79958 21.3571 8.03425C21.8901 9.26892 22.1566 10.5883 22.1566 11.9925C22.1566 13.3965 21.89 14.7137 21.3568 15.9442C20.8238 17.1749 20.1003 18.2495 19.1863 19.168C18.2725 20.0863 17.1986 20.8127 15.9646 21.3472C14.7306 21.8816 13.4119 22.1487 12.0086 22.1487ZM12.0011 20.4455C14.3062 20.4455 16.2663 19.6552 17.8813 18.0745C19.4963 16.4938 20.3396 14.5743 20.4113 12.316C20.4113 12.2733 20.4123 12.2374 20.4143 12.2082C20.4163 12.1792 20.4173 12.1467 20.4173 12.1107C20.2935 12.4962 20.0621 12.8159 19.7233 13.0697C19.3846 13.3234 18.9899 13.4502 18.5391 13.4502H16.5691C16.0042 13.4502 15.5207 13.249 15.1186 12.8465C14.7164 12.4438 14.5153 11.9598 14.5153 11.3945V10.3667H10.4076V8.35125C10.4076 7.78225 10.6089 7.29725 11.0116 6.89625C11.4141 6.49542 11.898 6.295 12.4633 6.295H13.4913V5.745C13.4913 5.457 13.6068 5.10633 13.8378 4.693C14.0688 4.27983 14.3319 4.0395 14.6271 3.972C14.2144 3.8445 13.79 3.74283 13.3538 3.667C12.9178 3.591 12.4676 3.553 12.0033 3.553C9.66381 3.553 7.67081 4.3715 6.02431 6.0085C4.37798 7.64533 3.55481 9.64225 3.55481 11.9992C3.55481 12.0152 3.55581 12.0302 3.55781 12.044C3.55981 12.058 3.56081 12.073 3.56081 12.089H7.03581C8.16765 12.089 9.13523 12.4906 9.93856 13.2937C10.7419 14.0971 11.1436 15.0637 11.1436 16.1935V17.2205H8.06581V19.5047C8.65631 19.8039 9.2819 20.0355 9.94256 20.1995C10.6034 20.3635 11.2896 20.4455 12.0011 20.4455Z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                            <SelectValue placeholder="Select visibility" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={EventVisibility.Private}>
+                              Private
+                            </SelectItem>
+                            <SelectItem value={EventVisibility.Draft}>
+                              Draft
+                            </SelectItem>
+                            {event.approval_status === ApprovalStatus.Approved && (
+                              <SelectItem value={EventVisibility.Public}>
+                                Public
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                </Tabs>
+              </div>
+            )}
+
+            {/* Content Area - 仅此区域滚动，头部与 Tabs 固定 */}
+            <div
+              className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full min-w-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar"
+              style={{
+                opacity: isPending ? 0.4 : 1,
+                transition: "opacity 150ms",
+              }}
+            >
+              {/* Left Column - Form Content */}
+              <div className="w-full min-w-0 lg:flex-[2] flex flex-col">
+                {/* Advanced Settings (Overview, Intake Forms, etc.) */}
+                <TabsContent value="advanced-settings" className="mt-0 w-full min-w-0">
+                  {activeTab === "overview" && (
+                    <Tabs
+                      value={activeSubTab}
+                      onValueChange={(value) => setActiveSubTab(value)}
+                    >
+                      <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
+                        <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                          <TabsList className="flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap w-max">
+                          {overviewSubTabs.map((subTab) => (
+                            <TabsTrigger
+                              key={subTab.value}
+                              value={subTab.value}
+                              className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0 whitespace-nowrap"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              {subTab.label}
+                            </TabsTrigger>
+                          ))}
+                          </TabsList>
+                        </div>
+                      </div>
+
+                      <div className="w-full min-w-0">
+                        <TabsContent value="basics" className="mt-0">
+                          {event && (
+                            <BasicInfoTab
+                              event={event}
+                              setEvent={setEvent}
+                              saving={saving}
+                              setSaving={setSaving}
+                              toast={toast}
+                              router={router}
+                              registerSaveHandler={(fn) => {
+                                basicInfoSaveHandlerRef.current = fn;
+                              }}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="content" className="mt-0">
+                          {event && (
+                            <ContentTab
+                              event={event}
+                              setEvent={setEvent}
+                              isArchived={event.visibility === "archived"}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="schedule" className="mt-0">
+                          {event && (
+                            <ScheduleTab
+                              event={event}
+                              setEvent={setEvent}
+                              saving={saving}
+                              setSaving={setSaving}
+                              toast={toast}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="resources" className="mt-0">
+                          {event && (
+                            <ResourcesTab
+                              event={event}
+                              setEvent={setEvent}
+                              saving={saving}
+                              setSaving={setSaving}
+                              toast={toast}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="rules" className="mt-0">
+                          {event && (
+                            <RulesTab
+                              event={event}
+                              setEvent={setEvent}
+                              saving={saving}
+                              setSaving={setSaving}
+                              toast={toast}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="faqs" className="mt-0">
+                          {event && (
+                            <FAQTab
+                              event={event}
+                              setEvent={setEvent}
+                              saving={saving}
+                              setSaving={setSaving}
+                              toast={toast}
+                            />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="gallery" className="mt-0">
+                          <div className="text-center py-12">
+                            <p className="text-lg text-gray-500">
+                              Gallery section coming soon
+                            </p>
+                          </div>
+                        </TabsContent>
+                      </div>
+                    </Tabs>
+                  )}
+                  {activeTab === "intake-forms" && (
+                    <div className="space-y-6">
+                      <div>
+                        <SubmissionFieldsSettings eventId={eventId} />
+                      </div>
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2
+                        className="font-geist text-xl font-semibold mb-4 text-black"
+                        style={{
+                          fontFamily:
+                            "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                        }}
+                      >
+                        Registration Intake Form
+                      </h2>
+                        <IntakeFormBuilder eventId={eventId} context="registration" />
+                      </div>
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2
+                          className="font-geist text-xl font-semibold mb-4 text-black"
+                          style={{
+                            fontFamily:
+                              "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                          }}
+                        >
+                          RSVP Form
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Publish an RSVP form to ask registered attendees to
+                          confirm their attendance. An RSVP button appears on the
+                          event page for everyone who has joined.
+                        </p>
+                        <IntakeFormBuilder eventId={eventId} context="rsvp" />
+                      </div>
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2
+                          className="font-geist text-xl font-semibold mb-4 text-black"
+                          style={{
+                            fontFamily:
+                              "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                          }}
+                        >
+                          Post-Event Survey
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Publish a post-event survey to collect feedback from
+                          attendees. A survey button appears on the event page
+                          for everyone who has joined.
+                        </p>
+                        <IntakeFormBuilder eventId={eventId} context="post_survey" />
+                      </div>
+                    </div>
+                  )}
+                  {activeTab === "intake-responses" && (
+                    <IntakeResponsesTab eventId={eventId} />
+                  )}
+                  {activeTab === "ticketing" && (
+                    isAdmin ? (
+                      <PricingTab
+                        event={event!}
+                        setEvent={setEvent}
+                        saving={saving}
+                        setSaving={setSaving}
+                      />
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-lg text-gray-500 inline-flex items-center justify-center gap-2">
+                          <svg
+                            className="shrink-0 text-gray-500"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 40 40"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            aria-hidden
+                          >
+                            <path
+                              d="M21.6654 8.33398V11.6673M21.6654 28.334V31.6673M21.6654 18.334V21.6673M3.33203 15.0007C4.65811 15.0007 5.92988 15.5274 6.86756 16.4651C7.80525 17.4028 8.33203 18.6746 8.33203 20.0007C8.33203 21.3267 7.80525 22.5985 6.86756 23.5362C5.92988 24.4739 4.65811 25.0007 3.33203 25.0007V28.334C3.33203 29.218 3.68322 30.0659 4.30834 30.691C4.93346 31.3161 5.78131 31.6673 6.66536 31.6673H33.332C34.2161 31.6673 35.0639 31.3161 35.6891 30.691C36.3142 30.0659 36.6654 29.218 36.6654 28.334V25.0007C35.3393 25.0007 34.0675 24.4739 33.1298 23.5362C32.1921 22.5985 31.6654 21.3267 31.6654 20.0007C31.6654 18.6746 32.1921 17.4028 33.1298 16.4651C34.0675 15.5274 35.3393 15.0007 36.6654 15.0007V11.6673C36.6654 10.7833 36.3142 9.93542 35.6891 9.31029C35.0639 8.68517 34.2161 8.33398 33.332 8.33398H6.66536C5.78131 8.33398 4.93346 8.68517 4.30834 9.31029C3.68322 9.93542 3.33203 10.7833 3.33203 11.6673V15.0007Z"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          Only admins can access ticketing settings
+                        </p>
+                      </div>
+                    )
+                  )}
+                  {activeTab === "notify" && event && (
+                    <div className="space-y-6">
+                      <EmailDashboard
+                        eventId={eventId}
+                        eventName={event.event_name}
+                      />
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2
+                        className="font-geist text-2xl font-semibold mb-4 text-black"
+                        style={{
+                          fontFamily:
+                            "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                        }}
+                      >
+                        Email Event Participants
+                      </h2>
+                        <EmailTab eventId={eventId} />
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Other Main Tabs */}
+                <TabsContent value="participants" className="mt-0 w-full min-w-0">
+                  {event && (
+                    <ParticipantsTab 
+                      eventId={eventId} 
+                      event={event}
+                      setEvent={setEvent}
+                      isArchived={event.visibility === "archived"}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="teams" className="mt-0 w-full min-w-0">
+                  {event && (
+                    <OrganizerTeamsTab
+                      eventId={eventId}
+                      event={event}
+                      setEvent={setEvent}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="access" className="mt-0 w-full min-w-0">
+                  {event && (
+                    <div className="mt-[24px]">
+                      <AccessTab
+                        eventId={eventId}
+                        event={event}
+                        setEvent={setEvent}
+                        saving={saving}
+                        setSaving={setSaving}
+                        activeSubTab={accessSubTab}
+                      />
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="tracks" className="mt-0 w-full min-w-0">
+                  {event && (
+                    <EventTracksContainer
+                      eventId={eventId}
+                      event={event}
+                      setEvent={setEvent}
+                      scoringConfig={scoringConfig}
+                      setScoringConfig={setScoringConfig}
+                      saving={saving}
+                      setSaving={setSaving}
+                      toast={toast}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="project" className="mt-0 w-full min-w-0">
+                  <Tabs
+                    value={projectSubTab}
+                    onValueChange={(v) => setActiveSubTab(v)}
+                    className="w-full min-w-0"
+                  >
+                    <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
+                      <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                        <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none w-max flex-nowrap">
+                        <TabsTrigger
+                          value="browse"
+                          className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Browse
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="submission-settings"
+                          className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Submission Settings
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="live-scores"
+                          className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Live Score
+                        </TabsTrigger>
+                        </TabsList>
+                      </div>
+                    </div>
+                    <TabsContent value="browse" className="mt-0">
+                      <SubmissionsTab eventId={eventId} showFieldsSettings={false} />
+                    </TabsContent>
+                    <TabsContent value="submission-settings" className="mt-0">
+                      <div className="space-y-6">
+                        <SubmissionFieldsSettings eventId={eventId} />
+                        <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                          <h2 className="text-xl font-semibold mb-4 text-black">
+                            Import Projects
+                          </h2>
+                          <ProjectImport eventId={eventId} />
+                        </div>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="live-scores" className="mt-0">
+                      <ScoresTab
+                        eventId={eventId}
+                        scoringConfig={
+                          scoringConfig || {
+                            tracks: {},
+                            defaultMin: 1,
+                            defaultMax: 10,
+                            defaultWeight: 1,
+                          }
+                        }
+                        onScoringConfigSaved={setScoringConfig}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+
+                <TabsContent value="agent-keys" className="mt-0 w-full min-w-0">
+                  <ApiKeysTab eventId={eventId} />
+                </TabsContent>
+
               </div>
 
               {/* Right Column - Preview Card */}
-              {renderPreviewCard()}
+              {/* Only show on Overview tab to allow more space for other tabs like Participants/Tracks */}
+              {activeTab === "overview" && renderPreviewCard()}
             </div>
-          )}
-
-          {/* Participants Tab */}
-          {activeTab === "participants" && (
-            <ParticipantsTab eventId={eventId} />
-          )}
-
-          {/* Access Tab */}
-          {activeTab === "access" && event && (
-            <AccessTab
-              eventId={eventId}
-              event={event}
-              setEvent={setEvent}
-              saving={saving}
-              setSaving={setSaving}
-            />
-          )}
-
-          {/* Tracks Tab */}
-          {activeTab === "tracks" && event && (
-            <EventTracksContainer
-              eventId={eventId}
-              event={event}
-              setEvent={setEvent}
-              scoringConfig={scoringConfig}
-              setScoringConfig={setScoringConfig}
-              saving={saving}
-              setSaving={setSaving}
-              toast={toast}
-            />
-          )}
-
-          {/* Assign Tab */}
-          {activeTab === "assign" && <AssignTab eventId={eventId} />}
-
-          {/* Project Submission Tab */}
-          {activeTab === "project-submission" && (
-            <div className="space-y-6">
-              <SubmissionsTab eventId={eventId} />
-
-              {/* Project Import Section */}
-              <div className="border-t pt-6">
-                <h2 className="text-xl font-semibold mb-4">Import Projects</h2>
-                <ProjectImport eventId={eventId} />
-              </div>
-            </div>
-          )}
-
-          {/* Live Scores Tab */}
-          {activeTab === "live-scores" && (
-            <ScoresTab
-              eventId={eventId}
-              scoringConfig={
-                scoringConfig || {
-                  tracks: {},
-                  defaultMin: 1,
-                  defaultMax: 10,
-                  defaultWeight: 1,
-                }
-              }
-            />
-          )}
-
-          {/* Ticketing Tab */}
-          {activeTab === "ticketing" && (
-            <>
-              {isAdmin ? (
-                <PricingTab
-                  event={event!}
-                  setEvent={setEvent}
-                  saving={saving}
-                  setSaving={setSaving}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-lg text-gray-500">
-                    Only admins can access ticketing settings
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Notify Tab */}
-          {activeTab === "notify" && event && (
-            <div className="space-y-6">
-              <EmailDashboard eventId={eventId} eventName={event.event_name} />
-
-              {/* Email Section */}
-              <div className="border-t pt-6">
-                <h2 className="text-xl font-semibold mb-4">
-                  Email Project Participants
-                </h2>
-                <EmailTab eventId={eventId} />
-              </div>
-            </div>
-          )}
+          </Tabs>
         </div>
       </div>
+
+      <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Submit for approval</DialogTitle>
+            <DialogDescription>
+              {submitVisibility === EventVisibility.Public
+                ? "Submissions must be Private. We’ll switch it to Private for you, then request approval."
+                : "This event is Private. We’ll request approval now."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-black">
+                Visibility
+              </span>
+              <Select
+                value={submitVisibility}
+                onValueChange={(value) =>
+                  setSubmitVisibility(value as EventVisibility)
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EventVisibility.Private}>
+                    Private
+                  </SelectItem>
+                  <SelectItem value={EventVisibility.Public}>
+                    Public
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={submittingForApproval}
+              onClick={() => setSubmitDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={submittingForApproval}
+              className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white"
+              onClick={() => {
+                void (async () => {
+                  setSubmitDialogOpen(false);
+                  await handleSubmitForApproval();
+                })();
+              }}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {submittingForApproval ? "Submitting..." : "Submit for approval"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

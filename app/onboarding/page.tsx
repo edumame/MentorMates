@@ -1,12 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { z } from "zod";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Award,
+  Calendar,
+  GraduationCap,
+  Rocket,
+  Scale,
+  Sprout,
+  TrendingUp,
+} from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -19,315 +29,372 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 import {
+  TestimonialPanelDesktop,
+  TestimonialPanelMobile,
+} from "@/components/ui/testimonial-carousel";
+import {
   FAMILIARITY_OPTIONS,
   GOAL_OPTIONS,
   ROLE_OPTIONS,
   INDUSTRY_OPTIONS,
-  AI_TECH_CATEGORIES,
-  NON_AI_TECH_CATEGORIES,
-  AI_TOOL_VALUES,
-  NON_AI_TOOL_VALUES,
-  FAMILIARITY_VALUES,
-  GOAL_VALUES,
-  ROLE_VALUES,
-  INDUSTRY_VALUES,
+  PLATFORM_ROLE_OPTIONS,
+  PLATFORM_ROLE_REDIRECTS,
+  type PlatformRole,
 } from "@/features/user/onboarding/questions-data";
+import { ONBOARDING_SKIP_STATUS } from "@/features/user/onboarding/metadata";
 import { useStepNavigation } from "@/features/projects/components/forms/hooks/useStepNavigation";
-import { StepNavigation } from "@/features/projects/components/forms/components/StepNavigation";
+import { getSafeRedirectPath } from "@/features/user/authentication/redirect/redirect-url";
+import { cn } from "@/lib/utils";
 
-const Schema = z.object({
-  familiarity: z.enum(FAMILIARITY_VALUES, {
-    required_error: "Please select your AI familiarity",
-  }),
-  mainGoals: z
-    .array(z.enum(GOAL_VALUES))
-    .min(1, "Select at least one goal"),
-  role: z.enum(ROLE_VALUES, { required_error: "Please choose a role" }),
-  industries: z
-    .array(z.enum(INDUSTRY_VALUES))
-    .min(1, "Select at least one industry"),
-  aiTools: z.array(z.enum(AI_TOOL_VALUES)).default([]),
-  nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).default([]),
-});
+type FormValues = {
+  familiarity: string;
+  mainGoals: string[];
+  role: string;
+  industries: string[];
+  aiTools: string[];
+  nonAiTools: string[];
+  platformRole: PlatformRole | "";
+};
 
-type FormValues = z.input<typeof Schema>;
+const PLATFORM_ROLE_ICONS = {
+  participant: Rocket,
+  mentor: GraduationCap,
+  judge: Scale,
+  organizer: Calendar,
+} as const;
+
+const FAMILIARITY_ICONS = {
+  beginner: Sprout,
+  intermediate: TrendingUp,
+  advanced: Award,
+} as const;
+
+/** Heading/H5 — step questions (Geist 28px / 600; tighter leading when title wraps to two lines). */
+const ONBOARDING_STEP_HEADING_CLASSNAME =
+  "font-geist text-[28px] font-semibold leading-[1.2] tracking-[-1.68px] text-[color:var(--Color-Scheme-1-Text)]";
+
+/** 32px — question title bottom → first option area (margin on heading; reliable vs Slot on FormControl). */
+const ONBOARDING_TITLE_TO_OPTIONS_BOTTOM = "mb-[32px]";
+/** Wrapper: space under title + 48px below helper copy before options (`padding` avoids margin collapse). */
+const ONBOARDING_HELPER_BLOCK_CLASSNAME = "mt-2 pb-12";
+const ONBOARDING_HELPER_TEXT_CLASSNAME = "text-sm text-muted-foreground";
+
+/** Selected / default surfaces for onboarding choice rows (aligns with product blue #4B89EF). */
+function onboardingOptionCardClassName(selected: boolean) {
+  return cn(
+    "rounded-xl border-2 px-4 py-3 transition-colors",
+    selected
+      ? "border-[#4B89EF] bg-[#EFF6FF]"
+      : "border-black/[0.08] bg-white hover:border-black/[0.16] hover:bg-muted/15"
+  );
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnUrl = useMemo(() => searchParams.get("returnUrl") || "/", [searchParams]);
+  const returnUrl = useMemo(
+    () => getSafeRedirectPath(searchParams.get("returnUrl")) || "",
+    [searchParams]
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  /** Tools step temporarily removed (was Q5); `aiTools` / `nonAiTools` stay [] in payload. */
   const totalSteps = 5;
   const { currentStep, goToNext, goToPrevious } = useStepNavigation(totalSteps);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(Schema),
     defaultValues: {
-      familiarity: undefined as unknown as FormValues["familiarity"],
+      familiarity: "",
       mainGoals: [],
-      role: undefined as unknown as FormValues["role"],
+      role: "",
       industries: [],
       aiTools: [],
       nonAiTools: [],
+      platformRole: "",
     },
+    mode: "onChange",
   });
-
-  const onSubmit = async (values: FormValues) => {
-    try {
-      setIsSubmitting(true);
-      const payload = {
-        version: 1,
-        completedAt: new Date().toISOString(),
-        answers: values,
-      };
-
-      const res = await fetch("/api/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "Failed to save");
-      }
-
-      router.push(returnUrl);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      form.setError("familiarity", { message: "Something went wrong. Please try again." });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const familiarityOptions = FAMILIARITY_OPTIONS;
   const goalOptions = GOAL_OPTIONS;
   const roleOptions = ROLE_OPTIONS;
   const industryOptions = INDUSTRY_OPTIONS;
-
-  const stepValidationMessages = (step: number): string[] => {
-    const values = form.getValues();
-    const messages: string[] = [];
-    if (step === 1) {
-      if (!values.familiarity) messages.push("Please select your AI familiarity");
-    }
-    if (step === 2) {
-      if (!values.mainGoals || values.mainGoals.length === 0) messages.push("Select at least one goal");
-    }
-    if (step === 3) {
-      if (!values.role) messages.push("Please choose a role");
-    }
-    if (step === 4) {
-      if (!values.industries || values.industries.length === 0) messages.push("Select at least one industry");
-    }
-    return messages;
-  };
-
-  const canProceedFromStep = (step: number): boolean => stepValidationMessages(step).length === 0;
-
-  const handleNext = () => {
-    if (canProceedFromStep(currentStep)) {
-      goToNext();
-    }
-  };
-
-  const handleFinalizeSubmit = () => {
-    // Final submit from the last step
-    form.handleSubmit(onSubmit)();
-  };
+  const platformRoleOptions = PLATFORM_ROLE_OPTIONS;
 
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
 
-  const StepHeader = () => (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm text-muted-foreground">Step {currentStep} of {totalSteps}</div>
-        <div className="text-sm font-medium">{progressPercent}%</div>
+  async function handleSubmit(values: FormValues) {
+    setIsSubmitting(true);
+    try {
+      form.clearErrors("root");
+      const payload = {
+        version: 3,
+        completedAt: new Date().toISOString(),
+        answers: values,
+      };
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to save");
+      }
+
+      // Redirect based on platform role selection
+      const platformRole = values.platformRole as PlatformRole;
+      const roleBasedRedirect = PLATFORM_ROLE_REDIRECTS[platformRole] || "/";
+
+      // If there's a specific returnUrl (e.g., joining an event), use that instead
+      const finalRedirect = returnUrl || roleBasedRedirect;
+      router.push(finalRedirect);
+    } catch {
+      form.setError("root", {
+        message: "Something went wrong. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSkip() {
+    setIsSubmitting(true);
+    try {
+      form.clearErrors("root");
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: 4,
+          status: ONBOARDING_SKIP_STATUS,
+          skippedAt: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to save");
+      }
+
+      router.push(returnUrl || "/");
+    } catch {
+      form.setError("root", {
+        message: "Something went wrong. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function handleNext() {
+    goToNext();
+  }
+
+  function handleBack() {
+    goToPrevious();
+  }
+
+  function handleComplete() {
+    form.handleSubmit(handleSubmit)();
+  }
+
+  const watchedValues = form.watch();
+
+  function isCurrentStepValid(): boolean {
+    switch (currentStep) {
+      case 1:
+        return !!watchedValues.familiarity;
+      case 2:
+        return Array.isArray(watchedValues.mainGoals) && watchedValues.mainGoals.length > 0;
+      case 3:
+        return !!watchedValues.role;
+      case 4:
+        return Array.isArray(watchedValues.industries) && watchedValues.industries.length > 0;
+      case 5:
+        return !!watchedValues.platformRole;
+      default:
+        return false;
+    }
+  }
+
+  function getStepTitle(): string {
+    switch (currentStep) {
+      case 1:
+        return "How familiar are you with AI?";
+      case 2:
+        return "What is your main goal?";
+      case 3:
+        return "Which role best describes you?";
+      case 4:
+        return "Which industries or problem areas excite you most?";
+      case 5:
+        return "How do you want to participate?";
+      default:
+        return "";
+    }
+  }
+
+  function StepHeader() {
+    return (
+      <div className="mb-4 shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm text-muted-foreground">
+            Step {currentStep} of {totalSteps}
+          </div>
+          <div className="text-sm font-medium">{progressPercent}%</div>
+        </div>
+        <div
+          className="h-2 w-full overflow-hidden rounded-full"
+          style={{
+            backgroundColor: "var(--Color-Neutral-Lightest, #F2F2F2)",
+          }}
+        >
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
       </div>
-      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-        <div className="h-full bg-primary" style={{ width: `${progressPercent}%` }} />
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-3xl p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Welcome! Tell us about you</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form className="space-y-8">
-              <StepHeader />
-
-              {currentStep === 1 && (
-                <FormField
-                  control={form.control}
-                  name="familiarity"
-                  render={({ field }: { field: { value: FormValues["familiarity"]; onChange: (v: FormValues["familiarity"]) => void } }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>How familiar are you with AI?</FormLabel>
-                      <FormControl>
-                        <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
-                          {familiarityOptions.map((opt) => (
-                            <div key={opt.value} className="flex items-center space-x-3">
-                              <RadioGroupItem value={opt.value} id={`fam-${opt.value}`} />
-                              <label htmlFor={`fam-${opt.value}`} className="text-sm">{opt.label}</label>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {currentStep === 2 && (
-                <FormField
-                  control={form.control}
-                  name="mainGoals"
-                  render={() => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>What is your main goal?</FormLabel>
-                      <div className="grid grid-cols-1 gap-2">
-                        {goalOptions.map((goal) => (
-                          <FormField
-                            key={goal.value}
-                            control={form.control}
-                            name="mainGoals"
-                            render={({ field }: { field: { value: FormValues["mainGoals"]; onChange: (v: FormValues["mainGoals"]) => void } }) => {
-                              const isChecked = (field.value || []).includes(goal.value as unknown as FormValues["mainGoals"][number]);
-                              return (
-                                <FormItem key={goal.value} className="flex flex-row items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={isChecked}
-                                      onCheckedChange={(checked: CheckedState) => {
-                                        const current = new Set(field.value || []);
-                                        if (checked === true) current.add(goal.value);
-                                        else current.delete(goal.value);
-                                        field.onChange(Array.from(current));
-                                      }}
+    <div className="min-h-screen grid lg:grid-cols-2">
+      {/* LEFT: form column */}
+      <main className="flex min-h-screen flex-1 flex-col bg-white lg:h-screen lg:max-h-screen">
+        <header className="shrink-0 px-6 pt-5 pb-0 lg:px-10 lg:pt-6">
+          <Link href="/" className="inline-flex items-center gap-2">
+            <Image
+              src="/mentormate.png"
+              alt="MentorMates"
+              width={221}
+              height={35}
+              priority
+              className="h-[35px] w-auto max-w-[221.14px] object-contain object-left"
+            />
+          </Link>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-0 pt-10 lg:px-10 lg:pt-12">
+          <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col">
+            <StepHeader />
+            <Form {...form}>
+              <form
+                className="flex min-h-0 flex-1 flex-col gap-0"
+                onSubmit={form.handleSubmit(handleSubmit)}
+              >
+                {/* Step 1: Familiarity */}
+                {currentStep === 1 && (
+                  <FormField
+                    control={form.control}
+                    name="familiarity"
+                    render={({ field }) => (
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <FormLabel
+                          className={cn(
+                            ONBOARDING_STEP_HEADING_CLASSNAME,
+                            ONBOARDING_TITLE_TO_OPTIONS_BOTTOM,
+                            "shrink-0"
+                          )}
+                        >
+                          {getStepTitle()}
+                        </FormLabel>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="gap-3"
+                            >
+                              {familiarityOptions.map((opt) => {
+                                const FamiliarityIcon =
+                                  FAMILIARITY_ICONS[
+                                    opt.value as keyof typeof FAMILIARITY_ICONS
+                                  ];
+                                const isSelected = field.value === opt.value;
+                                return (
+                                  <label
+                                    key={opt.value}
+                                    className={cn(
+                                      "flex cursor-pointer items-start gap-3",
+                                      onboardingOptionCardClassName(isSelected)
+                                    )}
+                                  >
+                                    <RadioGroupItem
+                                      value={opt.value}
+                                      id={`fam-${opt.value}`}
+                                      className="mt-1 shrink-0"
                                     />
-                                  </FormControl>
-                                  <FormLabel className="text-sm font-normal">
-                                    {goal.label}
-                                  </FormLabel>
-                                </FormItem>
-                              );
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+                                    {FamiliarityIcon && (
+                                      <FamiliarityIcon
+                                        aria-hidden
+                                        className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                                      />
+                                    )}
+                                    <span className="flex-1 text-sm leading-relaxed">
+                                      {opt.label}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </RadioGroup>
+                          </FormControl>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
-              {currentStep === 3 && (
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }: { field: { value: FormValues["role"]; onChange: (v: FormValues["role"]) => void } }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Which role are you most interested in?</FormLabel>
-                      <FormControl>
-                        <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
-                          {roleOptions.map((opt) => (
-                            <div key={opt.value} className="flex items-center space-x-3">
-                              <RadioGroupItem value={opt.value} id={`role-${opt.value}`} />
-                              <label htmlFor={`role-${opt.value}`} className="text-sm">{opt.label}</label>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {currentStep === 4 && (
-                <FormField
-                  control={form.control}
-                  name="industries"
-                  render={() => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Which industries or problem areas excite you most?</FormLabel>
-                      <div className="grid grid-cols-1 gap-2">
-                        {industryOptions.map((i) => (
-                          <FormField
-                            key={i.value}
-                            control={form.control}
-                            name="industries"
-                            render={({ field }: { field: { value: FormValues["industries"]; onChange: (v: FormValues["industries"]) => void } }) => {
-                              const isChecked = (field.value || []).includes(i.value as unknown as FormValues["industries"][number]);
-                              return (
-                                <FormItem key={i.value} className="flex flex-row items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={isChecked}
-                                      onCheckedChange={(checked: CheckedState) => {
-                                        const current = new Set(field.value || []);
-                                        if (checked === true) current.add(i.value);
-                                        else current.delete(i.value);
-                                        field.onChange(Array.from(current));
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm font-normal">
-                                    {i.label}
-                                  </FormLabel>
-                                </FormItem>
-                              );
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {currentStep === 5 && (
-                <FormItem className="space-y-3">
-                  <FormLabel>What tools or technologies do you want to explore?</FormLabel>
-                  <div className="space-y-6">
-                    <div>
-                      <div className="mb-2 font-medium">AI-based technologies</div>
-                      {AI_TECH_CATEGORIES.map((cat) => (
-                        <div key={cat.id} className="mb-3">
-                          <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
-                          <div className="grid grid-cols-1 gap-2">
-                            {cat.items.map((t) => (
+                {/* Step 2: Main Goals */}
+                {currentStep === 2 && (
+                  <FormField
+                    control={form.control}
+                    name="mainGoals"
+                    render={() => (
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <div className="shrink-0">
+                          <FormLabel className={ONBOARDING_STEP_HEADING_CLASSNAME}>
+                            {getStepTitle()}
+                          </FormLabel>
+                          <div className={ONBOARDING_HELPER_BLOCK_CLASSNAME}>
+                            <p className={ONBOARDING_HELPER_TEXT_CLASSNAME}>
+                              Select all that apply
+                            </p>
+                          </div>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <div className="flex flex-col gap-3">
+                            {goalOptions.map((goal) => (
                               <FormField
-                                key={t.value}
+                                key={goal.value}
                                 control={form.control}
-                                name="aiTools"
-                                render={({ field }: { field: { value: FormValues["aiTools"]; onChange: (v: FormValues["aiTools"]) => void } }) => {
-                                  const selectedAiTools: ReadonlyArray<typeof AI_TOOL_VALUES[number]> = field.value ?? [];
-                                  const isChecked = selectedAiTools.includes(t.value as typeof AI_TOOL_VALUES[number]);
+                                name="mainGoals"
+                                render={({ field }) => {
+                                  const isChecked = Array.isArray(field.value)
+                                    ? field.value.includes(goal.value)
+                                    : false;
                                   return (
-                                    <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormItem
+                                      key={goal.value}
+                                      className={cn(
+                                        "flex flex-row items-start gap-3 space-y-0",
+                                        onboardingOptionCardClassName(isChecked)
+                                      )}
+                                    >
                                       <FormControl>
                                         <Checkbox
                                           checked={isChecked}
                                           onCheckedChange={(checked: CheckedState) => {
                                             const current = new Set(field.value || []);
-                                            if (checked === true) current.add(t.value);
-                                            else current.delete(t.value);
+                                            if (checked === true) current.add(goal.value);
+                                            else current.delete(goal.value);
                                             field.onChange(Array.from(current));
                                           }}
+                                          className="mt-1 shrink-0"
                                         />
                                       </FormControl>
-                                      <FormLabel className="text-sm font-normal">
-                                        {t.label}
+                                      <FormLabel className="flex-1 cursor-pointer text-sm font-normal leading-relaxed">
+                                        {goal.label}
                                       </FormLabel>
                                     </FormItem>
                                   );
@@ -336,37 +403,114 @@ export default function OnboardingPage() {
                             ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                    <div>
-                      <div className="mb-2 font-medium">Non-AI technologies</div>
-                      {NON_AI_TECH_CATEGORIES.map((cat) => (
-                        <div key={cat.id} className="mb-3">
-                          <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
-                          <div className="grid grid-cols-1 gap-2">
-                            {cat.items.map((t) => (
+                        <FormMessage className="mt-2 shrink-0" />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Step 3: Professional Role */}
+                {currentStep === 3 && (
+                  <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <FormLabel
+                          className={cn(
+                            ONBOARDING_STEP_HEADING_CLASSNAME,
+                            ONBOARDING_TITLE_TO_OPTIONS_BOTTOM,
+                            "shrink-0"
+                          )}
+                        >
+                          {getStepTitle()}
+                        </FormLabel>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="gap-3"
+                            >
+                              {roleOptions.map((opt) => (
+                                <label
+                                  key={opt.value}
+                                  className={cn(
+                                    "flex cursor-pointer items-start gap-3",
+                                    onboardingOptionCardClassName(
+                                      field.value === opt.value
+                                    )
+                                  )}
+                                >
+                                  <RadioGroupItem
+                                    value={opt.value}
+                                    id={`role-${opt.value}`}
+                                    className="mt-1 shrink-0"
+                                  />
+                                  <span className="flex-1 text-sm leading-relaxed">
+                                    {opt.label}
+                                  </span>
+                                </label>
+                              ))}
+                            </RadioGroup>
+                          </FormControl>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Step 4: Industries */}
+                {currentStep === 4 && (
+                  <FormField
+                    control={form.control}
+                    name="industries"
+                    render={() => (
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <div className="shrink-0">
+                          <FormLabel className={ONBOARDING_STEP_HEADING_CLASSNAME}>
+                            {getStepTitle()}
+                          </FormLabel>
+                          <div className={ONBOARDING_HELPER_BLOCK_CLASSNAME}>
+                            <p className={ONBOARDING_HELPER_TEXT_CLASSNAME}>
+                              Select all that apply
+                            </p>
+                          </div>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <div className="flex flex-col gap-3">
+                            {industryOptions.map((i) => (
                               <FormField
-                                key={t.value}
+                                key={i.value}
                                 control={form.control}
-                                name="nonAiTools"
-                                render={({ field }: { field: { value: FormValues["nonAiTools"]; onChange: (v: FormValues["nonAiTools"]) => void } }) => {
-                                  const selectedNonAiTools: ReadonlyArray<typeof NON_AI_TOOL_VALUES[number]> = field.value ?? [];
-                                  const isChecked = selectedNonAiTools.includes(t.value as typeof NON_AI_TOOL_VALUES[number]);
+                                name="industries"
+                                render={({ field }) => {
+                                  const isChecked = Array.isArray(field.value)
+                                    ? field.value.includes(i.value)
+                                    : false;
                                   return (
-                                    <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormItem
+                                      key={i.value}
+                                      className={cn(
+                                        "flex flex-row items-start gap-3 space-y-0",
+                                        onboardingOptionCardClassName(isChecked)
+                                      )}
+                                    >
                                       <FormControl>
                                         <Checkbox
                                           checked={isChecked}
                                           onCheckedChange={(checked: CheckedState) => {
                                             const current = new Set(field.value || []);
-                                            if (checked === true) current.add(t.value);
-                                            else current.delete(t.value);
+                                            if (checked === true) current.add(i.value);
+                                            else current.delete(i.value);
                                             field.onChange(Array.from(current));
                                           }}
+                                          className="mt-1 shrink-0"
                                         />
                                       </FormControl>
-                                      <FormLabel className="text-sm font-normal">
-                                        {t.label}
+                                      <FormLabel className="flex-1 cursor-pointer text-sm font-normal leading-relaxed">
+                                        {i.label}
                                       </FormLabel>
                                     </FormItem>
                                   );
@@ -375,27 +519,144 @@ export default function OnboardingPage() {
                             ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <FormMessage className="mt-2 shrink-0" />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Step 5: Platform role (tools question temporarily removed) */}
+                {currentStep === 5 && (
+                  <FormField
+                    control={form.control}
+                    name="platformRole"
+                    render={({ field }) => (
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <div className="shrink-0">
+                          <FormLabel className={ONBOARDING_STEP_HEADING_CLASSNAME}>
+                            {getStepTitle()}
+                          </FormLabel>
+                          <div className={ONBOARDING_HELPER_BLOCK_CLASSNAME}>
+                            <p className={ONBOARDING_HELPER_TEXT_CLASSNAME}>
+                              This helps us personalize your experience
+                            </p>
+                          </div>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="gap-3"
+                            >
+                              {platformRoleOptions.map((opt) => {
+                                const IconComponent = PLATFORM_ROLE_ICONS[opt.value as keyof typeof PLATFORM_ROLE_ICONS];
+                                return (
+                                  <div
+                                    key={opt.value}
+                                    className={cn(
+                                      "flex cursor-pointer items-start gap-3",
+                                      onboardingOptionCardClassName(
+                                        field.value === opt.value
+                                      )
+                                    )}
+                                    onClick={() => field.onChange(opt.value)}
+                                  >
+                                    <RadioGroupItem
+                                      value={opt.value}
+                                      id={`platform-${opt.value}`}
+                                      className="mt-1 shrink-0"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        {IconComponent && (
+                                          <IconComponent className="h-4 w-4 text-primary" />
+                                        )}
+                                        <label
+                                          htmlFor={`platform-${opt.value}`}
+                                          className="cursor-pointer text-sm font-medium leading-relaxed"
+                                        >
+                                          {opt.label}
+                                        </label>
+                                      </div>
+                                      <p className="mt-1 text-xs text-muted-foreground">
+                                        {opt.description}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </RadioGroup>
+                          </FormControl>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Navigation — fixed at bottom of column; options scroll above */}
+                <div className="shrink-0 space-y-3 bg-white pt-4 pb-6">
+                  <div className="flex gap-3">
+                    {currentStep > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleBack}
+                        className="flex-1"
+                      >
+                        Back
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={
+                        currentStep === totalSteps ? handleComplete : handleNext
+                      }
+                      disabled={isSubmitting || !isCurrentStepValid()}
+                      className={`flex-1 ${
+                        isCurrentStepValid()
+                          ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                          : ""
+                      }`}
+                    >
+                      {isSubmitting
+                        ? "Saving..."
+                        : currentStep === totalSteps
+                        ? "Get Started"
+                        : "Continue"}
+                    </Button>
                   </div>
-                </FormItem>
-              )}
-
-              <StepNavigation
-                currentStep={currentStep}
-                totalSteps={totalSteps}
-                isSubmitting={isSubmitting}
-                canGoNext={canProceedFromStep(currentStep)}
-                validationMessages={stepValidationMessages(currentStep)}
-                onPrevious={goToPrevious}
-                onNext={handleNext}
-                onSubmit={handleFinalizeSubmit}
-              />
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                  {form.formState.errors.root?.message && (
+                    <p className="text-sm font-medium text-destructive">
+                      {form.formState.errors.root.message}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => void handleSkip()}
+                    disabled={isSubmitting}
+                    className="w-full"
+                  >
+                    Skip for now
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
+        </div>
+        <div className="lg:hidden">
+          <TestimonialPanelMobile />
+        </div>
+        <div className="px-6 pb-6 hidden lg:block">
+          <div className="text-xs text-slate-500 text-center lg:text-left">
+            © 2025 MentorMates
+          </div>
+        </div>
+      </main>
+      {/* RIGHT: desktop testimonial panel */}
+      <TestimonialPanelDesktop />
     </div>
   );
 }
-

@@ -1,7 +1,9 @@
-import { createClient } from "@/app/utils/supabase/client";
-import { notFound, redirect } from "next/navigation";
-import { isValidUUID } from "@/app/utils/supabase/queries";
+import { EventRole } from "@/lib/types";
 import { AcceptOrganizerInvite } from "./AcceptOrganizerInvite";
+import {
+  loadInviteAcceptanceEvent,
+  redirectIfInviteAlreadyAccepted,
+} from "../invite-acceptance";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -11,41 +13,26 @@ interface PageProps {
 export default async function AcceptOrganizerInvitePage({ params, searchParams }: PageProps) {
   const { id } = await Promise.resolve(params);
   const { email } = await Promise.resolve(searchParams);
-  const supabase = createClient();
+  const eventData = await loadInviteAcceptanceEvent(id);
 
-  const isUUID = isValidUUID(id);
-
-  let query = supabase.from("events").select("event_id, event_name, event_blurb, slug");
-
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
+  if (!eventData) {
+    return (
+      <AcceptOrganizerInvite
+        eventId=""
+        eventName=""
+        eventBlurb={null}
+        eventSlug={null}
+        invitedEmail={email}
+        eventNotFound={true}
+      />
+    );
   }
 
-  const { data: eventData, error } = await query.single();
-
-  if (error || !eventData) {
-    notFound();
-  }
-
-  // Check if user is authenticated and already an organizer
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (session) {
-    const { data: existingRole } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("user_id", session.user.id)
-      .eq("event_id", eventData.event_id)
-      .maybeSingle();
-
-    // If user is already an organizer, redirect to overview page
-    if (existingRole?.role === 'organizer') {
-      const overviewUrl = `/events/${eventData.slug || eventData.event_id}/overview`;
-      redirect(overviewUrl);
-    }
-  }
+  await redirectIfInviteAlreadyAccepted(
+    eventData.event_id,
+    eventData.slug,
+    EventRole.Organizer
+  );
 
   return (
     <AcceptOrganizerInvite
@@ -54,6 +41,7 @@ export default async function AcceptOrganizerInvitePage({ params, searchParams }
       eventBlurb={eventData.event_blurb}
       eventSlug={eventData.slug}
       invitedEmail={email}
+      eventNotFound={false}
     />
   );
 }
