@@ -1,7 +1,15 @@
 "use client";
 
 import { Fragment } from "react";
-import { Image as ImageIcon, Paperclip, Text, Video } from "lucide-react";
+import {
+  FileIcon,
+  Image as ImageIcon,
+  Paperclip,
+  Text,
+  Upload,
+  Video,
+  X,
+} from "lucide-react";
 import { TextFields } from "@mui/icons-material";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,16 +19,19 @@ import type {
   EffectiveSubmissionField,
   SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
+import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
 import { getFileNameFromUrl } from "@/lib/utils/file";
 
 interface ProjectSubmissionSchemaSectionProps {
   fields: EffectiveSubmissionField[];
   values: Record<string, SubmissionValue>;
   onValueChange: (key: string, value: SubmissionValue) => void;
-  onFileUpload: (key: string, file: File) => Promise<void> | void;
+  onFileUpload: (key: string, files: File[]) => Promise<void> | void;
   showDescriptionPreview: boolean;
   onToggleDescriptionPreview: () => void;
 }
+
+const DEFAULT_MAX_FILES = 5;
 
 function getTextValue(value: SubmissionValue | undefined): string {
   if (typeof value === "string") {
@@ -80,10 +91,9 @@ export function ProjectSubmissionSchemaSection({
       {fields.map((field, index) => {
         const labelSuffix = field.required ? "" : " (Optional)";
         const textValue = getTextValue(values[field.key]);
-        const listValue =
-          field.field_type === "multi_url" || field.field_type === "multi_select"
-            ? getListValue(values[field.key])
-            : [];
+        const listValue = isMultiValueSubmissionFieldType(field.field_type)
+          ? getListValue(values[field.key])
+          : [];
 
         return (
           <Fragment key={field.id}>
@@ -147,7 +157,7 @@ export function ProjectSubmissionSchemaSection({
                             onChange={(event) => {
                               const file = event.target.files?.[0];
                               if (!file) return;
-                              void onFileUpload(field.key, file);
+                              void onFileUpload(field.key, [file]);
                               event.currentTarget.value = "";
                             }}
                             className="hidden"
@@ -179,6 +189,20 @@ export function ProjectSubmissionSchemaSection({
                     Add another link
                   </Button>
                 </div>
+              ) : field.field_type === "multi_file" ? (
+                <MultiFileUploadField
+                  field={field}
+                  urls={listValue}
+                  onUpload={(files) => void onFileUpload(field.key, files)}
+                  onRemove={(itemIndex) =>
+                    onValueChange(
+                      field.key,
+                      listValue.filter(
+                        (_, currentIndex) => currentIndex !== itemIndex
+                      )
+                    )
+                  }
+                />
               ) : field.field_type === "file" ? (
                 field.key === "cover_image" ? (
                   <div className="space-y-2">
@@ -216,7 +240,7 @@ export function ProjectSubmissionSchemaSection({
                             onChange={(event) => {
                               const file = event.target.files?.[0];
                               if (!file) return;
-                              void onFileUpload(field.key, file);
+                              void onFileUpload(field.key, [file]);
                               event.currentTarget.value = "";
                             }}
                             className="hidden"
@@ -256,7 +280,7 @@ export function ProjectSubmissionSchemaSection({
                         onChange={(event) => {
                           const file = event.target.files?.[0];
                           if (!file) return;
-                          void onFileUpload(field.key, file);
+                          void onFileUpload(field.key, [file]);
                           event.currentTarget.value = "";
                         }}
                         className="hidden"
@@ -336,6 +360,94 @@ export function ProjectSubmissionSchemaSection({
           </Fragment>
         );
       })}
+    </div>
+  );
+}
+
+function MultiFileUploadField({
+  field,
+  urls,
+  onUpload,
+  onRemove,
+}: {
+  field: EffectiveSubmissionField;
+  urls: string[];
+  onUpload: (files: File[]) => void;
+  onRemove: (index: number) => void;
+}) {
+  const maxFiles = field.max_files ?? DEFAULT_MAX_FILES;
+  const remainingSlots = Math.max(0, maxFiles - urls.length);
+  const canAdd = remainingSlots > 0;
+
+  return (
+    <div className="space-y-2">
+      <label
+        className={`w-full border-2 border-dashed rounded-xl py-6 flex flex-col items-center gap-2 transition-colors ${
+          canAdd
+            ? "border-gray-200 hover:border-[#4b89ef] hover:bg-blue-50/30 cursor-pointer"
+            : "border-gray-100 bg-gray-50 cursor-not-allowed"
+        }`}
+      >
+        <input
+          type="file"
+          multiple
+          disabled={!canAdd}
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? []).slice(
+              0,
+              remainingSlots
+            );
+            if (files.length > 0) {
+              onUpload(files);
+            }
+            event.currentTarget.value = "";
+          }}
+          className="hidden"
+        />
+        <Upload
+          className={`h-8 w-8 ${canAdd ? "text-gray-400" : "text-gray-300"}`}
+        />
+        <div className="text-center">
+          <p
+            className={`text-sm font-medium ${canAdd ? "text-gray-700" : "text-gray-400"}`}
+          >
+            {canAdd ? "Click to upload files" : "Maximum files reached"}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {urls.length}/{maxFiles} files uploaded
+          </p>
+        </div>
+      </label>
+
+      {urls.length > 0 ? (
+        <div className="space-y-1.5">
+          {urls.map((url, itemIndex) => (
+            <div
+              key={`${field.id}-file-${itemIndex}`}
+              className="flex items-center gap-3 bg-white border border-[rgba(0,0,0,0.1)] rounded-lg px-3 py-2"
+            >
+              <FileIcon className="h-5 w-5 text-gray-400 shrink-0" />
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-gray-900 flex-1 truncate hover:underline"
+                title={getFileNameFromUrl(url)}
+              >
+                {getFileNameFromUrl(url)}
+              </a>
+              <button
+                type="button"
+                onClick={() => onRemove(itemIndex)}
+                aria-label={`Remove file ${itemIndex + 1}`}
+                className="shrink-0 rounded p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
