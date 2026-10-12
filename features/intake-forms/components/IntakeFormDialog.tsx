@@ -6,6 +6,7 @@ import { ParticipantIntakeDialog } from "@/features/intake-forms/components/Part
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
+  PerUserIntakeFormContext,
 } from "@/features/intake-forms/types";
 import { toast } from "@/lib/hooks/use-toast";
 
@@ -14,21 +15,68 @@ type ActiveIntakeForm = {
   schema: IntakeFormSchema;
 };
 
-type RsvpDialogProps = {
+type IntakeFormDialogCopy = {
+  loadErrorTitle: string;
+  loadErrorFallback: string;
+  missingFormError: string;
+  successTitle: string;
+  successDescription: string;
+  submitErrorTitle: string;
+  submitErrorFallback: string;
+};
+
+const DIALOG_COPY: Record<PerUserIntakeFormContext, IntakeFormDialogCopy> = {
+  registration: {
+    loadErrorTitle: "Cannot open questionnaire",
+    loadErrorFallback: "Failed to load questionnaire",
+    missingFormError: "No published registration questionnaire found",
+    successTitle: "Questionnaire completed",
+    successDescription: "Thanks. Continue joining the event.",
+    submitErrorTitle: "Could not submit questionnaire",
+    submitErrorFallback: "Failed to submit questionnaire",
+  },
+  rsvp: {
+    loadErrorTitle: "Cannot open RSVP form",
+    loadErrorFallback: "Failed to load RSVP form",
+    missingFormError: "No published RSVP form found",
+    successTitle: "RSVP submitted",
+    successDescription: "Thanks for confirming. See you at the event!",
+    submitErrorTitle: "Could not submit RSVP",
+    submitErrorFallback: "Failed to submit RSVP",
+  },
+  post_survey: {
+    loadErrorTitle: "Cannot open survey",
+    loadErrorFallback: "Failed to load survey",
+    missingFormError: "No published post-event survey found",
+    successTitle: "Survey submitted",
+    successDescription: "Thanks for sharing your feedback!",
+    submitErrorTitle: "Could not submit survey",
+    submitErrorFallback: "Failed to submit survey",
+  },
+};
+
+type IntakeFormDialogProps = {
   open: boolean;
   eventId: string;
+  context: PerUserIntakeFormContext;
   onClose: () => void;
   onCompleted: () => void;
 };
 
-export function RsvpDialog({
+/**
+ * Loads the active published intake form for a per-user context
+ * (registration, RSVP, post-survey) and renders it as a dialog.
+ */
+export function IntakeFormDialog({
   open,
   eventId,
+  context,
   onClose,
   onCompleted,
-}: RsvpDialogProps) {
+}: IntakeFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeForm, setActiveForm] = useState<ActiveIntakeForm | null>(null);
+  const copy = DIALOG_COPY[context];
 
   useEffect(() => {
     if (!open) return;
@@ -36,13 +84,13 @@ export function RsvpDialog({
     const load = async () => {
       try {
         const response = await fetch(
-          `/api/events/${eventId}/intake-form?context=rsvp`,
+          `/api/events/${eventId}/intake-form?context=${context}`,
           { cache: "no-store" }
         );
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          throw new Error(err.error || "Failed to load RSVP form");
+          throw new Error(err.error || copy.loadErrorFallback);
         }
 
         const data = (await response.json()) as {
@@ -50,13 +98,13 @@ export function RsvpDialog({
         };
 
         if (!data.form?.formVersionId || !data.form.schema) {
-          throw new Error("No published RSVP form found");
+          throw new Error(copy.missingFormError);
         }
 
         setActiveForm(data.form);
       } catch (error) {
         toast({
-          title: "Cannot open RSVP form",
+          title: copy.loadErrorTitle,
           description:
             error instanceof Error ? error.message : "Please try again.",
           variant: "destructive",
@@ -66,7 +114,7 @@ export function RsvpDialog({
     };
 
     load();
-  }, [open, eventId, onClose]);
+  }, [open, eventId, context, copy, onClose]);
 
   const handleSubmit = async (answers: IntakeFormAnswers) => {
     if (!activeForm) return;
@@ -79,7 +127,7 @@ export function RsvpDialog({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            context: "rsvp",
+            context,
             formVersionId: activeForm.formVersionId,
             answers,
           }),
@@ -88,18 +136,18 @@ export function RsvpDialog({
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to submit RSVP");
+        throw new Error(err.error || copy.submitErrorFallback);
       }
 
       toast({
-        title: "RSVP submitted",
-        description: "Thanks for confirming. See you at the event!",
+        title: copy.successTitle,
+        description: copy.successDescription,
       });
       onCompleted();
       onClose();
     } catch (error) {
       toast({
-        title: "Could not submit RSVP",
+        title: copy.submitErrorTitle,
         description:
           error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
@@ -110,8 +158,7 @@ export function RsvpDialog({
   };
 
   // Keep ParticipantIntakeDialog mounted while activeForm exists so background
-  // refetches don't reset in-progress answers (same pattern as the
-  // registration questionnaire dialog).
+  // refetches don't reset in-progress answers.
   if (!open || !activeForm) {
     return null;
   }

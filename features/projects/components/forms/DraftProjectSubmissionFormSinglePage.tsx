@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,16 @@ import {
   hasSubmissionFieldMismatch,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
+import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import {
+  ProjectFieldEntriesSection,
+  type ProjectFieldEntriesSectionHandle,
+} from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 
 interface EventParticipant {
   user_id: string;
@@ -102,6 +107,10 @@ export default function DraftProjectSubmissionFormSinglePage({
   onProjectUpdate,
 }: DraftProjectSubmissionFormProps) {
   const router = useRouter();
+
+  // Lets publish flush any multi-entry field drafts the submitter typed
+  // but didn't explicitly add.
+  const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
 
   const [project, setProject] = useState<Project>(initialProject);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -909,10 +918,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     const missingRequiredField = effectiveSubmissionFields.find((field) => {
       if (!field.required) return false;
       const value = submissionFieldValues[field.key];
-      if (
-        field.field_type === "multi_url" ||
-        field.field_type === "multi_select"
-      ) {
+      if (isMultiValueSubmissionFieldType(field.field_type)) {
         return !Array.isArray(value) || value.every((item) => !item.trim());
       }
       return typeof value !== "string" || value.trim().length === 0;
@@ -928,6 +934,15 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
 
     try {
+      // Save the submitter's own multi-entry field drafts before publishing
+      // so their contribution lands on the project automatically.
+      const entriesFlushed =
+        (await fieldEntriesRef.current?.flushPendingEntries()) ?? true;
+      if (!entriesFlushed) {
+        // The section already toasted; stop so the draft text isn't lost.
+        return;
+      }
+
       if (project.event_id) {
         const intakeResponse = await fetch(
           `/api/events/${project.event_id}/intake-form?context=project_submission`,
@@ -1117,36 +1132,52 @@ export default function DraftProjectSubmissionFormSinglePage({
                   fields={effectiveSubmissionFields}
                   values={submissionFieldValues}
                   onValueChange={handleSubmissionFieldChange}
-                  onFileUpload={async (fieldKey, file) => {
-                      if (fieldKey === "cover_image") {
-                        const event = {
-                          target: { files: [file] },
-                        } as unknown as React.ChangeEvent<HTMLInputElement>;
-                        await handleCoverImageUpload(event);
-                        return;
-                      }
+                  onFileUpload={async (fieldKey, files) => {
+                    if (fieldKey === "cover_image") {
+                      const event = {
+                        target: { files: [files[0]] },
+                      } as unknown as React.ChangeEvent<HTMLInputElement>;
+                      await handleCoverImageUpload(event);
+                      return;
+                    }
 
-                    const uploadedUrl = await uploadAdditionalMaterialFile(file);
-                    if (!uploadedUrl) return;
+                    const uploadedUrls: string[] = [];
+                    for (const file of files) {
+                      const uploadedUrl =
+                        await uploadAdditionalMaterialFile(file);
+                      if (uploadedUrl) uploadedUrls.push(uploadedUrl);
+                    }
+                    if (uploadedUrls.length === 0) return;
 
-                    if (fieldKey === "additional_materials") {
+                    const targetField = effectiveSubmissionFields.find(
+                      (field) => field.key === fieldKey
+                    );
+                    if (
+                      targetField &&
+                      isMultiValueSubmissionFieldType(targetField.field_type)
+                    ) {
+                      const currentValue = submissionFieldValues[fieldKey];
                       handleSubmissionFieldChange(fieldKey, [
-                        ...(
-                          Array.isArray(submissionFieldValues.additional_materials)
-                            ? submissionFieldValues.additional_materials
-                            : []
-                        ),
-                        uploadedUrl,
+                        ...(Array.isArray(currentValue) ? currentValue : []),
+                        ...uploadedUrls,
                       ]);
                       return;
                     }
 
-                    handleSubmissionFieldChange(fieldKey, uploadedUrl);
+                    handleSubmissionFieldChange(fieldKey, uploadedUrls[0]);
                   }}
                   showDescriptionPreview={showDescriptionPreview}
                   onToggleDescriptionPreview={() =>
                     setShowDescriptionPreview((prev) => !prev)
                   }
+                />
+
+                {/* Multi-entry fields: the submitter adds their own entry
+                    here; teammates can add theirs from the project page. */}
+                <ProjectFieldEntriesSection
+                  ref={fieldEntriesRef}
+                  projectId={projectId}
+                  canContribute={canEdit}
                 />
 
                 {/* Event Selection */}

@@ -8,6 +8,9 @@ jest.mock("./join-event-button", () => ({
 jest.mock("@/features/events/rsvp/RsvpButton", () => ({
   RsvpButton: () => null,
 }));
+jest.mock("@/features/events/post-survey/PostSurveyButton", () => ({
+  PostSurveyButton: () => null,
+}));
 
 import { EventPageHeader } from "./event-page-header";
 import { EventRole } from "@/lib/types";

@@ -306,7 +306,7 @@ export function EventPageContent({
             </h2>
           </div>
 
-          <div className="flex w-full px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
+          <div className="flex w-full px-4 py-1 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
             <Accordion type="multiple" className="w-full">
               {rulesList.map((rule, idx) => (
                 <AccordionItem

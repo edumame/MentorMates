@@ -4,6 +4,7 @@ import { CalendarDays, MapPin, ArrowUpRight, Plus, Pencil } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { JoinEventButton } from "./join-event-button";
 import { RsvpButton } from "@/features/events/rsvp/RsvpButton";
+import { PostSurveyButton } from "@/features/events/post-survey/PostSurveyButton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { parseEventDateLocal } from "@/lib/utils/date";
@@ -174,10 +175,12 @@ export function EventPageHeader({
                     })()}
                   </div>
 
-                  {/* RSVP (only for joined users, when an RSVP form is published) */}
+                  {/* RSVP and post-event survey (only for joined users, when
+                      the corresponding form is published) */}
                   {hasJoined && (
-                    <div className="w-full">
+                    <div className="w-full space-y-2">
                       <RsvpButton eventId={eventId} />
+                      <PostSurveyButton eventId={eventId} />
                     </div>
                   )}
 

@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import type { IntakeFormAnswers } from "@/features/intake-forms/types";
+import {
+  INTAKE_FORM_CONTEXTS,
+  type IntakeFormAnswers,
+} from "@/features/intake-forms/types";
 import { getAuthContext } from "../../intake-forms/_shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 const submitSchema = z.object({
-  context: z.enum(["registration", "project_submission", "rsvp"]),
+  context: z.enum(INTAKE_FORM_CONTEXTS),
   formVersionId: z.string().uuid(),
   projectId: z.string().uuid().optional(),
   answers: z.record(z.string(), z.any()),
 });
 
 const querySchema = z.object({
-  context: z.enum(["registration", "project_submission", "rsvp"]),
+  context: z.enum(INTAKE_FORM_CONTEXTS),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -158,8 +161,9 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Registration submissions are allowed before joining; project submission
-    // and RSVP require an existing role in the event.
+    // Registration submissions are allowed before joining; all other contexts
+    // (project submission, RSVP, post-survey) require an existing role in the
+    // event.
     if (!auth.isAdmin && context !== "registration") {
       const { data: roleRow } = await auth.supabase
         .from("user_event_roles")

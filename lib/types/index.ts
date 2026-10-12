@@ -130,6 +130,11 @@ export type EventItem = {
   external_url?: string | null; // Optional outside event URL
   external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
   team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
+  submitter_email?: string | null; // Contact email from the public submit form
+  submitter_name?: string | null; // Submitter name from the public submit form
+  organizer_affiliation?: string | null; // University/company affiliation from the public submit form
+  expected_attendance?: number | null; // Informational estimate; not a registration cap
+  featured_requested?: boolean | null; // Submitter asked for featured placement
 };
 
 export interface EventApprovalLog {
@@ -282,7 +287,7 @@ export interface ProjectArtifact {
   updated_at?: string;
 }
 
-export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "multi_file" | "select" | "multi_select" | "checkbox";
 
 export interface EventSubmissionField {
   id: string;
@@ -297,6 +302,7 @@ export interface EventSubmissionField {
   is_active: boolean;
   options?: unknown;
   allows_multiple_entries?: boolean;
+  max_files?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -351,6 +357,8 @@ export interface Project {
   has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
+  /** Advanced past round 1 via project_round_advancements (organizer-selected finalists). */
+  is_finalist?: boolean;
   contextus_project_id?: string;
   submitted?: boolean;
 }

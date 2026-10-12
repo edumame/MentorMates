@@ -46,6 +46,13 @@ type IntakeFormBuilderProps = {
   className?: string;
 };
 
+const CONTEXT_BADGE_LABELS: Record<IntakeFormContext, string> = {
+  registration: "Registration intake",
+  project_submission: "Project submission intake",
+  rsvp: "RSVP form",
+  post_survey: "Post-event survey",
+};
+
 type LastPublishedState = {
   versionId: string;
   versionNumber: number;
@@ -691,11 +698,7 @@ export function IntakeFormBuilder({
             />
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <span className="rounded-full bg-black/5 px-3 py-1 text-xs text-black/70">
-                {context === "registration"
-                  ? "Registration intake"
-                  : context === "rsvp"
-                    ? "RSVP form"
-                    : "Project submission intake"}
+                {CONTEXT_BADGE_LABELS[context]}
               </span>
               <span className="rounded-full bg-[#4B89EF]/10 px-3 py-1 text-xs text-[#2459ad]">
                 {lastPublished

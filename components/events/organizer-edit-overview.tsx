@@ -1029,6 +1029,23 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         </p>
                         <IntakeFormBuilder eventId={eventId} context="rsvp" />
                       </div>
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2
+                          className="font-geist text-xl font-semibold mb-4 text-black"
+                          style={{
+                            fontFamily:
+                              "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                          }}
+                        >
+                          Post-Event Survey
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Publish a post-event survey to collect feedback from
+                          attendees. A survey button appears on the event page
+                          for everyone who has joined.
+                        </p>
+                        <IntakeFormBuilder eventId={eventId} context="post_survey" />
+                      </div>
                     </div>
                   )}
                   {activeTab === "intake-responses" && (
