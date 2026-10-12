@@ -259,12 +259,6 @@ export interface EventDetails extends EventItem {
   faq?: { question: string; answer: string }[]; // Structured FAQ items
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
-  /**
-   * Grace period (minutes) after submission_time_cutoff during which
-   * submissions still go through but are flagged late. 0 = legacy hard cutoff.
-   * Validated to 0–60 in the organizer UI.
-   */
-  submission_late_buffer_minutes?: number;
   sponsorship_tiers?: {
     tiers?: Array<{
       id: string; // e.g., "bronze" | "silver" | "gold" or custom

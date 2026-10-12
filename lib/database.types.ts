@@ -647,8 +647,6 @@ export type Database = {
         Row: {
           submissions_anonymized: boolean
 
-          submission_late_buffer_minutes: number
-
           approval_status: Database["public"]["Enums"]["approval_status"] | null
           cover_image_url: string | null
           created_at: string | null
@@ -693,8 +691,6 @@ export type Database = {
         }
         Insert: {
           submissions_anonymized?: boolean
-
-          submission_late_buffer_minutes?: number
 
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
@@ -742,8 +738,6 @@ export type Database = {
         }
         Update: {
           submissions_anonymized?: boolean
-
-          submission_late_buffer_minutes?: number
 
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
