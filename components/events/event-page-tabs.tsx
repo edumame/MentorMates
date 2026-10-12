@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { useActiveRole } from "./ActiveRoleContext";
+import { EVENT_PAGE_SHELL_CLASS } from "./event-page-shell";
 import { EventRole } from "@/lib/types";
 
 interface EventPageTabsProps {
@@ -12,6 +12,7 @@ interface EventPageTabsProps {
   projectCount?: number;
   showTicketsTab?: boolean;
   showParticipantsTab?: boolean;
+  showTeamTab?: boolean;
 }
 
 export function EventPageTabs({
@@ -20,10 +21,10 @@ export function EventPageTabs({
   projectCount,
   showTicketsTab,
   showParticipantsTab = true,
+  showTeamTab = false,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAuth();
   const { activeRole } = useActiveRole();
 
   // Judges only need the Overview tab — the scoring UI is embedded there
@@ -47,6 +48,10 @@ export function EventPageTabs({
       path: `/events/${eventId}/participants`,
       badge: participantCount,
     });
+  }
+
+  if (!isJudge && showTeamTab) {
+    tabs.push({ name: "Team", path: `/events/${eventId}/team` });
   }
 
   if (!isJudge) {
@@ -78,13 +83,7 @@ export function EventPageTabs({
 
   return (
     <div className="border-b border-[#f2f2f2] w-full">
-      <div
-        className={
-          isAuthenticated
-            ? "px-4 w-full"
-            : "mx-auto w-full max-w-10xl px-4 sm:px-6 lg:px-10"
-        }
-      >
+      <div className={EVENT_PAGE_SHELL_CLASS}>
         <div className="flex gap-4 md:gap-6 items-start w-full overflow-x-auto no-scrollbar whitespace-nowrap">
           {tabs.map((tab) => {
             const isActive = pathname === tab.path;

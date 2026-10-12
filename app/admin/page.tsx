@@ -27,6 +27,7 @@ import {
   Eye,
   Calendar,
   Trash2,
+  Globe,
 } from "lucide-react";
 import {
   Select,
@@ -135,7 +136,14 @@ export default function AdminPage() {
           featured,
           approval_status,
           rejection_reason,
-          created_at
+          created_at,
+          external_url,
+          external_redirect_enabled,
+          submitter_email,
+          submitter_name,
+          organizer_affiliation,
+          expected_attendance,
+          featured_requested
         `
         )
         .order("created_at", { ascending: true });
@@ -352,10 +360,18 @@ export default function AdminPage() {
   const getOrganizerPrimaryLabel = (organizer: EventOrganizer) =>
     organizer.displayName || organizer.email || "Unknown organizer";
 
-  const getOrganizerSummary = (event: AdminEventItem) =>
-    event.organizers.length > 0
-      ? event.organizers.map(getOrganizerPrimaryLabel).join(", ")
-      : "No organizers assigned";
+  const isExternalEvent = (event: AdminEventItem) =>
+    Boolean(event.external_url && event.external_redirect_enabled);
+
+  const getOrganizerSummary = (event: AdminEventItem) => {
+    if (event.organizers.length > 0) {
+      return event.organizers.map(getOrganizerPrimaryLabel).join(", ");
+    }
+    if (event.submitter_email) {
+      return `${event.submitter_name || "External submission"} <${event.submitter_email}>`;
+    }
+    return "No organizers assigned";
+  };
 
   const renderOrganizerDetails = (event: AdminEventItem) => (
     <div>
@@ -511,6 +527,18 @@ export default function AdminPage() {
                             Featured
                           </span>
                         )}
+                        {isExternalEvent(event) && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded flex items-center gap-1">
+                            <Globe className="w-3 h-3" />
+                            External
+                          </span>
+                        )}
+                        {event.featured_requested && !event.featured && (
+                          <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            Featured requested
+                          </span>
+                        )}
                         {getApprovalStatusBadge(event.approval_status)}
                         <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
                           {event.visibility || "draft"}
@@ -567,6 +595,58 @@ export default function AdminPage() {
                             </div>
 
                             {renderOrganizerDetails(event)}
+
+                            {event.submitter_email && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  Submitted By
+                                </label>
+                                <p className="text-gray-900 mt-0.5">
+                                  {event.submitter_name || "Unknown"} —{" "}
+                                  <a
+                                    href={`mailto:${event.submitter_email}`}
+                                    className="text-blue-600 hover:underline"
+                                  >
+                                    {event.submitter_email}
+                                  </a>
+                                </p>
+                                {event.organizer_affiliation && (
+                                  <p className="text-gray-700 mt-0.5">
+                                    {event.organizer_affiliation}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {event.expected_attendance != null && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  Expected Attendance
+                                </label>
+                                <p className="text-gray-900 mt-0.5">
+                                  ~{event.expected_attendance.toLocaleString()}{" "}
+                                  attendees
+                                </p>
+                              </div>
+                            )}
+
+                            {event.external_url && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  External Link
+                                </label>
+                                <p className="mt-0.5">
+                                  <a
+                                    href={event.external_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline break-all"
+                                  >
+                                    {event.external_url}
+                                  </a>
+                                </p>
+                              </div>
+                            )}
 
                             {event.event_blurb && (
                               <div>

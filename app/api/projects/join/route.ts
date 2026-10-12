@@ -11,7 +11,7 @@ export async function PUT(request: NextRequest) {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
   const { data: updatedProject, error: updateError } = await serviceSupabase
     .from("projects")
     .update({
-      teammates: [...project.teammates, user.email],
+      teammates: [...(project.teammates ?? []), user.email],
     })
     .eq("id", projectId)
     .select()

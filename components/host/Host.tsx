@@ -80,7 +80,7 @@ export function Host() {
               asChild
               className="flex min-w-[260px] sm:min-w-0 items-center justify-center gap-2 py-2.5 px-6 text-[16px] leading-6 font-medium text-white"
             >
-              <Link href="/login">Host your event free</Link>
+              <Link href="/events/submit">Host your event free</Link>
             </Button>
           </div>
 
