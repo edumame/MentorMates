@@ -137,7 +137,7 @@ export function ApprovalSettingsTab({
         <p className="text-sm text-muted-foreground">
           Questionnaire requirement is now automatic: participants must complete
           it only when a published <strong>Registration Intake Form</strong>{" "}
-          exists in the Intake Forms tab. Deleting/unpublishing that form
+          exists under Forms → Application form. Deleting/unpublishing that form
           removes the requirement.
         </p>
       </div>

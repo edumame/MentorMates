@@ -31,6 +31,8 @@ import { useProjectSubmissionAutosave } from "@/features/projects/components/for
 import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
   buildEffectiveSubmissionFields,
+  buildSubmissionFormValues,
+  findMissingRequiredSubmissionField,
   buildSubmissionAnswersPayload,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
@@ -109,6 +111,7 @@ export function NewProjectSubmissionFormSinglePage({
   contextusId?: string | null;
 }) {
   const router = useRouter();
+  const [isUploading, setIsUploading] = useState(false);
   const isAdmin = useAdmin();
 
   // Ref to track if draft creation has been attempted
@@ -322,12 +325,7 @@ export function NewProjectSubmissionFormSinglePage({
 
   const submissionFieldValues = useMemo(
     () =>
-      Object.fromEntries(
-        effectiveSubmissionFields.map((field) => [
-          field.key,
-          getSubmissionFieldValue(field),
-        ])
-      ) as Record<string, SubmissionValue>,
+      buildSubmissionFormValues(effectiveSubmissionFields, getSubmissionFieldValue),
     [effectiveSubmissionFields, getSubmissionFieldValue]
   );
 
@@ -526,7 +524,7 @@ export function NewProjectSubmissionFormSinglePage({
     [formData.teammates, participantEmails]
   );
 
-  const { lastSaved } = useProjectSubmissionAutosave({
+  const { lastSaved, flushSave } = useProjectSubmissionAutosave({
     enabled: !isLoading,
     projectId,
     fields: effectiveSubmissionFields,
@@ -597,7 +595,7 @@ export function NewProjectSubmissionFormSinglePage({
       if (uploadError) {
         toast({
           title: "Upload Error",
-          description: "Failed to upload file",
+          description: `Failed to upload file: ${uploadError.message}`,
           variant: "destructive",
         });
         return null;
@@ -634,7 +632,33 @@ export function NewProjectSubmissionFormSinglePage({
   };
 
   // Submit
+  const handleSaveAndExit = async () => {
+    if (isUploading) {
+      toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before leaving." });
+      return;
+    }
+    if (!(await flushSave())) return;
+    router.push(eventDetails?.slug
+      ? `/events/${eventDetails.slug}/overview`
+      : eventId ? `/events/${eventId}/overview` : `/projects`);
+  };
+
   const handlePublish = async (options?: { skipSoloConfirm?: boolean }) => {
+    if (isUploading) {
+      toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before leaving." });
+      return;
+    }
+    if (!(await flushSave())) return;
+    router.push(eventDetails?.slug
+      ? `/events/${eventDetails.slug}/overview`
+      : eventId ? `/events/${eventId}/overview` : `/projects`);
+  };
+
+  const handlePublish = async () => {
+    if (isUploading) {
+      toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before publishing." });
+      return;
+    }
     if (
       !options?.skipSoloConfirm &&
       validTeammates.length === 0 &&
@@ -656,20 +680,22 @@ export function NewProjectSubmissionFormSinglePage({
       return;
     }
 
-    const missingRequiredField = effectiveSubmissionFields.find((field) => {
-      if (!field.required) return false;
-      const value = submissionFieldValues[field.key];
-      if (isMultiValueSubmissionFieldType(field.field_type)) {
-        return !Array.isArray(value) || value.every((url) => !url.trim());
-      }
-      return typeof value !== "string" || value.trim().length === 0;
-    });
+    const missingRequiredField = findMissingRequiredSubmissionField(
+      effectiveSubmissionFields,
+      submissionFieldValues
+    );
+
     if (missingRequiredField) {
       toast({
         title: "Missing required answer",
         description: `Please answer "${missingRequiredField.label}" before publishing.`,
         variant: "destructive",
       });
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!(await flushSave())) {
       setIsSubmitting(false);
       return;
     }
@@ -1027,15 +1053,8 @@ export function NewProjectSubmissionFormSinglePage({
                 <div className="hidden items-center gap-1 sm:flex">
                   <Button
                     variant="secondary"
-                    onClick={() =>
-                      router.push(
-                        eventDetails?.slug
-                          ? `/events/${eventDetails.slug}/overview`
-                          : eventId
-                            ? `/events/${eventId}/overview`
-                            : `/projects`
-                      )
-                    }
+                    onClick={handleSaveAndExit}
+                    disabled={isUploading}
                     className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
                   >
                     Save draft and exit
@@ -1049,7 +1068,7 @@ export function NewProjectSubmissionFormSinglePage({
                   </Button>
                   <Button
                     onClick={() => handlePublish()}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isUploading}
                     className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
                   >
                     {isSubmitting ? (
@@ -1082,13 +1101,7 @@ export function NewProjectSubmissionFormSinglePage({
                         type="button"
                         onClick={() => {
                           setShowMobileActions(false);
-                          router.push(
-                            eventDetails?.slug
-                              ? `/events/${eventDetails.slug}/overview`
-                              : eventId
-                                ? `/events/${eventId}/overview`
-                                : `/projects`
-                          );
+                          void handleSaveAndExit();
                         }}
                         className="w-full text-left px-4 py-2.5 text-[15px] hover:bg-[#F2F2F2]"
                       >
@@ -1125,6 +1138,7 @@ export function NewProjectSubmissionFormSinglePage({
 
                 <div className="space-y-4">
                   <ProjectSubmissionSchemaSection
+                    onUploadStateChange={setIsUploading}
                     fields={effectiveSubmissionFields}
                     values={submissionFieldValues}
                     onValueChange={handleSubmissionFieldChange}
@@ -1469,7 +1483,7 @@ export function NewProjectSubmissionFormSinglePage({
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[rgba(0,0,0,0.15)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
         <Button
           onClick={() => handlePublish()}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploading}
           className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl py-3 shadow-sm font-medium text-base"
         >
           {isSubmitting ? (
