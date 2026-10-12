@@ -5,7 +5,7 @@ import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton
 import { AuthContextProvider } from "@/features/user/authentication/auth/AuthContext";
 
 // jest.mock factories are hoisted, so each one builds its own passthrough.
-jest.mock("next/font/google", () => ({ Inter: () => ({ className: "inter" }) }));
+jest.mock("next/font/google", () => ({ Inter: () => ({ className: "inter" }), Lora: () => ({ variable: "lora" }) }));
 jest.mock("geist/font/sans", () => ({ GeistSans: { variable: "geist" } }));
 jest.mock("@/components/utils/Providers", () => ({ Providers: ({ children }: { children?: React.ReactNode }) => children }));
 jest.mock("@/features/user/authentication/auth/AuthProvider", () => ({ AuthProvider: ({ children }: { children?: React.ReactNode }) => children }));
