@@ -43,20 +43,14 @@ function SuggestionCard({
         <div className="flex items-center gap-2">
           <button
             onClick={onAppend}
-            className="inline-flex items-center gap-1 rounded-md border border-[#4B89EF] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#4B89EF] transition-all hover:bg-[#4B89EF]/10"
-          >
-            Add below
-          </button>
-          <button
-            onClick={onUse}
             className="inline-flex items-center gap-1.5 rounded-md bg-[#4B89EF] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[#3F77D3]"
           >
-            Use this
+            Add below
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>
       </div>
-      <p className="text-[13px] leading-[1.55] text-zinc-600 blur-sm group-hover:blur-none transition-all duration-200 select-none group-hover:select-text">
+      <p className="text-[13px] leading-[1.55] text-zinc-600 duration-200 select-none group-hover:select-text">
         {suggestion}
       </p>
     </div>
@@ -232,7 +226,7 @@ export function GiveFeedbackDialog({
               <div className="flex w-full flex-col items-center gap-3 text-center">
                 <div className="flex flex-col gap-3 py-3">
                   <p className="font-['Poly'] text-[24px] leading-5 text-zinc-900">
-                    Interested in Similar Projects?
+                    Interested in More Projects?
                   </p>
                   <p className="text-sm leading-[22px] text-zinc-500">
                     Join our community to discover more innovative projects and
@@ -243,7 +237,7 @@ export function GiveFeedbackDialog({
                   asChild
                   className="h-10 rounded-xl bg-[#4b89ef] px-6 py-2.5 text-sm font-medium text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#3d75d9]"
                 >
-                  <Link href="/events">Explore events</Link>
+                  <Link href={`/events/${eventId}/gallery`}>Explore more projects</Link>
                 </Button>
               </div>
             </div>
@@ -403,7 +397,7 @@ export function GiveFeedbackDialog({
                 </>
               ) : (
                 <>
-                  <div className="mb-5 flex items-center gap-3">
+                  <div className="mb-5 flex flex-col gap-3">
                     <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
                       <Lightbulb className="h-4 w-4 text-[#7C8DB5]" />
                     </div>

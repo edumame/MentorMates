@@ -4,11 +4,15 @@ import { EventDetails, Lesson } from "@/lib/types";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -239,72 +243,92 @@ export function ContentTab({
   };
 
   return (
-    <div className="content-stretch flex flex-col gap-[16px] items-start w-full">
-      <div className="content-stretch flex gap-[24px] items-start relative shrink-0 w-full">
-        <div className="basis-0 content-stretch flex flex-col gap-[8px] grow items-start min-h-px min-w-px relative shrink-0">
-          <Tabs defaultValue="edit" className="w-full">
-            <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
-              <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[16px] text-black text-nowrap whitespace-pre">
-                Content for Event Participants
-              </p>
-              <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid flex items-start relative rounded-[12px] shrink-0 h-auto gap-0">
-                <TabsTrigger value="edit">Edit</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-              </TabsList>
+    <div className="space-y-4 w-full min-w-0">
+      <Tabs defaultValue="edit" className="w-full">
+        <div className="space-y-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-[16px] font-semibold text-black">
+              Exclusive Content for Participants
+            </h3>
+            <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 h-auto">
+              <TabsTrigger
+                value="edit"
+                className="px-4 py-2 rounded-[8px] text-sm font-normal transition-colors data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-black data-[state=inactive]:hover:bg-gray-50"
+              >
+                Edit
+              </TabsTrigger>
+              <TabsTrigger
+                value="preview"
+                className="px-4 py-2 rounded-[8px] text-sm font-normal transition-colors data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-black data-[state=inactive]:hover:bg-gray-50"
+              >
+                Preview
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="edit" className="mt-0">
+            <Textarea
+              id="paywall_content"
+              value={event.paywall_content || ""}
+              disabled={isArchived}
+              onChange={(e) =>
+                setEvent({ ...event, paywall_content: e.target.value })
+              }
+              placeholder="Add content (markdown supported)"
+              className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+            />
+            <p className="text-xs text-gray-500 italic mt-2">
+              *This content is visible only to participants who have joined the event.
+            </p>
+          </TabsContent>
+          <TabsContent value="preview" className="mt-0">
+            <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+              {event.paywall_content ? (
+                <ReactMarkdown
+                  remarkPlugins={markdownRemarkPlugins}
+                  rehypePlugins={markdownRehypePlugins}
+                  components={customMarkdownComponents}
+                >
+                  {event.paywall_content}
+                </ReactMarkdown>
+              ) : (
+                <em>No exclusive content added yet.</em>
+              )}
             </div>
-
-            <TabsContent value="edit" className="mt-4">
-              <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid box-border content-stretch flex gap-[12px] h-[299px] items-start px-[12px] py-[8px] relative rounded-[12px] shrink-0 w-full">
-                <textarea
-                  id="paywall_content"
-                  value={event.paywall_content || ""}
-                  disabled={isArchived}
-                  onChange={(e) =>
-                    setEvent({ ...event, paywall_content: e.target.value })
-                  }
-                  placeholder="Add content (markdown supported)"
-                  className="p-4 basis-0 font-['Inter'] font-normal grow leading-[1.5] min-h-px min-w-px not-italic relative shrink-0 text-[16px] text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none focus:outline-none resize-none"
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="preview" className="mt-4">
-              <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid box-border content-stretch flex gap-[12px] min-h-[299px] items-start px-[12px] py-[8px] relative rounded-[12px] shrink-0 w-full">
-                <div className="p-4 prose prose-sm dark:prose-invert max-w-none basis-0 font-['Inter'] font-normal grow leading-[1.5] min-h-px min-w-px not-italic relative shrink-0 text-[16px] text-black">
-                  <ReactMarkdown
-                    rehypePlugins={markdownRehypePlugins}
-                    components={customMarkdownComponents}
-                  >
-                    {event.paywall_content ||
-                      "Add content (markdown supported)"}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+          </TabsContent>
         </div>
-      </div>
+      </Tabs>
       <Button onClick={saveContent} disabled={isArchived || savingContent} className="w-full">
         {savingContent ? "Saving Content..." : "Save Content"}
       </Button>
-      <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[#7f7f7f] text-[16px] w-full">
-        *This content is visible only to participants who have joined/paid for
-        the event.
-      </p>
 
       {/* Lessons Editor */}
       <div className="w-full mt-4 space-y-4">
         <Tabs defaultValue="edit" className="w-full">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-base font-medium">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h3 className="text-[16px] font-semibold text-black">
               Lessons {loadingLessons && <span className="text-sm text-gray-500">(Loading...)</span>}
-            </p>
+            </h3>
             <div className="flex items-center gap-2">
-              <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid flex items-start relative rounded-[12px] shrink-0 h-auto gap-0">
-                <TabsTrigger value="edit">Edit</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
+              <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 h-auto">
+                <TabsTrigger 
+                  value="edit"
+                  className="px-4 py-2 rounded-[8px] text-sm font-normal transition-colors data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-black data-[state=inactive]:hover:bg-gray-50"
+                >
+                  Edit
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="preview"
+                  className="px-4 py-2 rounded-[8px] text-sm font-normal transition-colors data-[state=active]:bg-white data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-black data-[state=inactive]:hover:bg-gray-50"
+                >
+                  Preview
+                </TabsTrigger>
               </TabsList>
-              <Button variant="outline" disabled={isArchived || loadingLessons} onClick={addLesson}>
+              <Button 
+                variant="outline" 
+                disabled={isArchived || loadingLessons} 
+                onClick={addLesson}
+                className="border border-[rgba(0,0,0,0.15)] bg-white"
+              >
                 Add Lesson
               </Button>
             </div>
@@ -319,17 +343,33 @@ export function ContentTab({
 
         <div className="space-y-6">
           {(event.event_lessons || []).map((lesson, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input
-                  value={lesson.title}
-                  disabled={isArchived}
-                  onChange={(e) => updateLesson(index, { title: e.target.value })}
-                />
+            <div key={index} className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[16px] font-normal text-black">Title</label>
+                  <Input
+                    value={lesson.title}
+                    disabled={isArchived}
+                    onChange={(e) => updateLesson(index, { title: e.target.value })}
+                    className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[16px] font-normal text-black">Duration (minutes)</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={Number(lesson.duration_minutes) || 0}
+                    disabled={isArchived}
+                    onChange={(e) =>
+                      updateLesson(index, { duration_minutes: Math.max(1, parseInt(e.target.value || "0", 10)) })
+                    }
+                    className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>Cover Image</Label>
+                <label className="text-[16px] font-normal text-black">Cover Image</label>
                 <div className="flex gap-2">
                   <Input
                     type="url"
@@ -337,7 +377,7 @@ export function ContentTab({
                     value={lesson.cover_image_url}
                     disabled={isArchived || uploadingImages[index]}
                     onChange={(e) => updateLesson(index, { cover_image_url: e.target.value })}
-                    className="flex-1"
+                    className="flex-1 h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]"
                   />
                   <div className="relative">
                     <Input
@@ -358,6 +398,7 @@ export function ContentTab({
                       variant="outline"
                       disabled={isArchived || uploadingImages[index]}
                       onClick={() => document.getElementById(`file-upload-${index}`)?.click()}
+                      className="h-[44px] border border-[rgba(0,0,0,0.15)] bg-white"
                     >
                       {uploadingImages[index] ? "Uploading..." : "Upload"}
                     </Button>
@@ -368,42 +409,37 @@ export function ContentTab({
                     <img
                       src={lesson.cover_image_url}
                       alt="Preview"
-                      className="w-32 h-20 object-cover rounded border"
+                      className="w-32 h-20 object-cover rounded-[12px] border border-[rgba(0,0,0,0.15)]"
                     />
                   </div>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Destination URL</Label>
+                <label className="text-[16px] font-normal text-black">Destination URL</label>
                 <Input
                   type="url"
                   value={lesson.url}
                   disabled={isArchived}
                   onChange={(e) => updateLesson(index, { url: e.target.value })}
+                  className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Duration (minutes)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={Number(lesson.duration_minutes) || 0}
-                  disabled={isArchived}
-                  onChange={(e) =>
-                    updateLesson(index, { duration_minutes: Math.max(1, parseInt(e.target.value || "0", 10)) })
-                  }
-                />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label>Description</Label>
-                <Input
+                <label className="text-[16px] font-normal text-black">Description</label>
+                <Textarea
                   value={lesson.description}
                   disabled={isArchived}
                   onChange={(e) => updateLesson(index, { description: e.target.value })}
+                  className="min-h-[100px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3"
                 />
               </div>
-              <div className="md:col-span-2 flex justify-end gap-2">
-                <Button variant="destructive" disabled={isArchived} onClick={() => removeLesson(index)}>
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="destructive" 
+                  disabled={isArchived} 
+                  onClick={() => removeLesson(index)}
+                  className="border border-[rgba(0,0,0,0.15)]"
+                >
                   Remove
                 </Button>
               </div>

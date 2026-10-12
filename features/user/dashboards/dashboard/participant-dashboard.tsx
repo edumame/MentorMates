@@ -7,7 +7,10 @@ import { FolderOpen, ConfirmationNumber, BarChart } from "@mui/icons-material";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { useHasJoinedEvent } from "@/lib/hooks/use-has-joined-event";
 import { Loader2 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
@@ -141,29 +144,22 @@ export function ParticipantDashboard({ eventId, canCreateProjects = true }: Part
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user?.email) return;
-
-      const { data: profile, error: profileError } = await supabase
-        .from("user_profiles")
-        .select("uid")
-        .eq("email", session.user.email)
-        .single();
-
-      if (profileError || !profile) return;
+      if (!session?.user?.id) return;
+      const userId = session.user.id;
 
       const { count: gCount } = await supabase
         .from("platform_engagement")
         .select("id", { count: "exact", head: true })
         .eq("event_id", eventId)
         .eq("type", "goal")
-        .eq("user_id", profile.uid);
+        .eq("user_id", userId);
 
       const { count: jCount } = await supabase
         .from("platform_engagement")
         .select("id", { count: "exact", head: true })
         .eq("event_id", eventId)
         .eq("type", "journal")
-        .eq("user_id", profile.uid);
+        .eq("user_id", userId);
 
       setGoalsCount(gCount || 0);
       setJournalCount(jCount || 0);
@@ -174,7 +170,7 @@ export function ParticipantDashboard({ eventId, canCreateProjects = true }: Part
         .from("platform_engagement")
         .select("created_at,type")
         .eq("event_id", eventId)
-        .eq("user_id", profile.uid)
+        .eq("user_id", userId)
         .gte("created_at", since.toISOString());
 
       const daysSet = new Set<string>();
@@ -301,6 +297,7 @@ export function ParticipantDashboard({ eventId, canCreateProjects = true }: Part
               <CardContent>
                 <div className="prose prose-blue max-w-none">
                   <ReactMarkdown
+                    remarkPlugins={markdownRemarkPlugins}
                     rehypePlugins={markdownRehypePlugins}
                     components={customMarkdownComponents}
                   >

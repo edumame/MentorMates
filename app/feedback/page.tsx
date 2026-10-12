@@ -7,20 +7,19 @@ import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
-  ArrowDownUp,
   X,
   FileText,
   MessageSquare,
   Lightbulb,
   Sparkles,
+  ArrowDown,
 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogClose,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface FeedbackItem {
   id: string;
@@ -124,11 +123,10 @@ export default function FeedbackPage() {
   };
 
   return (
-    <PageContainer>
-      <PageContent className="pt-[24px] pb-8">
-        <div className="flex flex-col gap-[24px] px-[32px]">
+    <div className="pt-[24px] pb-8">
+      <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
-          <div className="flex items-end justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Feedback
@@ -161,23 +159,27 @@ export default function FeedbackPage() {
 
           {/* Empty state */}
           {!isLoading && feedbackList.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="flex flex-col items-center justify-center py-20 sm:py-40 px-4 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px]">
               <div className="max-w-md text-center">
                 <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-6">
                   <MessageSquare className="h-12 w-12 text-blue-600" />
                 </div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+
+                {/* Heading */}
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                   No feedback received yet
                 </h2>
-                <p className="text-gray-600 mb-6 leading-relaxed">
+
+                {/* Description */}
+                <p className="text-gray-600 mb-4 leading-relaxed">
                   Go join an event, submit a project and collect feedback from
                   mentors and peers to improve your work!
                 </p>
                 <Button
                   asChild
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
+                  className="bg-blue-400 hover:bg-blue-600 text-white px-6 py-3 h-auto"
                 >
-                  <Link href="/events">Explore Events</Link>
+                  <Link href="/events">Explore event</Link>
                 </Button>
               </div>
             </div>
@@ -210,7 +212,7 @@ export default function FeedbackPage() {
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
                           Date
                         </p>
-                        <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
+                        <ArrowDown className="h-[24px] w-[24px] ml-1" />
                       </div>
                       <div className="w-[208px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
@@ -223,21 +225,20 @@ export default function FeedbackPage() {
                     {feedbackList.map((item, index) => (
                       <div
                         key={item.id}
-                        className={`flex w-full ${
-                          index !== feedbackList.length - 1
-                            ? "border-b border-[rgba(0,0,0,0.15)]"
-                            : ""
-                        }`}
+                        className={`flex w-full ${index !== feedbackList.length - 1
+                          ? "border-b border-[rgba(0,0,0,0.15)]"
+                          : ""
+                          }`}
                       >
-                        {/* From */}
-                        <div className="flex items-center gap-[8px] px-[24px] py-[24px] w-[264px] flex-shrink-0">
+                        {/* Send from Column */}
+                        <div className="flex items-center gap-[6px] px-[24px] py-[28px] w-[264px] flex-shrink-0">
                           <Avatar className="h-[40px] w-[40px]">
                             <AvatarImage
                               src={item.sender.avatar}
                               alt={item.sender.name}
                             />
-                            <AvatarFallback>
-                              {item.sender.name.charAt(0)}
+                            <AvatarFallback className="bg-gray-200 text-black font-semibold text-base">
+                              {item.sender.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <p className="text-[16px] text-black truncate">
@@ -250,16 +251,16 @@ export default function FeedbackPage() {
                           )}
                         </div>
 
-                        {/* Project */}
-                        <div className="flex items-center px-[24px] py-[24px] w-[196px] flex-shrink-0">
+                        {/* Project Name Column */}
+                        <div className="flex items-center px-[24px] py-[28px] w-[196px] flex-shrink-0">
                           <p className="text-[16px] text-black tracking-[-0.04em] truncate">
                             {item.projectName}
                           </p>
                         </div>
 
-                        {/* Message */}
-                        <div className="flex items-center px-[24px] py-[24px] min-w-[215px] flex-1">
-                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2">
+                        {/* Message Column */}
+                        <div className="flex items-center px-[24px] py-[28px] min-w-[215px] flex-1">
+                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2 break-all">
                             {item.message}
                           </p>
                         </div>
@@ -271,8 +272,8 @@ export default function FeedbackPage() {
                           </p>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-[12px] px-[24px] py-[24px] w-[208px] flex-shrink-0">
+                        {/* Action Column */}
+                        <div className="flex items-center gap-[12px] px-[24px] py-[28px] w-[208px] flex-shrink-0">
                           <button
                             onClick={() => handleViewFeedback(item)}
                             className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
@@ -311,11 +312,10 @@ export default function FeedbackPage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${
-                          currentPage === page
-                            ? "border border-[rgba(0,0,0,0.15)]"
-                            : ""
-                        }`}
+                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${currentPage === page
+                          ? "border border-[rgba(0,0,0,0.15)]"
+                          : ""
+                          }`}
                       >
                         {page}
                       </button>
@@ -342,8 +342,9 @@ export default function FeedbackPage() {
         {/* Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent
+            hideCloseButton
             style={{ width: 888, maxWidth: 888 }}
-            className="p-0 mx-4 border border-gray-200 shadow-xl rounded-[6px] [&>*]:!rounded-[0px] [&>button]:hidden"
+            className="p-0 mx-4 border border-gray-200 shadow-xl rounded-[6px] [&>*]:!rounded-[0px]"
           >
             <DialogTitle className="sr-only">
               {isGivingFeedback
@@ -353,9 +354,15 @@ export default function FeedbackPage() {
 
             {isGivingFeedback ? (
               // ---------- Share feedback ----------
-              <div className="relative flex flex-col lg:flex-row min-h-[540px] max-h-[80vh] overflow-y-auto">
+              <div className="relative flex flex-col lg:flex-row min-h-[540px] h-[540px] max-h-[80vh]">
+                {/* Single close button, not duplicated */}
+                <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50">
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </DialogClose>
+
                 {/* Left: input */}
-                <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8 flex flex-col rounded-none lg:rounded-l-[6px]">
+                <div className="flex-1 bg-white px-4 py-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8 flex flex-col rounded-none lg:rounded-l-[6px]">
                   <div className="flex h-full flex-col">
                     <div className="mb-4">
                       <h2 className="text-[16px] font-semibold leading-[1.4] text-muted-foreground">
@@ -401,16 +408,12 @@ export default function FeedbackPage() {
 
                 {/* Right: tips gradient */}
                 <div
-                  className="relative flex-1 border-t lg:border-t-0 lg:border-l border-[rgba(0,0,0,0.10)] p-6 lg:p-8 flex flex-col rounded-none lg:rounded-r-[6px]"
+                  className="flex-1 border-t lg:border-t-0 lg:border-l border-[rgba(0,0,0,0.10)] p-6 lg:p-8 flex flex-col rounded-none lg:rounded-r-[6px]"
                   style={{
                     background:
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
                   }}
                 >
-                  <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                  </DialogClose>
                   <div className="flex h-full flex-col">
                     <div className="mb-6 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -478,23 +481,29 @@ export default function FeedbackPage() {
               </div>
             ) : (
               // -------- View feedback --------
-              <div className="relative flex flex-col lg:flex-row min-h-[460px] max-h-[80vh] overflow-hidden rounded-[6px]">
+              <div className="relative flex flex-col lg:flex-row min-h-[460px] h-[540px] max-h-[80vh] overflow-hidden rounded-[6px]">
+                {/* Single close button, not duplicated */}
+                <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50">
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </DialogClose>
+
                 {/* Left panel */}
-                <div className="flex w-full items-center justify-center bg-white px-6 py-8 lg:w-1/2 rounded-none lg:rounded-l-[6px]">
+                <div className="flex w-full items-center justify-center bg-white px-4 py-6 sm:px-6 sm:py-8 lg:w-1/2 lg:min-h-[540px] rounded-none lg:rounded-l-[6px]">
                   <div className="w-full max-w-xs text-center">
                     <div className="mx-auto mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
                       <FileText className="h-5 w-5 text-blue-600" />
                     </div>
-                    <h2 className="text-[16px] font-semibold leading-[1.4] text-muted-foreground">
+                    <h2 className="text-[14px] sm:text-[16px] font-semibold leading-[1.4] text-muted-foreground">
                       View feedback for{" "}
                       <button
                         type="button"
-                        className="text-[#4B89EF] hover:underline"
+                        className="text-[#4B89EF] hover:underline break-words"
                       >
                         {selectedFeedback?.projectName}
                       </button>
                     </h2>
-                    <p className="mt-1 text-[12px] leading-[1.45] text-muted-foreground/80">
+                    <p className="mt-1 text-[11px] sm:text-[12px] leading-[1.45] text-muted-foreground/80">
                       Improve your project with clear instruction
                     </p>
                   </div>
@@ -502,16 +511,12 @@ export default function FeedbackPage() {
 
                 {/* Right panel — bold gradient */}
                 <div
-                  className="relative flex w-full lg:w-1/2 grow items-center justify-center px-6 py-10 rounded-none lg:rounded-r-[6px]"
+                  className="flex w-full lg:w-1/2 grow items-center justify-center px-6 py-10 rounded-none lg:rounded-r-[6px]"
                   style={{
                     background:
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
                   }}
                 >
-                  <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                  </DialogClose>
                   <div className="w-full max-w-2xl">
                     <div className="mb-4 text-xs text-gray-600 sm:text-sm">
                       {selectedFeedback
@@ -519,14 +524,14 @@ export default function FeedbackPage() {
                         : ""}
                     </div>
 
-                    <div className="mb-6 text-[18px] leading-7 text-slate-900 sm:text-[20px]">
-                      <span className="align-top text-[22px]">“</span>
+                    <div className="mb-6 text-[16px] sm:text-[18px] lg:text-[20px] leading-7 text-slate-900 break-words whitespace-pre-wrap">
+                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">&ldquo;</span>
                       {selectedFeedback?.message}
-                      <span className="align-top text-[22px]">”</span>
+                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">&rdquo;</span>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage
                           src={selectedFeedback?.sender.avatar}
                           alt={selectedFeedback?.sender.name}
@@ -535,12 +540,12 @@ export default function FeedbackPage() {
                           {selectedFeedback?.sender.name?.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="text-sm font-medium text-slate-900 break-words">
                           {selectedFeedback?.sender.name}
                         </span>
                         {selectedFeedback?.sender.role && (
-                          <span className="rounded-full border border-gray-200 bg-white/60 px-2 py-0.5 text-xs text-gray-700">
+                          <span className="rounded-full border border-gray-200 bg-white/60 px-2 py-0.5 text-xs text-gray-700 flex-shrink-0">
                             {selectedFeedback.sender.role}
                           </span>
                         )}
@@ -552,7 +557,6 @@ export default function FeedbackPage() {
             )}
           </DialogContent>
         </Dialog>
-      </PageContent>
-    </PageContainer>
+    </div>
   );
 }

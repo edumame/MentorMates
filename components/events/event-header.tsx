@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ExpandMore, ExpandLess } from "@mui/icons-material";
 import { EventVisibility } from "@/lib/types";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 export interface EventHeaderProps {
   eventName: string;
@@ -30,6 +31,7 @@ export function EventHeader({
   submissionTimeCutoff,
   visibility,
 }: EventHeaderProps) {
+  const { isAuthenticated } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsTruncation, setNeedsTruncation] = useState(false);
   const contentRef = useRef<HTMLParagraphElement>(null);
@@ -88,7 +90,14 @@ export function EventHeader({
       {/* Dark Overlay */}
       <div className="absolute inset-0 bg-black/60" />
       {/* Content */}
-      <div className="relative z-10 h-full flex flex-col justify-start pt-6 sm:pt-8 px-4 sm:px-8 pb-4 sm:pb-8">
+      <div className="relative z-10 h-full flex flex-col justify-start pt-6 sm:pt-8 pb-4 sm:pb-8">
+        <div
+          className={
+            isAuthenticated
+              ? "px-4 sm:px-8 w-full"
+              : "mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
+          }
+        >
         <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4">
           {eventName}
         </h1>
@@ -176,6 +185,7 @@ export function EventHeader({
         )}
         <div className="mt-auto">
           <HackathonNav id={eventId} />
+        </div>
         </div>
       </div>
     </div>

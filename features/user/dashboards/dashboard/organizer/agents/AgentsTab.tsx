@@ -1,0 +1,1437 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useTRPC } from "@/trpc/client";
+import type { AgentGetOne } from "@/modules/agents/types";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import AgentTypeLabel from "@/components/ui/agent-type-label";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { EventSearchInput } from "@/components/ui/event-search-input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "@/lib/hooks/use-toast";
+import { NewAgentDialog } from "@/modules/agents/ui/components/new-agent-dialog";
+import { UpdateAgentDialog } from "@/modules/agents/ui/components/update-agent-dialog";
+import { useConfirm } from "@/lib/hooks/use-confirm";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { ResponsiveDialog } from "@/components/responsive-dialog";
+import { EventRole } from "@/lib/types";
+import { getRoleLabel } from "@/features/user/roles/roles";
+import {
+  Bot,
+  ClockArrowUp,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Mic,
+  PhoneCall,
+} from "lucide-react";
+import { getBuiltInVoiceOption } from "@/modules/agents/constants/voices";
+import { Input } from "@/components/ui/input";
+import { MeetingForm } from "@/modules/meetings/ui/components/meeting-form";
+import { useRouter } from "next/navigation";
+
+interface AgentsTabProps {
+  eventId?: string;
+}
+
+interface EventOption {
+  event_id: string;
+  event_name: string;
+}
+
+type AgentListItem = AgentGetOne & { can_edit?: boolean };
+
+type SessionLaunchMode = "chat" | "call";
+
+const PROMPT_PREVIEW_LIMIT = 240;
+const FEEDBACK_PREVIEW_LIMIT = 180;
+interface EventSessionCaps {
+  default?: number | null;
+  agent_caps?: Record<string, number | null>;
+  auto_conversations?: Record<string, string[]>;
+  [key: string]: unknown;
+}
+
+type RoleAutoConversations = Partial<Record<EventRole, string[]>>;
+
+const AUTO_CONVERSATION_ROLES: EventRole[] = [
+  EventRole.Participant,
+  EventRole.Mentor,
+  EventRole.Judge,
+  EventRole.Organizer,
+];
+
+function normalizeText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+type AgentWithLinkedEvents = AgentGetOne & { linkedEventIds?: string[] };
+
+function cleanText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength).trimEnd()}...`;
+}
+
+function getInitials(value: string): string {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "AI";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function formatVoiceLabel(value: unknown): string {
+  const voice = cleanText(value);
+  if (!voice) return "Default";
+  if (voice.startsWith("voice_")) return "Custom Voice";
+  const builtInVoice = getBuiltInVoiceOption(voice.toLowerCase());
+  if (builtInVoice) {
+    return `${builtInVoice.label} (${builtInVoice.description})`;
+  }
+  return voice.charAt(0).toUpperCase() + voice.slice(1);
+}
+
+function normalizeSessionCaps(value: unknown): EventSessionCaps {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { agent_caps: {} };
+  }
+
+  const raw = value as EventSessionCaps;
+  const rawAgentCaps = raw.agent_caps;
+  const nextAgentCaps =
+    rawAgentCaps && typeof rawAgentCaps === "object" && !Array.isArray(rawAgentCaps)
+      ? ({ ...rawAgentCaps } as Record<string, number | null>)
+      : {};
+
+  return {
+    ...raw,
+    agent_caps: nextAgentCaps,
+  };
+}
+
+function capInputFromValue(value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return "";
+  }
+  return String(value);
+}
+
+function parseCapInput(value: string | undefined): number | null | "invalid" {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    return "invalid";
+  }
+
+  return parsed;
+}
+
+function normalizedCapForComparison(value: string | undefined): string {
+  const parsed = parseCapInput(value);
+  if (parsed === null) return "";
+  if (parsed === "invalid") return (value ?? "").trim();
+  return String(parsed);
+}
+
+function normalizeAutoConversations(value: unknown): RoleAutoConversations {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const src = value as Record<string, unknown>;
+  const out: RoleAutoConversations = {};
+
+  for (const role of AUTO_CONVERSATION_ROLES) {
+    const rawIds = src[role];
+    if (!Array.isArray(rawIds)) continue;
+    out[role] = Array.from(
+      new Set(
+        rawIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+      )
+    );
+  }
+
+  return out;
+}
+
+export function AgentsTab({ eventId }: AgentsTabProps) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const { session } = useAuth();
+  const router = useRouter();
+  const isDevNoAuthBypassEnabled = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+  const isRunningDevNoAuthBypass = isDevNoAuthBypassEnabled && !session?.user?.id;
+  const devBypassUserId = normalizeText(process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID);
+  const effectiveUserId =
+    normalizeText(session?.user?.id) ||
+    (isDevNoAuthBypassEnabled ? devBypassUserId : "");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<AgentGetOne | null>(null);
+  const [events, setEvents] = useState<EventOption[]>([]);
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyAgent, setApplyAgent] = useState<AgentGetOne | null>(null);
+  const [alreadyAppliedEventIds, setAlreadyAppliedEventIds] = useState<string[]>([]);
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+  const [selectedEventCaps, setSelectedEventCaps] = useState<Record<string, string>>({});
+  const [initialSelectedEventCaps, setInitialSelectedEventCaps] = useState<Record<string, string>>({});
+  const [isLoadingEventCaps, setIsLoadingEventCaps] = useState(false);
+  const [applySearch, setApplySearch] = useState("");
+  const [isApplying, setIsApplying] = useState(false);
+  const [search, setSearch] = useState("");
+  const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
+  const [livePreviewDialogOpen, setLivePreviewDialogOpen] = useState(false);
+  const [livePreviewAgent, setLivePreviewAgent] = useState<AgentGetOne | null>(null);
+  const [livePreviewMode, setLivePreviewMode] = useState<SessionLaunchMode>("chat");
+  const [defaultCap, setDefaultCap] = useState<number | null>(null);
+  const [defaultUnlimited, setDefaultUnlimited] = useState(true);
+  const [autoConversations, setAutoConversations] = useState<RoleAutoConversations>({});
+  const [roleLabels, setRoleLabels] = useState<Record<string, string> | null>(null);
+  const [isLoadingSessionSettings, setIsLoadingSessionSettings] = useState(false);
+  const [isSavingSessionSettings, setIsSavingSessionSettings] = useState(false);
+
+  const agentsQuery = useQuery(
+    trpc.agents.getMany.queryOptions({ pageSize: 100 })
+  );
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!effectiveUserId) {
+        setEvents([]);
+        return;
+      }
+
+      try {
+        if (isRunningDevNoAuthBypass) {
+          const { data: publicEvents, error: publicEventsError } = await supabase
+            .from("events")
+            .select("event_id, event_name")
+            .order("event_name", { ascending: true });
+
+          if (publicEventsError) throw publicEventsError;
+
+          const options = (publicEvents || []).map((row) => ({
+            event_id: String((row as { event_id?: unknown }).event_id || ""),
+            event_name:
+              String((row as { event_name?: unknown }).event_name || "").trim() ||
+              "Untitled event",
+          }));
+
+          const deduped = Array.from(
+            new Map(options.filter((e) => e.event_id).map((e) => [e.event_id, e])).values()
+          );
+          setEvents(deduped);
+          return;
+        }
+
+        const { data: userRoles, error } = await supabase
+          .from("user_event_roles")
+          .select("event_id, events:event_id (event_id, event_name)")
+          .eq("user_id", effectiveUserId);
+
+        if (error) throw error;
+
+        const eventOptions: EventOption[] = [];
+        for (const role of userRoles || []) {
+          const eventsData = role.events as unknown;
+          let event: EventOption | null = null;
+
+          if (Array.isArray(eventsData) && eventsData.length > 0) {
+            event = eventsData[0] as EventOption;
+          } else if (
+            eventsData &&
+            typeof eventsData === "object" &&
+            "event_id" in eventsData
+          ) {
+            event = eventsData as EventOption;
+          }
+
+          if (event?.event_id) {
+            eventOptions.push({
+              event_id: event.event_id,
+              event_name: event.event_name || "Untitled event",
+            });
+          }
+        }
+
+        const deduped = Array.from(
+          new Map(eventOptions.map((e) => [e.event_id, e])).values()
+        ).sort((a, b) => a.event_name.localeCompare(b.event_name));
+        setEvents(deduped);
+      } catch (error) {
+        console.error("Error fetching events for agents:", error);
+        setEvents([]);
+      }
+    };
+
+    fetchEvents();
+  }, [effectiveUserId, isRunningDevNoAuthBypass]);
+
+  const loadEventSessionSettings = async () => {
+    if (!eventId) {
+      setDefaultCap(null);
+      setDefaultUnlimited(true);
+      setAutoConversations({});
+      setRoleLabels(null);
+      return;
+    }
+
+    setIsLoadingSessionSettings(true);
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("session_caps, role_labels")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      if (error) throw error;
+
+      const row = data as
+        | { session_caps?: unknown; role_labels?: Record<string, string> | null }
+        | null;
+      const sessionCaps = normalizeSessionCaps(row?.session_caps);
+      const nextDefault = sessionCaps.default;
+
+      setDefaultCap(typeof nextDefault === "number" ? nextDefault : null);
+      setDefaultUnlimited(nextDefault == null);
+      setAutoConversations(normalizeAutoConversations(sessionCaps.auto_conversations));
+      setRoleLabels(row?.role_labels ?? null);
+    } catch (error) {
+      console.error("Error loading session settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load session settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSessionSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadEventSessionSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+
+  const eventNameById = useMemo(
+    () =>
+      new Map<string, string>(
+        events.map((event) => [event.event_id, event.event_name])
+      ),
+    [events]
+  );
+
+  const allOwnedAgents = useMemo<AgentGetOne[]>(() => {
+    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentListItem[];
+    return items.filter((agent: AgentListItem) => Boolean(agent.can_edit));
+  }, [agentsQuery.data]);
+
+  const ownedAgents = useMemo<AgentWithLinkedEvents[]>(() => {
+    if (!eventId) return allOwnedAgents;
+    return allOwnedAgents.filter(
+      (agent: AgentWithLinkedEvents) => {
+        if (String(agent.event_id ?? "") === String(eventId)) return true;
+        const linked = agent.linkedEventIds;
+        if (Array.isArray(linked) && linked.includes(String(eventId))) return true;
+        return false;
+      }
+    );
+  }, [allOwnedAgents, eventId]);
+
+  const filteredOwnedAgents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return ownedAgents;
+    return ownedAgents.filter((agent: AgentGetOne) => {
+      const name = normalizeText(agent.name).toLowerCase();
+      const instructions = normalizeText(agent.instructions).toLowerCase();
+      const type = normalizeText(agent.type).toLowerCase();
+      return name.includes(q) || instructions.includes(q) || type.includes(q);
+    });
+  }, [ownedAgents, search]);
+
+  const eventAgents = useMemo<AgentGetOne[]>(() => {
+    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentWithLinkedEvents[];
+    if (!eventId) return [];
+
+    return items
+      .filter(
+        (agent) => {
+          if (agent.enabled === false) return false;
+          if (String(agent.event_id ?? "") === String(eventId)) return true;
+          const linked = agent.linkedEventIds;
+          if (Array.isArray(linked) && linked.includes(String(eventId))) return true;
+          return false;
+        }
+      )
+      .sort((a, b) =>
+        normalizeText(a.name).localeCompare(normalizeText(b.name))
+      );
+  }, [agentsQuery.data, eventId]);
+
+  const hasApplySelectionChanges = useMemo(() => {
+    if (!applyDialogOpen) return false;
+    const current = new Set(alreadyAppliedEventIds);
+    const next = new Set(selectedEventIds);
+    if (current.size !== next.size) return true;
+    for (const id of current) {
+      if (!next.has(id)) return true;
+    }
+
+    for (const id of next) {
+      const currentCap = normalizedCapForComparison(initialSelectedEventCaps[id]);
+      const nextCap = normalizedCapForComparison(selectedEventCaps[id]);
+      if (currentCap !== nextCap) return true;
+    }
+
+    return false;
+  }, [
+    applyDialogOpen,
+    alreadyAppliedEventIds,
+    selectedEventIds,
+    initialSelectedEventCaps,
+    selectedEventCaps,
+  ]);
+
+  const applyDialogEvents = useMemo(() => {
+    const q = applySearch.trim().toLowerCase();
+    const filtered = !q
+      ? [...events]
+      : events.filter((event) => event.event_name.toLowerCase().includes(q));
+
+    return filtered.sort((a, b) => {
+      const aApplied = alreadyAppliedEventIds.includes(a.event_id) ? 1 : 0;
+      const bApplied = alreadyAppliedEventIds.includes(b.event_id) ? 1 : 0;
+      if (aApplied !== bApplied) return bApplied - aApplied;
+      return a.event_name.localeCompare(b.event_name);
+    });
+  }, [events, applySearch, alreadyAppliedEventIds]);
+
+  const livePreviewPrefill = useMemo(() => {
+    if (!livePreviewAgent) return undefined;
+    const sourceEventId =
+      normalizeText(livePreviewAgent.event_id) || normalizeText(eventId);
+    const name = cleanText(livePreviewAgent.name) || "Agent";
+    return {
+      name: `${name} conversation`,
+      agentId: livePreviewAgent.id,
+      eventId: sourceEventId || undefined,
+    };
+  }, [livePreviewAgent, eventId]);
+
+  const updateAgent = useMutation(
+    trpc.agents.update.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(
+          trpc.agents.getMany.queryOptions({ pageSize: 100 })
+        );
+      },
+      onError: (err) => {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      },
+    })
+  );
+
+  const removeAgent = useMutation(
+    trpc.agents.remove.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(trpc.agents.getMany.queryOptions({}));
+      },
+      onError: (error) => {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      },
+    })
+  );
+
+  const updateEventSessionCaps = useMutation(
+    trpc.agents.updateEventSessionCaps.mutationOptions()
+  );
+
+  const [RemoveConfirmation, confirmRemove] = useConfirm(
+    "Are you sure?",
+    "The following action will remove any associated conversations"
+  );
+
+  const handleRemoveAgent = async (id: string) => {
+    const ok = await confirmRemove();
+    if (!ok) return;
+
+    await removeAgent.mutateAsync({ id });
+  };
+
+  const toggleScoring = (agent: AgentGetOne, scoring: boolean) => {
+    void (async () => {
+      const t = toast({
+        title: scoring ? "Enabling scoring..." : "Disabling scoring...",
+        description: String(agent.name),
+        duration: 3000,
+      });
+      try {
+        await updateAgent.mutateAsync({
+          id: agent.id,
+          scoring,
+          expected_updated_at:
+            typeof (agent as AgentGetOne & { updated_at?: unknown }).updated_at === "string"
+              ? String((agent as AgentGetOne & { updated_at?: unknown }).updated_at)
+              : undefined,
+        });
+      } finally {
+        t.dismiss();
+      }
+    })();
+  };
+
+  const enableAgent = (agent: AgentGetOne, enabled: boolean) => {
+    void (async () => {
+      const t = toast({
+        title: enabled ? "Enabling agent..." : "Disabling agent...",
+        description: String(agent.name),
+        duration: 3000,
+      });
+      try {
+        await updateAgent.mutateAsync({
+          id: agent.id,
+          enabled,
+          expected_updated_at:
+            typeof (agent as AgentGetOne & { updated_at?: unknown }).updated_at === "string"
+              ? String((agent as AgentGetOne & { updated_at?: unknown }).updated_at)
+              : undefined,
+        });
+      } finally {
+        t.dismiss();
+      }
+    })();
+  };
+
+  const openApplyDialog = (agent: AgentGetOne) => {
+    setApplyAgent(agent);
+    setAlreadyAppliedEventIds([]);
+    setSelectedEventIds([]);
+    setSelectedEventCaps({});
+    setInitialSelectedEventCaps({});
+    setApplySearch("");
+    setApplyDialogOpen(true);
+    setIsLoadingEventCaps(true);
+
+    void (async () => {
+      try {
+        // Fetch linked events from the agent_events junction table
+        const { data: linkedRows, error: linkedErr } = await supabase
+          .from("agent_events")
+          .select("event_id")
+          .eq("agent_id", agent.id);
+        if (linkedErr) throw linkedErr;
+
+        const applied = (linkedRows || []).map((r: { event_id: string }) => r.event_id);
+        setAlreadyAppliedEventIds(applied);
+        setSelectedEventIds(applied);
+
+        if (applied.length === 0) {
+          setIsLoadingEventCaps(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("events")
+          .select("event_id, session_caps")
+          .in("event_id", applied);
+
+        if (error) throw error;
+
+        const rows =
+          (data as Array<{ event_id?: string | null; session_caps?: unknown }> | null) || [];
+        const sessionCapsByEventId = new Map<string, EventSessionCaps>();
+        for (const row of rows) {
+          const targetEventId = normalizeText(row.event_id);
+          if (!targetEventId) continue;
+          sessionCapsByEventId.set(targetEventId, normalizeSessionCaps(row.session_caps));
+        }
+
+        const capInputs: Record<string, string> = {};
+        for (const targetEventId of applied) {
+          const caps = sessionCapsByEventId.get(targetEventId)?.agent_caps || {};
+          const capValue = capInputFromValue(caps[agent.id]);
+          capInputs[targetEventId] = capValue;
+        }
+
+        setSelectedEventCaps(capInputs);
+        setInitialSelectedEventCaps(capInputs);
+      } catch (error) {
+        console.error("Error loading apply dialog:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load existing event links for this agent.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingEventCaps(false);
+      }
+    })();
+  };
+
+  const toggleTargetEvent = (targetId: string, checked: boolean) => {
+    setSelectedEventIds((prev) => {
+      if (checked) {
+        if (prev.includes(targetId)) return prev;
+        return [...prev, targetId];
+      }
+      return prev.filter((id) => id !== targetId);
+    });
+  };
+
+  const updateTargetEventCap = (targetId: string, value: string) => {
+    setSelectedEventCaps((prev) => ({
+      ...prev,
+      [targetId]: value,
+    }));
+  };
+
+  const closeApplyDialog = () => {
+    setApplyDialogOpen(false);
+    setApplyAgent(null);
+    setSelectedEventCaps({});
+    setInitialSelectedEventCaps({});
+    setIsLoadingEventCaps(false);
+  };
+
+  const updateAutoConversationAgent = (
+    role: EventRole,
+    agentId: string,
+    enabled: boolean
+  ) => {
+    setAutoConversations((prev) => {
+      const current = new Set(prev[role] || []);
+      if (enabled) {
+        current.add(agentId);
+      } else {
+        current.delete(agentId);
+      }
+
+      const nextRoleValues = Array.from(current);
+      if (nextRoleValues.length === 0) {
+        const rest = { ...prev };
+        delete rest[role];
+        return rest;
+      }
+
+      return { ...prev, [role]: nextRoleValues };
+    });
+  };
+
+  const saveEventSessionSettings = async () => {
+    if (!eventId) return;
+    if (
+      !defaultUnlimited &&
+      (defaultCap == null || !Number.isInteger(defaultCap) || defaultCap < 0)
+    ) {
+      toast({
+        title: "Invalid default cap",
+        description: "Default cap must be a non-negative whole number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingSessionSettings(true);
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("session_caps")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      if (error) throw error;
+
+      const row = data as { session_caps?: unknown } | null;
+      const currentSessionCaps = normalizeSessionCaps(row?.session_caps);
+
+      const sanitizedAutoConversations = AUTO_CONVERSATION_ROLES.reduce(
+        (acc, role) => {
+          const ids = Array.from(
+            new Set((autoConversations[role] || []).filter(Boolean))
+          );
+          if (ids.length > 0) acc[role] = ids;
+          return acc;
+        },
+        {} as RoleAutoConversations
+      );
+
+      const nextSessionCaps: EventSessionCaps = {
+        ...currentSessionCaps,
+        default: defaultUnlimited ? null : defaultCap,
+        agent_caps: currentSessionCaps.agent_caps || {},
+        auto_conversations: sanitizedAutoConversations,
+      };
+
+      await updateEventSessionCaps.mutateAsync({
+        eventId,
+        sessionCaps: nextSessionCaps as Record<string, unknown>,
+      });
+
+      toast({
+        title: "Saved",
+        description: "Session settings updated.",
+      });
+    } catch (error) {
+      console.error("Failed to save session settings", error);
+      toast({
+        title: "Error",
+        description: "Failed to save session settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSessionSettings(false);
+    }
+  };
+
+  const linkToEvents = useMutation(
+    trpc.agents.linkToEvents.mutationOptions({
+      onError: (err) => {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      },
+    })
+  );
+
+  const unlinkFromEvents = useMutation(
+    trpc.agents.unlinkFromEvents.mutationOptions({
+      onError: (err) => {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      },
+    })
+  );
+
+  const applyAgentToEvents = async () => {
+    if (!applyAgent) return;
+    if (!hasApplySelectionChanges) return;
+
+    const selectedCapsByEventId = new Map<string, number | null>();
+    for (const selectedEventId of selectedEventIds) {
+      const parsedCap = parseCapInput(selectedEventCaps[selectedEventId]);
+      if (parsedCap === "invalid") {
+        const targetEventName =
+          eventNameById.get(selectedEventId) ||
+          `Event ${String(selectedEventId).slice(0, 8)}`;
+        toast({
+          title: "Invalid cap",
+          description: `${targetEventName} must use a non-negative whole number.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      selectedCapsByEventId.set(selectedEventId, parsedCap);
+    }
+
+    setIsApplying(true);
+    let linkedCount = 0;
+    let unlinkedCount = 0;
+    let capUpdatedCount = 0;
+    let failedCount = 0;
+
+    try {
+      const currentSet = new Set(alreadyAppliedEventIds);
+      const nextSet = new Set(selectedEventIds);
+      const toRemove = Array.from(currentSet).filter((id) => !nextSet.has(id));
+      const toAdd = Array.from(nextSet).filter((id) => !currentSet.has(id));
+      const capUpdateTargets = Array.from(nextSet).filter(
+        (id) =>
+          currentSet.has(id) &&
+          normalizedCapForComparison(initialSelectedEventCaps[id]) !==
+            normalizedCapForComparison(selectedEventCaps[id])
+      );
+
+      const sessionCapsCache = new Map<string, EventSessionCaps>();
+
+      const getSessionCaps = async (targetEventId: string): Promise<EventSessionCaps> => {
+        const cached = sessionCapsCache.get(targetEventId);
+        if (cached) return cached;
+
+        const { data, error } = await supabase
+          .from("events")
+          .select("session_caps")
+          .eq("event_id", targetEventId)
+          .maybeSingle();
+        if (error) throw error;
+
+        const row = data as { session_caps?: unknown } | null;
+        const normalized = normalizeSessionCaps(row?.session_caps);
+        sessionCapsCache.set(targetEventId, normalized);
+        return normalized;
+      };
+
+      const mergeAgentCapsForEvent = async (
+        targetEventId: string,
+        updates: Record<string, number | undefined>
+      ) => {
+        const currentCaps = await getSessionCaps(targetEventId);
+        const nextAgentCaps = { ...(currentCaps.agent_caps || {}) };
+        let changed = false;
+
+        for (const [agentId, nextCap] of Object.entries(updates)) {
+          if (!agentId) continue;
+
+          if (nextCap === undefined) {
+            if (agentId in nextAgentCaps) {
+              delete nextAgentCaps[agentId];
+              changed = true;
+            }
+            continue;
+          }
+
+          if (nextAgentCaps[agentId] !== nextCap) {
+            nextAgentCaps[agentId] = nextCap;
+            changed = true;
+          }
+        }
+
+        if (!changed) return false;
+
+        const nextSessionCaps: EventSessionCaps = {
+          ...currentCaps,
+          agent_caps: nextAgentCaps,
+        };
+
+        await updateEventSessionCaps.mutateAsync({
+          eventId: targetEventId,
+          sessionCaps: nextSessionCaps as Record<string, unknown>,
+        });
+
+        sessionCapsCache.set(targetEventId, nextSessionCaps);
+        return true;
+      };
+
+      // Unlink removed events
+      if (toRemove.length > 0) {
+        try {
+          await unlinkFromEvents.mutateAsync({
+            agentId: applyAgent.id,
+            eventIds: toRemove,
+          });
+          unlinkedCount = toRemove.length;
+
+          // Clean up session caps for unlinked events
+          for (const targetEventId of toRemove) {
+            await mergeAgentCapsForEvent(targetEventId, {
+              [applyAgent.id]: undefined,
+            });
+          }
+        } catch {
+          failedCount += toRemove.length;
+        }
+      }
+
+      // Link new events
+      if (toAdd.length > 0) {
+        try {
+          await linkToEvents.mutateAsync({
+            agentId: applyAgent.id,
+            eventIds: toAdd,
+          });
+          linkedCount = toAdd.length;
+
+          // Set session caps for newly linked events
+          for (const targetEventId of toAdd) {
+            const selectedCap = selectedCapsByEventId.get(targetEventId);
+            if (selectedCap !== null && selectedCap !== undefined) {
+              const updated = await mergeAgentCapsForEvent(targetEventId, {
+                [applyAgent.id]: selectedCap,
+              });
+              if (updated) capUpdatedCount += 1;
+            }
+          }
+        } catch {
+          failedCount += toAdd.length;
+        }
+      }
+
+      // Update caps for events that stayed but had cap changes
+      for (const targetEventId of capUpdateTargets) {
+        const selectedCap = selectedCapsByEventId.get(targetEventId) ?? null;
+
+        try {
+          const updated = await mergeAgentCapsForEvent(targetEventId, {
+            [applyAgent.id]: selectedCap === null ? undefined : selectedCap,
+          });
+          if (updated) capUpdatedCount += 1;
+        } catch {
+          failedCount += 1;
+        }
+      }
+
+      await queryClient.invalidateQueries(trpc.agents.getMany.queryOptions({}));
+
+      const parts = [
+        linkedCount > 0 ? `${linkedCount} linked` : null,
+        unlinkedCount > 0 ? `${unlinkedCount} unlinked` : null,
+        capUpdatedCount > 0 ? `${capUpdatedCount} cap updates` : null,
+        failedCount > 0 ? `${failedCount} failed` : null,
+      ].filter(Boolean);
+
+      toast({
+        title: "Availability updated",
+        description: parts.length > 0 ? parts.join(" | ") : "No changes made",
+      });
+
+      if (failedCount === 0) {
+        closeApplyDialog();
+      }
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const togglePromptPreview = (agentId: string) => {
+    setExpandedPrompts((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
+  };
+
+  const openLivePreview = (agent: AgentGetOne, mode: SessionLaunchMode) => {
+    setLivePreviewAgent(agent);
+    setLivePreviewMode(mode);
+    setLivePreviewDialogOpen(true);
+  };
+
+  return (
+    <div className="w-full">
+      <div className="mb-4">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-black">Agents</h2>
+          <p className="text-sm text-muted-foreground">
+            Assign focused AI personas for your event without exposing full prompts by default.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+          <EventSearchInput
+            wrapperClassName="flex-1"
+            placeholder="Search agents"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            inputClassName="text-sm sm:text-sm"
+          />
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className="h-10 w-full shrink-0 sm:w-auto"
+          >
+            Add agent
+          </Button>
+        </div>
+      </div>
+
+      {eventId && (
+        <section className="mb-6 rounded-[14px] border border-[rgba(0,0,0,0.14)] bg-white p-4 sm:p-5">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-black">Session Settings</h3>
+            <p className="text-sm text-muted-foreground">
+              Manage default limits and auto-created conversations for this event.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-[rgba(0,0,0,0.1)] p-3">
+              <p className="text-sm font-medium text-black">Default cap per user</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Applies when an event-specific per-agent cap is not set.
+              </p>
+
+              <div className="mt-3 flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={defaultUnlimited ? "" : (defaultCap ?? "")}
+                  onChange={(e) => {
+                    setDefaultUnlimited(false);
+                    const v = e.target.value;
+                    setDefaultCap(v === "" ? null : Math.max(0, Number(v)));
+                  }}
+                  placeholder="e.g. 2"
+                  className="h-9 w-32"
+                  disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                />
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={defaultUnlimited}
+                    onChange={(e) => {
+                      setDefaultUnlimited(e.target.checked);
+                      if (e.target.checked) setDefaultCap(null);
+                    }}
+                    disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                  />
+                  <span>Unlimited</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[rgba(0,0,0,0.1)] p-3">
+              <p className="text-sm font-medium text-black">
+                Auto-create conversations on join
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pick which agents are created automatically for each role.
+              </p>
+
+              {eventAgents.length === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No enabled event agents found. Create or enable agents to configure auto-conversations.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {AUTO_CONVERSATION_ROLES.map((role) => (
+                    <div key={role} className="rounded-md border border-[rgba(0,0,0,0.08)] p-2">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          {getRoleLabel(role, roleLabels)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(autoConversations[role] || []).length} selected
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {eventAgents.map((agent) => {
+                          const checked = (autoConversations[role] || []).includes(agent.id);
+                          return (
+                            <label
+                              key={`${role}-${agent.id}`}
+                              className="flex items-center gap-2 rounded border border-[rgba(0,0,0,0.1)] px-2 py-2 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) =>
+                                  updateAutoConversationAgent(
+                                    role,
+                                    agent.id,
+                                    e.target.checked
+                                  )
+                                }
+                                disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                              />
+                              <span className="flex min-w-0 flex-1 items-center gap-2">
+                                <span className="truncate">{agent.name || agent.id}</span>
+                                <AgentTypeLabel type={agent.type ?? ""} />
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void loadEventSessionSettings();
+              }}
+              disabled={isLoadingSessionSettings || isSavingSessionSettings}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                void saveEventSessionSettings();
+              }}
+              disabled={isLoadingSessionSettings || isSavingSessionSettings}
+            >
+              {isSavingSessionSettings ? "Saving..." : "Save Session Settings"}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      <NewAgentDialog open={dialogOpen} onOpenChange={setDialogOpen} eventId={eventId} />
+
+      {selectedAgent && (
+        <UpdateAgentDialog
+          open={updateDialogOpen}
+          onOpenChange={(open: boolean) => {
+            setUpdateDialogOpen(open);
+          }}
+          initialValues={selectedAgent}
+        />
+      )}
+
+      <RemoveConfirmation />
+
+      <ResponsiveDialog
+        title="Manage agent availability"
+        description="Select events for this agent and set the per-event cap in one place."
+        open={applyDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeApplyDialog();
+          else setApplyDialogOpen(true);
+        }}
+      >
+        <div className="space-y-3">
+          <EventSearchInput
+            placeholder="Search events"
+            value={applySearch}
+            onChange={(e) => setApplySearch(e.target.value)}
+            inputClassName="text-sm sm:text-sm"
+          />
+          <p className="text-xs text-gray-600">
+            Cap is per user for this agent in that event. Leave blank to use the event default.
+          </p>
+          {isLoadingEventCaps && (
+            <p className="text-xs text-gray-500">Loading existing caps...</p>
+          )}
+          {events.length === 0 ? (
+            <p className="text-sm text-gray-600">No events available.</p>
+          ) : applyDialogEvents.length === 0 ? (
+            <p className="text-sm text-gray-600">No events match your search.</p>
+          ) : (
+            <div className="max-h-72 overflow-auto space-y-2 rounded border p-3">
+              {applyDialogEvents.map((event) => {
+                const alreadyExists = alreadyAppliedEventIds.includes(event.event_id);
+                const isSelected = selectedEventIds.includes(event.event_id);
+                return (
+                  <label
+                    key={event.event_id}
+                    className="flex items-center justify-between gap-3 rounded p-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={isApplying}
+                        onCheckedChange={(checked) =>
+                          toggleTargetEvent(event.event_id, Boolean(checked))
+                        }
+                      />
+                      <span className="text-sm">{event.event_name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Cap</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={selectedEventCaps[event.event_id] ?? ""}
+                          onChange={(e) =>
+                            updateTargetEventCap(event.event_id, e.target.value)
+                          }
+                          disabled={!isSelected || isApplying || isLoadingEventCaps}
+                          placeholder="Default"
+                          className="w-24 rounded border px-2 py-1 text-sm"
+                        />
+                      </div>
+                      {alreadyExists && (
+                        <span className="text-xs text-gray-500">already applied</span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={closeApplyDialog}
+              disabled={isApplying}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={applyAgentToEvents}
+              disabled={isApplying || isLoadingEventCaps || !hasApplySelectionChanges}
+            >
+              {isApplying ? "Saving..." : "Save access"}
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        title={livePreviewMode === "call" ? "Start call" : "Start chat"}
+        description="Pick the project context, then start a session with this agent."
+        open={livePreviewDialogOpen}
+        onOpenChange={(open) => {
+          setLivePreviewDialogOpen(open);
+          if (!open) setLivePreviewAgent(null);
+        }}
+      >
+        {livePreviewAgent ? (
+          <MeetingForm
+            key={`${livePreviewAgent.id}-${livePreviewMode}`}
+            prefillValues={livePreviewPrefill}
+            onCancel={() => {
+              setLivePreviewDialogOpen(false);
+              setLivePreviewAgent(null);
+            }}
+            onSuccess={(meetingId) => {
+              setLivePreviewDialogOpen(false);
+              setLivePreviewAgent(null);
+              if (!meetingId) return;
+              router.push(livePreviewMode === "call" ? `/call/${meetingId}` : `/chat/${meetingId}`);
+            }}
+          />
+        ) : (
+          <p className="text-sm text-gray-600">Select an agent first.</p>
+        )}
+      </ResponsiveDialog>
+
+      <div className="space-y-4">
+        {filteredOwnedAgents.map((agent: AgentWithLinkedEvents) => {
+          const linked = agent.linkedEventIds || [];
+          const appliedEventNames = linked
+            .map((id: string) => eventNameById.get(String(id)) || `Event ${String(id).slice(0, 8)}`)
+            .sort((a: string, b: string) => a.localeCompare(b));
+          const appliedEventsLabel =
+            appliedEventNames.length > 0
+              ? appliedEventNames.join(", ")
+              : agent.event_id == null
+                ? "Global (all events)"
+                : eventNameById.get(String(agent.event_id)) ||
+                  `Event ${String(agent.event_id).slice(0, 8)}`;
+
+          const instructions = normalizeText(agent.instructions);
+          const feedbackPrompt = cleanText(agent.feedback_prompt);
+          const isExpanded = Boolean(expandedPrompts[agent.id]);
+          const hasLongPrompt = instructions.length > PROMPT_PREVIEW_LIMIT;
+          const visiblePrompt = isExpanded
+            ? instructions
+            : truncateText(instructions, PROMPT_PREVIEW_LIMIT);
+          const visibleFeedback = truncateText(feedbackPrompt, FEEDBACK_PREVIEW_LIMIT);
+          const meetingCount = Number(
+            (agent as AgentGetOne & { meetingCount?: number }).meetingCount ?? 0
+          );
+          const hasAvatar = cleanText(agent.avatar_url).length > 0;
+
+          return (
+            <article
+              key={agent.id}
+              className="rounded-[14px] border border-[rgba(75,137,239,0.35)] bg-[#f7fbff] p-4 shadow-sm sm:p-5"
+            >
+              <div className="grid gap-4 lg:grid-cols-[220px_1fr_280px]">
+                <section className="self-start overflow-hidden rounded-xl border border-[rgba(0,0,0,0.12)] bg-white">
+                  <div className="p-4 text-center">
+                    <Avatar className="mx-auto h-16 w-16 border border-[rgba(0,0,0,0.15)]">
+                      {hasAvatar && (
+                        <AvatarImage src={String(agent.avatar_url)} alt={String(agent.name)} />
+                      )}
+                      <AvatarFallback className="bg-[#eaf2ff] text-[#2f61b3] text-lg font-semibold">
+                        {getInitials(String(agent.name))}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <h3 className="mt-3 text-base font-semibold text-black">{agent.name}</h3>
+                    <div className="mt-2 flex justify-center">
+                      <AgentTypeLabel type={agent.type} />
+                    </div>
+
+                    {!agent.enabled && (
+                      <p className="mt-2 text-xs font-medium text-gray-500">Paused</p>
+                    )}
+
+                    <span className="mt-3 inline-flex items-center gap-1 rounded-md border border-yellow-700/10 bg-yellow-500/20 px-2.5 py-1 text-xs font-medium text-yellow-800">
+                      <ClockArrowUp className="h-3.5 w-3.5" />
+                      Upcoming
+                    </span>
+
+                    <p className="mt-3 text-xs text-gray-500">Available in</p>
+                    <p className="line-clamp-3 text-sm text-gray-700">{appliedEventsLabel}</p>
+                  </div>
+
+                  <div className="-mt-px flex divide-x divide-gray-200 border-t border-gray-200">
+                    <button
+                      type="button"
+                      className="inline-flex w-0 flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                      onClick={() => openLivePreview(agent, "chat")}
+                    >
+                      <MessageSquare className="h-5 w-5 text-gray-400" />
+                      Chat
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex w-0 flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                      onClick={() => openLivePreview(agent, "call")}
+                    >
+                      <PhoneCall className="h-5 w-5 text-gray-400" />
+                      Start Call
+                    </button>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-4">
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#eef5ff] px-2.5 py-1 text-xs text-[#305f99]">
+                      <Bot className="h-3.5 w-3.5" />
+                      Persona
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#eef5ff] px-2.5 py-1 text-xs text-[#305f99]">
+                      <Mic className="h-3.5 w-3.5" />
+                      {formatVoiceLabel(agent.voice)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#eef5ff] px-2.5 py-1 text-xs text-[#305f99]">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      {meetingCount} {meetingCount === 1 ? "session" : "sessions"}
+                    </span>
+                  </div>
+
+                  <div className="rounded-lg border border-[rgba(0,0,0,0.1)] bg-[#fbfdff] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Instructions
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                      {visiblePrompt || "No persona instructions yet."}
+                    </p>
+
+                    {hasLongPrompt && (
+                      <button
+                        type="button"
+                        onClick={() => togglePromptPreview(agent.id)}
+                        className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[#4b89ef] hover:text-[#3f7bd8]"
+                      >
+                        {isExpanded ? (
+                          <>
+                            Hide full prompt
+                            <ChevronUp className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            Show full prompt
+                            <ChevronDown className="h-4 w-4" />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {feedbackPrompt && (
+                    <div className="mt-3 rounded-lg border border-dashed border-[rgba(0,0,0,0.12)] p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Feedback behavior
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">{visibleFeedback}</p>
+                    </div>
+                  )}
+
+                </section>
+
+                <aside className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Live controls
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-[rgba(0,0,0,0.1)] px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-black">Enable agent</p>
+                        <p className="text-xs text-gray-500">Can participants use it?</p>
+                      </div>
+                      <Switch
+                        aria-label={agent.enabled ? "Disable agent" : "Enable agent"}
+                        checked={Boolean(agent.enabled)}
+                        onCheckedChange={(e) => enableAgent(agent, e as boolean)}
+                        disabled={updateAgent.isPending}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-[rgba(0,0,0,0.1)] px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-black">Scoring mode</p>
+                        <p className="text-xs text-gray-500">Add numeric evaluations</p>
+                      </div>
+                      <Switch
+                        aria-label={agent.scoring === false ? "Enable scoring" : "Disable scoring"}
+                        checked={Boolean(agent.scoring ?? true)}
+                        onCheckedChange={(e) => toggleScoring(agent, e as boolean)}
+                        disabled={updateAgent.isPending}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => openApplyDialog(agent)}
+                      disabled={isApplying}
+                    >
+                      Event access
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedAgent(agent);
+                        setUpdateDialogOpen(true);
+                      }}
+                    >
+                      Edit agent
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => handleRemoveAgent(agent.id)}
+                      disabled={removeAgent.isPending}
+                    >
+                      Delete agent
+                    </Button>
+                  </div>
+                </aside>
+              </div>
+            </article>
+          );
+        })}
+
+        {agentsQuery.isLoading && (
+          <div className="rounded-[14px] border border-[rgba(0,0,0,0.15)] bg-white p-6 text-sm text-gray-500">
+            Loading agents...
+          </div>
+        )}
+
+        {!agentsQuery.isLoading && filteredOwnedAgents.length === 0 && (
+          <div className="rounded-[14px] border border-dashed border-[rgba(0,0,0,0.25)] bg-white p-8 text-center">
+            <p className="text-base font-medium text-black">No agents found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {!session?.user?.id
+                ? "Sign in to view and manage agents."
+                : search.trim().length > 0
+                  ? "Try a different search or clear filters."
+                  : "Create an agent to start assigning AI personas to your events."}
+            </p>
+            {session?.user?.id && search.trim().length === 0 && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  size="sm"
+                  onClick={() => setDialogOpen(true)}
+                  className="flex justify-center items-center gap-2 rounded-xl py-2 px-5 text-white border-0 shadow-none hover:opacity-90"
+                  style={{
+                    background: "var(--Color-Jacksons-Purple, #4B89EF)",
+                    boxShadow:
+                      "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                  }}
+                >
+                  Add your first agent
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default AgentsTab;

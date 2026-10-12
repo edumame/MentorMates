@@ -24,17 +24,17 @@ export function useProfile(): UseProfileResult {
         return;
       }
 
-      if (!session?.user?.email) {
+      if (!session?.user?.id) {
         setIsLoading(false);
-        setError("No email found in session");
+        setError("No user ID found in session");
         return;
       }
-      // Get uid from user_profiles using email from auth session
+      // Fetch own profile by authenticated user ID
       try {
         const { data: userProfile, error: profileError } = await supabase
           .from("user_profiles")
           .select("uid, display_name")
-          .eq("email", session.user.email)
+          .eq("uid", session.user.id)
           .single();
 
         if (profileError || !userProfile) {

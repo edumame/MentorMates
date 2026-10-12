@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useActiveRole } from "./ActiveRoleContext";
+import { EVENT_PAGE_SHELL_CLASS } from "./event-page-shell";
+import { EventRole } from "@/lib/types";
 
 interface EventPageTabsProps {
   eventId: string;
@@ -9,6 +12,7 @@ interface EventPageTabsProps {
   projectCount?: number;
   showTicketsTab?: boolean;
   showParticipantsTab?: boolean;
+  showTeamTab?: boolean;
 }
 
 export function EventPageTabs({
@@ -17,9 +21,14 @@ export function EventPageTabs({
   projectCount,
   showTicketsTab,
   showParticipantsTab = true,
+  showTeamTab = false,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { activeRole } = useActiveRole();
+
+  // Judges only need the Overview tab — the scoring UI is embedded there
+  const isJudge = activeRole === EventRole.Judge;
 
   const tabs: Array<{
     name: string;
@@ -27,10 +36,13 @@ export function EventPageTabs({
     badge?: number | null;
   }> = [
     { name: "Overview", path: `/events/${eventId}/overview` },
-    { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
   ];
 
-  if (showParticipantsTab) {
+  if (!isJudge) {
+    tabs.push({ name: "Schedule", path: `/events/${eventId}/schedule`, badge: null });
+  }
+
+  if (!isJudge && showParticipantsTab) {
     tabs.push({
       name: "Participants",
       path: `/events/${eventId}/participants`,
@@ -38,16 +50,27 @@ export function EventPageTabs({
     });
   }
 
-  tabs.push({
-    name: "Projects",
-    path: `/events/${eventId}/gallery`,
-    badge: projectCount,
-  });
+  if (!isJudge && showTeamTab) {
+    tabs.push({ name: "Team", path: `/events/${eventId}/team` });
+  }
 
-  tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
-  // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+  if (!isJudge) {
+    tabs.push({
+      name: "Projects",
+      path: `/events/${eventId}/gallery`,
+      badge: projectCount,
+    });
 
-  if (showTicketsTab) {
+    tabs.push({
+      name: "Voting",
+      path: `/events/${eventId}/voting`,
+    });
+
+    tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
+    // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+  }
+
+  if (!isJudge && showTicketsTab) {
     tabs.push({ name: "Tickets", path: `/events/${eventId}/tickets` });
   }
 
@@ -60,35 +83,37 @@ export function EventPageTabs({
 
   return (
     <div className="border-b border-[#f2f2f2] w-full">
-      <div className="flex gap-4 md:gap-6 items-start px-4 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
-        {tabs.map((tab) => {
-          const isActive = pathname === tab.path;
+      <div className={EVENT_PAGE_SHELL_CLASS}>
+        <div className="flex gap-4 md:gap-6 items-start w-full overflow-x-auto no-scrollbar whitespace-nowrap">
+          {tabs.map((tab) => {
+            const isActive = pathname === tab.path;
 
-          return (
-            <Link
-              key={tab.name}
-              href={getHrefWithParams(tab.path)}
-              className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
-                isActive ? "border-b-2 border-[#4b89ef]" : ""
-              }`}
-            >
-              <p
-                className={`${
-                  isActive ? "font-medium" : "font-normal"
-                } text-sm md:text-base text-black`}
+            return (
+              <Link
+                key={tab.name}
+                href={getHrefWithParams(tab.path)}
+                className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
+                  isActive ? "border-b-2 border-[#4b89ef]" : ""
+                }`}
               >
-                {tab.name}
-              </p>
-              {tab.badge !== null && tab.badge !== undefined && (
-                <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px] flex-shrink-0">
-                  <p className="font-normal text-xs md:text-sm text-black">
-                    {tab.badge}
-                  </p>
-                </div>
-              )}
-            </Link>
-          );
-        })}
+                <p
+                  className={`${
+                    isActive ? "font-medium" : "font-normal"
+                  } text-base text-black`}
+                >
+                  {tab.name}
+                </p>
+                {tab.badge !== null && tab.badge !== undefined && (
+                  <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px] flex-shrink-0">
+                    <p className="font-normal text-xs md:text-sm text-black">
+                      {tab.badge}
+                    </p>
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

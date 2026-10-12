@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getProjectInvitationEmailTemplate } from '@/lib/email_templates/project-invitation';
+import { generateProjectInviteToken } from '@/lib/utils/jwt';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -88,6 +89,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
   }
 
+  // Generate JWT token for the invitation
+  let inviteToken: string;
+  try {
+    inviteToken = await generateProjectInviteToken(
+      {
+        email: email.trim().toLowerCase(),
+        projectId: project.id,
+        invitedBy: userEmail || auth.user.id,
+      },
+      600 // 10 minutes
+    );
+  } catch {
+    return NextResponse.json({ error: 'Failed to generate invitation token' }, { status: 500 });
+  }
+
   // Send invitation email
   try {
     const emailTemplate = getProjectInvitationEmailTemplate(
@@ -95,6 +111,7 @@ export async function POST(request: Request) {
       project.id,
       inviterName,
       eventName,
+      inviteToken,
     );
 
     const { error: emailError } = await resend.emails.send({

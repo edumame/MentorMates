@@ -17,17 +17,18 @@ const BLUE_PRIMARY = "#3B82F6";
 const svgIcons = {
   calendar: (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
-      <path d="M16 2.5V6.5M8 2.5V6.5M3 10.5H21M5 4.5H19C20.1046 4.5 21 5.39543 21 6.5V20.5C21 21.6046 20.1046 22.5 19 22.5H5C3.89543 22.5 3 21.6046 3 20.5V6.5C3 5.39543 3.89543 4.5 5 4.5Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M16 2.5V6.5M8 2.5V6.5M3 10.5H21M5 4.5H19C20.1046 4.5 21 5.39543 21 6.5V20.5C21 21.6046 20.1046 22.5 19 22.5H5C3.89543 22.5 3 21.6046 3 20.5V6.5C3 5.39543 3.89543 4.5 5 4.5Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   createProject: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" viewBox="0 0 20 21" fill="none">
-      <path d="M9 1.5V9.5L12 6.5L15 9.5V1.5M3 1.5H17C18.1046 1.5 19 2.39543 19 3.5V17.5C19 18.6046 18.1046 19.5 17 19.5H3C1.89543 19.5 1 18.6046 1 17.5V3.5C1 2.39543 1.89543 1.5 3 1.5Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 0 24 24" width="40px" fill="#528EF0" style={{ width: 34, height: 34 }}><path d="M0 0h24v24H0V0z" fill="none" /><path d="M22.61 18.99l-9.08-9.08c.93-2.34.45-5.1-1.44-7C9.79.61 6.21.4 3.66 2.26L7.5 6.11 6.08 7.52 2.25 3.69C.39 6.23.6 9.82 2.9 12.11c1.86 1.86 4.57 2.35 6.89 1.48l9.11 9.11c.39.39 1.02.39 1.41 0l2.3-2.3c.4-.38.4-1.01 0-1.41zm-3 1.6l-9.46-9.46c-.61.45-1.29.72-2 .82-1.36.2-2.79-.21-3.83-1.25C3.37 9.76 2.93 8.5 3 7.26l3.09 3.09 4.24-4.24-3.09-3.09c1.24-.07 2.49.37 3.44 1.31 1.08 1.08 1.49 2.57 1.24 3.96-.12.71-.42 1.37-.88 1.96l9.45 9.45-.88.89z" /></svg>
+  ),
+  project: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"></path></svg>
   ),
   event: (
     <svg xmlns="http://www.w3.org/2000/svg" width="35" height="34" viewBox="0 0 35 34" fill="none">
-      <path d="M25.1484 27.2301H22.105C21.7645 27.2301 21.4784 27.1136 21.2465 26.8805C21.0144 26.6475 20.8984 26.3584 20.8984 26.0132C20.8984 25.668 21.0144 25.3809 21.2465 25.1518C21.4784 24.9231 21.7645 24.8087 22.105 24.8087H25.1484V21.765C25.1484 21.4245 25.265 21.1383 25.4983 20.9065C25.7313 20.6746 26.019 20.5587 26.3614 20.5587C26.7035 20.5587 26.9891 20.6746 27.2181 20.9065C27.4472 21.1383 27.5617 21.4245 27.5617 21.765V24.8087H30.605C30.9455 24.8087 31.2317 24.9252 31.4635 25.1582C31.6956 25.3913 31.8117 25.6804 31.8117 26.0256C31.8117 26.3708 31.6956 26.6578 31.4635 26.8866C31.2317 27.1156 30.9455 27.2301 30.605 27.2301H27.5617V30.2649C27.5617 30.6113 27.445 30.9004 27.2118 31.1323C26.9787 31.3642 26.691 31.4801 26.3486 31.4801C26.0065 31.4801 25.7209 31.3642 25.4919 31.1323C25.2629 30.9004 25.1484 30.6113 25.1484 30.2649V27.2301ZM6.952 28.5451C6.30033 28.5451 5.73532 28.3058 5.25696 27.8272C4.77836 27.3489 4.53906 26.7838 4.53906 26.1322V7.15947C4.53906 6.50545 4.77836 5.93842 5.25696 5.45841C5.73532 4.97816 6.30033 4.73804 6.952 4.73804H9.17794V3.82251C9.17794 3.4837 9.29552 3.19741 9.53069 2.96366C9.76609 2.72991 10.0523 2.61304 10.3892 2.61304C10.736 2.61304 11.0286 2.72991 11.2668 2.96366C11.505 3.19741 11.6242 3.4837 11.6242 3.82251V4.73804H20.5442V3.82251C20.5442 3.4837 20.6619 3.19741 20.8973 2.96366C21.1325 2.72991 21.4185 2.61304 21.7555 2.61304C22.1025 2.61304 22.3951 2.72991 22.6331 2.96366C22.8713 3.19741 22.9904 3.4837 22.9904 3.82251V4.73804H25.2164C25.8704 4.73804 26.4374 4.97816 26.9174 5.45841C27.3977 5.93842 27.6378 6.50545 27.6378 7.15947V16.4663C27.6378 16.8126 27.5196 17.1018 27.2833 17.3336C27.0467 17.5655 26.7576 17.6814 26.4159 17.6814C26.074 17.6814 25.7886 17.5655 25.5596 17.3336C25.3308 17.1018 25.2164 16.8126 25.2164 16.4663V13.8125H6.952V26.1322H16.8333C17.1733 26.1322 17.4607 26.2487 17.6956 26.4817C17.9308 26.7148 18.0484 27.0025 18.0484 27.3448C18.0484 27.6872 17.9308 27.9728 17.6956 28.2016C17.4607 28.4306 17.1733 28.5451 16.8333 28.5451H6.952ZM6.952 11.6875H25.2164V7.15947H6.952V11.6875Z" fill={BLUE_PRIMARY}/>
+      <path d="M25.1484 27.2301H22.105C21.7645 27.2301 21.4784 27.1136 21.2465 26.8805C21.0144 26.6475 20.8984 26.3584 20.8984 26.0132C20.8984 25.668 21.0144 25.3809 21.2465 25.1518C21.4784 24.9231 21.7645 24.8087 22.105 24.8087H25.1484V21.765C25.1484 21.4245 25.265 21.1383 25.4983 20.9065C25.7313 20.6746 26.019 20.5587 26.3614 20.5587C26.7035 20.5587 26.9891 20.6746 27.2181 20.9065C27.4472 21.1383 27.5617 21.4245 27.5617 21.765V24.8087H30.605C30.9455 24.8087 31.2317 24.9252 31.4635 25.1582C31.6956 25.3913 31.8117 25.6804 31.8117 26.0256C31.8117 26.3708 31.6956 26.6578 31.4635 26.8866C31.2317 27.1156 30.9455 27.2301 30.605 27.2301H27.5617V30.2649C27.5617 30.6113 27.445 30.9004 27.2118 31.1323C26.9787 31.3642 26.691 31.4801 26.3486 31.4801C26.0065 31.4801 25.7209 31.3642 25.4919 31.1323C25.2629 30.9004 25.1484 30.6113 25.1484 30.2649V27.2301ZM6.952 28.5451C6.30033 28.5451 5.73532 28.3058 5.25696 27.8272C4.77836 27.3489 4.53906 26.7838 4.53906 26.1322V7.15947C4.53906 6.50545 4.77836 5.93842 5.25696 5.45841C5.73532 4.97816 6.30033 4.73804 6.952 4.73804H9.17794V3.82251C9.17794 3.4837 9.29552 3.19741 9.53069 2.96366C9.76609 2.72991 10.0523 2.61304 10.3892 2.61304C10.736 2.61304 11.0286 2.72991 11.2668 2.96366C11.505 3.19741 11.6242 3.4837 11.6242 3.82251V4.73804H20.5442V3.82251C20.5442 3.4837 20.6619 3.19741 20.8973 2.96366C21.1325 2.72991 21.4185 2.61304 21.7555 2.61304C22.1025 2.61304 22.3951 2.72991 22.6331 2.96366C22.8713 3.19741 22.9904 3.4837 22.9904 3.82251V4.73804H25.2164C25.8704 4.73804 26.4374 4.97816 26.9174 5.45841C27.3977 5.93842 27.6378 6.50545 27.6378 7.15947V16.4663C27.6378 16.8126 27.5196 17.1018 27.2833 17.3336C27.0467 17.5655 26.7576 17.6814 26.4159 17.6814C26.074 17.6814 25.7886 17.5655 25.5596 17.3336C25.3308 17.1018 25.2164 16.8126 25.2164 16.4663V13.8125H6.952V26.1322H16.8333C17.1733 26.1322 17.4607 26.2487 17.6956 26.4817C17.9308 26.7148 18.0484 27.0025 18.0484 27.3448C18.0484 27.6872 17.9308 27.9728 17.6956 28.2016C17.4607 28.4306 17.1733 28.5451 16.8333 28.5451H6.952ZM6.952 11.6875H25.2164V7.15947H6.952V11.6875Z" fill="#528EF0" />
     </svg>
   ),
   feedback: (
@@ -140,12 +141,7 @@ export function DashBoardStats() {
         href: "/events",
         icon: svgIcons.event,
         label: "Join an event",
-      },
-      {
-        href: "/projects/submit",
-        icon: svgIcons.createProject,
-        label: "Create a project",
-      },
+      }
     ],
     []
   );
@@ -160,7 +156,7 @@ export function DashBoardStats() {
       {
         label: "My projects",
         value: counts.projects,
-        icon: svgIcons.createProject,
+        icon: svgIcons.project,
       },
       {
         label: "Feedback received",
@@ -173,22 +169,22 @@ export function DashBoardStats() {
 
   return (
     <section className="w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-2">
-          <div className="relative grid gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:items-stretch">
+        <div className="lg:col-span-2 flex min-h-0">
+          <div className="relative flex flex-1 flex-col gap-3 min-h-0">
             {ctas.map((cta) => (
               <Card
                 key={cta.label}
-                className="border border-gray-200 shadow-none hover:shadow-sm transition"
+                className="border border-gray-200 shadow-none hover:shadow-sm transition rounded-2xl flex flex-1 flex-col min-h-0"
               >
-                <CardContent className="py-4 px-4">
+                <CardContent className="flex flex-1 flex-col justify-center py-4 px-4">
                   <Button
                     asChild
                     variant="ghost"
                     className="h-auto w-full justify-start px-0"
                   >
                     <Link href={cta.href} className="flex items-center gap-3">
-                      <span className="inline-grid h-9 w-9 place-items-center rounded-md bg-blue-50 ring-1 ring-blue-100">
+                      <span className="inline-grid h-12 w-12 place-items-center rounded-[12px] bg-blue-50 ring-1 ring-blue-100">
                         {cta.icon}
                       </span>
                       <span className="text-[15px] font-medium text-gray-800">
@@ -203,15 +199,15 @@ export function DashBoardStats() {
         </div>
 
         {/* Right stat cards */}
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 lg:h-full lg:min-h-0">
           {stats.map((stat) => (
             <Card
               key={stat.label}
-              className="border border-gray-200 rounded-xl shadow-none hover:shadow-sm transition"
+              className="border border-gray-200 rounded-xl shadow-none hover:shadow-sm transition rounded-2xl"
             >
               <CardContent className="px-4 py-4">
                 <div className="flex flex-col items-left gap-2 text-gray-800">
-                  <span className="h-6 w-6 items-center justify-center">
+                  <span className="w-fit p-2 rounded-xl items-center justify-center inline-block bg-blue-50 ring-1 ring-blue-100">
                     {stat.icon}
                   </span>
                   <span className="text-md">{stat.label}</span>

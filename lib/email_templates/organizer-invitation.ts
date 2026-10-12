@@ -9,17 +9,20 @@ export function getOrganizerInvitationEmailTemplate(
   inviterName: string,
   eventSlug?: string,
   isNewUser?: boolean,
-  acceptUrl?: string
+  acceptUrl?: string,
+  eventUrlOverride?: string
 ): OrganizerInvitationEmailTemplate {
-  const eventUrl = eventSlug
-    ? `https://mentormates.ai/events/${eventSlug}/overview`
-    : `https://mentormates.ai/events/${eventId}/overview`;
+  const eventUrl =
+    eventUrlOverride ||
+    `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventSlug || eventId}/overview`;
 
   const actionUrl = isNewUser && acceptUrl ? acceptUrl : eventUrl;
-  const actionText = isNewUser ? 'Accept Invitation & Sign Up' : 'Access Event Dashboard';
+  const actionText = isNewUser
+    ? "Accept Invitation & Sign Up"
+    : "Access Event Dashboard";
   const instructionText = isNewUser
-    ? 'Click the button below to accept your invitation. You\'ll be prompted to create an account or sign in, and you\'ll automatically receive organizer access for this event.'
-    : 'Your organizer permissions have already been activated. Simply log in to your MentorMates account to access the event dashboard.';
+    ? "Click the button below to accept your invitation. You'll be prompted to create an account or sign in, and you'll automatically receive organizer access for this event."
+    : "Your organizer permissions have already been activated. Simply log in to your MentorMates account to access the event dashboard.";
 
   return {
     subject: `You've been invited to organize "${eventName}" - MentorMates`,

@@ -17,6 +17,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface Project {
   id: string;
@@ -31,6 +32,7 @@ interface Project {
 export default function JoinProjectPage() {
   const params = useParams();
   const router = useRouter();
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const projectId = params.id as string;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const token = params.token as string;
@@ -143,7 +145,7 @@ export default function JoinProjectPage() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-gray-600 mb-4">Please log in to join this project.</p>
-            <Link href={`/login?returnUrl=${encodeURIComponent(window.location.pathname)}`}>
+            <Link href="/login" onClick={setReturnUrlFromCurrentLocation}>
               <Button className="w-full bg-blue-900 text-white hover:bg-blue-800">Login to Continue</Button>
             </Link>
           </CardContent>

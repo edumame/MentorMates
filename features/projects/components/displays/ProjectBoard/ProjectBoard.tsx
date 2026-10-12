@@ -9,8 +9,6 @@ import {
   User,
   MoreHorizontal,
   MessageSquare,
-  QrCode,
-  ExternalLink,
   Trash2,
   Sparkles,
 } from "lucide-react";
@@ -19,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -34,12 +33,14 @@ import { toast } from "@/lib/hooks/use-toast";
 import QRCode from "react-qr-code";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 export interface ProjectBoardProps {
   isLoading: boolean;
   projectList: Project[];
   session?: import("@supabase/supabase-js").Session | null;
   projectBoardContext: ProjectBoardContext;
+  onProjectDeleted?: (projectId: string) => void;
 }
 
 const ProjectBoard = ({
@@ -47,6 +48,7 @@ const ProjectBoard = ({
   projectList,
   session,
   projectBoardContext,
+  onProjectDeleted,
 }: ProjectBoardProps) => {
   const [qrDialogOpen, setQrDialogOpen] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
@@ -64,10 +66,10 @@ const ProjectBoard = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mx-auto"
+          className="mx-auto w-full"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-[24px]">
+            <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -77,9 +79,13 @@ const ProjectBoard = ({
                 const isOwner = project.lead_email === session?.user?.email;
 
                 return (
-                  <Link href={projectUrl} key={project.id} className="block">
+                  <Link
+                    href={projectUrl}
+                    key={project.id}
+                    className="block group w-full max-w-[420px] mx-auto sm:mx-0"
+                  >
                     <Card
-                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
+                      className={`bg-white rounded-[12px] overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
                         project.prizes_won && project.prizes_won.length > 0
                           ? "ring-2 ring-yellow-400"
                           : ""
@@ -88,7 +94,7 @@ const ProjectBoard = ({
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
                         <div className="absolute top-4 left-4 right-4 z-20">
-                          <div className="bg-white border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center shadow-lg rounded-lg">
+                          <div className="bg-white/95 backdrop-blur-sm border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center shadow-lg rounded-lg">
                             <Trophy className="h-4 w-4 mr-2 text-yellow-600" />
                             <span className="font-semibold text-sm">
                               {project.prizes_won.length === 1
@@ -99,60 +105,57 @@ const ProjectBoard = ({
                         </div>
                       )}
 
-                      {/* Thumbnail (top half) – using <img>, no next/image */}
-                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-slate-100">
-                        <img
-                          src={
-                            project.cover_image_url || "/img/placeholder.png"
-                          }
+                      {/* Thumbnail Section - same aspect as event card (335/223) */}
+                      <div className="relative w-full aspect-[335/223] bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 overflow-hidden">
+                        <CoverImageWithFallback
+                          src={project.cover_image_url}
                           alt={`${project.project_name || "Project"} thumbnail`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                           decoding="async"
                         />
                         {!project.cover_image_url && (
-                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-gray-500/60 to-gray-700/60">
-                            <h3 className="text-white text-xl font-semibold text-center break-words">
+                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/25">
+                            <h3 className="text-white text-xl font-semibold text-center break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
                               {project.project_name || "Project"}
                             </h3>
                           </div>
                         )}
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/20 to-transparent" />
+
+                        {/* Status Badges - Overlay on Image */}
+                        <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+                          <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                            {project.submitted ? <Sparkles className="w-3 h-3" /> : <Loader className="w-3 h-3 animate-spin" />}
+                            {project.submitted ? "Submitted" : "Draft"}
+                          </div>
+                          {isOwner && (
+                            <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                              <User className="w-3 h-3" />
+                              Owner
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Lower content */}
-                      <div className="p-6 flex-1 flex flex-col">
-                        {/* Project name + status chips */}
-                        <div className="flex items-start justify-between mb-4 gap-2">
-                          <h3 className="font-bold text-black flex-1 min-w-0 truncate">
-                            {project.project_name || "Project"}
-                          </h3>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <div className="bg-transparent border border-gray-300 text-gray-700 px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 whitespace-nowrap">
-                              <Sparkles className="w-3 h-3" />
-                              {project.submitted ? "Submitted" : "Draft"}
-                            </div>
-                            {isOwner && (
-                              <div className="bg-transparent border border-gray-300 text-gray-700 px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 whitespace-nowrap">
-                                <User className="w-3 h-3" />
-                                Owner
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                      {/* Content Section - padding aligned with event card */}
+                      <div className="px-6 py-4 flex-1 flex flex-col bg-white">
+                        {/* Project Title */}
+                        <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2 line-clamp-2">
+                          {project.project_name || "Project"}
+                        </h3>
 
                         {/* Description */}
                         {project.project_description && (
-                          <p className="text-gray-800 text-sm leading-relaxed mb-4 line-clamp-2">
+                          <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-2 flex-1">
                             {project.project_description}
                           </p>
                         )}
 
-                        {/* Meta row */}
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <CalendarClock className="w-4 h-4" />
-                            <span>
+                        {/* Metadata Row */}
+                        <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-1.5">
+                            <CalendarClock className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">
                               {project.created_at
                                 ? new Date(
                                     project.created_at
@@ -164,49 +167,65 @@ const ProjectBoard = ({
                                 : "N/A"}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <ThumbsUp className="w-4 h-4" />
-                            <span>0</span>
+                          <div className="flex items-center gap-1.5">
+                            <ThumbsUp className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">0</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="w-4 h-4" />
-                            <span>0</span>
+                          <div className="flex items-center gap-1.5">
+                            <MessageSquare className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">0</span>
                           </div>
                         </div>
 
-                        {/* Avatars + menu */}
-                        <div className="flex items-center justify-between mt-auto">
-                          <div className="flex items-center -space-x-2">
-                            <div
-                              className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
-                              title={project.lead_name || "Lead"}
+                        {/* Footer: QR Button, Avatars, Menu */}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div className="flex items-center gap-3">
+                            {/* QR Code Button */}
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setQrDialogOpen(project.id);
+                              }}
+                              className="w-9 h-9 rounded-full bg-[#4b89ef] hover:bg-[#3a6fd8] flex items-center justify-center text-white font-semibold text-sm transition-all duration-200 hover:scale-110 shadow-sm"
+                              title="Share QR Code"
                             >
-                              {project.lead_name?.charAt(0).toUpperCase() ||
-                                "L"}
-                            </div>
-                            {project.teammates &&
-                              project.teammates.slice(0, 3).map((t, i) => {
-                                const colors = [
-                                  "from-purple-400 to-purple-600",
-                                  "from-pink-400 to-pink-600",
-                                  "from-orange-400 to-orange-600",
-                                ];
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
-                                    title={t}
-                                  >
-                                    {t.charAt(0).toUpperCase()}
+                              Q
+                            </button>
+
+                            {/* Avatar Stack */}
+                            <div className="flex items-center -space-x-2">
+                              <div
+                                className="w-9 h-9 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs shadow-sm"
+                                title={project.lead_name || "Lead"}
+                              >
+                                {project.lead_name?.charAt(0).toUpperCase() ||
+                                  "L"}
+                              </div>
+                              {project.teammates &&
+                                project.teammates.slice(0, 3).map((t, i) => {
+                                  const colors = [
+                                    "from-purple-400 to-purple-600",
+                                    "from-pink-400 to-pink-600",
+                                    "from-orange-400 to-orange-600",
+                                  ];
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={`w-9 h-9 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs shadow-sm`}
+                                      title={t}
+                                    >
+                                      {t.charAt(0).toUpperCase()}
+                                    </div>
+                                  );
+                                })}
+                              {project.teammates &&
+                                project.teammates.length > 3 && (
+                                  <div className="w-9 h-9 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium shadow-sm">
+                                    +{project.teammates.length - 3}
                                   </div>
-                                );
-                              })}
-                            {project.teammates &&
-                              project.teammates.length > 3 && (
-                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
-                                  +{project.teammates.length - 3}
-                                </div>
-                              )}
+                                )}
+                            </div>
                           </div>
 
                           {/* Three dots menu – only on My Projects */}
@@ -217,14 +236,24 @@ const ProjectBoard = ({
                                 asChild
                                 onClick={(e) => e.preventDefault()}
                               >
-                                <button className="p-1 hover:bg-gray-100 rounded-full">
+                                <button className="p-1.5 hover:bg-gray-100 rounded-full transition-colors">
                                   <MoreHorizontal className="w-5 h-5 text-gray-400" />
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
                                 onClick={(e) => e.stopPropagation()}
+                                className="w-40"
                               >
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.open(projectUrl, "_blank");
+                                  }}
+                                >
+                                  View details
+                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -232,24 +261,11 @@ const ProjectBoard = ({
                                     setQrDialogOpen(project.id);
                                   }}
                                 >
-                                  <QrCode className="h-4 w-4 mr-2" />
-                                  Show QR Code
+                                  Share
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    window.open(
-                                      `/projects/public/${project.id}`,
-                                      "_blank"
-                                    );
-                                  }}
-                                >
-                                  <ExternalLink className="h-4 w-4 mr-2" />
-                                  Feedback Page
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-red-600 focus:text-red-600"
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -286,15 +302,32 @@ const ProjectBoard = ({
                     );
                   case ProjectBoardContext.EventGallery:
                     return (
-                      <div className="flex flex-col items-center justify-center space-y-4 mt-12">
-                        <div className="text-center space-y-3">
+                      <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
+                        <div className="text-center space-y-3 flex flex-col items-center justify-center">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="30"
+                            height="30"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z"
+                              stroke="#09090B"
+                            ></path>
+                          </svg>
                           <h3 className="text-xl font-semibold text-gray-700">
-                            No Projects Found
+                            No project yet
                           </h3>
                           <p className="text-gray-500 max-w-sm">
-                            Try adjusting your search criteria or be the first
-                            to submit a project!
+                            Join the event to submit a project or create a
+                            project directly.
                           </p>
+                          <Button className="mt-4">
+                            <Link href="/projects/submit">
+                              Submit a project
+                            </Link>
+                          </Button>
                         </div>
                       </div>
                     );
@@ -360,10 +393,11 @@ const ProjectBoard = ({
               variant="destructive"
               onClick={async () => {
                 if (!deleteDialogOpen) return;
+                const projectIdToDelete = deleteDialogOpen;
                 setIsDeleting(true);
                 try {
                   const response = await fetch(
-                    `/api/projects/${deleteDialogOpen}`,
+                    `/api/projects/${projectIdToDelete}`,
                     { method: "DELETE" }
                   );
                   if (!response.ok) throw new Error("Failed to delete project");
@@ -373,6 +407,7 @@ const ProjectBoard = ({
                     description: "Project deleted successfully",
                   });
                   setDeleteDialogOpen(null);
+                  onProjectDeleted?.(projectIdToDelete);
                   router.refresh();
                 } catch {
                   toast({

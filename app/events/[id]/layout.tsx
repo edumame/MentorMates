@@ -1,10 +1,11 @@
 import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
+import { canUseInternalEventRoute } from "@/lib/events/navigation";
 
 // add authentication check for non private/public events
 
@@ -32,7 +33,9 @@ export default async function Layout({
     cover_image_url,
     submission_time_start,
     submission_time_cutoff,
-    visibility
+    visibility,
+    external_url,
+    external_redirect_enabled
   `);
 
   if (isUUID) {
@@ -43,10 +46,41 @@ export default async function Layout({
     query = query.eq("slug", id);
   }
 
-  const { data: event } = await query.single();
+  const { data: event } = await query.maybeSingle();
 
   if (!event) {
     notFound();
+  }
+
+  const externalUrl = event.external_url?.trim();
+  const externalRedirectEnabled = event.external_redirect_enabled === true;
+  if (externalUrl && externalRedirectEnabled) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let canUseInternalEventPage = false;
+
+    if (user) {
+      const [{ data: userEventRole }, { data: isGlobalAdmin }] = await Promise.all([
+        supabase
+          .from("user_event_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("event_id", event.event_id)
+          .maybeSingle(),
+        supabase.rpc("is_admin_user", { user_id: user.id }),
+      ]);
+
+      canUseInternalEventPage = canUseInternalEventRoute({
+        userRole: userEventRole?.role,
+        canManageEvent: Boolean(isGlobalAdmin),
+      });
+    }
+
+    if (!canUseInternalEventPage) {
+      redirect(externalUrl);
+    }
   }
 
   return (
