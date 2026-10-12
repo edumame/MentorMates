@@ -17,6 +17,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface Project {
   id: string;
@@ -31,6 +32,7 @@ interface Project {
 export default function JoinProjectPage() {
   const params = useParams();
   const router = useRouter();
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const projectId = params.id as string;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const token = params.token as string;
@@ -143,8 +145,8 @@ export default function JoinProjectPage() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-gray-600 mb-4">Please log in to join this project.</p>
-            <Link href={`/login?returnUrl=${encodeURIComponent(window.location.pathname)}`}>
-              <Button className="w-full">Login to Continue</Button>
+            <Link href="/login" onClick={setReturnUrlFromCurrentLocation}>
+              <Button className="w-full bg-blue-900 text-white hover:bg-blue-800">Login to Continue</Button>
             </Link>
           </CardContent>
         </Card>
@@ -165,7 +167,7 @@ export default function JoinProjectPage() {
               {errorMessage || "This invitation link is invalid or has expired."}
             </p>
             <Link href="/projects">
-              <Button>Browse Projects</Button>
+              <Button className="bg-blue-900 text-white hover:bg-blue-800">Browse Projects</Button>
             </Link>
           </CardContent>
         </Card>
@@ -206,7 +208,7 @@ export default function JoinProjectPage() {
               You&apos;re already a member of <strong>{project.project_name}</strong>.
             </p>
             <Link href={`/projects/${projectId}`}>
-              <Button className="w-full">Go to Project</Button>
+              <Button className="w-full bg-blue-900 text-white hover:bg-blue-800">Go to Project</Button>
             </Link>
           </CardContent>
         </Card>
@@ -281,7 +283,7 @@ export default function JoinProjectPage() {
           >
             {isJoining ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin text-blue-900" />
                 Joining Project...
               </>
             ) : (

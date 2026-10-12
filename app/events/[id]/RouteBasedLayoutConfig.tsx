@@ -11,22 +11,36 @@ interface RouteBasedLayoutConfigProps {
 export function RouteBasedLayoutConfig({ children }: RouteBasedLayoutConfigProps) {
   const pathname = usePathname();
   const isAcceptPage = pathname?.includes('/accept');
+  // Event pages use sidebar layout: top bar (notification + avatar) is below the left nav, so hide global navbar.
+  const isEventPage = pathname?.startsWith("/events/");
+  let layoutConfig;
 
-  const layoutConfig = isAcceptPage
-    ? {
-        showNavbar: false,
-        showPadding: false,
-        showEventHeader: false,
-        showEventWrapper: false,
-        showFooter: false,
-      }
-    : {
-        showNavbar: true,
-        showPadding: true,
-        showEventHeader: true,
-        showEventWrapper: true,
-        showFooter: true,
-      };
+  if (isAcceptPage) {
+    layoutConfig = {
+      showNavbar: false,
+      showPadding: false,
+      showEventHeader: false,
+      showEventWrapper: false,
+      showFooter: false,
+    };
+  } else if (isEventPage) {
+    layoutConfig = {
+      showNavbar: false,
+      showPadding: false,
+      showEventHeader: false,
+      showEventWrapper: false,
+      showFooter: true,
+    };
+  } else {
+    //all pages should use the same layout. We are no longer using the old EventHeader.
+    layoutConfig = {
+      showNavbar: true,
+      showPadding: false,
+      showEventHeader: false,
+      showEventWrapper: false,
+      showFooter: true,
+    };
+  }
 
   return (
     <LayoutConfigProvider config={layoutConfig}>

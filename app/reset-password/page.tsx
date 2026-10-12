@@ -3,7 +3,13 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -18,19 +24,16 @@ function ResetPasswordContent() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
-    // Check if user is already authenticated
     const checkSession = async () => {
       const {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        setError("Unable to verify your session. Please try requesting a new password reset link.");
-      }
 
-      if (!session) {
-        setError("Unable to verify your session. Please try requesting a new password reset link.");
+      if (sessionError || !session) {
+        setError(
+          "Unable to verify your session. Please try requesting a new password reset link."
+        );
       }
     };
 
@@ -43,7 +46,6 @@ function ResetPasswordContent() {
     setError("");
     setSuccess("");
 
-    // Validate passwords
     if (password.length < 6) {
       setError("Password must be at least 6 characters long");
       setLoading(false);
@@ -57,24 +59,16 @@ function ResetPasswordContent() {
     }
 
     try {
-      // Update the user's password
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
 
-      if (error) {
-        throw error;
-      }
-
-      setSuccess("Password updated successfully! Redirecting to home...");
-      
-      // Redirect to login page after a short delay
-      setTimeout(() => {
-        router.push("/");
-      }, 2000);
-
+      setSuccess("Password updated successfully. Redirecting...");
+      setTimeout(() => router.push("/"), 2000);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while updating your password. Please try again.";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while updating your password. Please try again.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -82,113 +76,108 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div>
-      <div className="sm:mx-auto sm:w-full sm:max-w-md pt-5">
+    <div className="w-full max-w-md px-4">
+      <div className="flex flex-col items-center mb-6">
         <Image
           alt="MentorMates"
           src="/mentormate.png"
-          width={40}
-          height={40}
-          className="mx-auto object-contain"
+          width={192}
+          height={192}
+          className="object-contain"
         />
-        <h2 className="m-2 text-center text-2xl font-bold tracking-tight text-gray-900">
-          Reset Your Password
-        </h2>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">
+          Reset your password
+        </h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Enter a new password for your account
+        </p>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-[400px] pl-5 pr-5 pb-10">
-        <div className="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12">
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base text-slate-900">
+            <KeyRound className="h-4 w-4 text-slate-500" />
+            New password
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {error && (
-            <div className="mb-4 text-center text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-              {error}
-            </div>
-          )}
-          
-          {success && (
-            <div className="mb-4 text-center text-sm text-green-600 bg-green-50 border border-green-200 rounded-md p-3">
-              {success}
-            </div>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-900"
-              >
-                New Password
-              </label>
-              <div className="mt-2">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
-                  placeholder="Enter your new password"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Password must be at least 6 characters long
+          {success && (
+            <Alert className="border-green-200 bg-green-50 text-green-900">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-900">
+                {success}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">New Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your new password"
+              />
+              <p className="text-xs text-slate-500">
+                Must be at least 6 characters
               </p>
             </div>
 
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-900"
-              >
-                Confirm New Password
-              </label>
-              <div className="mt-2">
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
-                  placeholder="Confirm your new password"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm your new password"
+              />
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading || !password || !confirmPassword}
-                className="flex w-full justify-center rounded-md bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:outline-2 focus:outline-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? "Updating Password..." : "Update Password"}
-              </button>
-            </div>
+            <Button
+              type="submit"
+              disabled={loading || !password || !confirmPassword}
+              className="w-full"
+            >
+              {loading ? "Updating..." : "Update password"}
+            </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="pt-2 text-center text-sm">
             <Link
               href="/login"
-              className="text-sm text-blue-900 hover:text-blue-500 font-medium"
+              className="text-slate-600 hover:text-slate-900 transition-colors"
             >
-              Back to Login
+              Back to login
             </Link>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen pb-10 bg-gradient-to-b from-white to-blue-100/80 flex flex-col items-center">
-      <Suspense fallback={<div>Loading...</div>}>
-        <ResetPasswordContent />
-      </Suspense>
+    <div className="min-h-screen flex flex-col items-center justify-between bg-gradient-to-b from-white to-sky-50 py-10">
+      <div className="flex-1 flex items-center justify-center w-full">
+        <Suspense fallback={<div className="text-slate-500">Loading...</div>}>
+          <ResetPasswordContent />
+        </Suspense>
+      </div>
       <Footer />
     </div>
   );

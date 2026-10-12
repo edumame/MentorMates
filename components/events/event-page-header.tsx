@@ -1,0 +1,237 @@
+"use client";
+
+import { CalendarDays, MapPin, ArrowUpRight, Plus, Pencil } from "lucide-react";
+import { EventRole } from "@/lib/types";
+import { JoinEventButton } from "./join-event-button";
+import { RsvpButton } from "@/features/events/rsvp/RsvpButton";
+import { PostSurveyButton } from "@/features/events/post-survey/PostSurveyButton";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { parseEventDateLocal } from "@/lib/utils/date";
+
+interface EventPageHeaderProps {
+  eventName: string;
+  eventBlurb: string;
+  eventDate: string;
+  location: string;
+  coverImageUrl?: string;
+  eventId: string;
+  hasJoined: boolean;
+  userRole?: EventRole | null;
+  /**
+   * The role currently being viewed (from RoleSwitcher). If provided, this
+   * determines the CTA shown (e.g., presenters see "Create Project").
+   * Falls back to userRole when not provided.
+   */
+  activeRole?: EventRole | null;
+  onManageEventClick?: () => void;
+  onEditEventClick?: () => void;
+  paid: boolean;
+  eventType: string[];
+  containerClassName?: string;
+}
+
+export function EventPageHeader({
+  eventName,
+  eventBlurb,
+  eventDate,
+  location,
+  coverImageUrl,
+  eventId,
+  hasJoined,
+  userRole,
+  activeRole,
+  onManageEventClick,
+  onEditEventClick,
+  paid,
+  eventType,
+  containerClassName,
+}: EventPageHeaderProps) {
+  // Format date
+  const { dayOfWeek, day, monthYear } = (() => {
+    const parsed = parseEventDateLocal(eventDate);
+    if (!parsed) return { dayOfWeek: "TBD", day: "--", monthYear: "" };
+    return {
+      dayOfWeek: parsed.toLocaleDateString("en-US", { weekday: "short" }),
+      day: parsed.toLocaleDateString("en-US", { day: "2-digit" }),
+      monthYear: parsed.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+    };
+  })();
+  return (
+    <div
+      className="bg-white flex min-w-0 max-w-full flex-col w-full overflow-x-clip"
+    >
+      {/* Cover Image */}
+      <div className="h-[200px] sm:h-[224px] w-full relative overflow-hidden">
+        {coverImageUrl ? (
+          <>
+            <img
+              src={coverImageUrl}
+              alt={eventName}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+              }}
+            />
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-[#1e3a8a] to-[#3c73bd] -z-10" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-b from-[#1e3a8a] to-[#3c73bd]" />
+        )}
+
+        {/* Event Tags */}
+        <div className="absolute left-4 md:left-6 top-4 md:top-6 flex flex-wrap gap-1 z-10">
+          {(eventType.length ? eventType : ["Hackathon"]).map((type) => (
+            <div key={type} className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+              <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </p>
+            </div>
+          ))}
+          <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+            {paid ? (
+              <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+                Paid
+              </p>
+            ) : (
+              <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+                Free
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Content Section - responsive container */}
+      <div
+        className="box-border flex flex-col gap-[24px] items-start pb-[24px] pt-[24px] px-0 w-full"
+        style={{
+          background:
+            "linear-gradient(to bottom, #DBEAFE 13.19%, rgba(255, 255, 255, 0.00) 65.83%)",
+        }}
+      >
+        <div className={containerClassName ?? "w-full px-4 md:px-6"}>
+          <div className="flex flex-col gap-[16px] items-start w-full">
+            <div className="flex items-start w-full flex-wrap md:flex-nowrap gap-6">
+              {/* Left: Event Info */}
+              <div className="flex flex-col gap-[8px] items-start w-full min-w-0 md:max-w-[747px]">
+                <div className="flex flex-col items-start text-black w-full">
+                  <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full">
+                    {eventName}
+                  </h1>
+                  <p className="font-normal text-sm md:text-base leading-[1.5] text-black w-full break-words">
+                    {eventBlurb}
+                  </p>
+                </div>
+
+                {/* TODO: Add back when sponsorships are implemented */}
+                {/* <Link href={`/events/${eventId}/sponsorships`}>
+                  <img src="{{sponsorsImageUrl}}" />
+                  <span className="font-normal text-sm leading-[1.5] text-black text-nowrap whitespace-pre">Sponsors</span>
+                </Link> */}
+              </div>
+
+              {/* Right: Join Button and Meta */}
+              <div className="flex flex-col gap-[12px] items-end justify-center w-full md:w-[341px] md:shrink-0">
+                <div className="flex flex-col gap-[16px] items-center justify-center w-full">
+                  <div className="flex gap-[16px] items-start w-full">
+                    {(() => {
+                      const roleForView = activeRole ?? userRole ?? null;
+                      const isPresenterView =
+                        roleForView === EventRole.Participant;
+
+                      if (isPresenterView) {
+                        return (
+                          <Button
+                            asChild variant="default" className="rounded-full gap-2 w-full"
+                          >
+                            <Link href={`/projects/submit?eventId=${eventId}`}>
+                              <Plus className="h-6 w-6" /> Create Project
+                            </Link>
+                          </Button>
+                        );
+                      }
+
+                      if (!hasJoined) {
+                        return (
+                          <JoinEventButton
+                            eventId={eventId}
+                            eventName={eventName}
+                          />
+                        );
+                      }
+
+                      return (
+                        <div className="basis-0 bg-green-500 box-border flex gap-[6px] grow items-center justify-center min-h-px min-w-px px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] shrink-0">
+                          <p className="font-medium text-sm sm:text-base leading-[1.5] text-white whitespace-pre md:text-nowrap">
+                            Joined
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* RSVP and post-event survey (only for joined users, when
+                      the corresponding form is published) */}
+                  {hasJoined && (
+                    <div className="w-full space-y-2">
+                      <RsvpButton eventId={eventId} />
+                      <PostSurveyButton eventId={eventId} />
+                    </div>
+                  )}
+
+                  {/* Manage / Edit Event Buttons (organizer + admin) */}
+                  {(userRole === "organizer" || userRole === "admin") && (
+                    <div className="flex gap-2 w-full">
+                      <button
+                        onClick={onManageEventClick}
+                        className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex-1"
+                      >
+                        <ArrowUpRight className="w-6 h-6 text-black" />
+                        <p className="font-medium text-sm sm:text-base leading-[1.5] text-black whitespace-pre md:text-nowrap">
+                          Manage event
+                        </p>
+                      </button>
+                      {onEditEventClick && (
+                        <button
+                          onClick={onEditEventClick}
+                          aria-label="Edit event"
+                          className="bg-[#4b89ef] hover:bg-[#3d75d9] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex-1"
+                        >
+                          <Pencil className="w-5 h-5 text-white" />
+                          <p className="font-medium text-sm sm:text-base leading-[1.5] text-white whitespace-pre md:text-nowrap">
+                            Edit event
+                          </p>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Date and Location */}
+                <div className="flex gap-[8px] items-center justify-between w-full flex-wrap">
+                  <div className="flex gap-[8px] items-center flex-wrap">
+                    <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
+                    <p className="font-normal text-sm leading-[1.5] text-black">
+                      {dayOfWeek}, {day} {monthYear}
+                    </p>
+                  </div>
+                  <div className="flex gap-[8px] items-center flex-wrap">
+                    <MapPin className="w-6 h-6 text-black flex-shrink-0" />
+                    <p className="font-normal text-sm leading-[1.5] text-black">
+                      {location}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div >
+    </div >
+  );
+}

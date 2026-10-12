@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { UUID } from "crypto";
 
 interface Track {
   id: string;
   name: string;
 }
 
-export function useProjectSubmissionData(eventId: string) {
+export function useProjectSubmissionData(eventId?: string) {
   const [allUsers, setAllUsers] = useState<string[]>([]);
   const [availableTracks, setAvailableTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,27 +15,13 @@ export function useProjectSubmissionData(eventId: string) {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch user emails
-        const { data: userData, error: userError } = await supabase
-          .from("user_event_roles")
-          .select("user_id, user_profiles!user_id(email)")
-          .eq("role", "participant")
-          .eq("event_id", eventId)
-          .overrideTypes<
-            Array<{
-              user_id: UUID;
-              user_profiles: {
-                email: string;
-              };
-            }>
-          >();
-
-        if (userError) {
-          console.error("Error fetching user display names:", userError);
-        } else if (userData) {
-          const emails = userData.map((user) => user.user_profiles.email);
-          setAllUsers(emails);
+        // If no event provided, return empty data for eventless flow
+        if (!eventId) {
+          setAllUsers([]);
+          setAvailableTracks([]);
+          return;
         }
+        setAllUsers([]);
 
         // Fetch event tracks
         const { data: trackData, error: trackError } = await supabase

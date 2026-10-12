@@ -13,6 +13,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { SubmissionConfirmation } from "@/features/projects/components/forms/SubmissionConfirmation";
 import VoiceInput from "@/components/utils/VoiceInput";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface AISuggestions {
   "more specific": string;
@@ -72,6 +73,7 @@ export default function FeedbackForm({
   const [hasImprovedWithAI, setHasImprovedWithAI] = useState<boolean>(false);
   const [showSubmitButton, setShowSubmitButton] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const [supabaseClient] = useState(() => createClient());
   const [usedSuggestions, setUsedSuggestions] = useState<Set<string>>(
     new Set(["original"])
@@ -80,11 +82,10 @@ export default function FeedbackForm({
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log("usedSuggestions updated:", Array.from(usedSuggestions));
+    // Track suggestion usage
   }, [usedSuggestions]);
 
   useEffect(() => {
-    console.log("Initializing Supabase session");
     supabaseClient.auth
       .getSession()
       .then(
@@ -93,7 +94,6 @@ export default function FeedbackForm({
         }: {
           data: { session: Session | null };
         }) => {
-          console.log("Got session:", currentSession);
           setSession(currentSession);
         }
       );
@@ -102,7 +102,6 @@ export default function FeedbackForm({
       data: { subscription },
     } = supabaseClient.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
-        console.log("Auth state changed:", session);
         setSession(session);
       }
     );
@@ -149,8 +148,7 @@ export default function FeedbackForm({
         method: "POST",
         body: JSON.stringify(feedbackData),
       });
-      const responseJson = await response.json();
-      console.log("Magic Loop API response:", responseJson);
+      await response.json();
     } catch (error) {
       console.error("Error logging feedback to Magic Loop:", error);
     }
@@ -158,7 +156,6 @@ export default function FeedbackForm({
 
   const submitFeedback = async () => {
     try {
-      console.log("Starting feedback submission");
       const originalFeedback =
         localStorage.getItem("originalFeedback") || feedback;
 
@@ -287,24 +284,12 @@ export default function FeedbackForm({
         return maxConsecutive;
       };
 
-      console.log(
-        "Starting tag validation with tags:",
-        Array.from(usedSuggestions)
-      );
-
       // Validate tags based on content analysis
       const validatedTags = new Set<string>();
       const finalWords = getSignificantWords(feedback);
 
       // Validate each tag in usedSuggestions
-      console.log("Analyzing final content:", feedback);
-      console.log(
-        "Used suggestions before validation:",
-        Array.from(usedSuggestions)
-      );
-      console.log("Available AI suggestions:", aiSuggestions);
       for (const tag of usedSuggestions) {
-        console.log("\nValidating tag:", tag);
         if (tag === "original") {
           const originalWords = getSignificantWords(originalFeedback);
           const originalConsecutive = findConsecutiveMatches(
@@ -312,12 +297,6 @@ export default function FeedbackForm({
             finalWords
           );
           const originalThreshold = 3;
-          console.log(
-            "Validating original tag:",
-            originalConsecutive,
-            ">=",
-            originalThreshold
-          );
           if (originalConsecutive >= originalThreshold) {
             validatedTags.add("original");
           }
@@ -333,12 +312,6 @@ export default function FeedbackForm({
             finalWords
           );
           const positiveThreshold = 3;
-          console.log(
-            "Validating more_positive tag:",
-            positiveConsecutive,
-            ">=",
-            positiveThreshold
-          );
           if (positiveConsecutive >= positiveThreshold) {
             validatedTags.add("more_positive");
           }
@@ -354,12 +327,6 @@ export default function FeedbackForm({
             finalWords
           );
           const specificThreshold = 3;
-          console.log(
-            "Validating more_specific tag:",
-            specificConsecutive,
-            ">=",
-            specificThreshold
-          );
           if (specificConsecutive >= specificThreshold) {
             validatedTags.add("more_specific");
           }
@@ -370,9 +337,7 @@ export default function FeedbackForm({
         validatedTags.add("original");
       }
 
-      console.log("Final validated tags:", Array.from(validatedTags));
       const modifier_field = Array.from(validatedTags);
-      console.log("Setting modifier_field to:", modifier_field);
 
       const feedbackData: FeedbackData = {
         project_id: projectId,
@@ -411,7 +376,6 @@ export default function FeedbackForm({
         body: JSON.stringify(feedbackBody),
       });
       const data = await response.json();
-      console.log("Feedback submitted successfully:", data);
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to submit feedback");
@@ -547,9 +511,7 @@ export default function FeedbackForm({
               href="/login"
               className="text-sm font-medium text-blue-700 hover:text-blue-800 transition-colors"
               onClick={() => {
-                if (typeof window !== "undefined") {
-                  localStorage.setItem("returnUrl", window.location.pathname);
-                }
+                setReturnUrlFromCurrentLocation();
               }}
             >
               Sign in →
@@ -604,7 +566,7 @@ export default function FeedbackForm({
               >
                 {isGeneratingAI ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-900" />
                     Improving...
                   </>
                 ) : (
@@ -635,13 +597,8 @@ export default function FeedbackForm({
                           <Button
                             type="button"
                             onClick={() => {
-                              console.log(
-                                "Replace clicked for category:",
-                                category
-                              );
                               setFeedback(suggestion);
                               const newTags = new Set<string>();
-                              console.log("Raw category:", category);
                               // Convert category to tag format
                               // Map category directly to tag name
                               const tagMap: { [key: string]: string } = {
@@ -651,11 +608,8 @@ export default function FeedbackForm({
                               };
                               const tagToAdd =
                                 tagMap[category] || category.replace(/ /g, "_");
-                              console.log("Converted to tag:", tagToAdd);
-                              console.log("Adding tag:", tagToAdd);
                               newTags.add(tagToAdd);
                               newTags.add("original");
-                              console.log("Final tags:", Array.from(newTags));
                               setUsedSuggestions(newTags);
                             }}
                             className="bg-blue-900 text-white text-sm py-1 px-3 rounded-full"
@@ -665,18 +619,9 @@ export default function FeedbackForm({
                           <Button
                             type="button"
                             onClick={() => {
-                              console.log(
-                                "Add Below clicked for category:",
-                                category
-                              );
                               setFeedback((prev) => `${prev}\n\n${suggestion}`);
                               // Create new Set from existing tags
                               const newTags = new Set(usedSuggestions);
-                              console.log(
-                                "Add Below: Starting with tags:",
-                                Array.from(newTags)
-                              );
-                              console.log("Raw category:", category);
                               // Convert category to tag format
                               // Map category directly to tag name
                               const tagMap: { [key: string]: string } = {
@@ -686,14 +631,10 @@ export default function FeedbackForm({
                               };
                               const tagToAdd =
                                 tagMap[category] || category.replace(/ /g, "_");
-                              console.log("Converted to tag:", tagToAdd);
-                              console.log("Current tags:", Array.from(newTags));
-                              console.log("Adding tag:", tagToAdd);
                               newTags.add(tagToAdd);
                               if (!newTags.has("original")) {
                                 newTags.add("original");
                               }
-                              console.log("Final tags:", Array.from(newTags));
                               setUsedSuggestions(newTags);
                             }}
                             className="bg-green-700 text-white text-sm py-1 px-3 rounded-full"

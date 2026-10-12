@@ -1,48 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import type { Session } from "@supabase/supabase-js";
-import { AuthNavbar } from "./authNavbar";
-import { Navbar } from "./navbar";
+import { usePathname } from "next/navigation";
+import { Navbar } from "./Navbar";
 import { useLayoutConfig } from "./LayoutConfigProvider";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+
+const AUTH_ROUTE_PREFIXES = ["/login", "/signup", "/auth"];
 
 export function ConditionalNavbar() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const pathname = usePathname();
   const { showNavbar } = useLayoutConfig();
+  const { session, isLoading } = useAuth();
 
-  useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setIsLoading(false);
-    };
-
-    getSession();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
-      setSession(session);
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Don't render anything while loading to prevent flash
-  if (isLoading) {
-    return null;
-  }
-
-  // Hide navbar if showNavbar is false
-  if (!showNavbar) {
-    return null;
-  }
-
-  // Render AuthNavbar if user is authenticated, otherwise render Navbar
-  return session ? <AuthNavbar /> : <Navbar />;
-} 
+  const isAuthRoute =
+    !!pathname &&
+    AUTH_ROUTE_PREFIXES.some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`)
+    );
+  if (isAuthRoute || !showNavbar) return null;
+  if (isLoading) return null;
+  if (!session) return <Navbar />;
+  return null;
+}

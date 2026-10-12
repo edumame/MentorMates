@@ -1,82 +1,31 @@
 "use client";
 
-import { ProjectSubmissionFormComponent } from "@/features/projects/components/forms/ProjectSubmissionForm";
-import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
-import { isValidUUID } from "@/app/utils/supabase/queries";
+import { Loader2 } from "lucide-react";
 
-// Project Submission Page
-export default function ProjectSubmissionPage() {
-  const params = useParams();
-  const slug = params.id as string;
-  const [eventId, setEventId] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const resolveEventId = async () => {
-      const isUUID = isValidUUID(slug);
-
-      let query = supabase.from("events").select("event_id");
-
-      if (isUUID) {
-        // If it's a UUID, check both slug and event_id
-        query = query.or(`slug.eq.${slug},event_id.eq.${slug}`);
-      } else {
-        // If it's not a UUID, only check slug
-        query = query.eq("slug", slug);
-      }
-
-      const { data } = await query.maybeSingle();
-      if (data) setEventId(data.event_id);
-    };
-    resolveEventId();
-  }, [slug]);
+/**
+ * Direct submission link: /events/[id]/submit
+ * Redirects to the project submission form with the event pre-filled.
+ * Share this link with participants for one-click project submission.
+ */
+export default function EventSubmitPage() {
+  const params = useParams<{ id: string }>();
 
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUserEmail(session.user.email || null);
-        setUserName(
-          session.user.user_metadata?.full_name ||
-            session.user.user_metadata?.name ||
-            null
-        );
+    const id = params.id;
+    if (!id) return;
 
-        // Get user profile data
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("*")
-          .eq("uid", session.user.id)
-          .single();
-
-        if (profile) {
-          setUserName(
-            profile.display_name ||
-              session.user.user_metadata?.full_name ||
-              null
-          );
-        }
-      }
-    };
-    getUser();
-  }, []);
-
-  if (!eventId) {
-    return <div>Loading...</div>;
-  }
+    // Use a hard browser navigation so the destination fully reloads.
+    window.location.replace(`/projects/submit?eventId=${encodeURIComponent(id)}`);
+  }, [params.id]);
 
   return (
-    <div className="container mx-auto py-8">
-      <ProjectSubmissionFormComponent
-        userEmail={userEmail || ""}
-        leadName={userName || ""}
-        eventId={eventId}
-      />
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-600" />
+        <p className="mt-2 text-gray-600">Loading project submission...</p>
+      </div>
     </div>
   );
 }

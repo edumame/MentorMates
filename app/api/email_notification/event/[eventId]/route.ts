@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { Resend } from "resend";
 import {
   NOTIFICATIONS_EMAIL_FROM,
   EMAIL_TYPES,
+  ADMIN_EMAIL,
 } from "@/lib/email_templates/constants";
 import { EventDetails, EventRole } from "@/lib/types";
 import {
@@ -12,8 +14,9 @@ import {
 } from "@/lib/email_templates/event-notifications";
 
 //allow custom messages
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null as unknown as Resend;
 
 type UserEmail = {
   user_id: string;
@@ -27,6 +30,7 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   const supabase = await createSupabaseClient();
+  const serviceSupabase = createSupabaseServiceClient();
 
   const { eventId } = await params;
 
@@ -84,7 +88,7 @@ export async function POST(
 
   const eventName = eventDetails.event_name;
 
-  const { data: participantsData, error: participantsError } = await supabase
+  const { data: participantsData, error: participantsError } = await serviceSupabase
     .from("user_event_roles")
     .select("user_id, user_profiles(email)")
     .eq("event_id", eventId)
@@ -117,19 +121,79 @@ export async function POST(
     customEmailContent
   );
 
-  const { data, error } = await resend.emails.send({
-    from: NOTIFICATIONS_EMAIL_FROM,
-    to: participantsEmails,
-    subject: email.subject,
-    html: email.html,
-  });
+  if (!process.env.RESEND_API_KEY) {
+    return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
+  }
 
-  if (error) {
-    return NextResponse.json({ error: "Error sending email" }, { status: 500 });
+  const MAX_RECIPIENTS_PER_BATCH = 50;
+
+  // Check if we need to batch
+  if (participantsEmails.length <= MAX_RECIPIENTS_PER_BATCH) {
+    // Single email send
+    const { data, error } = await resend.emails.send({
+      from: NOTIFICATIONS_EMAIL_FROM,
+      to: ADMIN_EMAIL,
+      bcc: participantsEmails,
+      subject: email.subject,
+      html: email.html,
+    });
+
+    if (error) {
+      return NextResponse.json({ error: "Error sending email" }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      { message: "Email sent successfully", data: data },
+      { status: 200 }
+    );
+  }
+
+  // Batch processing
+  const batches: string[][] = [];
+  for (let i = 0; i < participantsEmails.length; i += MAX_RECIPIENTS_PER_BATCH) {
+    batches.push(participantsEmails.slice(i, i + MAX_RECIPIENTS_PER_BATCH));
+  }
+
+  const sendPromises = batches.map((batch) =>
+    resend.emails.send({
+      from: NOTIFICATIONS_EMAIL_FROM,
+      to: ADMIN_EMAIL,
+      bcc: batch,
+      subject: email.subject,
+      html: email.html,
+    })
+  );
+
+  const results = await Promise.allSettled(sendPromises);
+
+  // Check for any failures
+  const failures = results.filter(
+    (result) =>
+      result.status === "rejected" ||
+      (result.status === "fulfilled" &&
+        result.value &&
+        typeof result.value === "object" &&
+        "error" in result.value &&
+        result.value.error)
+  );
+
+  if (failures.length > 0) {
+    console.error("Some email batches failed:", failures);
+    return NextResponse.json(
+      {
+        error: "Some emails failed to send",
+        failedBatches: failures.length,
+        totalBatches: batches.length,
+      },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json(
-    { message: "Email sent successfully", data: data },
+    {
+      message: `Email sent successfully in ${batches.length} batch(es)`,
+      batches: batches.length,
+    },
     { status: 200 }
   );
 }

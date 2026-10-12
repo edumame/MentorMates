@@ -1,0 +1,151 @@
+# MentorMates Project Rules
+
+## Project Overview
+This is a Next.js 15 TypeScript application called "MentorMates" - a mentorship and event management platform with project submission, feedback, and event management features.
+
+## Tech Stack & Architecture
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI with shadcn/ui
+- **Email**: Resend API + Nodemailer (Gmail)
+- **Payment**: Stripe
+- **Authentication**: Supabase Auth
+- **State Management**: React Hook Form with Zod validation
+
+## Project Structure
+- **Feature-based architecture** in `features/` directory
+- **App Router** with API routes in `app/api/`
+- **Shared components** in `components/`
+- **Utilities** in `lib/`
+- **Email templates** in `lib/email_templates/`
+
+## Code Style & Standards
+
+### File Naming
+- Use kebab-case for files and directories
+- Use PascalCase for React components
+- Use camelCase for functions and variables
+
+### Component Structure
+- Prefer function components with TypeScript
+- Use proper TypeScript interfaces/types
+- Follow the existing component patterns in `components/ui/`
+- Use Radix UI components via shadcn/ui
+
+### API Routes
+- Follow REST conventions
+- Use proper HTTP status codes
+- Include error handling with try-catch
+- Validate inputs with Zod schemas
+- Use Supabase client for database operations
+
+### Email System
+- Email types defined in `lib/email_templates/constants.ts`
+- Templates in `lib/email_templates/` directory
+- Two email providers: Resend (notifications) and Nodemailer (project emails)
+- Email endpoints:
+  - `/api/email` - Project submission and feedback emails
+  - `/api/email_notification/event/[eventId]` - Event notifications
+  - `/api/email_notification/user/[userId]` - User-specific notifications
+
+### Database Patterns
+- Use Supabase client from `@/app/utils/supabase/server`
+- Follow RLS (Row Level Security) patterns
+- Use proper error handling for database operations
+
+### Styling
+- Use Tailwind CSS utility classes
+- Follow the existing design system
+- Use CSS variables for theming (light/dark mode support)
+- Prefer Tailwind over custom CSS
+
+## Development Guidelines
+
+### Import Statements
+- Use absolute imports with `@/` prefix
+- Group imports: React/Next, third-party, local components, types
+- Use proper TypeScript imports for types
+
+### Error Handling
+- Always handle errors in API routes
+- Use proper HTTP status codes (400, 401, 404, 500)
+- Provide meaningful error messages
+- Log errors for debugging
+
+### Security
+- Validate all inputs
+- Use Supabase RLS for data access control
+- Sanitize user inputs
+- Use environment variables for sensitive data
+
+### Performance
+- Use Next.js Image component for images
+- Implement proper loading states
+- Use React.memo for expensive components
+- Optimize database queries
+
+## Email System Details
+
+### Email Types
+- `EVENT_UPDATE` - General event updates
+- `EVENT_SCHEDULE_UPDATE` - Schedule changes
+- `EVENT_CUSTOM_UPDATE` - Custom notifications
+- `CHECKIN_QR_CODE` - Check-in tickets
+
+### Email Templates
+- Project submission confirmations
+- Teammate notifications
+- Feedback notifications
+- Event updates and notifications
+- QR code tickets
+
+### Email Configuration
+- Resend API for event notifications (`NOTIFICATIONS_EMAIL_FROM`)
+- Gmail SMTP for project-related emails
+- Environment variables: `RESEND_API_KEY`, `EMAIL_USER`, `EMAIL_APP_PASSWORD`
+
+## Specific Patterns
+
+### Form Handling
+- Use React Hook Form with Zod validation
+- Create reusable form components
+- Handle loading and error states properly
+
+### Data Fetching
+- Use Supabase client for server-side operations
+- Implement proper error boundaries
+- Use loading states and error handling
+
+### Authentication
+- Use Supabase Auth
+- Check user authentication in API routes
+- Implement proper role-based access control
+
+## Best Practices
+- Write clean, readable TypeScript code
+- Use meaningful variable and function names
+- Comment complex logic
+- Follow the existing patterns in the codebase
+- Test edge cases and error conditions
+- Keep components focused and reusable
+- Use proper semantic HTML
+- Ensure accessibility standards
+
+### TypeScript Typing Rules
+- Avoid using the `any` type across the codebase. Prefer precise types or generics.
+- If a value is unknown at compile time, use `unknown` and narrow with type guards.
+- Do not disable `@typescript-eslint/no-explicit-any`. Fix types instead.
+- For dynamic data (e.g., JSON), validate with Zod and infer types from schemas.
+- For third‑party APIs without types, create minimal local types or wrappers.
+- Example: in configuration hooks (e.g., Tailwind plugin API), import proper types instead of `any`.
+
+## When Working on This Project
+- Always check existing patterns before creating new ones
+- Use the established component library (shadcn/ui + Radix)
+- Follow the feature-based architecture
+- Maintain consistency with existing code style
+- Update types when changing data structures
+- Test email functionality in development
+- Ensure responsive design for all components

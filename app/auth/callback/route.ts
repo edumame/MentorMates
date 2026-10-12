@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "../../utils/supabase/server";
+import { hasPersistedOnboardingState } from "@/features/user/onboarding/metadata";
+import { getSafeRedirectPath } from "@/features/user/authentication/redirect/redirect-url";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -38,7 +40,7 @@ export async function GET(request: Request) {
   // Try to check user profile first
   const { data: existingProfile, error: profileCheckError } = await supabase
     .from("user_profiles")
-    .select("uid")
+    .select("uid, onboarding_metadata")
     .eq("uid", user.id)
     .single();
 
@@ -64,11 +66,23 @@ export async function GET(request: Request) {
   }
 
   // Default redirect for non-mentor users
-  const returnUrl = searchParams.get("returnUrl") || "";
-  const cleanReturnUrl = returnUrl.startsWith("/")
-    ? returnUrl.slice(1)
-    : returnUrl;
+  const returnUrl = getSafeRedirectPath(
+    searchParams.get("returnUrl"),
+    cleanBaseUrl
+  );
 
-  const participantRedirectUrl = `${cleanBaseUrl}/${cleanReturnUrl}`;
-  return NextResponse.redirect(participantRedirectUrl);
+  // If onboarding metadata is missing or empty, redirect to onboarding flow
+  const needsOnboarding = !hasPersistedOnboardingState(
+    existingProfile?.onboarding_metadata as Record<string, unknown> | null | undefined
+  );
+
+  if (needsOnboarding) {
+    const onboardingUrl = new URL("/onboarding", cleanBaseUrl);
+    if (returnUrl && returnUrl !== "/") {
+      onboardingUrl.searchParams.set("returnUrl", returnUrl);
+    }
+    return NextResponse.redirect(onboardingUrl);
+  }
+
+  return NextResponse.redirect(new URL(returnUrl ?? "/", cleanBaseUrl));
 }

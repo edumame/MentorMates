@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { Card, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { EventCard } from "@/components/events/event-card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { EventRole } from "@/lib/types";
+import { EventRole, EventVisibility } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { getRoleLabel } from "@/features/user/roles/roles";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface Event {
   event_id: string;
@@ -22,6 +23,17 @@ interface Event {
     bucket_color: string;
     bucket_icon?: string;
   };
+  role_labels?: Record<string, string>;
+  visibility?: EventVisibility;
+  event_blurb?: string;
+  event_description?: string;
+  external_url?: string | null;
+  external_redirect_enabled?: boolean | null;
+  paid?: boolean;
+  stripe_price_id?: string;
+  event_type?: string[];
+  userRole?: EventRole | null;
+  canManageEvent?: boolean | null;
 }
 
 interface UserEventRole {
@@ -35,13 +47,11 @@ export interface EventsListProps {
 
 export function EventsList({ events }: EventsListProps) {
   const [userEventRoles, setUserEventRoles] = useState<UserEventRole[]>([]);
+  const { session } = useAuth();
 
   useEffect(() => {
     async function fetchUserEventRoles() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
         if (!session) return;
 
         const userId = session.user.id;
@@ -65,7 +75,7 @@ export function EventsList({ events }: EventsListProps) {
     }
 
     fetchUserEventRoles();
-  }, []);
+  }, [session]);
 
   const getUserRoleForEvent = (eventId: string): EventRole | null => {
     const userEventRole = userEventRoles.find(
@@ -74,60 +84,34 @@ export function EventsList({ events }: EventsListProps) {
     return userEventRole ? userEventRole.role : null;
   };
 
-  const getRoleBadgeVariant = (
-    role: EventRole
-  ): "participant" | "mentor" | "judge" | "organizer" | "admin" => {
+  const getRoleBadgeVariant = (role: EventRole): EventRole => {
     switch (role) {
       case EventRole.Admin:
-        return "admin";
+        return EventRole.Admin;
       case EventRole.Organizer:
-        return "organizer";
+        return EventRole.Organizer;
       case EventRole.Judge:
-        return "judge";
+        return EventRole.Judge;
       case EventRole.Mentor:
-        return "mentor";
+        return EventRole.Mentor;
       case EventRole.Participant:
-        return "participant";
+        return EventRole.Participant;
       default:
-        return "participant";
+        return EventRole.Participant;
     }
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
+    <div className="grid min-w-0 max-w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:auto-rows-fr">
       {events.map((event) => {
         const userRole = getUserRoleForEvent(event.event_id);
 
         return (
-          <Link
-            href={`/events/${event.slug || event.event_id}/overview`}
+          <div
             key={event.event_id}
-            className="block h-full"
+            className="relative min-w-0 w-full max-w-full"
           >
-            <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-300 overflow-hidden border-2 hover:border-primary/50">
-              <div
-                className="w-full h-[150px] sm:h-[200px] bg-gradient-to-br from-primary/20 to-primary/10"
-                style={
-                  event.cover_image_url
-                    ? {
-                        backgroundImage: `url(${event.cover_image_url})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }
-                    : undefined
-                }
-              />
-              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 flex-grow">
-                <CardTitle className="text-lg sm:text-xl font-semibold line-clamp-2">
-                  {event.event_name}
-                </CardTitle>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  <Badge variant="secondary" className="text-xs sm:text-sm">
-                    {event.event_date}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs sm:text-sm">
-                    {event.location}
-                  </Badge>
+            <EventCard event={{ ...event, userRole }} />
                   {event.event_buckets && (
                     <Badge 
                       variant="outline" 
@@ -143,18 +127,29 @@ export function EventsList({ events }: EventsListProps) {
                       {event.event_buckets.bucket_name}
                     </Badge>
                   )}
-                </div>
-                {userRole && (
-                  <Badge
-                    variant={getRoleBadgeVariant(userRole)}
-                    className="capitalize text-xs sm:text-sm mt-1 sm:mt-2"
-                  >
-                    {userRole}
-                  </Badge>
-                )}
+            {/* User Role Badge Overlay */}
+            {userRole && (
+              <div className="absolute top-3 left-3 z-10">
+                <Badge
+                  variant={getRoleBadgeVariant(userRole)}
+                  className="capitalize text-xs shadow-md"
+                >
+                  {getRoleLabel(userRole, event.role_labels)}
+                </Badge>
               </div>
-            </Card>
-          </Link>
+            )}
+            {/* Archived Badge */}
+            {event.visibility === EventVisibility.Archived && (
+              <div className="absolute top-3 right-3 z-10">
+                <Badge
+                  variant="secondary"
+                  className="bg-orange-100 text-orange-800 text-xs shadow-md"
+                >
+                  📁 Archived
+                </Badge>
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

@@ -2,7 +2,7 @@ import { UseFormReturn } from "react-hook-form";
 import { toast } from "@/lib/hooks/use-toast";
 import { ProjectSubmissionFormData, MAX_FILE_SIZE } from "../schema/ProjectSubmissionSchema";
 
-export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>) {
+export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>, availableTracksCount: number = 0) {
   const validateStep = (step: number): boolean => {
     const values = form.getValues();
 
@@ -16,16 +16,8 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
           });
           return false;
         }
-        if (values.projectDescription.trim().length < 10) {
-          toast({
-            title: "Insufficient Project Description",
-            description:
-              "Please provide a more detailed project description (minimum 10 characters).",
-            variant: "destructive",
-          });
-          return false;
-        }
-        if (values.trackIds.length === 0) {
+        // Only require track selection if tracks are available
+        if (availableTracksCount > 0 && values.trackIds.length === 0) {
           toast({
             title: "Missing Track Selection",
             description:
@@ -107,10 +99,8 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
         if (values.projectName.trim().length < 2) {
           errors.push("Project name must be at least 2 characters long");
         }
-        if (values.projectDescription.trim().length < 10) {
-          errors.push("Project description must be at least 10 characters long");
-        }
-        if (values.trackIds.length === 0) {
+        // Only require track selection if tracks are available
+        if (availableTracksCount > 0 && values.trackIds.length === 0) {
           errors.push("Please select at least one project track");
         }
         // Only validate video URL format if one is provided

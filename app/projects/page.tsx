@@ -1,100 +1,264 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { Session } from "@supabase/supabase-js";
 import { Toaster } from "@/components/ui/toaster";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { Project, ProjectBoardContext } from "@/lib/types";
+import { DiscordCTA } from "@/components/ui/discord-cta";
+import { Footer } from "@/components/layout/Footer";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { PublicProjectsGallery } from "@/features/projects/components/displays/PublicProjectsGallery/PublicProjectsGallery";
+import { EventSearchInput } from "@/components/ui/event-search-input";
+
+type FilterType = "all" | "public" | "mine" | "archived";
+type SortType = "newest" | "oldest" | "name-asc" | "name-desc";
 
 export default function ProjectsPage() {
-  const [session, setSession] = useState<Session | null>(null);
+  const { session, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isUserProjectsLoading, setIsUserProjectsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [sortType, setSortType] = useState<SortType>("newest");
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      
-      if (session?.user?.email) {
-        await fetchProjects();
-      }
-      setIsLoading(false);
-    };
+    // Logged-in: fetch user's projects.
+    if (session?.user?.email) {
+      void fetchProjects();
+      return;
+    }
 
-    getSession();
-  }, []);
+    // Logged-out: stop the "user projects" spinner.
+    setIsUserProjectsLoading(false);
+  }, [session]);
 
   const fetchProjects = async () => {
+    setIsUserProjectsLoading(true);
     try {
-      const response = await fetch('/api/projects/user');
+      const response = await fetch("/api/projects/user");
       if (!response.ok) {
-        throw new Error('Failed to fetch projects');
+        throw new Error("Failed to fetch projects");
       }
       const data = await response.json();
       setProjects(data.projects || []);
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error("Error fetching projects:", error);
       setProjects([]);
+    } finally {
+      setIsUserProjectsLoading(false);
     }
   };
 
-  if (isLoading) {
+  // Remove the deleted project locally so the gallery updates immediately
+  const handleProjectDeleted = (projectId: string) => {
+    setProjects((prevProjects) =>
+      prevProjects.filter((project) => project.id !== projectId)
+    );
+    // Re-fetch from the API to stay in sync with the server state
+    fetchProjects();
+  };
+
+  const filteredProjects = useMemo(() => {
+    let filtered = projects;
+
+    // Apply filter type
+    if (filterType === "public") {
+      filtered = filtered.filter((p) => p.submitted === true);
+    } else if (filterType === "mine") {
+      filtered = filtered.filter(
+        (p) => p.lead_email === session?.user?.email
+      );
+    } else if (filterType === "archived") {
+      // "Archived" maps to unsubmitted drafts in current project model.
+      filtered = filtered.filter((p) => p.submitted !== true);
+    }
+    // "all" shows all projects, no additional filtering needed
+
+    // Apply search term
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
+      filtered = filtered.filter((p) =>
+        (p.project_name || "").toLowerCase().includes(term)
+      );
+    }
+
+    return [...filtered].sort((a, b) => {
+      if (sortType === "name-asc") {
+        return (a.project_name || "").localeCompare(b.project_name || "");
+      }
+      if (sortType === "name-desc") {
+        return (b.project_name || "").localeCompare(a.project_name || "");
+      }
+
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return sortType === "oldest" ? aTime - bTime : bTime - aTime;
+    });
+  }, [projects, searchTerm, filterType, sortType, session?.user?.email]);
+
+  // All deletion and QR actions are handled inside the ProjectBoard component menu.
+
+  if (isAuthLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading projects...</div>
-      </div>
+      <>
+        <Toaster />
+        <div className="pt-[24px] pb-8">
+          <div className="container mx-auto px-5 sm:px-8">
+            <div className="flex items-center justify-center py-24">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </>
     );
   }
 
   if (!session) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Please log in to view your projects</h1>
-          <Link href="/login">
-            <Button>Login</Button>
-          </Link>
-        </div>
-      </div>
-    );
+    return <PublicProjectsGallery />;
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <>
       <Toaster />
-      <div className="justify-between items-center mb-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Projects</h1>
-          <p className="text-gray-600">Manage and track your project portfolio</p>
-        </div>
-        <Link href="/events">
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Project
-          </Button>
-        </Link>
-      </div>
+      <div className="pt-[24px] pb-8">
+        <div className="flex flex-col gap-[24px] px-[32px]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-[8px]">
+              <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+                Projects
+              </h1>
+              {projects.length > 0 && (
+                <div className="bg-white border border-[rgba(0,0,0,0.15)] px-[8px] py-0 rounded-[50px] flex items-center">
+                  <span className="text-sm text-black leading-[1.5]">
+                    {projects.length}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
 
-      {projects.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-500 mb-4">No projects found</div>
-          <Link href="/events">
-            <Button>Join an Event to Start a Project</Button>
-          </Link>
+          {/* Search Section - mirrors events page styling */}
+          {/** hide search section for now */}
+          {false && session && !isUserProjectsLoading && (
+            <div className="flex flex-col mb-5 gap-4">
+              <div className="flex items-end justify-between gap-4">
+                {/* Search Input */}
+                <EventSearchInput
+                  wrapperClassName="flex-1"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Project Filter */}
+          {session && !isUserProjectsLoading && projects.length > 0 && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+                <button
+                  onClick={() => setFilterType("all")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "all"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilterType("public")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "public"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Public
+                </button>
+                <button
+                  onClick={() => setFilterType("mine")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "mine"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Mine
+                </button>
+                <button
+                  onClick={() => setFilterType("archived")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "archived"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Archived
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="projects-sort" className="text-sm text-black/70">
+                  Sort by
+                </label>
+                <select
+                  id="projects-sort"
+                  value={sortType}
+                  onChange={(e) => setSortType(e.target.value as SortType)}
+                  className="h-10 rounded-lg border border-[rgba(0,0,0,0.15)] bg-white px-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {isUserProjectsLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            </div>
+          )}
+
+          {session && !isUserProjectsLoading && (
+            <>
+              {/* Filtered Projects List */}
+              {filteredProjects.length > 0 ? (
+                <ProjectBoard
+                  isLoading={isUserProjectsLoading}
+                  projectList={filteredProjects}
+                  session={session}
+                  projectBoardContext={ProjectBoardContext.MyProjects}
+                  onProjectDeleted={handleProjectDeleted}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke="#09090B"></path></svg>
+                  <h3 className="text-2xl font-medium text-gray-900 mb-2 mt-4">
+                    No project yet
+                  </h3>
+                  <p className="text-gray-500 max-w-sm">
+                    {searchTerm
+                      ? `No projects match your search "${searchTerm}". Try adjusting your search terms.`
+                      : "Join the event to submit a project or create a project directly."}
+                  </p>
+                </div>
+              )}
+
+              {/* Discord CTA on projects page (only for unauthenticated users) */}
+              {!isAuthenticated && (
+                <div className="mt-12">
+                  <DiscordCTA variant="default" />
+                </div>
+              )}
+            </>
+          )}
         </div>
-      ) : (
-        <ProjectBoard
-          isLoading={isLoading}
-          projectList={projects}
-          session={session}
-          projectBoardContext={ProjectBoardContext.MyProjects}
-        />
-      )}
-    </div>
+      </div>
+      <Footer />
+    </>
   );
 }

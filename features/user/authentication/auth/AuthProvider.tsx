@@ -15,22 +15,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const PUBLIC_PATH_PATTERNS = useMemo(() => {
     const BASE_PUBLIC_PATHS = [
       "/",
+      "/project",
+      "/projects",
       "/login",
       "/auth/callback",
       "/auth/auth-code-error",
       "/about",
+      "/research",
+      "/host",
       "/teams",
       "/privacy",
       "/terms",
       "/confirmation",
       "/previous-contributors",
       "/curriculum",
+      "/claim-ticket",
+      "/join-project",
+      "/help",
+      "/devpost-integration",
+      "/faq",
+      "/support",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
+      /^\/join($|\/.*$)/, // Matches /join and all its sub-routes
       /^\/projects\/public($|\/.*$)/, // Matches /projects/public and all its sub-routes
       /^\/events($|\/.*$)/, // Matches /events and all its sub-routes
+      /^\/ai-vibe-guide($|\/.*$)/, // Matches /ai-vibe-guide and all sub-routes
+      /^\/ai-vibe-masterclass($|\/.*$)/, // Matches /ai-vibe-masterclass and all sub-routes
       /^\/profile\/[a-zA-Z0-9_-]+($|\/.*$)/, // Matches /profile/user-id and all its sub-routes
+      /^\/blog($|\/.*$)/, // Make blog index and all posts public
+      /^\/article($|\/.*$)/, // Alias article routes public too
+      /^\/certificate($|\/.*$)/, // Certificates are shareable logged-out (per-person via ?p=)
     ];
   }, []);
 

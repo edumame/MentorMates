@@ -1,7 +1,9 @@
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
-import { EventRole, EventVisibility } from "@/lib/types";
+import { EventVisibility, ApprovalStatus } from "@/lib/types";
+import { DiscordCTA } from "@/components/ui/discord-cta";
+import { isEventManagerRole } from "@/lib/events/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,9 @@ export default async function EventsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const isAuthenticated = !!user;
+  const isAdminGlobal = isAuthenticated
+    ? (await supabase.rpc("is_admin_user", { user_id: user!.id })).data || false
+    : false;
 
   async function fetchAuthenticatedUserEvents() {
     try {
@@ -29,42 +34,18 @@ export default async function EventsPage() {
 
       if (rolesError) throw rolesError;
 
-      // Check if user is an admin in any event
-      const { data } = await supabase.rpc("is_admin_user", { user_id: userId });
-
-      const isAdmin = data || false;
-
-      // Get event IDs where user is an organizer
-      const organizerEventIds = userRoles
-        .filter((role) => role.role === EventRole.Organizer)
-        .map((role) => role.event_id);
-
-      // Build query for events based on visibility and user role
+      const isAdmin = isAdminGlobal;
+      
       let query = supabase.from("events").select("*");
 
       if (isAdmin) {
-        // Admins can see all events (public, private, draft, demo, test)
+        // Admins can see all events regardless of approval status
         // No additional filter needed
-      } else if (organizerEventIds.length > 0) {
-        // For organizers:
-        // - Public and private events (visible to everyone)
-        // - Draft events where user is an organizer
-        // - No demo or test events
-        query = query.or(
-          `visibility.in.(${[
-            EventVisibility.Public,
-            EventVisibility.Private,
-          ].join(",")}),` +
-            `and(visibility.eq.${
-              EventVisibility.Draft
-            },event_id.in.(${organizerEventIds.join(",")}))`
-        );
       } else {
-        // Regular users only see public and private events
-        query = query.in("visibility", [
-          EventVisibility.Public,
-          EventVisibility.Private,
-        ]);
+        // Regular users only see public events that are approved
+        query = query
+          .in("visibility", [EventVisibility.Public])
+          .eq("approval_status", ApprovalStatus.Approved);
       }
 
       const { data: events, error: eventsError } = await query;
@@ -77,7 +58,11 @@ export default async function EventsPage() {
           const userRole =
             userRoles.find((role) => role.event_id === event.event_id)?.role ||
             null;
-          return { ...event, userRole };
+          return {
+            ...event,
+            userRole,
+            canManageEvent: isAdmin || isEventManagerRole(userRole),
+          };
         })
         .sort(
           (a, b) =>
@@ -93,11 +78,12 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Only fetch public and private events
+      // Fetch only public events
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .in("visibility", [EventVisibility.Public])
+        .eq("approval_status", ApprovalStatus.Approved)
         .order("event_date", { ascending: false });
 
       if (error) throw error;
@@ -118,16 +104,29 @@ export default async function EventsPage() {
   const eventsList = events || [];
 
   return (
-    <div className="min-h-[90vh] flex flex-col bg-gray-50">
-      <div className="flex-grow">
-        <div className="max-w-7xl mx-auto py-8 px-6 lg:px-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
-            Events
-          </h1>
-          <EventsPageClient eventsList={eventsList} />
+    <>
+      <div className={isAuthenticated ? "pt-[24px] pb-8" : "pt-16 pb-8"}>
+        <div
+          className={
+            isAuthenticated
+              ? "flex min-w-0 max-w-full flex-col gap-[24px] overflow-x-clip px-[32px]"
+              : "mx-auto flex min-w-0 w-full max-w-10xl flex-col overflow-x-clip px-4 md:px-10"
+          }
+        >
+          <div className="flex flex-col gap-[24px]">
+            <EventsPageClient
+              eventsList={eventsList}
+              initialIsAuthenticated={isAuthenticated}
+            />
+
+            {/* Discord CTA on events page */}
+            <div className="mt-12">
+              <DiscordCTA variant="default" />
+            </div>
+          </div>
         </div>
       </div>
       <Footer />
-    </div>
+    </>
   );
 }

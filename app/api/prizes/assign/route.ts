@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
+import { canAccessRole } from "@/features/user/roles/roles";
 
 export async function POST(request: Request) {
   try {
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     if (
       roleError ||
       !currentUserRole ||
-      currentUserRole.role !== EventRole.Organizer
+      !canAccessRole(currentUserRole.role as EventRole, EventRole.Organizer)
     ) {
       return NextResponse.json(
         { error: "Insufficient permissions. Must be an organizer." },
@@ -205,7 +206,7 @@ export async function DELETE(request: Request) {
     if (
       roleError ||
       !currentUserRole ||
-      currentUserRole.role !== EventRole.Organizer
+      !canAccessRole(currentUserRole.role as EventRole, EventRole.Organizer)
     ) {
       return NextResponse.json(
         { error: "Insufficient permissions. Must be an organizer." },

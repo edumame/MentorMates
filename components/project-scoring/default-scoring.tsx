@@ -3,23 +3,53 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
-import { ScoringCriterion, Project } from "@/lib/types";
+import {
+  EventScoringConfig,
+  EventTrackScoringConfig,
+  Project,
+  ScoringCriterion,
+  TrackScoringConfig,
+} from "@/lib/types";
 import { QuestionFactory } from "./question-types/question-factory";
+import { getDefaultScores } from "./scoring-defaults";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { getActiveRound } from "@/lib/judging/rounds";
+import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
 
 interface DefaultScoringProps {
   projectId: string;
   eventId: string;
   judgeId: string;
   trackId: string;
+  scoringConfig?: EventScoringConfig | null;
+  roundNumber?: number;
+  finalistFeatureEnabled?: boolean;
+  onScoreSaved?: () => void;
+  onScoreDeleted?: () => void;
+  hideProjectHeader?: boolean;
+  className?: string;
 }
 
 interface FormValues {
   scores: Record<string, number | string>;
   comments: string;
+  finalist_recommendation?: boolean;
 }
 
 export function DefaultScoring({
@@ -27,17 +57,32 @@ export function DefaultScoring({
   eventId,
   judgeId,
   trackId,
+  scoringConfig: scoringConfigProp = null,
+  roundNumber: roundNumberProp,
+  finalistFeatureEnabled = false,
+  onScoreSaved,
+  onScoreDeleted,
+  hideProjectHeader = false,
+  className = "",
 }: DefaultScoringProps) {
+  const fallbackRoundNumber =
+    typeof roundNumberProp === "number" && roundNumberProp > 0
+      ? roundNumberProp
+      : getActiveRound(scoringConfigProp);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
   const [criteria, setCriteria] = useState<ScoringCriterion[]>([]);
+  const [currentRoundNumber, setCurrentRoundNumber] = useState(fallbackRoundNumber);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [hasExistingScore, setHasExistingScore] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
     defaultValues: {
       scores: {},
       comments: "",
+      finalist_recommendation: false,
     },
   });
 
@@ -54,46 +99,78 @@ export function DefaultScoring({
         if (projectError) throw projectError;
         setProject(projectData);
 
-        // Fetch scoring criteria for this track
-        const { data: trackData, error: trackError } = await supabase
-          .from("event_tracks")
-          .select("scoring_criteria")
-          .eq("track_id", trackId)
-          .single();
+        const [trackResponse, eventResponse] = await Promise.all([
+          supabase
+            .from("event_tracks")
+            .select("scoring_criteria, name")
+            .eq("track_id", trackId)
+            .single(),
+          scoringConfigProp
+            ? Promise.resolve({
+                data: { scoring_config: scoringConfigProp },
+                error: null,
+              })
+            : supabase
+                .from("events")
+                .select("scoring_config")
+                .eq("event_id", eventId)
+                .maybeSingle(),
+        ]);
 
-        if (trackError) throw trackError;
+        if (trackResponse.error) throw trackResponse.error;
+        if (eventResponse.error) throw eventResponse.error;
 
-        if (trackData?.scoring_criteria?.criteria) {
-          setCriteria(trackData.scoring_criteria.criteria);
-          
-          // Initialize form with default values
-          const defaultScores: Record<string, number | string> = {};
-          trackData.scoring_criteria.criteria.forEach((criterion: ScoringCriterion) => {
-            if (criterion.type === "multiplechoice") {
-              defaultScores[criterion.id] = "";
-            } else {
-              defaultScores[criterion.id] = criterion.min || 1;
-            }
+        const eventScoringConfig =
+          (eventResponse.data?.scoring_config as EventScoringConfig | null) ??
+          null;
+        const resolvedRound =
+          typeof roundNumberProp === "number" && roundNumberProp > 0
+            ? roundNumberProp
+            : getActiveRound(eventScoringConfig);
+        setCurrentRoundNumber(resolvedRound);
+        const resolvedTrackConfig =
+          getTrackScoringConfigForRound({
+            scoringConfig: eventScoringConfig,
+            trackId,
+            roundNumber: resolvedRound,
+            fallbackTrackName: trackResponse.data?.name || "",
+            trackScoringCriteria:
+              (trackResponse.data?.scoring_criteria as EventTrackScoringConfig | null) ??
+              null,
+          }) ||
+          (trackResponse.data?.scoring_criteria as TrackScoringConfig | null);
+
+        if (resolvedTrackConfig?.criteria) {
+          const trackCriteria = resolvedTrackConfig.criteria as ScoringCriterion[];
+          setCriteria(trackCriteria);
+
+          form.reset({
+            scores: getDefaultScores(trackCriteria),
+            comments: "",
+            finalist_recommendation: false,
           });
-          
-          form.reset({ scores: defaultScores, comments: "" });
         }
 
         // Check if this project has already been scored by this judge
         const { data: existingScore, error: scoreError } = await supabase
           .from("project_scores")
-          .select("scores, comments")
+          .select("scores, comments, finalist_recommendation")
           .eq("project_id", projectId)
           .eq("track_id", trackId)
           .eq("judge_id", judgeId)
+          .eq("round_number", resolvedRound)
           .maybeSingle();
 
         if (!scoreError && existingScore) {
           // Pre-fill the form with existing scores
+          setHasExistingScore(true);
           form.reset({
             scores: existingScore.scores,
             comments: existingScore.comments || "",
+            finalist_recommendation: !!existingScore.finalist_recommendation,
           });
+        } else {
+          setHasExistingScore(false);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -108,14 +185,13 @@ export function DefaultScoring({
     }
 
     fetchData();
-  }, [projectId, trackId, judgeId, toast, form]);
+  }, [projectId, trackId, judgeId, toast, form, eventId, roundNumberProp, scoringConfigProp]);
 
 
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
 
     try {
-      console.log(values);
       // Check if a score already exists
       const { data: existingScore, error: checkError } = await supabase
         .from("project_scores")
@@ -123,11 +199,10 @@ export function DefaultScoring({
         .eq("project_id", projectId)
         .eq("track_id", trackId)
         .eq("judge_id", judgeId)
-        .single();
+        .eq("round_number", currentRoundNumber)
+        .maybeSingle();
 
-      if (checkError && checkError.code !== "PGRST116") {
-        throw checkError;
-      }
+      if (checkError) throw checkError;
 
       if (existingScore) {
         // Update existing score
@@ -136,6 +211,7 @@ export function DefaultScoring({
           .update({
             scores: values.scores,
             comments: values.comments,
+            finalist_recommendation: !!values.finalist_recommendation,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingScore.id);
@@ -150,13 +226,16 @@ export function DefaultScoring({
             track_id: trackId,
             judge_id: judgeId,
             event_id: eventId,
+            round_number: currentRoundNumber,
             scores: values.scores,
             comments: values.comments,
+            finalist_recommendation: !!values.finalist_recommendation,
           });
 
         if (insertError) throw insertError;
       }
-      window.location.reload();
+      setHasExistingScore(true);
+      onScoreSaved?.();
 
       toast({
         title: "Score submitted",
@@ -171,6 +250,44 @@ export function DefaultScoring({
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onDeleteScore = async () => {
+    setDeleting(true);
+    try {
+      let query = supabase
+        .from("project_scores")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("track_id", trackId)
+        .eq("judge_id", judgeId);
+      query = query.eq("round_number", currentRoundNumber);
+
+      const { error } = await query;
+      if (error) throw error;
+
+      form.reset({
+        scores: getDefaultScores(criteria),
+        comments: "",
+        finalist_recommendation: false,
+      });
+      setHasExistingScore(false);
+      onScoreDeleted?.();
+
+      toast({
+        title: "Score deleted",
+        description: "Your evaluation was removed successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting score:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete your evaluation",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -201,11 +318,20 @@ export function DefaultScoring({
   }
 
   return (
-    <div className="p-4 space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">{project.project_name}</h2>
-        <p className="text-gray-600">{project.project_description}</p>
-      </div>
+    <div className={`space-y-6 ${className}`}>
+      {!hideProjectHeader && (
+        <div>
+          <h2 className="text-xl font-bold">
+            <Link
+              href={`/projects/public/${project.id}`}
+              className="text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              {project.project_name}
+            </Link>
+          </h2>
+          <p className="text-gray-600">{project.project_description}</p>
+        </div>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -235,9 +361,53 @@ export function DefaultScoring({
             />
           </FormItem>
 
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Evaluation"}
-          </Button>
+          {finalistFeatureEnabled && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="finalist_recommendation"
+                checked={!!form.watch("finalist_recommendation")}
+                onCheckedChange={(checked) =>
+                  form.setValue("finalist_recommendation", Boolean(checked))
+                }
+              />
+              <label htmlFor="finalist_recommendation" className="text-sm">
+                Recommend as Finalist
+              </label>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={submitting || deleting}>
+              {submitting ? "Submitting..." : "Submit Evaluation"}
+            </Button>
+            {hasExistingScore && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="delete"
+                    disabled={submitting || deleting}
+                  >
+                    {deleting ? "Deleting..." : "Delete Evaluation"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Evaluation</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Delete your score for this track? This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction type="button" onClick={onDeleteScore}>
+                      Delete Evaluation
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </form>
       </Form>
     </div>

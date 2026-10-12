@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { ApprovalStatus, EventVisibility } from "@/lib/types";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +9,7 @@ export async function GET(
 ) {
   try {
     const supabase = await createSupabaseClient();
+    const serviceSupabase = createSupabaseServiceClient();
     const { userId } = await params;
 
     if (!userId) {
@@ -16,19 +19,83 @@ export async function GET(
       );
     }
 
-    // Fetch user profile
-    const { data: profile, error: profileError } = await supabase
+    // build query to fetch draft projects if the user is the logged in user
+    let fetchDraftProjects = "submitted.eq.true";
+
+    const { data: loggedInUser } = await supabase.auth.getUser();
+    if (loggedInUser.user?.id === userId) {
+      fetchDraftProjects = "submitted.eq.false,submitted.eq.true";
+    }
+
+    // Fetch user profile including all social media and profile fields
+    // Using * to select all columns for resilience if some columns don't exist yet
+    const { data: profile, error: profileError } = await serviceSupabase
       .from("user_profiles")
-      .select("display_name, email, links")
+      .select("*")
       .eq("uid", userId)
       .single();
 
     if (profileError) {
       console.error("Error fetching user profile:", profileError);
       return NextResponse.json(
-        { error: "Failed to fetch user profile" },
+        {
+          error: "Failed to fetch user profile",
+          details: profileError.message,
+          code: profileError.code,
+        },
         { status: 500 }
       );
+    }
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: "User profile not found" },
+        { status: 404 }
+      );
+    }
+
+    const avatarUrl = profile?.avatar_url || null;
+
+    // Fetch phone number from user_phone_numbers table
+    // Only fetch phone numbers for the user's own profile (privacy)
+    let primaryPhoneNumber: string | null = null;
+    const isOwnProfile = loggedInUser.user?.id === userId;
+
+    if (isOwnProfile) {
+      // Prefer verified phone number, otherwise get the most recent one
+      // First try to get a verified phone number
+      const { data: verifiedPhones, error: verifiedError } = await supabase
+        .from("user_phone_numbers")
+        .select("phone_number")
+        .eq("user_id", userId)
+        .eq("verification_status", "verified")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (verifiedError) {
+        console.error("Error fetching verified phone number:", verifiedError);
+      }
+
+      if (verifiedPhones && verifiedPhones.length > 0) {
+        primaryPhoneNumber = verifiedPhones[0].phone_number;
+      } else {
+        // If no verified phone, get the most recent one
+        const { data: recentPhones, error: recentError } = await supabase
+          .from("user_phone_numbers")
+          .select("phone_number")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (recentError) {
+          console.error("Error fetching phone number:", recentError);
+          // Don't fail the request if phone number fetch fails
+        }
+
+        if (recentPhones && recentPhones.length > 0) {
+          primaryPhoneNumber = recentPhones[0].phone_number;
+        }
+      }
     }
 
     // Fetch projects where user is lead
@@ -51,10 +118,12 @@ export async function GET(
             track_id,
             name
           )
-        )
+        ),
+        submitted
       `
       )
-      .eq("lead_email", profile.email);
+      .eq("lead_email", profile.email)
+      .or(fetchDraftProjects);
 
     if (leadError) {
       console.error("Error fetching lead projects:", leadError);
@@ -84,10 +153,12 @@ export async function GET(
             track_id,
             name
           )
-        )
+        ),
+        submitted
       `
       )
-      .contains("teammates", [profile.email]);
+      .contains("teammates", [profile.email])
+      .or(fetchDraftProjects);
 
     if (teamError) {
       console.error("Error fetching team projects:", teamError);
@@ -133,28 +204,56 @@ export async function GET(
               updated_at: new Date().toISOString(),
             }))
             .filter(Boolean) || [],
+          submitted: project.submitted,
       }));
 
     // Fetch events where user has roles
+    // If the logged-in user is viewing their own profile, show all events where the user has a role
+    // Otherwise, only show public and approved events where the user has a role
+    const visibilityFilter = isOwnProfile
+      ? [
+          EventVisibility.Public,
+          EventVisibility.Private,
+          EventVisibility.Draft,
+          EventVisibility.Archived,
+          EventVisibility.Test,
+          EventVisibility.Demo,
+        ]
+      : [EventVisibility.Public];
+    const approvalFilter = isOwnProfile
+      ? [
+          ApprovalStatus.Approved,
+          ApprovalStatus.NotSubmitted,
+          ApprovalStatus.Submitted,
+          ApprovalStatus.Rejected,
+        ]
+      : [ApprovalStatus.Approved];
+
     const { data: events, error: eventsError } = await supabase
       .from("events")
       .select(
         `
         event_id,
         event_name,
+        event_type,
         slug,
         event_date,
         location,
+        event_blurb,
+        event_description,
         visibility,
         cover_image_url,
         scoring_config,
+        role_labels,
         user_event_roles!inner (
           role
-        )
+        ),
+        approval_status
       `
       )
       .eq("user_event_roles.user_id", userId)
-      .in("visibility", ["public", "private"]);
+      .in("visibility", visibilityFilter)
+      .in("approval_status", approvalFilter);
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
@@ -204,15 +303,24 @@ export async function GET(
       });
     }
 
+    // Return profile with avatar_url and phone_number included
+    const profileWithAvatar = {
+      ...profile,
+      avatar_url: avatarUrl,
+      phone_number: primaryPhoneNumber,
+    };
+
     return NextResponse.json({
-      profile,
+      profile: profileWithAvatar,
       projects: allProjects,
       events: events || [],
     });
   } catch (error) {
     console.error("API Error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: errorMessage },
       { status: 500 }
     );
   }

@@ -129,7 +129,7 @@ export function BucketManagement({ userRole }: BucketManagementProps) {
       bucket_slug: "",
       bucket_color: "#3B82F6",
       bucket_icon: "",
-      visibility: "private",
+      visibility: EventVisibility.Private,
     });
   }
 

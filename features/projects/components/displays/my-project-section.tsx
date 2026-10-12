@@ -1,9 +1,12 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Project } from "@/lib/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface MyProjectSectionProps {
   eventId: string;
@@ -65,13 +68,12 @@ export default function MyProjectSection({ eventId }: MyProjectSectionProps) {
             <h2 className="text-2xl font-semibold">My Project</h2>
             <Link href={`/events/${eventId}/submit`}>
               <Button className="bg-black text-white hover:bg-black/90">
-                Submit My Project
+                Create Project
               </Button>
             </Link>
           </div>
           <p className="text-gray-600">
-            No project submitted yet! Click the button above to submit your
-            project.
+            No project yet! Click the button above to create your project and save as you go.
           </p>
         </div>
       </Card>
@@ -80,18 +82,17 @@ export default function MyProjectSection({ eventId }: MyProjectSectionProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div
-        className="h-[200px] w-full bg-[#000080]"
-        style={
-          project.cover_image_url
-            ? {
-                backgroundImage: `url(${project.cover_image_url})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : undefined
-        }
-      />
+      {project.cover_image_url ? (
+        <div className="relative h-[200px] w-full overflow-hidden bg-[#000080]">
+          <CoverImageWithFallback
+            src={project.cover_image_url}
+            alt={`${project.project_name ?? "Project"} cover`}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
+        </div>
+      ) : (
+        <div className="h-[200px] w-full bg-[#000080]" />
+      )}
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>

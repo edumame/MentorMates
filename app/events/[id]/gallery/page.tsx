@@ -1,110 +1,85 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
-import { ProjectBoardContext, Project } from "@/lib/types";
-import { useEventRegistration } from "@/components/event-registration-provider";
-import { EventRole } from "@/lib/types";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { notFound } from "next/navigation";
+import { EventPageLayout } from "@/components/events/event-page-layout";
+import { GalleryContent } from "@/components/events/gallery-content";
+import { EventRole } from "@/lib/types";
 
-export default function GalleryPage() {
-  const params = useParams();
-  const slug = params.id as string;
-  const [eventId, setEventId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const { isRegistered, userRole } = useEventRegistration();
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
 
-  useEffect(() => {
-    const resolveEventId = async () => {
-      const isUUID = isValidUUID(slug);
+export default async function GalleryPage({ params, searchParams }: PageProps) {
+  const { id } = await params;
+  const resolvedSearchParams = await searchParams;
+  const supabase = await createSupabaseClient();
+  const currentRole = (resolvedSearchParams.view as EventRole | null) || null;
 
-      let query = supabase.from("events").select("event_id");
+  const isUUID = isValidUUID(id);
 
-      if (isUUID) {
-        // If it's a UUID, check both slug and event_id
-        query = query.or(`slug.eq.${slug},event_id.eq.${slug}`);
-      } else {
-        // If it's not a UUID, only check slug
-        query = query.eq("slug", slug);
-      }
+  let query = supabase.from("events").select(`
+    event_id,
+    event_name,
+    event_blurb,
+    event_date,
+    location,
+    cover_image_url,
+    slug,
+    paid
+  `);
 
-      const { data } = await query.maybeSingle();
-      if (data) setEventId(data.event_id);
-    };
-    resolveEventId();
-  }, [slug]);
-
-  // Sets 'projects' state to a list of projects the event_id is associated with
-  useEffect(() => {
-    if (!eventId) return;
-    const fetchProjects = async () => {
-      setIsLoading(true);
-      try {
-        // Use the consolidated API route with public flag
-        const response = await fetch(`/api/projects?eventId=${eventId}&public=true`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch projects');
-        }
-        const data = await response.json();
-        setProjects(data.projects || []);
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-        setProjects([]);
-      }
-      setIsLoading(false);
-    };
-
-    fetchProjects();
-  }, [eventId]);
-
-  if (!eventId) {
-    return <div>Loading...</div>;
+  if (isUUID) {
+    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
+  } else {
+    query = query.eq("slug", id);
   }
 
-  const filteredProjects = projects.filter(
-    (project) =>
-      project.project_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.project_description
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-  );
+  const { data: eventData, error: eventError } = await query.single();
+
+  if (eventError || !eventData) {
+    notFound();
+  }
+
+  // Check if user has joined
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let hasJoined = false;
+  let userRole: string | null = null;
+
+  if (user) {
+    const { data: userEventRole } = await supabase
+      .from("user_event_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("event_id", eventData.event_id)
+      .maybeSingle();
+
+    hasJoined = !!userEventRole;
+    userRole = userEventRole?.role || null;
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl sm:text-4xl font-bold">Project Gallery</h2>
-        {isRegistered && userRole === EventRole.Participant && (
-          <Link href={`/events/${eventId}/submit`}>
-            <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Submit Project
-            </Button>
-          </Link>
-        )}
-      </div>
-
-      <div className="mb-8">
-        <Input
-          placeholder="Search projects..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-3 border rounded-md"
-        />
-      </div>
-
-      <ProjectBoard
-        isLoading={isLoading}
-        projectList={filteredProjects}
-        projectBoardContext={ProjectBoardContext.EventGallery}
+    <EventPageLayout
+      eventName={eventData.event_name}
+      eventBlurb={eventData.event_blurb || ""}
+      eventDate={eventData.event_date}
+      location={eventData.location}
+      coverImageUrl={eventData.cover_image_url}
+      eventId={id}
+      hasJoined={hasJoined}
+      dbEventId={eventData.event_id}
+      paid={eventData.paid}
+    >
+      <GalleryContent
+        eventId={eventData.event_id}
+        slug={id}
+        hasJoined={hasJoined}
+        userRole={userRole}
+        currentRole={(currentRole || userRole || null) as EventRole | null}
       />
-    </div>
+    </EventPageLayout>
   );
 }
