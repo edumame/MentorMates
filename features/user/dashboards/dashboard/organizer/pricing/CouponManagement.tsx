@@ -10,6 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Percent, DollarSign, Calendar, Users } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Coupon, CouponWithCodes, CreateCouponRequest, CouponDuration } from "@/lib/types";
+import {
+  DEFAULT_PAYMENT_CURRENCY,
+  PAYMENT_CURRENCY_OPTIONS,
+  formatPrice,
+} from "@/lib/utils/pricing";
 
 interface CouponManagementProps {
   eventId: string;
@@ -168,13 +173,6 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
     }
   };
 
-  const formatCurrency = (amountInCents: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-    }).format(amountInCents / 100);
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -184,7 +182,7 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
       return `${coupon.percent_off}% off`;
     }
     if (coupon.amount_off && coupon.currency) {
-      return `${formatCurrency(coupon.amount_off, coupon.currency)} off`;
+      return `${formatPrice(coupon.amount_off, coupon.currency)} off`;
     }
     return "Unknown discount";
   };
@@ -328,7 +326,7 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
                       disabled={!!newCoupon.percent_off}
                     />
                     <Select
-                      value={newCoupon.currency || "usd"}
+                      value={newCoupon.currency || DEFAULT_PAYMENT_CURRENCY}
                       onValueChange={(value) =>
                         setNewCoupon({ ...newCoupon, currency: value })
                       }
@@ -338,9 +336,14 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usd">USD</SelectItem>
-                        <SelectItem value="eur">EUR</SelectItem>
-                        <SelectItem value="gbp">GBP</SelectItem>
+                        {PAYMENT_CURRENCY_OPTIONS.map((currency) => (
+                          <SelectItem
+                            key={currency.value}
+                            value={currency.value}
+                          >
+                            {currency.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

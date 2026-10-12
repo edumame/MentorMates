@@ -21,6 +21,8 @@ jest.mock("./SubmissionFieldsSettings", () => ({
 
 jest.mock("./export", () => ({
   buildSubmissionExportRows: jest.fn(() => []),
+  buildCustomFieldColumns: jest.requireActual("./export").buildCustomFieldColumns,
+  formatSubmissionValue: jest.requireActual("./export").formatSubmissionValue,
 }));
 
 jest.mock("@/lib/supabase", () => ({
@@ -131,6 +133,31 @@ jest.mock("@/components/ui/badge", () => ({
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
+jest.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuCheckboxItem: ({
+    children,
+    checked,
+    onCheckedChange,
+  }: {
+    children: React.ReactNode;
+    checked?: boolean;
+    onCheckedChange?: (checked: boolean) => void;
+  }) => (
+    <label>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onCheckedChange?.(event.target.checked)}
+      />
+      {children}
+    </label>
+  ),
+}));
+
 describe("SubmissionsTab", () => {
   const originalFetch = global.fetch;
 
@@ -192,6 +219,20 @@ describe("SubmissionsTab", () => {
               },
             ],
             feedback: [],
+            submission_fields: [
+              {
+                key: "demo_needs",
+                label: "What does your project need?",
+              },
+              {
+                key: "tags",
+                label: "Tags",
+              },
+            ],
+            submission_values: {
+              demo_needs: "More compute",
+              tags: ["AI", "Accessibility"],
+            },
           },
         ],
       }),
@@ -237,5 +278,35 @@ describe("SubmissionsTab", () => {
     });
 
     expect(screen.queryByText("AI Track")).not.toBeInTheDocument();
+  });
+
+  it("lets organizers add project submission question columns to the table", async () => {
+    render(<SubmissionsTab eventId="event-1" />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Project One")).toBeInTheDocument()
+    );
+
+    expect(screen.queryByText("More compute")).not.toBeInTheDocument();
+    expect(screen.queryByText("AI | Accessibility")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "What does your project need?",
+      })
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Tags" }));
+
+    expect(screen.getByText("More compute")).toBeInTheDocument();
+    expect(screen.getByText("AI | Accessibility")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "What does your project need?",
+      })
+    );
+
+    expect(screen.queryByText("More compute")).not.toBeInTheDocument();
+    expect(screen.getByText("AI | Accessibility")).toBeInTheDocument();
   });
 });

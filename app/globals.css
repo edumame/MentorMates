@@ -69,10 +69,13 @@ body {
 
     /* Design tokens (Figma / MentorMates) */
     --Color-Pattens-Blue-Lighter: #F7FAFE;
+    --Color-Pattens-Blue: #DBEAFE;
+    --Color-Jacksons-Purple: #4B89EF;
     --text-text-primary: #18181B;
     --Text-Sizes-Heading-5: 28px;
     --Text-Sizes-Heading-6: 22px;
     --Color-Scheme-1-Accent: #4B89EF;
+    --Color-Scheme-1-Text: #000;
     --Color-Neutral-Darkest: #000;
     --Color-Neutral: #7F7F7F;
     --Color-Neutral-Lightest: #F2F2F2;
@@ -183,6 +186,18 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Horizontal tab strips — scroll on mobile without chaining to page scroll */
+.scroll-x-tabs {
+  display: block;
+  width: 100%;
+  overflow-x: scroll;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Stream Chat overrides for ChatGPT-like composer styling */
@@ -390,4 +405,30 @@ body {
 .chatgpt-stream-shell .str-chat__send-button > button svg {
   width: 20px;
   height: 20px;
+}
+
+/* shipcue report panel (components/layout/ShipcueReportButton.tsx). shipcue
+   draws no button here (trigger={false}); the support circle in the corner
+   opens it, so the panel opens just above that circle (48px + 12px gap). On
+   pages with their own controls in the corner the circle moves up and the
+   panel with it (lib/shipcue/placement.ts). shipcue positions itself with
+   inline styles, hence !important. */
+[data-mm-shipcue] [data-shipcue="floating"] {
+  bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+}
+[data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] {
+  bottom: calc(172px + env(safe-area-inset-bottom)) !important;
+}
+[data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] [role="dialog"] {
+  max-height: calc(100dvh - 15rem) !important;
+}
+@media (min-width: 768px) {
+  [data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] {
+    bottom: calc(188px + env(safe-area-inset-bottom)) !important;
+  }
+}
+@media (max-width: 639px) {
+  [data-mm-shipcue][data-placement="mobile-bar"] [data-shipcue="floating"] {
+    bottom: calc(140px + env(safe-area-inset-bottom)) !important;
+  }
 }

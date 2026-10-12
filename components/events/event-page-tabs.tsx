@@ -12,6 +12,7 @@ interface EventPageTabsProps {
   projectCount?: number;
   showTicketsTab?: boolean;
   showParticipantsTab?: boolean;
+  showTeamTab?: boolean;
 }
 
 export function EventPageTabs({
@@ -20,6 +21,7 @@ export function EventPageTabs({
   projectCount,
   showTicketsTab,
   showParticipantsTab = true,
+  showTeamTab = false,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -46,6 +48,10 @@ export function EventPageTabs({
       path: `/events/${eventId}/participants`,
       badge: participantCount,
     });
+  }
+
+  if (!isJudge && showTeamTab) {
+    tabs.push({ name: "Team", path: `/events/${eventId}/team` });
   }
 
   if (!isJudge) {

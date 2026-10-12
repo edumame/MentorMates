@@ -39,9 +39,11 @@ interface ProjectAssignmentRow {
   project_id: string;
 }
 
+const DEFAULT_PROJECT_NAME = "Project Name Not Set";
+
 interface ProjectRow {
   id: string;
-  project_name: string;
+  project_name: string | null;
   project_description: string | null;
   created_at: string;
   event_id: string;
@@ -156,15 +158,17 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   const filteredProjects = useMemo(
     () =>
-      projects.filter(
-        (project) =>
-          project.project_name || "Project Name Not Set"
+      projects.filter((project) => {
+        const projectName = project.project_name || DEFAULT_PROJECT_NAME;
+        const projectDescription = project.project_description || "";
+
+        return (
+          projectName
             .toLowerCase()
             .includes(normalizedSearchQuery) ||
-          (project.project_description || "")
-            .toLowerCase()
-            .includes(normalizedSearchQuery)
-      ),
+          projectDescription.toLowerCase().includes(normalizedSearchQuery)
+        );
+      }),
     [projects, normalizedSearchQuery]
   );
 
@@ -571,7 +575,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
           projectMap.set(project.id, {
             id: project.id,
-            project_name: project.project_name,
+            project_name: project.project_name?.trim() || DEFAULT_PROJECT_NAME,
             project_description: project.project_description || "",
             created_at: project.created_at,
             event_id: project.event_id,
@@ -1005,8 +1009,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   onPointerLeave={resetSwipeState}
                 >
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="mt-1 text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
+                    <div className="min-w-0">
+                      <h3 className="mt-1 break-words text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
                         <Link
                           href={`/projects/public/${currentProject.id}`}
                           target="_blank"
@@ -1154,12 +1158,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                   data-no-swipe="true"
                                   className="py-3 hover:no-underline"
                                 >
-                                  <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
-                                    <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                                  <div className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-3 text-left">
+                                    <span className="min-w-0 flex-1 truncate font-medium text-[rgba(0,0,0,0.8)]">
                                       {trackInfo?.name || "Track"}
                                     </span>
                                     <span
-                                      className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                      className={`inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold ${
                                         isScored
                                           ? "bg-[#E8F8EC] text-[#19703A]"
                                           : "bg-[#FFF5E5] text-[#9A5C00]"
@@ -1270,12 +1274,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                             data-no-swipe="true"
                             className="py-3 hover:no-underline"
                           >
-                            <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
-                              <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-3 text-left">
+                              <span className="min-w-0 flex-1 truncate font-medium text-[rgba(0,0,0,0.8)]">
                                 {trackInfo?.name || "Track"}
                               </span>
                               <span
-                                className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                className={`inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold ${
                                   isScored
                                     ? "bg-[#E8F8EC] text-[#19703A]"
                                     : "bg-[#FFF5E5] text-[#9A5C00]"
