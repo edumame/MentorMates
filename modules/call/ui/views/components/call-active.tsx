@@ -42,7 +42,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const handleTogglePause = useCallback(async () => {
     if (disabled) return;
     setDisabled(true);
-    const endpoint = paused ? `/api/agent/resume` : `/api/agent/pause`;
+    const endpoint = paused ? `/api/voice-agent/resume` : `/api/voice-agent/pause`;
     try {
       const response = await fetch(endpoint, {
         method: "POST",

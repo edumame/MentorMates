@@ -1,10 +1,37 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Bot } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import type { Session } from "@supabase/supabase-js";
+import { Bot, ChevronsUpDown } from "lucide-react";
+import { NotificationsNone } from "@mui/icons-material";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  useNotificationData,
+  NotificationPopoverContent,
+} from "@/components/layout/NotificationPopoverContent";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAdmin } from "@/lib/hooks/use-admin";
+import posthog from "posthog-js";
+import type { UserProfile } from "@/lib/types";
+import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 const HomeIcon = (
   <svg
@@ -113,50 +140,80 @@ const SupportIcon = (
   </svg>
 );
 
-const ProfileIcon = (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-  >
-    <path
-      d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H6C4.93913 15 3.92172 15.4214 3.17157 16.1716C2.42143 16.9217 2 17.9391 2 19V21M19 13C20.1046 13 21 12.1046 21 11C21 9.89543 20.1046 9 19 9M19 13C17.8954 13 17 12.1046 17 11C17 9.89543 17.8954 9 19 9M19 13V14M19 9V8M21.6 9.5L20.73 10M17.27 12L16.4 12.5M21.6 12.5L20.73 12M17.27 10L16.4 9.5M13 7C13 9.20914 11.2091 11 9 11C6.79086 11 5 9.20914 5 7C5 4.79086 6.79086 3 9 3C11.2091 3 13 4.79086 13 7Z"
-      stroke="#09090B"
-      strokeWidth="1.67"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
 const data = [
   { name: "Home", href: "/", icon: HomeIcon },
   { name: "Events", href: "/events", icon: EventIcon },
   { name: "Learn", href: "/learn", icon: BookIcon },
   { name: "Projects", href: "/projects", icon: ProjectIcon },
   { name: "Feedback", href: "/feedback", icon: FeedbackIcon },
-  { name: "Agents", href: "/agents", icon: AgentsIcon },
+  { name: "API", href: "/keys", icon: AgentsIcon },
 ];
 
 const bottomLinksBase = [
+  {
+    name: "Notification",
+    href: null as string | null,
+    icon: <NotificationsNone className="h-6 w-6" />,
+  },
   { name: "Support", href: "/support", icon: SupportIcon },
-  { name: "Profile", href: "/profile", icon: ProfileIcon },
 ];
 
-export function SideNav() {
-  const [userId, setUserId] = useState<string | null>(null);
+interface ExtendedUserProfile extends UserProfile {
+  onboarding_metadata: Record<string, unknown> | null;
+  affiliation: string | null;
+  phone_number?: string | null;
+  links?: Record<string, string> | null;
+}
+
+interface SideNavProps {
+  /** When true, show MentorMates logo at top of sidebar (e.g. event pages with no top header) */
+  showLogoAtTop?: boolean;
+}
+
+export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(null);
   const pathname = usePathname();
+  const { clearReturnUrl } = useRedirect();
+  const { needsProfileCompletion } = useNotificationData();
+  const isAdmin = useAdmin();
+  const showProfileCompletionWarning = Boolean(
+    session && profileNeedsCompletion(userProfile)
+  );
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id ?? null);
+    const client = createClient();
+    client.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
     });
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_, s) => {
+      setSession(s);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  const profileHref = userId ? `/profile/${userId}` : "/profile";
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("uid", session?.user?.id)
+        .single();
+      setUserProfile(data);
+    };
+    if (session) fetchUserProfile();
+  }, [session]);
+
+  const handleSignOut = async () => {
+    clearReturnUrl();
+    await supabase.auth.signOut();
+    posthog.reset();
+    router.push("/");
+    window.location.reload();
+  };
 
   // Helper to determine if path is active
   const isActive = (href: string) => {
@@ -169,7 +226,18 @@ export function SideNav() {
 
   return (
     <div className="w-[270px] h-full flex flex-col justify-between">
-      <div className="flex flex-col gap-2 p-4">
+      <div className="flex flex-col gap-2 p-4 mt-[6px]">
+        {showLogoAtTop && (
+          <Link href="/" className="flex items-center gap-2 p-2 mb-2 rounded-md hover:opacity-90">
+            <Image
+              src="/mentormate.png"
+              alt="MentorMates"
+              width={200}
+              height={40}
+              className="object-contain"
+            />
+          </Link>
+        )}
         {data.map((item) => (
           <Link
             href={item.href}
@@ -188,12 +256,38 @@ export function SideNav() {
           </Link>
         ))}
       </div>
-      <div className="flex flex-col gap-2 mt-8 p-4">
-        {[...bottomLinksBase].map((item) => {
-          const href = item.name === "Profile" ? profileHref : item.href;
-          const active = isActive(
-            item.name === "Profile" ? "/profile" : item.href
-          );
+      <div className="flex flex-col gap-2 mt-8 p-4 mt-auto">
+        {bottomLinksBase.map((item) => {
+          if (item.name === "Notification" && item.href === null) {
+            return (
+              <Popover key={item.name}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 w-full p-2 rounded-md transition hover:bg-blue-100/50 text-left relative"
+                  >
+                    <span className="relative">
+                      <NotificationsNone className="h-6 w-6" />
+                      {needsProfileCompletion && (
+                        <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full" />
+                      )}
+                    </span>
+                    {item.name}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="start"
+                  sideOffset={8}
+                  className="w-[420px] p-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl"
+                >
+                  <NotificationPopoverContent />
+                </PopoverContent>
+              </Popover>
+            );
+          }
+          const href = item.href!;
+          const active = isActive(href);
           return (
             <Link
               href={href}
@@ -212,6 +306,118 @@ export function SideNav() {
             </Link>
           );
         })}
+        {/* Profile card 在 Support 下面，图一样式：32px 圆角、#E9EAEB 边框；有 session 才显示完整卡片 */}
+        {session && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Account menu"
+                className="relative w-full h-[64px] flex items-center gap-4 px-3 self-stretch rounded-xl border border-[#E9EAEB] bg-white text-left hover:bg-gray-50/80 transition-colors"
+              >
+                {showProfileCompletionWarning && (
+                  <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#EF4444] text-xs font-semibold text-white">
+                    !
+                  </span>
+                )}
+                <Avatar
+                className="h-[40px] w-[40px] shrink-0 border-[0.714px] border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
+              >
+                  <AvatarImage src={session.user.user_metadata?.avatar_url} />
+                  <AvatarFallback className="text-sm font-medium text-[#181d27]">
+                    {session.user.email?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0 flex flex-col items-start gap-0 overflow-hidden">
+                  <p className="text-sm font-semibold text-[#181d27] leading-5 truncate w-full">
+                    {session.user.user_metadata?.full_name ||
+                      session.user.user_metadata?.name ||
+                      session.user.email?.split("@")[0]}
+                  </p>
+                  <p
+                    className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-sans text-xs font-normal leading-[20px] text-[#535862]"
+                    style={{ fontFamily: "var(--Font-family-font-family-body, Inter)", fontSize: "12px", lineHeight: "var(--Line-height-text-sm, 20px)" }}
+                  >
+                    {session.user.email}
+                  </p>
+                </div>
+                <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-md p-1.5">
+                  <ChevronsUpDown className="h-5 w-5 text-[#535862]" />
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="center"
+              side="top"
+              sideOffset={10}
+              collisionPadding={16}
+              className="min-w-[260px] max-w-[min(calc(100vw-2rem),320px)] rounded-xl border border-[#E9EAEB] bg-white p-0 shadow-lg"
+            >
+              <div className="p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xl font-bold leading-snug break-words">
+                    {session.user.user_metadata?.full_name ||
+                      session.user.user_metadata?.name ||
+                      session.user.email?.split("@")[0]}
+                  </p>
+                  {isAdmin && (
+                    <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5 shrink-0">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-gray-700 break-all">
+                  {session.user.email}
+                </p>
+                {profileNeedsCompletion(userProfile) ? (
+                  <Button
+                    variant="defaultGray"
+                    onClick={() =>
+                      router.push(`/profile/${session?.user?.id}?edit=1`)
+                    }
+                    className="mt-4 w-full text-base"
+                  >
+                    Set up profile
+                  </Button>
+                ) : (
+                  <Button
+                    variant="defaultGray"
+                    onClick={() => router.push(`/profile/${session?.user?.id}`)}
+                    className="mt-4 w-full text-base"
+                  >
+                    View profile
+                  </Button>
+                )}
+                <DropdownMenuSeparator className="my-4" />
+                <div className="flex flex-col gap-0.5 pb-0.5">
+                  <DropdownMenuItem onSelect={() => router.push("/help")}>
+                    Support
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => router.push("/blog")}>
+                    Blog
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => void handleSignOut()}
+                    className="text-red-600 hover:bg-red-50"
+                  >
+                    Log out
+                  </DropdownMenuItem>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {!session && (
+          <Link
+            href="/login"
+            className="w-full h-[64px] flex items-center gap-4 px-3 rounded-xl border border-[#E9EAEB] bg-white text-[#181d27] text-sm font-medium hover:bg-gray-50/80 transition-colors"
+          >
+            <span className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500">
+              ?
+            </span>
+            <span>Log in</span>
+          </Link>
+        )}
       </div>
     </div>
   );

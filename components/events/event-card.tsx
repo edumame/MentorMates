@@ -5,9 +5,10 @@ import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
 import { parseEventDateLocal } from "@/lib/utils/date";
+import { getEventNavigationTarget, type EventNavigationRole } from "@/lib/events/navigation";
 
 interface EventCardProps {
-  event: EventItem;
+  event: EventItem & { userRole?: EventNavigationRole };
 }
 
 export function EventCard({ event }: EventCardProps) {
@@ -28,7 +29,7 @@ export function EventCard({ event }: EventCardProps) {
   // Determine if event is paid or free
   const isPaid = event.paid || event.stripe_price_id;
 
-  const eventType = event.event_type || "Hackathon";
+  const eventTypes = event.event_type?.length ? event.event_type : ["Hackathon"];
 
   // Choose the best available summary for the event
   const normalizeSummary = (text?: string | null) =>
@@ -38,15 +39,11 @@ export function EventCard({ event }: EventCardProps) {
     normalizeSummary(event.event_description) ||
     "";
 
-  return (
-    <Link
-      href={`/events/${event.slug || event.event_id}/overview`}
-      className="block h-full"
-      prefetch={false}
-    >
-      <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
+  const { href, isExternal } = getEventNavigationTarget(event);
+  const cardInner = (
+    <div className="min-w-0 max-w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
-        <div className="relative w-full aspect-[335/223] overflow-hidden">
+        <div className="relative min-w-0 w-full max-w-full aspect-[335/223] overflow-hidden">
           {event.cover_image_url ? (
             <Image
               src={event.cover_image_url}
@@ -76,11 +73,11 @@ export function EventCard({ event }: EventCardProps) {
         <div className="px-6 py-4 flex flex-col flex-1">
           {/* Event Details Tags */}
           <div className="flex flex-wrap gap-1 mb-3">
-            <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-              {eventType
-                ? eventType.charAt(0).toUpperCase() + eventType.slice(1)
-                : "Hackathon"}
-            </span>
+            {eventTypes.map((type) => (
+              <span key={type} className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </span>
+            ))}
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
               {isPaid ? "Paid" : "Free"}
             </span>
@@ -109,6 +106,28 @@ export function EventCard({ event }: EventCardProps) {
           </p>
         </div>
       </div>
+  );
+
+  if (isExternal) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block h-full min-w-0 max-w-full"
+      >
+        {cardInner}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className="block h-full min-w-0 max-w-full"
+      prefetch={false}
+    >
+      {cardInner}
     </Link>
   );
 }

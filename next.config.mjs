@@ -1,6 +1,16 @@
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // shipcue ships ES modules only; listing it also lets next/jest transform it.
+  transpilePackages: ["shipcue"],
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     remotePatterns: [
       new URL("https://lpxqfwyqandsortecbvu.supabase.co/**"),
@@ -15,7 +25,20 @@ const nextConfig = {
     "@stream-io/node-sdk",
     "ws",
   ],
-  
+
+  async rewrites() {
+    return [
+      {
+        source: "/judge-certificate",
+        destination: "https://judges.mentormates.ai/",
+      },
+      {
+        source: "/judge-certificate/:path*",
+        destination: "https://judges.mentormates.ai/:path*",
+      },
+    ];
+  },
+
   // Subdomain routing for admin panel
   // async rewrites() {
   //   return {

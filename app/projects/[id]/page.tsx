@@ -28,6 +28,8 @@ import {
   Video,
   Lightbulb,
   Download,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -54,6 +56,8 @@ import { TrackSelector } from "@/features/projects/components/tracks/TrackSelect
 import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import ProjectTimeline from "@/features/projects/components/displays/ProjectTimeline";
+import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
+import { ProjectFieldEntriesSection } from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
@@ -64,7 +68,12 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
+import { ProjectShareSection } from "@/features/projects/components/displays/ProjectShareSection";
 
 interface EventParticipant {
   user_id: string;
@@ -79,7 +88,7 @@ interface EventDetails {
   start_date: string;
   end_date: string;
   location?: string;
-  event_type?: string;
+  event_type?: string[];
   cover_image_url?: string;
 }
 
@@ -277,41 +286,30 @@ export default function ProjectPage() {
     setIsLoading(true);
     setFetchComplete(false);
 
-    const { data, error } = await supabase
-      .from("projects")
-      .select(
-        `
-        *,
-        contextus_project_id
-      `
-      )
-      .eq("id", projectId)
-      .single();
+    const response = await fetch(`/api/projects?projectId=${projectId}`);
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      project?: Project;
+    };
 
-    if (error) {
+    if (!response.ok || !payload.project) {
       setProject(null);
       setIsLoading(false);
       setFetchComplete(true);
       return;
     }
 
-    const { data: artifactRows } = await supabase
-      .from("project_artifacts")
-      .select("id, project_id, kind, label, url, sort_order, is_primary, metadata")
-      .eq("project_id", projectId)
-      .order("sort_order", { ascending: true });
-
     setProjectWithArtifacts({
-      ...(data as Project),
-      artifacts: artifactRows && artifactRows.length > 0 ? artifactRows : undefined,
+      ...payload.project,
+      artifacts: payload.project.artifacts || undefined,
     });
 
     // Check if user can edit (is lead or teammate)
     if (session?.user?.email) {
       const userEmail = session.user.email;
-      const isLead = data.lead_email === userEmail;
-      const isTeammate = data.teammates?.includes(userEmail);
-      const canEditProject = isLead || isTeammate;
+      const isLead = payload.project.lead_email === userEmail;
+      const isTeammate = payload.project.teammates?.includes(userEmail);
+      const canEditProject = isLead || Boolean(isTeammate);
       setCanEdit(canEditProject);
     }
 
@@ -384,6 +382,43 @@ export default function ProjectPage() {
         variant: "destructive",
       });
       return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSubmitToEvent = async (): Promise<void> => {
+    setIsUpdating(true);
+    try {
+      const response = await fetch("/api/projects/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, submitted: true }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast({
+          title: "Submission failed",
+          description: errorData?.error || "Could not submit project to event.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data } = await response.json();
+      setProjectWithArtifacts(data as Project);
+      toast({
+        title: "Submitted to event",
+        description: "Your project is now visible to judges.",
+      });
+    } catch (err) {
+      toast({
+        title: "Submission failed",
+        description:
+          err instanceof Error ? err.message : "Unknown error. Try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1094,33 +1129,6 @@ export default function ProjectPage() {
     typeof window !== "undefined" ? window.location.origin : ""
   }/projects/public/${project.id}`;
 
-  const handleShare = (platform: string) => {
-    switch (platform) {
-      case "copy":
-        navigator.clipboard.writeText(feedbackUrl);
-        alert("Link copied to clipboard!");
-        break;
-      case "linkedin":
-        window.open(
-          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
-        );
-        break;
-      case "facebook":
-        window.open(
-          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
-        );
-        break;
-      case "twitter":
-        window.open(
-          `https://twitter.com/intent/tweet?url=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
-        );
-        break;
-    }
-  };
-
   const projectArtifacts = project.artifacts || [];
   const extraProjectLinks = projectArtifacts.filter(
     (artifact) => artifact.kind === "project_link" && artifact.url !== project.project_url
@@ -1133,6 +1141,17 @@ export default function ProjectPage() {
       artifact.kind === "additional_material" &&
       artifact.url !== project.additional_materials_url
   );
+  const hasCoverImageSettings = Boolean(project.cover_image_url);
+  const hasAdditionalMaterialsSettings =
+    Boolean(project.additional_materials_url) || extraMaterialLinks.length > 0;
+  const hasProjectUrlSettings =
+    Boolean(project.project_url) || extraProjectLinks.length > 0;
+  const hasVideoUrlSettings = Boolean(project.video_url);
+  const hasVisibleProjectSettings =
+    hasCoverImageSettings ||
+    hasAdditionalMaterialsSettings ||
+    hasProjectUrlSettings ||
+    hasVideoUrlSettings;
   const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
 
   return (
@@ -1188,17 +1207,6 @@ export default function ProjectPage() {
 
               {/* Action Buttons - Desktop Only */}
               <div className="hidden sm:flex items-center gap-2 sm:gap-3 flex-wrap">
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    className="rounded-xl px-4 sm:px-5 py-2 text-sm sm:text-base"
-                    onClick={() => router.push(`/projects/${projectId}/edit`)}
-                  >
-                    {/* <Edit className="h-6 w-6 mr-1.5" /> */}
-                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
-                    Edit
-                  </Button>
-                )}
                 <div
                   onClick={() => {
                     if (!session) {
@@ -1230,14 +1238,75 @@ export default function ProjectPage() {
                   <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
                   {/* <span className="ml-2 text-sm">{likesCount}</span> */}
                 </div>
-                <Button
-                  onClick={() => setShowFeedbackDialog(true)}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
-                >
-                  Give feedback
-                </Button>
+                {canEdit ? (
+                  <Button
+                    onClick={() => router.push(`/projects/${projectId}/edit`)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
+                    Edit
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setShowFeedbackDialog(true)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    Give feedback
+                  </Button>
+                )}
               </div>
             </div>
+
+            {/* Submission Status Banner — clarifies published vs submitted */}
+            {canEdit && (
+              <div
+                className={`mb-6 rounded-[16px] border p-4 shadow-sm ${
+                  project.submitted
+                    ? "border-[rgba(0,0,0,0.08)] bg-white"
+                    : "border-[#FDE68A] bg-[#FFFBEB]"
+                }`}
+              >
+                {project.submitted ? (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
+                      <Check className="h-3 w-3 text-[#16A34A]" strokeWidth={3} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
+                        Submitted to event
+                      </p>
+                      <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
+                        This project is submitted and visible to judges. You can
+                        still edit it until the submission deadline.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-3 w-3 text-[#D97706]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
+                        Draft — not yet submitted to the event
+                      </p>
+                      <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
+                        Your project is saved but hasn&apos;t been submitted. Publishing
+                        a project is not the same as submitting it to an event —
+                        click &quot;Submit to event&quot; for judges to see it.
+                      </p>
+                      <Button
+                        className="mt-2.5 bg-[#4B89EF] hover:bg-[#3E7EEA] text-white rounded-[12px] h-8 px-4 text-[13px] font-semibold shadow-[inset_0_2px_1px_0_rgba(255,255,255,0.25),0_1px_2px_0_rgba(0,0,0,0.05)]"
+                        onClick={handleSubmitToEvent}
+                        disabled={isUpdating}
+                      >
+                        {isUpdating ? "Submitting…" : "Submit to event"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Project Title and Hero Section */}
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-20 mb-6 sm:mb-12">
@@ -1359,46 +1428,29 @@ export default function ProjectPage() {
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
                 {canEdit ? (
-                  <div className="relative w-full h-full group">
-                    <div
-                      className="w-full h-full bg-cover bg-center bg-no-repeat"
-                      style={{
-                        backgroundImage: `url(${
-                          project.cover_image_url || "/img/placeholder.png"
-                        })`,
-                      }}
-                    ></div>
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-sm">
-                        Click to edit in settings below
-                      </span>
-                    </div>
+                  <div className="relative h-full w-full group">
+                    <ProjectCoverHero
+                      src={project.cover_image_url}
+                      alt={`${project.project_name || "Project"} cover`}
+                    >
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-sm">
+                          Click to edit in settings below
+                        </span>
+                      </div>
+                    </ProjectCoverHero>
                   </div>
                 ) : (
-                  <div
-                    className="w-full h-full bg-cover bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage: `url(${
-                        project.cover_image_url || "/img/placeholder.png"
-                      })`,
-                    }}
-                  ></div>
+                  <ProjectCoverHero
+                    src={project.cover_image_url}
+                    alt={`${project.project_name || "Project"} cover`}
+                  />
                 )}
               </div>
             </div>
 
             {/* Action Buttons - Mobile Only */}
             <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4">
-              {canEdit && (
-                <Button
-                  variant="ghost"
-                  className="rounded-xl px-4 py-2 text-sm flex-shrink-0"
-                  onClick={() => router.push(`/projects/${projectId}/edit`)}
-                >
-                  <Edit className="h-5 w-5 mr-1.5" />
-                  Edit
-                </Button>
-              )}
               <div
                 onClick={() => {
                   if (!session) {
@@ -1429,12 +1481,22 @@ export default function ProjectPage() {
                 )}
                 <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
               </div>
-              <Button
-                onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
-              >
-                Give feedback
-              </Button>
+              {canEdit ? (
+                <Button
+                  onClick={() => router.push(`/projects/${projectId}/edit`)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  <Edit className="h-5 w-5 mr-1.5" />
+                  Edit
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowFeedbackDialog(true)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  Give feedback
+                </Button>
+              )}
             </div>
 
             {/* Tabs Navigation */}
@@ -1526,11 +1588,18 @@ export default function ProjectPage() {
                           )}
                         </div>
 
+                        <ProjectSubmissionDetails project={project} />
+
+                        <ProjectFieldEntriesSection
+                          projectId={project.id}
+                          canContribute={canEdit}
+                        />
+
                         {/* Cover Image Display */}
                         {project.cover_image_url && (
                           <div className="space-y-2 rounded-xl border border-black/10 p-3">
                             <div className="rounded-xl overflow-hidden">
-                              <img
+                              <CoverImageWithFallback
                                 src={project.cover_image_url}
                                 alt="Project cover"
                                 className="w-full h-auto object-cover"
@@ -1555,71 +1624,70 @@ export default function ProjectPage() {
                         </div>
 
                         {/* Settings Section - Only for editors */}
-                        {canEdit && (
+                        {canEdit && (hasVisibleProjectSettings || isLead) && (
                           <Card className="mt-12">
                             <CardHeader>
                               <CardTitle>Project Settings</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-6">
                               {/* Cover Image URL */}
-                              <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <ExternalLink className="h-4 w-4 text-gray-500" />
-                                  <label className="text-sm font-medium text-gray-700">
-                                    Cover Image:
-                                  </label>
-                                </div>
-
-                                <div className="mb-4">
-                                  <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                    Image URL:
-                                  </label>
-                                  <div className="flex gap-2">
-                                    <div className="flex-1">
-                                      <EditableField
-                                        value={project.cover_image_url || ""}
-                                        onSave={handleUpdateCoverImage}
-                                        canEdit={canEdit}
-                                        isLoading={isUpdating}
-                                        placeholder="https://example.com/image.jpg"
-                                        displayClassName="text-blue-600 underline"
-                                        renderDisplay={(value) =>
-                                          value ? (
-                                            <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
-                                              {value}
-                                            </span>
-                                          ) : (
-                                            <span className="text-gray-400 italic">
-                                              No cover image URL set
-                                            </span>
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                    {project.cover_image_url && (
-                                      <a
-                                        href={project.cover_image_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-shrink-0"
-                                      >
-                                        <Button variant="outline" size="sm">
-                                          <ExternalLink className="h-4 w-4 mr-1" />
-                                          View
-                                        </Button>
-                                      </a>
-                                    )}
+                              {hasCoverImageSettings && (
+                                <div>
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <ExternalLink className="h-4 w-4 text-gray-500" />
+                                    <label className="text-sm font-medium text-gray-700">
+                                      Cover Image:
+                                    </label>
                                   </div>
-                                </div>
 
-                                <ImageUpload
-                                  handleUpload={handleCoverImageFileUpload}
-                                  noteText="Note: Changes to the cover image will be reflected in the header image above."
-                                />
-                              </div>
+                                  <div className="mb-4">
+                                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                                      Image URL:
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <div className="flex-1">
+                                        <EditableField
+                                          value={project.cover_image_url || ""}
+                                          onSave={handleUpdateCoverImage}
+                                          canEdit={canEdit}
+                                          isLoading={isUpdating}
+                                          placeholder="https://example.com/image.jpg"
+                                          displayClassName="text-blue-600 underline"
+                                          renderDisplay={(value) =>
+                                            value ? (
+                                              <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
+                                                {value}
+                                              </span>
+                                            ) : null
+                                          }
+                                        />
+                                      </div>
+                                      {project.cover_image_url && (
+                                        <a
+                                          href={project.cover_image_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex-shrink-0"
+                                        >
+                                          <Button variant="outline" size="sm">
+                                            <ExternalLink className="h-4 w-4 mr-1" />
+                                            View
+                                          </Button>
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <ImageUpload
+                                    handleUpload={handleCoverImageFileUpload}
+                                    noteText="Note: Changes to the cover image will be reflected in the header image above."
+                                  />
+                                </div>
+                              )}
 
                               {/* Additional Materials */}
-                              <div className="border-t pt-6">
+                              {hasAdditionalMaterialsSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-3">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1647,11 +1715,7 @@ export default function ProjectPage() {
                                             <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                               {value}
                                             </span>
-                                          ) : (
-                                            <span className="text-gray-400 italic">
-                                              No additional materials URL set
-                                            </span>
-                                          )
+                                          ) : null
                                         }
                                       />
                                     </div>
@@ -1676,10 +1740,12 @@ export default function ProjectPage() {
                                   }
                                   noteText="Examples: GitHub repository, documentation, slides, design files, PDFs, etc."
                                 />
-                              </div>
+                                </div>
+                              )}
 
                               {/* Project URL */}
-                              <div className="border-t pt-6">
+                              {hasProjectUrlSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-2">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1700,11 +1766,7 @@ export default function ProjectPage() {
                                           <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
-                                        ) : (
-                                          <span className="text-gray-400 italic">
-                                            No project URL set
-                                          </span>
-                                        )
+                                        ) : null
                                       }
                                     />
                                   </div>
@@ -1723,12 +1785,12 @@ export default function ProjectPage() {
                                   )}
                                 </div>
 
-                                <div className="mt-3 space-y-2">
-                                  <label className="text-xs font-medium text-gray-600 block">
-                                    Additional Project Links:
-                                  </label>
-                                  {extraProjectLinks.length > 0 ? (
-                                    extraProjectLinks.map((artifact, index) => (
+                                {extraProjectLinks.length > 0 && (
+                                  <div className="mt-3 space-y-2">
+                                    <label className="text-xs font-medium text-gray-600 block">
+                                      Additional Project Links:
+                                    </label>
+                                    {extraProjectLinks.map((artifact, index) => (
                                       <div
                                         key={`${artifact.id || artifact.url}-settings-project-${index}`}
                                         className="flex gap-2"
@@ -1750,17 +1812,15 @@ export default function ProjectPage() {
                                           </Button>
                                         </a>
                                       </div>
-                                    ))
-                                  ) : (
-                                    <p className="text-xs text-gray-500 italic">
-                                      No additional project links
-                                    </p>
-                                  )}
+                                    ))}
+                                  </div>
+                                )}
                                 </div>
-                              </div>
+                              )}
 
                               {/* Video URL */}
-                              <div className="border-t pt-6">
+                              {hasVideoUrlSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-2">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1781,11 +1841,7 @@ export default function ProjectPage() {
                                           <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
-                                        ) : (
-                                          <span className="text-gray-400 italic">
-                                            No video URL set
-                                          </span>
-                                        )
+                                        ) : null
                                       }
                                     />
                                   </div>
@@ -1803,7 +1859,8 @@ export default function ProjectPage() {
                                     </a>
                                   )}
                                 </div>
-                              </div>
+                                </div>
+                              )}
 
                               {/* Delete Project Button */}
                               {isLead && (
@@ -2321,12 +2378,11 @@ export default function ProjectPage() {
                               </div>
                               <CardContent className="p-6 space-y-4">
                                 <div className="flex gap-1 flex-wrap">
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                  >
-                                    {eventDetails.event_type || "Hackathon"}
-                                  </Badge>
+                                  {(eventDetails.event_type?.length ? eventDetails.event_type : ["Hackathon"]).map((type) => (
+                                    <Badge key={type} variant="secondary" className="bg-transparent border border-black/15 text-black rounded-full font-semibold">
+                                      {type}
+                                    </Badge>
+                                  ))}
                                   <Badge
                                     variant="secondary"
                                     className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
@@ -2460,88 +2516,14 @@ export default function ProjectPage() {
 
                       {/* Share this project */}
                       {activeTab === "overview" && (
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-semibold text-black tracking-tight">
-                            Share this project
-                          </h3>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="bg-white rounded-full"
-                              onClick={() => {
-                                navigator.clipboard.writeText(feedbackUrl);
-                                toast({
-                                  title: "Link copied!",
-                                  description:
-                                    "Project link copied to clipboard",
-                                });
-                              }}
-                            >
-                              <LinkIcon className="h-5 w-5" />
-                            </Button>
-                            {/* QR Code */}
-                            <button className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg">
-                              <QrCode className="w-6 h-6 text-black" />
-                            </button>
-
-                            {/* LinkedIn */}
-                            <button
-                              onClick={() => handleShare("linkedin")}
-                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                            >
-                              {/* <Linkedin className="w-6 h-6 text-black" /> */}
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  clipRule="evenodd"
-                                  d="M4.5 3.24219C3.67157 3.24219 3 3.91376 3 4.74219V19.7422C3 20.5706 3.67157 21.2422 4.5 21.2422H19.5C20.3284 21.2422 21 20.5706 21 19.7422V4.74219C21 3.91376 20.3284 3.24219 19.5 3.24219H4.5ZM8.52076 7.24491C8.52639 8.20116 7.81061 8.79038 6.96123 8.78616C6.16107 8.78194 5.46357 8.14491 5.46779 7.24632C5.47201 6.40116 6.13998 5.72194 7.00764 5.74163C7.88795 5.76132 8.52639 6.40679 8.52076 7.24491ZM12.2797 10.0039H9.75971H9.7583V18.5638H12.4217V18.3641C12.4217 17.9842 12.4214 17.6042 12.4211 17.2241C12.4203 16.2103 12.4194 15.1954 12.4246 14.1819C12.426 13.9358 12.4372 13.6799 12.5005 13.445C12.7381 12.5675 13.5271 12.0008 14.4074 12.1401C14.9727 12.2286 15.3467 12.5563 15.5042 13.0893C15.6013 13.4225 15.6449 13.7811 15.6491 14.1285C15.6605 15.1761 15.6589 16.2237 15.6573 17.2714C15.6567 17.6412 15.6561 18.0112 15.6561 18.381V18.5624H18.328V18.3571C18.328 17.9051 18.3278 17.4532 18.3275 17.0013C18.327 15.8718 18.3264 14.7423 18.3294 13.6124C18.3308 13.1019 18.276 12.5985 18.1508 12.1049C17.9638 11.3708 17.5771 10.7633 16.9485 10.3246C16.5027 10.0124 16.0133 9.81129 15.4663 9.78879C15.404 9.7862 15.3412 9.78281 15.2781 9.7794C14.9984 9.76428 14.7141 9.74892 14.4467 9.80285C13.6817 9.95613 13.0096 10.3063 12.5019 10.9236C12.4429 10.9944 12.3852 11.0663 12.2991 11.1736L12.2797 11.1979V10.0039ZM5.68164 18.5666H8.33242V10.0095H5.68164V18.5666Z"
-                                  fill="black"
-                                />
-                              </svg>
-                            </button>
-
-                            {/* Twitter/X */}
-                            <button
-                              onClick={() => handleShare("twitter")}
-                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                            >
-                              <svg
-                                className="w-6 h-6"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                              >
-                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                              </svg>
-                            </button>
-
-                            {/* Facebook */}
-                            <button
-                              onClick={() => handleShare("facebook")}
-                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                            >
-                              {/* <Facebook className="w-6 h-6 text-black" /> */}
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                              >
-                                <path
-                                  d="M22 12.3033C22 6.7467 17.5229 2.24219 12 2.24219C6.47715 2.24219 2 6.7467 2 12.3033C2 17.325 5.65684 21.4874 10.4375 22.2422V15.2116H7.89844V12.3033H10.4375V10.0867C10.4375 7.56515 11.9305 6.17231 14.2146 6.17231C15.3088 6.17231 16.4531 6.36882 16.4531 6.36882V8.8448H15.1922C13.95 8.8448 13.5625 9.62041 13.5625 10.4161V12.3033H16.3359L15.8926 15.2116H13.5625V22.2422C18.3432 21.4874 22 17.3252 22 12.3033Z"
-                                  fill="black"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
+                        <ProjectShareSection
+                          projectId={project.id}
+                          projectName={project.project_name}
+                          eventName={eventDetails?.event_name}
+                          teamNames={teamMembers.map((m) => m.displayName)}
+                          videoUrl={project.video_url}
+                          showCertificateLink={!!project.submitted}
+                        />
                       )}
                     </div>
                   )}

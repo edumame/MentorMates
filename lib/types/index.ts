@@ -38,6 +38,7 @@ export interface PricingTier {
   tier_id: string; // Unique identifier within the event (e.g., "early-bird", "regular")
   name: string;
   price: number; // Price in cents
+  currency?: string; // Currency used for display and should match the Stripe price
   stripe_price_id?: string;
   description?: string;
   available_until?: string; // ISO date string for limited-time offers
@@ -121,11 +122,19 @@ export type EventItem = {
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
-  event_type?: string;
+  event_type?: string[];
   featured?: boolean; // Whether this event is featured on homepage
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
+  external_url?: string | null; // Optional outside event URL
+  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
+  team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
+  submitter_email?: string | null; // Contact email from the public submit form
+  submitter_name?: string | null; // Submitter name from the public submit form
+  organizer_affiliation?: string | null; // University/company affiliation from the public submit form
+  expected_attendance?: number | null; // Informational estimate; not a registration cap
+  featured_requested?: boolean | null; // Submitter asked for featured placement
 };
 
 export interface EventApprovalLog {
@@ -149,6 +158,8 @@ export interface ScheduleParticipant {
 }
 
 export interface ScheduleEvent {
+  /** Stable identifier used for drag-and-drop and React keys; generated client-side for legacy data. */
+  id?: string;
   name: string;
   time: string;
   description?: string;
@@ -222,14 +233,14 @@ export interface EventTrack {
   description: string;
   label?: string;
   prizes?: Prize[];
-  scoring_criteria: TrackScoringConfig;
+  scoring_criteria: EventTrackScoringConfig;
   created_at: string;
   updated_at: string;
 }
 
 export interface EventDetails extends EventItem {
   paid: boolean;
-  event_type: string;
+  event_type: string[];
   event_description: string;
   event_blurb?: string;
   paywall_content?: string;
@@ -244,7 +255,7 @@ export interface EventDetails extends EventItem {
   rules: Rule[];
   event_tracks?: EventTrack[];
   role_labels?: Record<string, string>;
-  faq?: string; // Optional markdown FAQ content
+  faq?: { question: string; answer: string }[]; // Structured FAQ items
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
   sponsorship_tiers?: {
@@ -276,7 +287,7 @@ export interface ProjectArtifact {
   updated_at?: string;
 }
 
-export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url";
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "multi_file" | "select" | "multi_select" | "checkbox";
 
 export interface EventSubmissionField {
   id: string;
@@ -290,7 +301,26 @@ export interface EventSubmissionField {
   sort_order: number;
   is_active: boolean;
   options?: unknown;
+  allows_multiple_entries?: boolean;
+  max_files?: number | null;
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectFieldEntryAttachment {
+  name: string;
+  url: string;
+}
+
+export interface ProjectFieldEntry {
+  id: string;
+  project_id: string;
+  event_submission_field_id: string;
+  submitter_user_id: string;
+  content: string;
+  attachments?: ProjectFieldEntryAttachment[];
+  submitter_display_name?: string | null;
+  created_at: string;
   updated_at?: string;
 }
 
@@ -310,6 +340,7 @@ export interface Project {
   project_description: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   teammates?: string[];
   event_id: string;
   track_ids: string[]; //need to make tracks not required. Will need to redo.
@@ -321,8 +352,13 @@ export interface Project {
   cover_image_url?: string;
   artifacts?: ProjectArtifact[];
   submission_answers?: ProjectSubmissionAnswer[];
+  submission_fields?: EventSubmissionField[];
+  submission_values?: Record<string, string | string[]>;
+  has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
+  /** Advanced past round 1 via project_round_advancements (organizer-selected finalists). */
+  is_finalist?: boolean;
   contextus_project_id?: string;
   submitted?: boolean;
 }
@@ -360,11 +396,41 @@ export interface TrackScoringConfig {
   criteria: ScoringCriterion[];
 }
 
+export interface EventTrackScoringConfig extends TrackScoringConfig {
+  /** Optional per-round rubric overrides stored on the event_tracks row. */
+  rounds?: Record<string, TrackScoringConfig>;
+}
+
+export interface RoundConfig {
+  round_number: number;
+  name: string;
+  /** Number of projects that advance to the next round. null/undefined on the final round. */
+  advancement_count?: number | null;
+  /** Optional hydrated per-track scoring config overrides for this round. */
+  tracks?: Record<string, TrackScoringConfig>;
+  /** Optional: override criteria for this round. Falls back to track criteria if omitted. */
+  criteria?: ScoringCriterion[];
+  /** Optional: restrict which judges see this round. */
+  judges?: string[];
+}
+
 export interface EventScoringConfig {
   tracks: Record<string, TrackScoringConfig>;
   defaultMin?: number;
   defaultMax?: number;
   defaultWeight?: number;
+  /** Optional multi-round configuration. If omitted, event behaves as a single round (round 1, all projects). */
+  rounds?: RoundConfig[];
+  /** Currently active round number. Defaults to 1 when unset. */
+  activeRound?: number;
+}
+
+export interface ProjectRoundAdvancement {
+  id: string;
+  event_id: string;
+  project_id: string;
+  round_number: number;
+  advanced_at: string;
 }
 
 export interface ProjectScore {
@@ -376,6 +442,7 @@ export interface ProjectScore {
   scores: Record<string, number | string>;
   comments?: string;
   finalist_recommendation?: boolean;
+  round_number?: number;
   created_at: string;
   updated_at: string;
 }
@@ -452,6 +519,7 @@ export interface ProjectFromDatabase {
   project_name: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   project_description: string;
   teammates: string[];
   project_url?: string;

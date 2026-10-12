@@ -20,7 +20,6 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface FeedbackItem {
   id: string;
@@ -124,9 +123,8 @@ export default function FeedbackPage() {
   };
 
   return (
-    <PageContainer>
-      <PageContent className="pt-[24px] pb-8">
-        <div className="flex flex-col gap-[24px] px-[32px]">
+    <div className="pt-[24px] pb-8">
+      <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-[8px]">
@@ -344,6 +342,7 @@ export default function FeedbackPage() {
         {/* Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent
+            hideCloseButton
             style={{ width: 888, maxWidth: 888 }}
             className="p-0 mx-4 border border-gray-200 shadow-xl rounded-[6px] [&>*]:!rounded-[0px]"
           >
@@ -415,10 +414,6 @@ export default function FeedbackPage() {
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
                   }}
                 >
-                  <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                  </DialogClose>
                   <div className="flex h-full flex-col">
                     <div className="mb-6 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -562,7 +557,6 @@ export default function FeedbackPage() {
             )}
           </DialogContent>
         </Dialog>
-      </PageContent>
-    </PageContainer>
+    </div>
   );
 }

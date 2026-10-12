@@ -7,10 +7,10 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Download, Plus, Paperclip } from "lucide-react";
+import { Paperclip, Globe, ExternalLink } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 
-type CreateEventModalView = "options" | "ai" | "devpost";
+type CreateEventModalView = "options" | "ai" | "devpost" | "import";
 
 interface CreateEventModalProps {
   open: boolean;
@@ -19,70 +19,41 @@ interface CreateEventModalProps {
 
 const PREFILL_STORAGE_KEY = "mentorMates-event-prefill";
 
-// Simple custom AI icon
-function StartWithAiIcon(props: React.SVGProps<SVGSVGElement>) {
+// AI option icon: wand + stars (design asset), 24×24
+function StartWithAiIcon() {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      {...props}
-    >
-      <path
-        d="M16.3847 12.7216L14.0499 16.4864C13.9166 16.7071 13.7281 16.7924 13.4844 16.7424C13.2408 16.6924 13.0856 16.5487 13.0189 16.3114L12.1999 13.0041L4.63969 20.5276C4.46969 20.7015 4.27077 20.7884 4.04294 20.7884C3.8151 20.7884 3.61619 20.7015 3.44619 20.5276C3.27635 20.3576 3.19144 20.1587 3.19144 19.9309C3.19144 19.7031 3.27635 19.5041 3.44619 19.3341L10.9814 11.8049L7.66244 10.9856C7.4251 10.919 7.28244 10.7639 7.23444 10.5204C7.18644 10.2767 7.27077 10.0862 7.48744 9.94889L11.2522 7.58914L10.9462 3.18738C10.9295 2.93338 11.0347 2.74805 11.2617 2.63138C11.4887 2.51472 11.6959 2.53972 11.8832 2.70639L15.2609 5.54714L19.3564 3.90538C19.5898 3.82205 19.7918 3.86572 19.9624 4.03639C20.1331 4.20705 20.1768 4.40905 20.0934 4.64239L18.4267 8.73789L21.2674 12.1216C21.4341 12.309 21.4633 12.5161 21.3549 12.7431C21.2466 12.9701 21.0654 13.0753 20.8114 13.0586L16.3847 12.7216Z"
-        fill="black"
-      />
-      <path
-        d="M16.3847 12.7216L14.0499 16.4864C13.9166 16.7071 13.7281 16.7924 13.4844 16.7424C13.2408 16.6924 13.0856 16.5487 13.0189 16.3114L12.1999 13.0041L4.63969 20.5276C4.46969 20.7015 4.27077 20.7884 4.04294 20.7884C3.8151 20.7884 3.61619 20.7015 3.44619 20.5276C3.27635 20.3576 3.19144 20.1587 3.19144 19.9309C3.19144 19.7031 3.27635 19.5041 3.44619 19.3341L10.9814 11.8049L7.66244 10.9856C7.4251 10.919 7.28244 10.7639 7.23444 10.5204C7.18644 10.2767 7.27077 10.0862 7.48744 9.94889L11.2522 7.58914L10.9462 3.18738C10.9295 2.93338 11.0347 2.74805 11.2617 2.63138C11.4887 2.51472 11.6959 2.53972 11.8832 2.70639L15.2609 5.54714L19.3564 3.90538C19.5898 3.82205 19.7918 3.86572 19.9624 4.03639C20.1331 4.20705 20.1768 4.40905 20.0934 4.64239L18.4267 8.73789L21.2674 12.1216C21.4341 12.309 21.4633 12.5161 21.3549 12.7431C21.2466 12.9701 21.0654 13.0753 20.8114 13.0586L16.3847 12.7216Z"
-        fill="url(#paint0_linear)"
-      />
-      <path
-        d="M16.3847 12.7216L14.0499 16.4864C13.9166 16.7071 13.7281 16.7924 13.4844 16.7424C13.2408 16.6924 13.0856 16.5487 13.0189 16.3114L12.1999 13.0041L4.63969 20.5276C4.46969 20.7015 4.27077 20.7884 4.04294 20.7884C3.8151 20.7884 3.61619 20.7015 3.44619 20.5276C3.27635 20.3576 3.19144 20.1587 3.19144 19.9309C3.19144 19.7031 3.27635 19.5041 3.44619 19.3341L10.9814 11.8049L7.66244 10.9856C7.4251 10.919 7.28244 10.7639 7.23444 10.5204C7.18644 10.2767 7.27077 10.0862 7.48744 9.94889L11.2522 7.58914L10.9462 3.18738C10.9295 2.93338 11.0347 2.74805 11.2617 2.63138C11.4887 2.51472 11.6959 2.53972 11.8832 2.70639L15.2609 5.54714L19.3564 3.90538C19.5898 3.82205 19.7918 3.86572 19.9624 4.03639C20.1331 4.20705 20.1768 4.40905 20.0934 4.64239L18.4267 8.73789L21.2674 12.1216C21.4341 12.309 21.4633 12.5161 21.3549 12.7431C21.2466 12.9701 21.0654 13.0753 20.8114 13.0586L16.3847 12.7216Z"
-        fill="url(#paint1_linear)"
-      />
-      <defs>
-        <linearGradient
-          id="paint0_linear"
-          x1="3.02344"
-          y1="11.7674"
-          x2="21.419"
-          y2="11.7674"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#2DC7FA" />
-          <stop offset="1" stopColor="#058E5C" />
-        </linearGradient>
-        <linearGradient
-          id="paint1_linear"
-          x1="3.02344"
-          y1="11.7674"
-          x2="21.419"
-          y2="11.7674"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#A514FA" />
-          <stop offset="1" stopColor="#49C8F2" />
-        </linearGradient>
-      </defs>
-    </svg>
+    <Image
+      src="/img/wand_stars.svg"
+      alt=""
+      width={24}
+      height={24}
+      className="size-6 shrink-0"
+    />
   );
 }
 
-// Right gradient panel – 50% on lg
+// Right gradient panel – 50% on lg. Typography: Geist 72px / 600 / 90% / -4.32px, color Pattens Blue Lighter
 const PrimaryCard = () => (
-  <div className="relative hidden lg:block w-full lg:w-1/2 shrink-0 -ml-px">
-    <div className="relative h-full min-h-[520px] rounded-none lg:rounded-r-3xl overflow-hidden">
+  <div className="relative hidden lg:block w-full lg:w-1/2 shrink-0 min-w-0 -ml-px">
+    <div className="relative h-full min-h-[520px] rounded-none lg:rounded-r-3xl overflow-hidden bg-[#E0F2FE]">
       <Image
         src="/img/gradient.png"
         alt="Gradient background"
         fill
-        className="object-cover scale-110"
+        className="object-cover object-left scale-110"
         priority
+        sizes="50vw"
       />
       <div className="absolute inset-0 flex items-end justify-start p-10">
-        <div className="text-white text-5xl font-extrabold tracking-wide leading-tight">
+        <div
+          className="font-geist font-semibold leading-[90%] tracking-[-4.32px]"
+          style={{
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "72px",
+            fontWeight: 600,
+            color: "var(--Color-Pattens-Blue-Lighter, #F7FAFE)",
+          }}
+        >
           <div>Learn,</div>
           <div>Create,</div>
           <div>Grow.</div>
@@ -102,7 +73,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   const [aiLoading, setAiLoading] = useState(false);
 
   const [devpostUrl, setDevpostUrl] = useState("");
-  const [devpostLoading, setDevpostLoading] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
 
   const closeModal = useCallback(
     (nextOpen: boolean) => {
@@ -110,8 +81,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
         setView("options");
         setAiText("");
         setDevpostUrl("");
+        setImportUrl("");
         setAiLoading(false);
-        setDevpostLoading(false);
+
+
       }
       onOpenChange(nextOpen);
     },
@@ -163,7 +136,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
     }
   };
 
-  const handleDevpostSubmit = async () => {
+  const handleDevpostSubmit = () => {
     if (!devpostUrl.trim()) {
       toast({
         title: "Add DevPost URL",
@@ -171,65 +144,98 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
       });
       return;
     }
-    setDevpostLoading(true);
-    try {
-      const res = await fetch("/api/events/import/devpost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: devpostUrl.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to import from DevPost");
-      }
-      persistPrefillAndNavigate(data?.import || {});
-    } catch (error) {
-      console.error(error);
+    // Navigate to wizard with URL — the wizard's scrape bar handles the rest
+    closeModal(false);
+    router.push(`/events/new?url=${encodeURIComponent(devpostUrl.trim())}`);
+  };
+
+  const handleUrlImport = () => {
+    if (!importUrl.trim()) {
       toast({
-        title: "Import failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Unable to import from DevPost.",
-        variant: "destructive",
+        title: "Add event URL",
+        description: "Paste a hackathon event link to continue.",
       });
-    } finally {
-      setDevpostLoading(false);
+      return;
     }
+    // Navigate to wizard with URL — the wizard's scrape bar handles the rest
+    closeModal(false);
+    router.push(`/events/new?url=${encodeURIComponent(importUrl.trim())}`);
   };
 
   // ---------------------------------------------------------------------------
-  // VIEWS
+  // VIEWS（统一宽高，切换 options / AI / DevPost 时 dialog 尺寸不变）
   // ---------------------------------------------------------------------------
+  // Mobile: full viewport width inside DialogContent max-width — avoid fixed 998px
+  // (causes overflow when centered; user only sees the left slice + backdrop gap).
+  const dialogSizeClass =
+    "flex w-full max-w-full min-w-0 lg:w-[998px] min-h-[min(590px,90dvh)] h-auto lg:h-[590px] flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]";
 
   const renderOptions = () => (
-    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      {/* Left panel – 50% on lg */}
-      <div className="w-full lg:w-1/2 px-10 py-10 lg:px-12 lg:py-12">
+    <div className={dialogSizeClass}>
+      {/* Left panel – 50% on lg; padding-top & padding-left 24px per design.
+          Flex column with a scrollable card list so the pinned external-event
+          link never overflows the fixed dialog height. */}
+      <div className="w-full lg:w-1/2 p-6 flex flex-col min-h-0">
         <DialogTitle className="sr-only">Create event</DialogTitle>
 
-        <h2 className="text-[22px] font-semibold mb-8 text-gray-900">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
           Create new event
         </h2>
 
-        <div className="space-y-4">
-          {/* Create from scratch */}
+        <div className="space-y-4 flex-1 min-h-0 overflow-y-auto">
+          {/* Create from scratch – 默认未选中，hover 出现蓝边+渐变 */}
           <button
             onClick={() => {
               closeModal(false);
               router.push("/events/new");
             }}
-            className="group w-full rounded-xl border border-[#4B89EF] bg-white px-6 py-5 text-center transition-all shadow-[0_6px_18px_rgba(15,23,42,0.10)] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)] hover:shadow-[0_12px_30px_rgba(15,23,42,0.20)]"
+            className="group w-full rounded-[12px] border border-[#E4E4E7] bg-white px-6 py-5 text-center transition-all hover:border-[#4B89EF] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)]"
           >
             <div className="flex flex-col items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#C9D2FF] bg-white shadow-[0_6px_15px_rgba(15,23,42,0.06)] group-hover:border-[#4B89EF]">
-                <Plus className="h-5 w-5 text-[#4B89EF]" />
-              </span>
-              <div className="space-y-1">
-                <p className="text-[15px] font-semibold text-gray-900">
+              <Image
+                src="/img/create_new_folder.svg"
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 shrink-0"
+              />
+              <div className="space-y-1 text-center w-full">
+                <p
+                  className="font-geist font-semibold"
+                  style={{
+                    color: "var(--Color-Neutral-Darkest, #000)",
+                    fontFamily: "Geist, Inter, system-ui, sans-serif",
+                    fontSize: "20px",
+                    fontStyle: "normal",
+                    fontWeight: 600,
+                    lineHeight: "150%",
+                    letterSpacing: "-0.8px",
+                  }}
+                >
                   Create from scratch
                 </p>
-                <p className="text-xs text-gray-500">
+                <p
+                  className="font-inter font-normal text-center"
+                  style={{
+                    color: "var(--Opacity-Neutral-Darkest-60, rgba(0, 0, 0, 0.60))",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                    fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                    fontStyle: "normal",
+                    fontWeight: 400,
+                    lineHeight: "150%",
+                  }}
+                >
                   Create event as you wish
                 </p>
               </div>
@@ -239,46 +245,107 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           {/* Start with AI */}
           <button
             onClick={() => setView("ai")}
-            className="group w-full rounded-xl border border-[#E4E4E7] bg-white px-6 py-5 text-center transition-all hover:border-[#4B89EF] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)] hover:shadow-[0_12px_30px_rgba(15,23,42,0.20)]"
+            className="group w-full rounded-[12px] border border-[#E4E4E7] bg-white px-6 py-5 text-center transition-all hover:border-[#4B89EF] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)]"
           >
             <div className="flex flex-col items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl group-hover:bg-white group-hover:border group-hover:border-[#4B89EF]">
+              <span className="size-6 shrink-0 flex items-center justify-center">
                 <StartWithAiIcon />
               </span>
-              <div className="space-y-1">
-                <p className="text-[15px] font-semibold text-gray-900">
+              <div className="space-y-1 text-center w-full">
+                <p
+                  className="font-geist font-semibold"
+                  style={{
+                    color: "var(--Color-Neutral-Darkest, #000)",
+                    fontFamily: "Geist, Inter, system-ui, sans-serif",
+                    fontSize: "20px",
+                    fontStyle: "normal",
+                    fontWeight: 600,
+                    lineHeight: "150%",
+                    letterSpacing: "-0.8px",
+                  }}
+                >
                   Start with AI
                 </p>
-                <p className="text-xs text-gray-500">Create from a prompt</p>
+                <p
+                  className="font-inter font-normal text-center"
+                  style={{
+                    color: "var(--Opacity-Neutral-Darkest-60, rgba(0, 0, 0, 0.60))",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                    fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                    fontStyle: "normal",
+                    fontWeight: 400,
+                    lineHeight: "150%",
+                  }}
+                >
+                  Create from a prompt
+                </p>
               </div>
             </div>
           </button>
 
-          {/* Import from DevPost */}
+          {/* Import from URL */}
           <button
-            onClick={() => setView("devpost")}
-            className="group w-full rounded-xl border border-[#E4E4E7] bg-white px-6 py-5 text-center transition-all hover:border-[#4B89EF] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)] hover:shadow-[0_12px_30px_rgba(15,23,42,0.20)]"
+            onClick={() => setView("import")}
+            className="group w-full rounded-[12px] border border-[#E4E4E7] bg-white px-6 py-5 text-center transition-all hover:border-[#4B89EF] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)]"
           >
             <div className="flex flex-col items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl group-hover:border group-hover:border-[#4B89EF] group-hover:bg-white">
-                <Image
-                  src="/img/devpost.png"
-                  alt="DevPost"
-                  width={24}
-                  height={24}
-                />
-              </span>
-              <div className="space-y-1">
-                <p className="text-[15px] font-semibold text-gray-900">
-                  Import from DevPost
+              <Globe className="size-6 shrink-0 text-gray-500 group-hover:text-[#4B89EF]" />
+              <div className="space-y-1 text-center w-full">
+                <p
+                  className="font-geist font-semibold"
+                  style={{
+                    color: "var(--Color-Neutral-Darkest, #000)",
+                    fontFamily: "Geist, Inter, system-ui, sans-serif",
+                    fontSize: "20px",
+                    fontStyle: "normal",
+                    fontWeight: 600,
+                    lineHeight: "150%",
+                    letterSpacing: "-0.8px",
+                  }}
+                >
+                  Import from URL
                 </p>
-                <p className="text-xs text-gray-500">
-                  Just paste the event link
+                <p
+                  className="font-inter font-normal text-center"
+                  style={{
+                    color: "var(--Opacity-Neutral-Darkest-60, rgba(0, 0, 0, 0.60))",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                    fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                    fontStyle: "normal",
+                    fontWeight: 400,
+                    lineHeight: "150%",
+                  }}
+                >
+                  Paste any event link
                 </p>
               </div>
             </div>
           </button>
+
         </div>
+
+        {/* List an external event — pinned below the cards so it always fits */}
+        <button
+          onClick={() => {
+            closeModal(false);
+            router.push("/events/submit");
+          }}
+          className="group mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-[12px] px-4 py-2.5 transition-colors hover:bg-[#F4F7FE]"
+        >
+          <ExternalLink className="size-4 shrink-0 text-gray-500 group-hover:text-[#4B89EF]" />
+          <span
+            className="font-inter font-normal text-[rgba(0,0,0,0.60)] group-hover:text-[#4B89EF] transition-colors"
+            style={{
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: "14px",
+              fontStyle: "normal",
+              fontWeight: 400,
+              lineHeight: "150%",
+            }}
+          >
+            Hosting elsewhere? List an external event on our calendar
+          </span>
+        </button>
       </div>
 
       <PrimaryCard />
@@ -286,18 +353,38 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   );
 
   const renderAiView = () => (
-    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      {/* Left – 50% on lg, middle content centered, buttons bottom-right */}
-      <div className="w-full lg:w-1/2 px-8 py-8 lg:px-10 lg:py-10 flex flex-col min-h-[520px]">
-        {/* Top: title only */}
-        <h2 className="text-2xl font-semibold text-gray-900">Start with AI</h2>
+    <div className={dialogSizeClass}>
+      {/* Left – 50% on lg，与 options 同 padding，标题与「Create new event」对齐 */}
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12 flex flex-col min-h-[520px]">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
+          Start with AI
+        </h2>
 
         {/* Middle: description + box centered vertically */}
         <div className="flex-1 flex items-center">
           <div className="mt-6 w-full">
             <div className="flex items-center gap-2 mb-3">
               <StartWithAiIcon />
-              <span className="text-sm font-medium text-[#4B89EF]">
+              <span
+                className="font-inter font-normal text-[#4B89EF]"
+                style={{
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                  fontStyle: "normal",
+                  fontWeight: 400,
+                }}
+              >
                 Generate or fill with AI.
               </span>
             </div>
@@ -305,18 +392,24 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
               value={aiText}
               onChange={(e) => setAiText(e.target.value)}
               placeholder="Paste event details or a short brief here."
-              className="min-h-[180px] w-full border-gray-300 rounded-xl text-sm resize-none"
+              className="font-inter font-normal min-h-[180px] w-full border-gray-300 rounded-xl resize-none"
+              style={{
+                fontFamily: "Inter, system-ui, sans-serif",
+                fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                fontStyle: "normal",
+                fontWeight: 400,
+              }}
             />
           </div>
         </div>
 
         {/* Bottom: buttons */}
-        <div className="mt-6 flex items-center justify-end gap-3">
+        <div className="mt-6 flex items-center justify-end gap-[6px]">
           <Button
-            variant="secondary"
+            variant="back"
             type="button"
             onClick={() => setView("options")}
-            className="min-w-[90px] bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className="min-w-[90px]"
           >
             Back
           </Button>
@@ -335,11 +428,21 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   );
 
   const renderDevpostView = () => (
-    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      {/* Left – 50% on lg, middle content centered, buttons bottom-right */}
-      <div className="w-full lg:w-1/2 px-8 py-8 lg:px-10 lg:py-10 flex flex-col min-h-[520px]">
-        {/* Top: title only */}
-        <h2 className="text-[20px] font-semibold tracking-tight">
+    <div className={dialogSizeClass}>
+      {/* Left – 与 options / AI 同 padding，标题样式一致 */}
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12 flex flex-col min-h-[520px]">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
           Import from DevPost
         </h2>
 
@@ -361,16 +464,26 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                 className="pl-9 h-11 rounded-xl text-sm"
               />
             </div>
-            <p className="text-xs text-muted-foreground italic">
+            <p
+              className="font-inter font-normal"
+              style={{
+                color: "var(--Color-Neutral, #7F7F7F)",
+                fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                fontStyle: "normal",
+                fontWeight: 400,
+                lineHeight: "150%",
+              }}
+            >
               *It takes about 1–2 minutes to finish parsing. Please wait
             </p>
           </div>
         </div>
 
         {/* Bottom: buttons */}
-        <div className="flex items-center justify-end gap-3 pt-6">
+        <div className="flex items-center justify-end gap-[6px] pt-6">
           <Button
-            variant="secondary"
+            variant="back"
+            type="button"
             onClick={() => setView("options")}
             className="min-w-[90px]"
           >
@@ -378,11 +491,83 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           </Button>
           <Button
             onClick={handleDevpostSubmit}
-            disabled={devpostLoading}
-            className="min-w-[120px] inline-flex items-center gap-2"
+            disabled={false}
+            className="min-w-[120px] py-2.5 px-6"
           >
-            {devpostLoading ? "Importing..." : "Create event"}
-            {!devpostLoading && <Download className="h-4 w-4" />}
+            {"Import event"}
+          </Button>
+        </div>
+      </div>
+
+      <PrimaryCard />
+    </div>
+  );
+
+  const renderImportView = () => (
+    <div className={dialogSizeClass}>
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12 flex flex-col min-h-[520px]">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
+          Import from URL
+        </h2>
+
+        <div className="flex-1 flex items-center">
+          <div className="mt-6 w-full space-y-2">
+            <p className="text-sm text-gray-700">
+              Paste any event link and we&apos;ll handle the rest.
+            </p>
+
+            <div className="relative mt-2">
+              <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Globe className="h-4 w-4 text-gray-400" />
+              </span>
+              <Input
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                placeholder="https://..."
+                className="pl-9 h-11 rounded-xl text-sm"
+              />
+            </div>
+            <p
+              className="font-inter font-normal"
+              style={{
+                color: "var(--Color-Neutral, #7F7F7F)",
+                fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                fontStyle: "normal",
+                fontWeight: 400,
+                lineHeight: "150%",
+              }}
+            >
+              *It takes about 1-2 minutes to finish parsing. Please wait.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-[6px] pt-6">
+          <Button
+            variant="back"
+            type="button"
+            onClick={() => setView("options")}
+            className="min-w-[90px]"
+          >
+            Back
+          </Button>
+          <Button
+            onClick={handleUrlImport}
+            disabled={false}
+            className="min-w-[120px] py-2.5 px-6"
+          >
+            {"Import event"}
           </Button>
         </div>
       </div>
@@ -393,10 +578,11 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={closeModal}>
-      <DialogContent className="max-w-5xl w-full border-none bg-transparent p-0 shadow-none">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[min(998px,calc(100vw-2rem))] border-none bg-transparent p-0 shadow-none sm:w-auto [&>button]:text-white [&>button]:hover:opacity-100 [&>button]:opacity-90">
         {view === "options" && renderOptions()}
         {view === "ai" && renderAiView()}
         {view === "devpost" && renderDevpostView()}
+        {view === "import" && renderImportView()}
       </DialogContent>
     </Dialog>
   );

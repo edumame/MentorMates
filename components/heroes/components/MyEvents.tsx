@@ -22,6 +22,7 @@ type APIEvent = {
   user_event_roles?: { role: number }[];
   visibility?: EventVisibility | null;
   approval_status?: ApprovalStatus | null;
+  event_type?: string[] | [];
 };
 
 type UIEvent = {
@@ -37,6 +38,7 @@ type UIEvent = {
   roleLabel?: string;
   visibility?: EventVisibility;
   approvalStatus?: ApprovalStatus;
+  event_type?: string[];
 };
 
 function toEventItem(event: UIEvent): EventItem {
@@ -50,6 +52,7 @@ function toEventItem(event: UIEvent): EventItem {
     slug: event.slug,
     event_blurb: event.blurb,
     event_description: event.description,
+    event_type: event.event_type,
   };
 }
 
@@ -115,6 +118,7 @@ export function MyEvents() {
             roleLabel,
             visibility: e.visibility as EventVisibility,
             approvalStatus: e.approval_status as ApprovalStatus,
+            event_type: e.event_type ?? [],
           };
         });
 
@@ -234,7 +238,7 @@ export function MyEvents() {
   return (
     <section className="w-full">
       <div className="flex justify-between items-center mb-3 flex-wrap gap-4">
-        <h2 className="text-2xl font-semibold">My events</h2>
+        <h2 className="text-2xl font-semibold font-geist tracking-[-0.06em]">My events</h2>
         
         {/* Search and Sort Section */}
         {!loading && !error && events.length > 0 && (
@@ -379,7 +383,10 @@ export function MyEvents() {
       ) : (
         <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
           {filteredAndSortedEvents.map((e) => (
-            <div key={e.id} className="relative w-full max-w-[420px] mx-auto">
+            <div
+              key={e.id}
+              className={`relative w-full max-w-[420px] ${filteredAndSortedEvents.length === 1 ? "" : "mx-auto"}`}
+            >
               <EventCard event={toEventItem(e)} />
               {e.roleLabel && (
                 <div className="absolute top-3 left-3 z-10">

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { useActiveRole } from "./ActiveRoleContext";
+import { EVENT_PAGE_SHELL_CLASS } from "./event-page-shell";
+import { EventRole } from "@/lib/types";
 
 interface EventPageTabsProps {
   eventId: string;
@@ -10,6 +12,7 @@ interface EventPageTabsProps {
   projectCount?: number;
   showTicketsTab?: boolean;
   showParticipantsTab?: boolean;
+  showTeamTab?: boolean;
 }
 
 export function EventPageTabs({
@@ -18,10 +21,14 @@ export function EventPageTabs({
   projectCount,
   showTicketsTab,
   showParticipantsTab = true,
+  showTeamTab = false,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAuth();
+  const { activeRole } = useActiveRole();
+
+  // Judges only need the Overview tab — the scoring UI is embedded there
+  const isJudge = activeRole === EventRole.Judge;
 
   const tabs: Array<{
     name: string;
@@ -29,10 +36,13 @@ export function EventPageTabs({
     badge?: number | null;
   }> = [
     { name: "Overview", path: `/events/${eventId}/overview` },
-    { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
   ];
 
-  if (showParticipantsTab) {
+  if (!isJudge) {
+    tabs.push({ name: "Schedule", path: `/events/${eventId}/schedule`, badge: null });
+  }
+
+  if (!isJudge && showParticipantsTab) {
     tabs.push({
       name: "Participants",
       path: `/events/${eventId}/participants`,
@@ -40,21 +50,27 @@ export function EventPageTabs({
     });
   }
 
-  tabs.push({
-    name: "Projects",
-    path: `/events/${eventId}/gallery`,
-    badge: projectCount,
-  });
+  if (!isJudge && showTeamTab) {
+    tabs.push({ name: "Team", path: `/events/${eventId}/team` });
+  }
 
-  tabs.push({
-    name: "Voting",
-    path: `/events/${eventId}/voting`,
-  });
+  if (!isJudge) {
+    tabs.push({
+      name: "Projects",
+      path: `/events/${eventId}/gallery`,
+      badge: projectCount,
+    });
 
-  tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
-  // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+    tabs.push({
+      name: "Voting",
+      path: `/events/${eventId}/voting`,
+    });
 
-  if (showTicketsTab) {
+    tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
+    // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+  }
+
+  if (!isJudge && showTicketsTab) {
     tabs.push({ name: "Tickets", path: `/events/${eventId}/tickets` });
   }
 
@@ -67,13 +83,7 @@ export function EventPageTabs({
 
   return (
     <div className="border-b border-[#f2f2f2] w-full">
-      <div
-        className={
-          isAuthenticated
-            ? "px-4 w-full"
-            : "mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
-        }
-      >
+      <div className={EVENT_PAGE_SHELL_CLASS}>
         <div className="flex gap-4 md:gap-6 items-start w-full overflow-x-auto no-scrollbar whitespace-nowrap">
           {tabs.map((tab) => {
             const isActive = pathname === tab.path;

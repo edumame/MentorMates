@@ -108,7 +108,7 @@ export function PricingTierSelector({
                 </div>
                 <div className="flex items-center sm:flex-col gap-2 justify-between w-full sm:w-auto mt-3 sm:mt-0">
                   <span className="text-2xl font-bold text-blue-500">
-                    {formatPrice(tier.price)}
+                    {formatPrice(tier.price, tier.currency)}
                   </span>
                   {!isAvailable && (
                     <div className="text-xs text-red-600 border border-red-500 rounded-full px-2 py-1 bg-red-100">Unavailable</div>

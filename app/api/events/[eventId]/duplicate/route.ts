@@ -3,7 +3,6 @@ import { randomUUID } from "crypto";
 
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
-import { defaultRules } from "@/lib/config/constants";
 import type { Database, Json } from "@/lib/database.types";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 
@@ -82,9 +81,7 @@ export async function POST(
     // 4) Create duplicated event (draft + not submitted)
     const newEventId = randomUUID();
 
-    const safeRules =
-      (sourceEvent.rules as unknown as Json) ??
-      (defaultRules as unknown as Json);
+    const safeRules = ((sourceEvent.rules as unknown as Json) ?? ([] as Json));
 
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_id: newEventId,

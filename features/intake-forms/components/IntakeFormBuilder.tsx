@@ -1,21 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  DndContext,
-  PointerSensor,
-  TouchSensor,
-  closestCenter,
-  type DragEndEvent,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { DragDropProvider } from "@dnd-kit/react";
+import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import {
   Copy,
   GripVertical,
@@ -24,8 +11,20 @@ import {
   X,
   FileText,
   ListChecks,
+  ShieldCheck,
 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,11 +38,19 @@ import type {
   IntakeFormField,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { createMLHComplianceTemplate } from "@/features/intake-forms/templates/mlhCompliance";
 
 type IntakeFormBuilderProps = {
   eventId: string;
   context?: IntakeFormContext;
   className?: string;
+};
+
+const CONTEXT_BADGE_LABELS: Record<IntakeFormContext, string> = {
+  registration: "Registration intake",
+  project_submission: "Project submission intake",
+  rsvp: "RSVP form",
+  post_survey: "Post-event survey",
 };
 
 type LastPublishedState = {
@@ -185,17 +192,9 @@ function QuestionCard({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({
+  const { ref, handleRef, isDragSource, isDropTarget } = useSortable({
     id: field.id,
+    index,
   });
 
   const selectableShowIfFields = allFields.filter((item) => item.id !== field.id);
@@ -204,31 +203,25 @@ function QuestionCard({
 
   return (
     <Card
-      ref={setNodeRef}
+      ref={(node) => ref(node)}
       onClick={onSelect}
       className={cn(
         "relative overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition",
         selected && "ring-2 ring-[#4c8bf5]/40",
-        isDragging && "opacity-75",
-        isOver && "ring-2 ring-[#4c8bf5]/60"
+        isDragSource && "opacity-75",
+        isDropTarget && "ring-2 ring-[#4c8bf5]/60"
       )}
-      style={{
-        transform: transform != null ? CSS.Transform.toString(transform) : undefined,
-        transition,
-      }}
     >
       {selected ? <div className="absolute left-0 top-0 h-full w-1 bg-[#4c8bf5]" /> : null}
 
       <CardContent className="space-y-4 p-5">
         <div className="flex items-start gap-3">
           <button
-            ref={setActivatorNodeRef}
+            ref={(node) => handleRef(node)}
             type="button"
             onClick={(event) => event.stopPropagation()}
             className="mt-1 rounded p-1 text-black/45 hover:bg-black/5 hover:text-black/70"
             aria-label="Drag question"
-            {...attributes}
-            {...listeners}
           >
             <GripVertical className="h-4 w-4" />
           </button>
@@ -452,11 +445,6 @@ export function IntakeFormBuilder({
   const [newFieldType, setNewFieldType] = useState<IntakeFieldType>("single_select");
   const [lastPublished, setLastPublished] = useState<LastPublishedState>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
-  );
-
   const selectedField = useMemo(
     () => schema.fields.find((field) => field.id === selectedFieldId) ?? null,
     [schema.fields, selectedFieldId]
@@ -555,25 +543,33 @@ export function IntakeFormBuilder({
     });
   }
 
-  const reorderFields = (event: DragEndEvent) => {
-    const sourceId = event.active.id;
-    const targetId = event.over?.id;
+  const reorderFields: NonNullable<
+    ComponentProps<typeof DragDropProvider>["onDragEnd"]
+  > = (event) => {
+    if (event.canceled) return;
 
-    if (!targetId || sourceId === targetId) return;
+    // dnd-kit's optimistic sorting live-reorders items during the drag, so at
+    // drag end the source's own (initialIndex -> index) describe the move; the
+    // drop target usually resolves to the source itself and must not be used.
+    const { source } = event.operation;
+    if (!source || !isSortable(source)) return;
+
+    const { initialIndex, index } = source.sortable;
+    if (initialIndex === index) return;
 
     setSchema((current) => {
-      const fromIndex = current.fields.findIndex(
-        (field) => field.id === String(sourceId)
-      );
-      const toIndex = current.fields.findIndex(
-        (field) => field.id === String(targetId)
-      );
-
-      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return current;
+      if (
+        initialIndex < 0 ||
+        index < 0 ||
+        initialIndex >= current.fields.length ||
+        index >= current.fields.length
+      ) {
+        return current;
+      }
 
       return {
         ...current,
-        fields: arrayMove(current.fields, fromIndex, toIndex),
+        fields: arrayMove(current.fields, initialIndex, index),
       };
     });
   };
@@ -636,6 +632,12 @@ export function IntakeFormBuilder({
     }
   }
 
+  function applyMLHTemplate() {
+    const template = createMLHComplianceTemplate();
+    setSchema(template);
+    setSelectedFieldId(template.fields[0]?.id ?? null);
+  }
+
   async function deleteQuestionnaire() {
     const confirmed = window.confirm(
       "Delete this questionnaire for this context? This will unpublish/archive it and participants will no longer see it."
@@ -696,7 +698,7 @@ export function IntakeFormBuilder({
             />
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <span className="rounded-full bg-black/5 px-3 py-1 text-xs text-black/70">
-                {context === "registration" ? "Registration intake" : "Project submission intake"}
+                {CONTEXT_BADGE_LABELS[context]}
               </span>
               <span className="rounded-full bg-[#4B89EF]/10 px-3 py-1 text-xs text-[#2459ad]">
                 {lastPublished
@@ -705,6 +707,36 @@ export function IntakeFormBuilder({
                     ).toLocaleString()}`
                   : "Last published: never"}
               </span>
+              {/* MLH template only applies to registration forms */}
+              {context === "registration" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 px-3"
+                      disabled={isSaving || isPublishing || isDeleting || isLoading}
+                    >
+                      <ShieldCheck className="mr-1.5 h-4 w-4" />
+                      Apply MLH Template
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Apply MLH Compliance Template?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will replace the current form title, description, and all questions with the MLH-required registration fields. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={applyMLHTemplate}>
+                        Apply template
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button
                 type="button"
                 variant="destructive"
@@ -756,32 +788,23 @@ export function IntakeFormBuilder({
             </CardContent>
           </Card>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={reorderFields}
-          >
-            <SortableContext
-              items={schema.fields.map((field) => field.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-3">
-                {schema.fields.map((field, index) => (
-                  <QuestionCard
-                    key={field.id}
-                    field={field}
-                    index={index}
-                    allFields={schema.fields}
-                    selected={selectedField?.id === field.id}
-                    onSelect={() => setSelectedFieldId(field.id)}
-                    onUpdate={(patch) => updateField(field.id, patch)}
-                    onDuplicate={() => duplicateField(field.id)}
-                    onDelete={() => removeField(field.id)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <DragDropProvider onDragEnd={reorderFields}>
+            <div className="space-y-3">
+              {schema.fields.map((field, index) => (
+                <QuestionCard
+                  key={field.id}
+                  field={field}
+                  index={index}
+                  allFields={schema.fields}
+                  selected={selectedField?.id === field.id}
+                  onSelect={() => setSelectedFieldId(field.id)}
+                  onUpdate={(patch) => updateField(field.id, patch)}
+                  onDuplicate={() => duplicateField(field.id)}
+                  onDelete={() => removeField(field.id)}
+                />
+              ))}
+            </div>
+          </DragDropProvider>
         )}
       </div>
 

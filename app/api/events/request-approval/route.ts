@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { defaultRules } from "@/lib/config/constants";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { randomUUID } from "crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { sendEventApprovalNotification } from "@/lib/email/send-event-approval-notification";
 
 const eventSchema = z.object({
   event_name: z.string().min(3, "Event name must be at least 3 characters"),
@@ -29,7 +29,7 @@ const eventSchema = z.object({
       z.object({
         name: z.string(),
         link: z.string(),
-      })
+      }),
     )
     .optional(),
   faq: z.string().optional(),
@@ -40,7 +40,7 @@ const eventSchema = z.object({
         name: z.string().min(1),
         description: z.string().nullable().optional(),
         scoring_criteria: z.record(z.string(), z.unknown()).optional(),
-      })
+      }),
     )
     .optional(),
   prizes: z
@@ -50,7 +50,7 @@ const eventSchema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
         cover_image_url: z.string().url().nullable().optional(),
-      })
+      }),
     )
     .optional(),
   rules: z
@@ -58,18 +58,20 @@ const eventSchema = z.object({
       z.object({
         title: z.string(),
         items: z.array(z.string()),
-      })
+      }),
     )
     .optional(),
 });
 
-const payloadSchema = z.object({
-  event: eventSchema.optional(),
-  organizerEmails: z.array(z.string().email()).optional(),
-  eventId: z.string().uuid().optional(),
-}).refine((data) => data.event || data.eventId, {
-  message: "Either event or eventId must be provided",
-});
+const payloadSchema = z
+  .object({
+    event: eventSchema.optional(),
+    organizerEmails: z.array(z.string().email()).optional(),
+    eventId: z.string().uuid().optional(),
+  })
+  .refine((data) => data.event || data.eventId, {
+    message: "Either event or eventId must be provided",
+  });
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseClient();
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
           error: "Invalid request",
           details: parsed.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -101,7 +103,7 @@ export async function POST(req: Request) {
 
     // If eventId is provided, update existing event instead of creating new one
     if (eventId) {
-      // Verify user owns the event and check visibility
+      // Verify user can manage the event (owner or organizer) and check visibility
       const { data: existingEvent, error: fetchError } = await supabase
         .from("events")
         .select("event_id, owner_id, approval_status, visibility")
@@ -109,16 +111,28 @@ export async function POST(req: Request) {
         .single();
 
       if (fetchError || !existingEvent) {
-        return NextResponse.json(
-          { error: "Event not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
 
-      if (existingEvent.owner_id !== user.id) {
+      const isOwner = existingEvent.owner_id === user.id;
+      let isOrganizer = false;
+
+      if (!isOwner) {
+        const { data: organizerRole } = await supabase
+          .from("user_event_roles")
+          .select("role")
+          .eq("event_id", eventId)
+          .eq("user_id", user.id)
+          .eq("role", EventRole.Organizer)
+          .maybeSingle();
+
+        isOrganizer = Boolean(organizerRole);
+      }
+
+      if (!isOwner && !isOrganizer) {
         return NextResponse.json(
-          { error: "Unauthorized - You don't own this event" },
-          { status: 403 }
+          { error: "Unauthorized - You must be an organizer for this event" },
+          { status: 403 },
         );
       }
 
@@ -126,7 +140,7 @@ export async function POST(req: Request) {
       if (existingEvent.visibility !== EventVisibility.Private) {
         return NextResponse.json(
           { error: "Only private events can be submitted for approval" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -142,24 +156,37 @@ export async function POST(req: Request) {
         console.error("Error updating event approval status:", updateError);
         return NextResponse.json(
           { error: "Failed to update event approval status" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
       // Create an approval log entry
       await supabase.from("event_approval_logs").insert({
         event_id: eventId,
-        previous_status: existingEvent.approval_status || ApprovalStatus.NotSubmitted,
+        previous_status:
+          existingEvent.approval_status || ApprovalStatus.NotSubmitted,
         new_status: ApprovalStatus.Submitted,
         admin_user_id: user.id,
         notes: "Event submitted for approval",
       });
 
+      // Send email notification to admins via Resend (fire-and-forget)
+      sendEventApprovalNotification({
+        eventName: updatedEvent.event_name || "Untitled Event",
+        organizerName: user.user_metadata?.full_name || user.email || "Unknown",
+        organizerEmail: user.email || "",
+        eventDate: updatedEvent.event_date || "TBD",
+        location: updatedEvent.location || "TBD",
+        eventId: updatedEvent.slug || updatedEvent.event_id,
+      }).catch((err) =>
+        console.error("Failed to send approval notification email:", err),
+      );
+
       return NextResponse.json(
         {
           event: updatedEvent,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -167,7 +194,7 @@ export async function POST(req: Request) {
     if (!event) {
       return NextResponse.json(
         { error: "Event data is required when eventId is not provided" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -176,9 +203,7 @@ export async function POST(req: Request) {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
-      rules: (event.rules && event.rules.length > 0
-        ? event.rules
-        : defaultRules) as unknown as Json,
+      rules: (event.rules ?? []) as unknown as Json,
       visibility: (event.visibility ??
         EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
@@ -207,28 +232,26 @@ export async function POST(req: Request) {
       console.error("Error creating event for approval:", insertError);
       return NextResponse.json(
         { error: "Failed to create event" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Automatically assign the creator as an organizer
-    const { error: roleError } = await supabase
-      .from("user_event_roles")
-      .upsert(
-        {
-          user_id: user.id,
-          event_id: createdEvent.event_id,
-          role: EventRole.Organizer,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,event_id" }
-      );
+    const { error: roleError } = await supabase.from("user_event_roles").upsert(
+      {
+        user_id: user.id,
+        event_id: createdEvent.event_id,
+        role: EventRole.Organizer,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,event_id" },
+    );
 
     if (roleError) {
       console.error("Error assigning creator as organizer:", roleError);
       return NextResponse.json(
         { error: "Event created but assigning creator role failed" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -257,14 +280,15 @@ export async function POST(req: Request) {
         console.error("Error creating tracks:", trackInsertError);
         return NextResponse.json(
           { error: "Event created but creating tracks failed" },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
 
     const skippedPrizes: string[] = [];
     if (event.prizes && event.prizes.length > 0) {
-      const prizeInserts: Database["public"]["Tables"]["prizes"]["Insert"][] = [];
+      const prizeInserts: Database["public"]["Tables"]["prizes"]["Insert"][] =
+        [];
 
       for (const prize of event.prizes) {
         const dbTrackId = clientToDbTrackId.get(prize.track_client_id);
@@ -290,7 +314,7 @@ export async function POST(req: Request) {
           console.error("Error creating prizes:", prizeInsertError);
           return NextResponse.json(
             { error: "Event created but creating prizes failed" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       }
@@ -300,9 +324,9 @@ export async function POST(req: Request) {
     const missingEmails: string[] = [];
 
     if (organizerEmails.length > 0) {
-      const normalizedEmails = Array.from(new Set(organizerEmails.map((e) =>
-        e.trim().toLowerCase()
-      )));
+      const normalizedEmails = Array.from(
+        new Set(organizerEmails.map((e) => e.trim().toLowerCase())),
+      );
 
       // Fetch all users by email in one query
       const { data: usersByEmail, error: usersError } = await serviceSupabase
@@ -314,12 +338,12 @@ export async function POST(req: Request) {
         console.error("Error fetching organizer users:", usersError);
         return NextResponse.json(
           { error: "Failed to look up organizer emails" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
       const foundEmails = new Set(
-        (usersByEmail || []).map((u) => (u.email || "").toLowerCase())
+        (usersByEmail || []).map((u) => (u.email || "").toLowerCase()),
       );
       for (const email of normalizedEmails) {
         if (!foundEmails.has(email)) missingEmails.push(email);
@@ -329,11 +353,11 @@ export async function POST(req: Request) {
         const upserts = usersByEmail
           .filter((u) => u.uid !== user.id)
           .map((u) => ({
-          user_id: u.uid,
-          event_id: createdEvent.event_id,
-          role: EventRole.Organizer,
-          updated_at: new Date().toISOString(),
-        }));
+            user_id: u.uid,
+            event_id: createdEvent.event_id,
+            role: EventRole.Organizer,
+            updated_at: new Date().toISOString(),
+          }));
 
         if (upserts.length > 0) {
           const { error: upsertError } = await supabase
@@ -344,7 +368,7 @@ export async function POST(req: Request) {
             console.error("Error assigning organizers:", upsertError);
             return NextResponse.json(
               { error: "Event created but assigning organizers failed" },
-              { status: 500 }
+              { status: 500 },
             );
           }
 
@@ -362,6 +386,18 @@ export async function POST(req: Request) {
       notes: "Event submitted for approval",
     });
 
+    // Send email notification to admins via Resend (fire-and-forget)
+    sendEventApprovalNotification({
+      eventName: createdEvent.event_name || "Untitled Event",
+      organizerName: user.user_metadata?.full_name || user.email || "Unknown",
+      organizerEmail: user.email || "",
+      eventDate: createdEvent.event_date || "TBD",
+      location: createdEvent.location || "TBD",
+      eventId: createdEvent.slug || createdEvent.event_id,
+    }).catch((err) =>
+      console.error("Failed to send approval notification email:", err),
+    );
+
     return NextResponse.json(
       {
         event: createdEvent,
@@ -369,13 +405,13 @@ export async function POST(req: Request) {
         missingOrganizerEmails: missingEmails,
         skippedPrizeTrackIds: skippedPrizes,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error in POST /api/events/request-approval:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

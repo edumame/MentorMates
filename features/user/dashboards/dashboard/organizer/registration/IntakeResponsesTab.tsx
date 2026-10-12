@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import Papa from "papaparse";
+import { Download } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -27,6 +29,7 @@ import type {
 } from "@/features/intake-forms/types";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
+  buildIntakeExportRows,
   formatAnswerValue,
   getFieldLabel,
   isFieldVisible,
@@ -58,6 +61,8 @@ const PAGE_SIZE = 20;
 const CONTEXT_LABELS: Record<IntakeFormContext, string> = {
   registration: "Registration",
   project_submission: "Project Submission",
+  rsvp: "RSVP",
+  post_survey: "Post-Event Survey",
 };
 
 export function IntakeResponsesTab({ eventId }: { eventId: string }) {
@@ -206,27 +211,127 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
     return [...knownRows, ...unknownRows];
   }, [selectedSubmission, activeForm]);
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+
+      // Fetch all submissions across pages (API caps limit at 100).
+      const EXPORT_PAGE_SIZE = 100;
+      const allSubmissions: Submission[] = [];
+      let exportOffset = 0;
+      let exportTotal = Infinity;
+
+      while (exportOffset < exportTotal) {
+        const response = await fetch(
+          `/api/events/${eventId}/intake-form/submissions?context=${context}&limit=${EXPORT_PAGE_SIZE}&offset=${exportOffset}`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(payload.error || "Failed to fetch responses for export");
+        }
+        const payload = (await response.json()) as {
+          submissions: Submission[];
+          pagination: { total: number };
+        };
+        allSubmissions.push(...(payload.submissions ?? []));
+        exportTotal = payload.pagination?.total ?? allSubmissions.length;
+        if ((payload.submissions ?? []).length === 0) break;
+        exportOffset += EXPORT_PAGE_SIZE;
+      }
+
+      if (allSubmissions.length === 0) {
+        toast({
+          title: "Nothing to export",
+          description: "There are no submitted responses yet.",
+        });
+        return;
+      }
+
+      const rows = buildIntakeExportRows(
+        allSubmissions,
+        activeForm?.schema ?? null
+      );
+
+      const csv = Papa.unparse(rows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `intake-${context}-${eventId}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export ready",
+        description: `Downloaded ${rows.length} ${
+          rows.length === 1 ? "response" : "responses"
+        }.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const pageNumber = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canGoPrev = offset > 0;
   const canGoNext = offset + PAGE_SIZE < total;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Intake Responses</CardTitle>
+    <Card className="w-full min-w-0 overflow-hidden">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle
+          className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
+          style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
+        >
+          Intake Responses
+        </CardTitle>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleExportCsv}
+          disabled={exporting || loadingResponses || total === 0}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {exporting ? "Exporting..." : "Export CSV"}
+        </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 min-w-0">
         <Tabs
           value={context}
           onValueChange={(value) => setContext(value as IntakeFormContext)}
+          className="w-full min-w-0"
         >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="registration">Registration</TabsTrigger>
-            <TabsTrigger value="project_submission">
-              Project Submission
-            </TabsTrigger>
+          <div className="scroll-x-tabs no-scrollbar w-full min-w-0 mb-6">
+            <TabsList className="flex h-auto w-max flex-nowrap gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none">
+            {(Object.keys(CONTEXT_LABELS) as IntakeFormContext[]).map(
+              (contextKey) => (
+                <TabsTrigger
+                  key={contextKey}
+                  value={contextKey}
+                  className="flex flex-shrink-0 items-center justify-center whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+                >
+                  {CONTEXT_LABELS[contextKey]}
+                </TabsTrigger>
+              )
+            )}
           </TabsList>
+          </div>
         </Tabs>
 
         {loadingForm ? (
@@ -257,8 +362,8 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
           </p>
         ) : (
           <>
-            <div className="rounded-lg border">
-              <Table>
+            <div className="scroll-x-tabs w-full min-w-0 rounded-lg border">
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Participant</TableHead>
@@ -300,11 +405,15 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
                           </Button>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/projects/public/${submission.projectId}`} passHref>
-                            <Button variant="outline" size="sm">
-                              View Project
-                            </Button>
-                          </Link>
+                          {submission.projectId ? (
+                            <Link href={`/projects/public/${submission.projectId}`} passHref>
+                              <Button variant="outline" size="sm">
+                                View Project
+                              </Button>
+                            </Link>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
