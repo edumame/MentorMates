@@ -26,7 +26,7 @@ import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/prici
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
-import { IntakeFormBuilder } from "@/features/intake-forms/components/IntakeFormBuilder";
+import { OrganizerFormsTab } from "./OrganizerFormsTab";
 import { SubmissionFieldsSettings } from "@/features/user/dashboards/dashboard/organizer/submissions/SubmissionFieldsSettings";
 
 // Import sub-tab components for Overview
@@ -116,6 +116,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const mainTabs = [
     { value: "participants", label: "People", badge: participantCount },
     { value: "teams", label: "Teams" },
+    { value: "forms", label: "Forms" },
     { value: "project", label: "Projects", badge: projectCount },
     { value: "access", label: "Access" },
     { value: "tracks", label: "Tracks & Prizes" },
@@ -132,7 +133,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   ] as const;
   const advancedTabs = [
     { value: "overview", label: "Edit Event" },
-    { value: "intake-forms", label: "Intake Forms" },
     { value: "intake-responses", label: "Intake Responses" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
@@ -153,7 +153,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             : "browse"))
     : "browse";
   const isProjectTab = (tab: string) => tab === "project-submission" || tab === "live-scores" || tab === "project";
-  const tabsValue = isAdvancedTab(activeTab) ? "advanced-settings" : isProjectTab(activeTab) ? "project" : activeTab;
+  // Preserve bookmarked Intake Forms URLs while exposing Forms in the main navigation.
+  const tabsValue = activeTab === "intake-forms"
+    ? "forms"
+    : isAdvancedTab(activeTab)
+      ? "advanced-settings"
+      : isProjectTab(activeTab) ? "project" : activeTab;
 
   const accessSubTabValues = [
     "password",
@@ -892,7 +897,14 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             >
               {/* Left Column - Form Content */}
               <div className="w-full min-w-0 lg:flex-[2] flex flex-col">
-                {/* Advanced Settings (Overview, Intake Forms, etc.) */}
+                <TabsContent value="forms" className="mt-0 w-full min-w-0">
+                  <OrganizerFormsTab
+                    eventId={eventId}
+                    view={activeSubTab}
+                    onViewChange={setActiveSubTab}
+                  />
+                </TabsContent>
+                {/* Advanced Settings (event details, responses, etc.) */}
                 <TabsContent value="advanced-settings" className="mt-0 w-full min-w-0">
                   {activeTab === "overview" && (
                     <Tabs
@@ -994,59 +1006,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         </TabsContent>
                       </div>
                     </Tabs>
-                  )}
-                  {activeTab === "intake-forms" && (
-                    <div className="space-y-6">
-                      <div>
-                        <SubmissionFieldsSettings eventId={eventId} />
-                      </div>
-                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
-                        <h2
-                        className="font-geist text-xl font-semibold mb-4 text-black"
-                        style={{
-                          fontFamily:
-                            "var(--font-geist-sans), Inter, system-ui, sans-serif",
-                        }}
-                      >
-                        Registration Intake Form
-                      </h2>
-                        <IntakeFormBuilder eventId={eventId} context="registration" />
-                      </div>
-                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
-                        <h2
-                          className="font-geist text-xl font-semibold mb-4 text-black"
-                          style={{
-                            fontFamily:
-                              "var(--font-geist-sans), Inter, system-ui, sans-serif",
-                          }}
-                        >
-                          RSVP Form
-                        </h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Publish an RSVP form to ask registered attendees to
-                          confirm their attendance. An RSVP button appears on the
-                          event page for everyone who has joined.
-                        </p>
-                        <IntakeFormBuilder eventId={eventId} context="rsvp" />
-                      </div>
-                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
-                        <h2
-                          className="font-geist text-xl font-semibold mb-4 text-black"
-                          style={{
-                            fontFamily:
-                              "var(--font-geist-sans), Inter, system-ui, sans-serif",
-                          }}
-                        >
-                          Post-Event Survey
-                        </h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Publish a post-event survey to collect feedback from
-                          attendees. A survey button appears on the event page
-                          for everyone who has joined.
-                        </p>
-                        <IntakeFormBuilder eventId={eventId} context="post_survey" />
-                      </div>
-                    </div>
                   )}
                   {activeTab === "intake-responses" && (
                     <IntakeResponsesTab eventId={eventId} />
