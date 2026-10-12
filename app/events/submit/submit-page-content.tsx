@@ -22,13 +22,27 @@ export function SubmitEventPageContent() {
         <h1 className="font-geist text-[32px] sm:text-[36px] font-semibold tracking-[-0.04em] text-black">
           Submit Your Event
         </h1>
-        <p className="mt-2 text-[15px] text-[rgba(0,0,0,0.65)]">
-          Got a hackathon coming up? Get it in front of builders who are
-          actually looking for events to join. List it on the MentorMates
-          events calendar — we&apos;ll send attendees straight to your own
-          registration page. No sign-in needed to submit. Once an admin
-          reviews it, we&apos;ll reach out to your email to get it live.
-        </p>
+        <div className="mt-2 space-y-3 text-[15px] text-[rgba(0,0,0,0.65)]">
+          <p>
+            MentorMates is the one-stop shop for Silicon Valley resources —
+            and listing your hackathon here is more than a calendar spot.
+          </p>
+          <p>
+            We connect organizers to sponsors from YC, a16z (Speedrun), and
+            the latest AI startups actively looking to get in front of
+            builders. Last year alone, we helped organizers raise over
+            $100,000 from leading AI companies.
+          </p>
+          <p>
+            We also help your hackers: our core focus is talent development
+            and access — connecting builders to top incubators and
+            accelerators so your event creates real career momentum.
+          </p>
+          <p>
+            Submit your event below and our team will reach out to connect
+            you with the right resources.
+          </p>
+        </div>
         <div className="mt-8">
           <SubmitEventForm />
         </div>
