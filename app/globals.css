@@ -406,3 +406,29 @@ body {
   width: 20px;
   height: 20px;
 }
+
+/* shipcue report panel (components/layout/ShipcueReportButton.tsx). shipcue
+   draws no button here (trigger={false}); the support circle in the corner
+   opens it, so the panel opens just above that circle (48px + 12px gap). On
+   pages with their own controls in the corner the circle moves up and the
+   panel with it (lib/shipcue/placement.ts). shipcue positions itself with
+   inline styles, hence !important. */
+[data-mm-shipcue] [data-shipcue="floating"] {
+  bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+}
+[data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] {
+  bottom: calc(172px + env(safe-area-inset-bottom)) !important;
+}
+[data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] [role="dialog"] {
+  max-height: calc(100dvh - 15rem) !important;
+}
+@media (min-width: 768px) {
+  [data-mm-shipcue][data-placement="chat"] [data-shipcue="floating"] {
+    bottom: calc(188px + env(safe-area-inset-bottom)) !important;
+  }
+}
+@media (max-width: 639px) {
+  [data-mm-shipcue][data-placement="mobile-bar"] [data-shipcue="floating"] {
+    bottom: calc(140px + env(safe-area-inset-bottom)) !important;
+  }
+}
