@@ -61,6 +61,8 @@ const PAGE_SIZE = 20;
 const CONTEXT_LABELS: Record<IntakeFormContext, string> = {
   registration: "Registration",
   project_submission: "Project Submission",
+  rsvp: "RSVP",
+  post_survey: "Post-Event Survey",
 };
 
 export function IntakeResponsesTab({ eventId }: { eventId: string }) {
@@ -317,18 +319,17 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
         >
           <div className="scroll-x-tabs no-scrollbar w-full min-w-0 mb-6">
             <TabsList className="flex h-auto w-max flex-nowrap gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none">
-            <TabsTrigger
-              value="registration"
-              className="flex flex-shrink-0 items-center justify-center whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
-            >
-              Registration
-            </TabsTrigger>
-            <TabsTrigger
-              value="project_submission"
-              className="flex flex-shrink-0 items-center justify-center whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
-            >
-              Project Submission
-            </TabsTrigger>
+            {(Object.keys(CONTEXT_LABELS) as IntakeFormContext[]).map(
+              (contextKey) => (
+                <TabsTrigger
+                  key={contextKey}
+                  value={contextKey}
+                  className="flex flex-shrink-0 items-center justify-center whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+                >
+                  {CONTEXT_LABELS[contextKey]}
+                </TabsTrigger>
+              )
+            )}
           </TabsList>
           </div>
         </Tabs>
@@ -404,11 +405,15 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
                           </Button>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/projects/public/${submission.projectId}`} passHref>
-                            <Button variant="outline" size="sm">
-                              View Project
-                            </Button>
-                          </Link>
+                          {submission.projectId ? (
+                            <Link href={`/projects/public/${submission.projectId}`} passHref>
+                              <Button variant="outline" size="sm">
+                                View Project
+                              </Button>
+                            </Link>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

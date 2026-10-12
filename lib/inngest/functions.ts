@@ -114,9 +114,12 @@ export const meetingsProcessing = inngest.createFunction(
       const speakers = [...(userSpeakers ?? []), ...(agentSpeakers ?? [])];
 
       return transcript.map((item) => {
-        const speaker = speakers.find(
-          (speaker) =>
-            speaker.id === item.speaker_id || speaker.uid === item.speaker_id
+        // Speakers are either user profiles (keyed by uid, named via
+        // display_name) or agents (keyed by id, named via name).
+        const speaker = speakers.find((candidate) =>
+          "uid" in candidate
+            ? candidate.uid === item.speaker_id
+            : candidate.id === item.speaker_id
         );
 
         if (!speaker) {
@@ -131,7 +134,9 @@ export const meetingsProcessing = inngest.createFunction(
         return {
           ...item,
           user: {
-            name: speaker.name,
+            name:
+              ("uid" in speaker ? speaker.display_name : speaker.name) ??
+              "Unknown",
           },
         };
       });

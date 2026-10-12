@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { EventRole, EventDetails } from "@/lib/types";
-import Papa from "papaparse";
+import { buildEmailTeamMap, buildParticipantsCsv } from "./export";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +32,8 @@ interface UserEventRoleWithProfile {
   profiles: {
     display_name: string;
     email: string;
+    affiliation: string;
+    team_name: string;
   } | null;
 }
 
@@ -40,6 +42,8 @@ interface Participant {
   role: EventRole;
   display_name: string;
   email: string;
+  affiliation: string;
+  team_name: string;
 }
 
 interface ParticipantsTabProps {
@@ -50,6 +54,7 @@ interface ParticipantsTabProps {
 }
 
 interface ProjectRow {
+  project_name: string | null;
   lead_email: string | null;
   teammates: string[] | null;
 }
@@ -85,6 +90,9 @@ interface JudgeStatsResponse {
 export function ParticipantsTab({ eventId, event, setEvent, isArchived }: ParticipantsTabProps) {
   const PAGE_SIZE = 10;
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [teamByEmail, setTeamByEmail] = useState<Map<string, string>>(
+    new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [judgeStats, setJudgeStats] = useState<JudgeStatsResponse | null>(null);
@@ -114,23 +122,29 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             role: EventRole;
             display_name: string;
             email: string;
+            affiliation?: string;
+            team_name?: string;
           }) => ({
             user_id: user.user_id,
             role: user.role,
             profiles: {
               display_name: user.display_name,
               email: user.email,
+              affiliation: user.affiliation ?? "",
+              team_name: user.team_name ?? "",
             },
           })
         ) as UserEventRoleWithProfile[];
 
         const { data: projectRows, error: projectError } = await supabase
           .from("projects")
-          .select("lead_email, teammates")
+          .select("project_name, lead_email, teammates")
           .eq("event_id", eventId)
           .overrideTypes<ProjectRow[]>();
 
         if (projectError) throw projectError;
+
+        setTeamByEmail(buildEmailTeamMap(projectRows ?? []));
 
         const transformedData: Participant[] = (data ?? []).map((roleRow) => ({
           user_id: roleRow.user_id,
@@ -140,6 +154,8 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             roleRow.profiles?.email?.split("@")[0] ||
             "Unknown User",
           email: roleRow.profiles?.email ?? "",
+          affiliation: roleRow.profiles?.affiliation ?? "",
+          team_name: roleRow.profiles?.team_name ?? "",
         }));
 
         const projectParticipants: Participant[] = [];
@@ -159,6 +175,8 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 role: EventRole.Participant,
                 display_name: project.lead_email,
                 email: project.lead_email,
+                affiliation: "",
+                team_name: "",
               });
               allEmails.add(leadEmailLower);
             }
@@ -175,6 +193,8 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 role: EventRole.Participant,
                 display_name: teammateEmail,
                 email: teammateEmail,
+                affiliation: "",
+                team_name: "",
               });
               allEmails.add(teammateLower);
             }
@@ -319,13 +339,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   };
 
   const handleExportCSV = () => {
-    const csv = Papa.unparse(
-      participants.map((participant) => ({
-        Name: participant.display_name,
-        Email: participant.email,
-        Role: participant.role,
-      }))
-    );
+    const csv = buildParticipantsCsv(participants, teamByEmail);
 
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);

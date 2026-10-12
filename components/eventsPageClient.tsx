@@ -110,14 +110,21 @@ export function EventsPageClient({
 
   // Body has `overflow-x: hidden` globally, which turns body into an intermediate
   // scroll container and breaks `position: sticky` for the calendar sidebar on the
-  // unauthed view. html already clips horizontal overflow, so dropping body's
-  // overflow on this route is safe and lets sticky anchor to the document scroll.
+  // unauthed desktop view. html already clips horizontal overflow, so dropping body's
+  // overflow on large screens is safe and lets sticky anchor to the document scroll.
   useEffect(() => {
     if (isAuthenticated) return;
-    const prev = document.body.style.overflowX;
-    document.body.style.overflowX = "visible";
+
+    const media = window.matchMedia("(min-width: 1024px)");
+    const apply = () => {
+      document.body.style.overflowX = media.matches ? "visible" : "";
+    };
+
+    apply();
+    media.addEventListener("change", apply);
     return () => {
-      document.body.style.overflowX = prev;
+      media.removeEventListener("change", apply);
+      document.body.style.overflowX = "";
     };
   }, [isAuthenticated]);
 
@@ -324,12 +331,12 @@ export function EventsPageClient({
     : ["discover"];
 
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
-        <div className="min-w-0">
+    <div className="w-full min-w-0 max-w-full overflow-x-clip">
+      <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+        <div className="min-w-0 max-w-full">
           <div
             className={cn(
-              "sticky z-30 bg-white -mx-2 px-2 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]",
+              "sticky z-30 bg-white pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]",
               isAuthenticated
                 ? "top-0 -mt-[24px] pt-[27px]"
                 : "top-[72px] pt-3"

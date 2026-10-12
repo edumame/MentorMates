@@ -16,6 +16,7 @@ import {
   createSubmissionTemplateFields,
   createLockedStarterSubmissionFields,
   createMLHSubmissionTemplateFields,
+  BUILT_IN_FIELD_IDS,
 } from "./types";
 import {
   AlertDialog,
@@ -763,6 +764,32 @@ function FieldEditor({
             )}
           </div>
         )}
+
+        {(field.type === "text" ||
+          field.type === "textarea" ||
+          field.type === "url" ||
+          field.type === "file") &&
+          !BUILT_IN_FIELD_IDS.has(field.id) && (
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={field.allowsMultipleEntries ?? false}
+                  onChange={(e) =>
+                    onUpdate({ allowsMultipleEntries: e.target.checked || undefined })
+                  }
+                  className="size-4 rounded border-gray-300 text-[#4B89EF] focus:ring-blue-500"
+                />
+                Collect as team log (each teammate can add multiple entries)
+              </label>
+              {field.allowsMultipleEntries && (
+                <p className="mt-1 pl-6 text-xs text-gray-500">
+                  This question moves off the submission form — teammates add
+                  entries directly on the project page instead.
+                </p>
+              )}
+            </div>
+          )}
 
         <div className="sm:col-span-2 flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">

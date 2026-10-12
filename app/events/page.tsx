@@ -105,11 +105,12 @@ export default async function EventsPage() {
 
   return (
     <>
-      <div className="pt-[24px] pb-8">
-        <div className={
+      <div className={isAuthenticated ? "pt-[24px] pb-8" : "pt-16 pb-8"}>
+        <div
+          className={
             isAuthenticated
-              ? "flex flex-col gap-[24px] px-[32px]"
-              : "mx-auto w-full max-w-10xl px-4 md:px-10"
+              ? "flex min-w-0 max-w-full flex-col gap-[24px] overflow-x-clip px-[32px]"
+              : "mx-auto flex min-w-0 w-full max-w-10xl flex-col overflow-x-clip px-4 md:px-10"
           }
         >
           <div className="flex flex-col gap-[24px]">
