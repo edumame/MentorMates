@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useRef, useState } from "react";
 import {
   FileIcon,
   Image as ImageIcon,
@@ -27,6 +27,7 @@ interface ProjectSubmissionSchemaSectionProps {
   values: Record<string, SubmissionValue>;
   onValueChange: (key: string, value: SubmissionValue) => void;
   onFileUpload: (key: string, files: File[]) => Promise<void> | void;
+  onUploadStateChange?: (uploading: boolean) => void;
   showDescriptionPreview: boolean;
   onToggleDescriptionPreview: () => void;
 }
@@ -83,11 +84,33 @@ export function ProjectSubmissionSchemaSection({
   values,
   onValueChange,
   onFileUpload,
+  onUploadStateChange,
   showDescriptionPreview,
   onToggleDescriptionPreview,
 }: ProjectSubmissionSchemaSectionProps) {
+  const uploadInFlight = useRef(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploadFiles = async (key: string, files: File[]) => {
+    if (uploadInFlight.current) return;
+    uploadInFlight.current = true;
+    setUploading(true);
+    setUploadError(null);
+    onUploadStateChange?.(true);
+    try {
+      await onFileUpload(key, files);
+    } catch {
+      setUploadError("Upload failed. Please try again before publishing.");
+    } finally {
+      uploadInFlight.current = false;
+      setUploading(false);
+      onUploadStateChange?.(false);
+    }
+  };
   return (
-    <div className="space-y-4">
+    <fieldset disabled={uploading} className="space-y-4 min-w-0">
+      {uploading && <p role="status">Uploading files. Please wait before publishing or leaving.</p>}
+      {uploadError && <p role="alert">{uploadError}</p>}
       {fields.map((field, index) => {
         const labelSuffix = field.required ? "" : " (Optional)";
         const textValue = getTextValue(values[field.key]);
@@ -157,7 +180,7 @@ export function ProjectSubmissionSchemaSection({
                             onChange={(event) => {
                               const file = event.target.files?.[0];
                               if (!file) return;
-                              void onFileUpload(field.key, [file]);
+                              void uploadFiles(field.key, [file]);
                               event.currentTarget.value = "";
                             }}
                             className="hidden"
@@ -193,7 +216,7 @@ export function ProjectSubmissionSchemaSection({
                 <MultiFileUploadField
                   field={field}
                   urls={listValue}
-                  onUpload={(files) => void onFileUpload(field.key, files)}
+                  onUpload={(files) => void uploadFiles(field.key, files)}
                   onRemove={(itemIndex) =>
                     onValueChange(
                       field.key,
@@ -240,7 +263,7 @@ export function ProjectSubmissionSchemaSection({
                             onChange={(event) => {
                               const file = event.target.files?.[0];
                               if (!file) return;
-                              void onFileUpload(field.key, [file]);
+                              void uploadFiles(field.key, [file]);
                               event.currentTarget.value = "";
                             }}
                             className="hidden"
@@ -280,7 +303,7 @@ export function ProjectSubmissionSchemaSection({
                         onChange={(event) => {
                           const file = event.target.files?.[0];
                           if (!file) return;
-                          void onFileUpload(field.key, [file]);
+                          void uploadFiles(field.key, [file]);
                           event.currentTarget.value = "";
                         }}
                         className="hidden"
@@ -360,7 +383,7 @@ export function ProjectSubmissionSchemaSection({
           </Fragment>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
 
