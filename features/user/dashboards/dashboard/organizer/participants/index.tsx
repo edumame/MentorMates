@@ -9,13 +9,12 @@ import { buildEmailTeamMap, buildParticipantsCsv } from "./export";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Download, Copy, Trash2, FileDown, FileUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Copy, Trash2, FileDown } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
 import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
-import { SubmitForParticipantDialog } from "./SubmitForParticipantDialog";
 import { AssignTab } from "../assign";
 import {
   EvidenceLetterDialog,
@@ -96,7 +95,6 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   );
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [submitForParticipant, setSubmitForParticipant] = useState<Participant | null>(null);
   const [judgeStats, setJudgeStats] = useState<JudgeStatsResponse | null>(null);
   const [signedInName, setSignedInName] = useState<string>("");
   const [letterDialogOpen, setLetterDialogOpen] = useState(false);
@@ -589,17 +587,6 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                             <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
                                 <div className="flex items-center justify-end gap-1">
-                                  {participant.role === EventRole.Participant && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => setSubmitForParticipant(participant)}
-                                      aria-label={`Submit project for ${participant.display_name}`}
-                                      title="Submit project on their behalf"
-                                    >
-                                      <FileUp className="h-4 w-4" />
-                                    </Button>
-                                  )}
                                   {(participant.role === EventRole.Judge ||
                                     participant.role === EventRole.Mentor) && (
                                     <Button
@@ -711,17 +698,6 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
         </Tabs>
         )}
       </CardContent>
-      {submitForParticipant && (
-        <SubmitForParticipantDialog
-          open={!!submitForParticipant}
-          onOpenChange={(next) => {
-            if (!next) setSubmitForParticipant(null);
-          }}
-          eventId={eventId}
-          participantUserId={submitForParticipant.user_id}
-          participantDisplayName={submitForParticipant.display_name}
-        />
-      )}
       <EvidenceLetterDialog
         open={letterDialogOpen}
         onOpenChange={setLetterDialogOpen}
