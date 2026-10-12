@@ -9,6 +9,7 @@ import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
 import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
+import { ShipcueReportButton } from "@/components/layout/ShipcueReportButton";
 import { JsonLd } from "./JsonLd";
 import { seoMetadata } from "./seo-metadata";
 
@@ -52,6 +53,7 @@ export default function RootLayout({
                   </ConditionalLayout>
                 </AuthProvider>
                 <FloatingSupportButton />
+                <ShipcueReportButton />
               </LayoutConfigProvider>
             </AuthContextProvider>
           </Providers>
