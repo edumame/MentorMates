@@ -625,7 +625,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
   }
 
   return (
-    <Card>
+    <Card className="w-full min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle>Judge & Mentor Assignments</CardTitle>
       </CardHeader>
@@ -874,7 +874,8 @@ export function AssignTab({ eventId }: AssignTabProps) {
               No projects found for this event.
             </div>
           ) : (
-            <Table>
+            <div className="scroll-x-tabs w-full min-w-0 rounded-md border">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
@@ -1055,6 +1056,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </div>
       </CardContent>

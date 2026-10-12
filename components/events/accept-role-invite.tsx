@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { User } from "@supabase/supabase-js";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface AcceptRoleInviteProps {
   eventId: string;
@@ -143,6 +144,7 @@ export function AcceptRoleInvite({
   const [user, setUser] = useState<User | null>(null);
   const [hasAccepted, setHasAccepted] = useState(false);
   const router = useRouter();
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
 
   const content = ROLE_CONTENT[role];
   const accent = ROLE_ACCENT_CLASSES[role];
@@ -177,10 +179,7 @@ export function AcceptRoleInvite({
   }, [eventId, eventSlug, role, router]);
 
   const handleLogin = () => {
-    localStorage.setItem(
-      "returnUrl",
-      window.location.pathname + window.location.search
-    );
+    setReturnUrlFromCurrentLocation();
     router.push("/login");
   };
 
