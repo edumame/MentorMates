@@ -1,5 +1,6 @@
 "use client"
 
+import type { Session } from "@supabase/supabase-js";
 import { LoaderIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -11,7 +12,7 @@ interface Props {
 };
 
 export const CallProvider = ({ meetingId, meetingName }: Props) => {
-    const [session, setSession] = useState<any | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
     const [isPending, setIsPending] = useState(true);
 
     useEffect(() => {
@@ -38,7 +39,7 @@ export const CallProvider = ({ meetingId, meetingName }: Props) => {
 
     const user = session.user;
     const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0];
-    const userImage = user?.user_metadata?.avatar_url || user?.avatar_url;
+    const userImage = user?.user_metadata?.avatar_url;
 
     return (
         <CallConnect
