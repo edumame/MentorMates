@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { defaultRules } from "@/lib/config/constants";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -127,6 +126,8 @@ const eventSchema = z.object({
   cover_image_url: z.string().url().optional(),
   event_description: z.string().optional(),
   event_blurb: z.string().optional(),
+  external_url: z.string().url("external_url must be a valid URL").optional(),
+  external_redirect_enabled: z.boolean().optional(),
   submission_time_start: z.string().optional(),
   submission_time_cutoff: z.string().optional(),
   participant_capacity: z.number().int().nonnegative().optional(),
@@ -179,6 +180,7 @@ const eventSchema = z.object({
     .optional(),
   approval_status: z.nativeEnum(ApprovalStatus).optional(),
   featured: z.boolean().optional(),
+  event_type: z.array(z.string()).optional(),
 });
 
 const payloadSchema = z.object({
@@ -235,15 +237,15 @@ export async function POST(req: Request) {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
-      rules: (event.rules && event.rules.length > 0
-        ? event.rules
-        : defaultRules) as unknown as Json,
+      rules: ((event.rules ?? []) as unknown as Json),
       visibility: (event.visibility ??
         EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
       cover_image_url: event.cover_image_url ?? null,
       event_description: event.event_description ?? null,
       event_blurb: event.event_blurb ?? null,
+      external_url: event.external_url ?? null,
+      external_redirect_enabled: event.external_redirect_enabled ?? false,
       submission_time_start: event.submission_time_start ?? null,
       submission_time_cutoff: event.submission_time_cutoff ?? null,
       participant_capacity: event.participant_capacity ?? null,
@@ -255,6 +257,7 @@ export async function POST(req: Request) {
       owner_id: user.id, // Set the creator as the owner
       approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
       featured: event.featured ?? false,
+      event_type: (event.event_type ?? []) as string[],
     };
 
     const { data: createdEvent, error: insertError } = await supabase
@@ -265,6 +268,14 @@ export async function POST(req: Request) {
 
     if (insertError || !createdEvent) {
       console.error("Error creating event:", insertError);
+
+      if (insertError?.message?.toLowerCase().includes("events_slug_key")) {
+        return NextResponse.json(
+          { error: "Event slug already exists. Please try a different slug." },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         { error: "Failed to create event" },
         { status: 500 }

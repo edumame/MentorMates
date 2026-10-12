@@ -18,7 +18,6 @@ import {
   Video as VideoIcon,
   Download,
   Copy,
-  QrCode,
   Link as LinkIcon,
   Scale,
   MessageSquare,
@@ -30,23 +29,24 @@ import { useQRCodeActions } from "@/features/projects/components/management/proj
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
-import {
-  EventRole,
-  EventTrack,
-  EventVisibility,
-  Project,
-  TrackScoringConfig,
-} from "@/lib/types";
+import { DefaultScoring } from "@/components/project-scoring/default-scoring";
+import { EventRole, EventTrack, EventVisibility, Project } from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils/string";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
+import { ProjectFieldEntriesSection } from "@/features/projects/components/displays/ProjectFieldEntriesSection";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
+import { ProjectShareSection } from "@/features/projects/components/displays/ProjectShareSection";
 
 function getMemberInitials(value: string): string {
   const trimmed = value.trim();
@@ -77,6 +77,7 @@ export default function PublicProjectPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchComplete, setFetchComplete] = useState(false);
   const [isJudge, setIsJudge] = useState(false);
+  const [judgeId, setJudgeId] = useState("");
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string>("");
@@ -86,12 +87,22 @@ export default function PublicProjectPage() {
     useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
+    Record<
+      string,
+      {
+        displayName: string | null;
+        avatarUrl: string | null;
+        affiliation: string | null;
+      }
+    >
+  >({});
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
     project?.event_id || "",
     projectId,
-    project?.project_name
+    project?.project_name,
   );
 
   const {
@@ -106,7 +117,7 @@ export default function PublicProjectPage() {
       setIsLoading(true);
       setFetchComplete(false);
 
-      const response = await fetch(`/api/projects?public=true&projectId=${projectId}`);
+      const response = await fetch(`/api/projects?projectId=${projectId}`);
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
         project?: Project;
@@ -115,29 +126,72 @@ export default function PublicProjectPage() {
       if (!response.ok || !payload.project) {
         setProject(null);
       } else {
-        // Ensure the project belongs to a public event.
-        const { data: eventMeta, error: eventMetaError } = await supabase
-          .from("events")
-          .select("visibility")
-          .eq("event_id", payload.project.event_id)
-          .maybeSingle();
+        // Do not need to check event visibility here; "public" does not mean public to the world, it means public to the event
+        // Event access check is controlled via RLS; if the event is public, the project is public
 
-        const isEventPublic =
-          !eventMetaError && eventMeta?.visibility === EventVisibility.Public;
-
-        if (!isEventPublic) {
-          setProject(null);
-        } else {
-          setProject(payload.project);
-        }
+        setProject(payload.project);
       }
-      
+
       setIsLoading(false);
       setFetchComplete(true);
     };
 
     fetchProject();
   }, [projectId]);
+
+  // Fetch team profile data (display name, avatar, affiliation) from user_profiles
+  useEffect(() => {
+    if (!project) return;
+    if (!project.lead_email && !(project.teammates?.length ?? 0)) return;
+
+    const emails = Array.from(
+      new Set([project.lead_email, ...(project.teammates ?? [])])
+    )
+      .filter(Boolean)
+      .map((e) => String(e).toLowerCase());
+
+    if (emails.length === 0) return;
+
+    let alive = true;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("email, affiliation, avatar_url, display_name")
+          .in("email", emails);
+
+        if (error || !alive) return;
+
+        const map: Record<
+          string,
+          {
+            displayName: string | null;
+            avatarUrl: string | null;
+            affiliation: string | null;
+          }
+        > = {};
+
+        for (const row of data ?? []) {
+          const email = row.email?.toLowerCase();
+          if (!email) continue;
+          map[email] = {
+            displayName: row.display_name?.trim() || null,
+            avatarUrl: row.avatar_url?.trim() || null,
+            affiliation: row.affiliation?.trim() || null,
+          };
+        }
+
+        setTeamProfileByEmail(map);
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [project?.lead_email, project?.teammates, project]);
 
   // Fetch event details when project is loaded
   useEffect(() => {
@@ -148,7 +202,7 @@ export default function PublicProjectPage() {
         const { data: eventData, error } = await supabase
           .from("events")
           .select(
-            "event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled"
+            "event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled",
           )
           .eq("event_id", project.event_id)
           .single();
@@ -166,7 +220,7 @@ export default function PublicProjectPage() {
             cover_image_url: eventData.cover_image_url || undefined,
           });
           setFinalistFeatureEnabled(
-            !!eventData.finalist_recommendation_enabled
+            !!eventData.finalist_recommendation_enabled,
           );
         }
       } catch (error) {
@@ -190,9 +244,12 @@ export default function PublicProjectPage() {
 
         if (!session) {
           setIsJudge(false);
+          setJudgeId("");
           setIsCheckingJudgeStatus(false);
           return;
         }
+
+        setJudgeId(session.user.id);
 
         const { data: roleData, error } = await supabase
           .from("user_event_roles")
@@ -203,13 +260,14 @@ export default function PublicProjectPage() {
 
         if (error) {
           setIsJudge(false);
+          setJudgeId("");
           setIsCheckingJudgeStatus(false);
           return;
         }
 
         const judgeStatus = canAccessRole(
           roleData?.role as EventRole,
-          EventRole.Judge
+          EventRole.Judge,
         );
         setIsJudge(judgeStatus);
 
@@ -228,7 +286,7 @@ export default function PublicProjectPage() {
                   description,
                   scoring_criteria
                 )
-              `
+              `,
               )
               .eq("project_id", project.id)
               .overrideTypes<
@@ -242,7 +300,7 @@ export default function PublicProjectPage() {
               // Error handled
             } else {
               const extractedTracks: EventTrack[] = tracks.map(
-                (track) => track.event_tracks
+                (track) => track.event_tracks,
               );
               setProjectTracks(extractedTracks);
 
@@ -256,6 +314,7 @@ export default function PublicProjectPage() {
         }
       } catch (error) {
         setIsJudge(false);
+        setJudgeId("");
       } finally {
         setIsCheckingJudgeStatus(false);
       }
@@ -263,13 +322,6 @@ export default function PublicProjectPage() {
 
     checkJudgeStatus();
   }, [project?.event_id, project?.id]);
-
-  const handleScoreSubmitted = () => {
-    toast({
-      title: "Score Submitted",
-      description: "Your score has been successfully submitted.",
-    });
-  };
 
   if (isLoading || !fetchComplete) {
     return (
@@ -302,50 +354,40 @@ export default function PublicProjectPage() {
   }
 
   const totalMembers = (project.teammates?.length || 0) + 1;
+  const teamMembers =
+    project &&
+    [
+      {
+        email: project.lead_email,
+        displayName:
+          teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
+          project.lead_name,
+        role: "lead" as const,
+      },
+      ...(project.teammates ?? []).map((email) => ({
+        email,
+        displayName:
+          teamProfileByEmail[email.toLowerCase()]?.displayName || email,
+        role: "member" as const,
+      })),
+    ];
   const feedbackUrl = typeof window !== "undefined" ? window.location.href : "";
   const selectedTrack = projectTracks.find(
-    (track) => track.track_id === selectedTrackId
+    (track) => track.track_id === selectedTrackId,
   );
-  const handleShare = (platform: string) => {
-    switch (platform) {
-      case "copy":
-        navigator.clipboard.writeText(feedbackUrl);
-        alert("Link copied to clipboard!");
-        break;
-      case "linkedin":
-        window.open(
-          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
-        );
-        break;
-      case "facebook":
-        window.open(
-          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
-        );
-        break;
-      case "twitter":
-        window.open(
-          `https://twitter.com/intent/tweet?url=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
-        );
-        break;
-    }
-  };
-
   const projectArtifacts = project?.artifacts || [];
   const extraProjectLinks = projectArtifacts.filter(
     (artifact) =>
-      artifact.kind === "project_link" && artifact.url !== project?.project_url
+      artifact.kind === "project_link" && artifact.url !== project?.project_url,
   );
   const extraVideoLinks = projectArtifacts.filter(
     (artifact) =>
-      artifact.kind === "video_link" && artifact.url !== project?.video_url
+      artifact.kind === "video_link" && artifact.url !== project?.video_url,
   );
   const extraMaterialLinks = projectArtifacts.filter(
     (artifact) =>
       artifact.kind === "additional_material" &&
-      artifact.url !== project?.additional_materials_url
+      artifact.url !== project?.additional_materials_url,
   );
   const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
   const handleBack = () => {
@@ -531,14 +573,10 @@ export default function PublicProjectPage() {
 
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
-                <div
-                  className="w-full h-full bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: `url(${
-                      project.cover_image_url || "/img/placeholder.png"
-                    })`,
-                  }}
-                ></div>
+                <ProjectCoverHero
+                  src={project.cover_image_url}
+                  alt={`${project.project_name || "Project"} cover`}
+                />
               </div>
             </div>
 
@@ -640,6 +678,23 @@ export default function PublicProjectPage() {
 
                       <ProjectSubmissionDetails project={project} />
 
+                      {/* Read-only on the public route; entries are added from
+                          the private project page. */}
+                      <ProjectFieldEntriesSection projectId={project.id} />
+
+                      {/* Cover Image Display */}
+                      {project.cover_image_url && (
+                        <div className="space-y-2 rounded-xl border border-black/10 p-3">
+                          <div className="rounded-xl overflow-hidden">
+                            <CoverImageWithFallback
+                              src={project.cover_image_url}
+                              alt="Project cover"
+                              className="w-full h-auto object-cover"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       {/* Video Embed */}
                       {project.video_url && canEmbed(project.video_url) && (
                         <div className="space-y-4">
@@ -662,16 +717,30 @@ export default function PublicProjectPage() {
                           {/* Project Lead */}
                           <div className="flex gap-4 items-center">
                             <Avatar className="h-14 w-14 shrink-0 border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5]">
+                              <AvatarImage
+                                src={
+                                  teamProfileByEmail[
+                                    project.lead_email.toLowerCase()
+                                  ]?.avatarUrl ?? undefined
+                                }
+                                alt={
+                                  teamProfileByEmail[
+                                    project.lead_email.toLowerCase()
+                                  ]?.displayName ||
+                                  project.lead_name ||
+                                  project.lead_email
+                                }
+                              />
                               <AvatarFallback className="bg-[#F5F5F5] text-sm font-semibold text-[#717680]">
-                                {getMemberInitials(
-                                  project.lead_name || project.lead_email
-                                )}
+                                {getInitials(project.lead_name || project.lead_email)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="font-semibold text-base text-black">
-                                  {project.lead_name}
+                                  {teamProfileByEmail[
+                                    project.lead_email.toLowerCase()
+                                  ]?.displayName || project.lead_name}
                                 </p>
                                 <Badge
                                   variant="secondary"
@@ -680,9 +749,21 @@ export default function PublicProjectPage() {
                                   Lead
                                 </Badge>
                               </div>
-                              <p className="text-base text-black">
-                                {project.lead_email}
-                              </p>
+                              {teamProfileByEmail[
+                                project.lead_email.toLowerCase()
+                              ]?.affiliation ? (
+                                <p className="text-base text-black">
+                                  {
+                                    teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.affiliation
+                                  }
+                                </p>
+                              ) : (
+                                <p className="text-base text-black">
+                                  {project.lead_email}
+                                </p>
+                              )}
                             </div>
                           </div>
 
@@ -695,14 +776,41 @@ export default function PublicProjectPage() {
                                 className="flex gap-4 items-center"
                               >
                                 <Avatar className="h-14 w-14 shrink-0 border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5]">
+                                  <AvatarImage
+                                    src={
+                                      teamProfileByEmail[
+                                        teammate.toLowerCase()
+                                      ]?.avatarUrl ?? undefined
+                                    }
+                                    alt={
+                                      teamProfileByEmail[
+                                        teammate.toLowerCase()
+                                      ]?.displayName || teammate
+                                    }
+                                  />
                                   <AvatarFallback className="bg-[#F5F5F5] text-sm font-semibold text-[#717680]">
-                                    {getMemberInitials(teammate)}
+                                    {getInitials(
+                                      teamProfileByEmail[
+                                        teammate.toLowerCase()
+                                      ]?.displayName || teammate
+                                    )}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="space-y-0">
                                   <p className="font-semibold text-base text-black">
-                                    {teammate}
+                                    {teamProfileByEmail[teammate.toLowerCase()]
+                                      ?.displayName || teammate}
                                   </p>
+                                  {teamProfileByEmail[teammate.toLowerCase()]
+                                    ?.affiliation ? (
+                                    <p className="text-base text-black">
+                                      {
+                                        teamProfileByEmail[
+                                          teammate.toLowerCase()
+                                        ]?.affiliation
+                                      }
+                                    </p>
+                                  ) : null}
                                 </div>
                               </div>
                             ))}
@@ -736,19 +844,19 @@ export default function PublicProjectPage() {
                                   <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
                                     <p className="text-sm text-black">
                                       {new Date(
-                                        eventDetails.start_date
+                                        eventDetails.start_date,
                                       ).toLocaleDateString("en-US", {
                                         weekday: "short",
                                       })}
                                     </p>
                                     <p className="text-4xl font-semibold text-black tracking-tight leading-none">
                                       {new Date(
-                                        eventDetails.start_date
+                                        eventDetails.start_date,
                                       ).getDate()}
                                     </p>
                                     <p className="text-sm text-black">
                                       {new Date(
-                                        eventDetails.start_date
+                                        eventDetails.start_date,
                                       ).toLocaleDateString("en-US", {
                                         month: "short",
                                         year: "numeric",
@@ -863,86 +971,16 @@ export default function PublicProjectPage() {
                       <div className="border-t border-gray-200"></div>
 
                       {/* Share this project */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-black tracking-tight">
-                          Share this project
-                        </h3>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="bg-white rounded-full"
-                            onClick={() => {
-                              navigator.clipboard.writeText(feedbackUrl);
-                              toast({
-                                title: "Link copied!",
-                                description: "Project link copied to clipboard",
-                              });
-                            }}
-                          >
-                            <LinkIcon className="h-5 w-5" />
-                          </Button>
-                          {/* QR Code */}
-                          <button className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg">
-                            <QrCode className="w-6 h-6 text-black" />
-                          </button>
-
-                          {/* LinkedIn */}
-                          <button
-                            onClick={() => handleShare("linkedin")}
-                            className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                          >
-                            {/* <Linkedin className="w-6 h-6 text-black" /> */}
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="24"
-                              height="24"
-                              viewBox="0 0 18 18"
-                              fill="none"
-                            >
-                              <path
-                                clipRule="evenodd"
-                                d="M1.5 0C0.67157 0 0 0.67157 0 1.5V16.5C0 17.3284 0.67157 18 1.5 18H16.5C17.3284 18 18 17.3284 18 16.5V1.5C18 0.67157 17.3284 0 16.5 0H1.5ZM5.52076 4.00272C5.52639 4.95897 4.81061 5.54819 3.96123 5.54397C3.16107 5.53975 2.46357 4.90272 2.46779 4.00413C2.47201 3.15897 3.13998 2.47975 4.00764 2.49944C4.88795 2.51913 5.52639 3.1646 5.52076 4.00272ZM9.2797 6.76176H6.75971H6.7583V15.3216H9.4217V15.1219C9.4217 14.742 9.4214 14.362 9.4211 13.9819C9.4203 12.9681 9.4194 11.9532 9.4246 10.9397C9.426 10.6936 9.4372 10.4377 9.5005 10.2028C9.7381 9.3253 10.5271 8.7586 11.4074 8.8979C11.9727 8.9864 12.3467 9.3141 12.5042 9.8471C12.6013 10.1803 12.6449 10.5389 12.6491 10.8863C12.6605 11.9339 12.6589 12.9815 12.6573 14.0292C12.6567 14.399 12.6561 14.769 12.6561 15.1388V15.3202H15.328V15.1149C15.328 14.6629 15.3278 14.211 15.3275 13.7591C15.327 12.6296 15.3264 11.5001 15.3294 10.3702C15.3308 9.8597 15.276 9.3563 15.1508 8.8627C14.9638 8.1286 14.5771 7.5211 13.9485 7.0824C13.5027 6.77019 13.0133 6.5691 12.4663 6.5466C12.404 6.54401 12.3412 6.54062 12.2781 6.53721C11.9984 6.52209 11.7141 6.50673 11.4467 6.56066C10.6817 6.71394 10.0096 7.0641 9.5019 7.6814C9.4429 7.7522 9.3852 7.8241 9.2991 7.9314L9.2797 7.9557V6.76176ZM2.68164 15.3244H5.33242V6.76733H2.68164V15.3244Z"
-                                fill="black"
-                              />
-                            </svg>
-                          </button>
-
-                          {/* Twitter/X */}
-                          <button
-                            onClick={() => handleShare("twitter")}
-                            className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                          >
-                            <svg
-                              className="w-6 h-6"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                            >
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                            </svg>
-                          </button>
-
-                          {/* Facebook */}
-                          <button
-                            onClick={() => handleShare("facebook")}
-                            className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                          >
-                            {/* <Facebook className="w-6 h-6 text-black" /> */}
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                            >
-                              <path
-                                d="M22 12.3033C22 6.7467 17.5229 2.24219 12 2.24219C6.47715 2.24219 2 6.7467 2 12.3033C2 17.325 5.65684 21.4874 10.4375 22.2422V15.2116H7.89844V12.3033H10.4375V10.0867C10.4375 7.56515 11.9305 6.17231 14.2146 6.17231C15.3088 6.17231 16.4531 6.36882 16.4531 6.36882V8.8448H15.1922C13.95 8.8448 13.5625 9.62041 13.5625 10.4161V12.3033H16.3359L15.8926 15.2116H13.5625V22.2422C18.3432 21.4874 22 17.3252 22 12.3033Z"
-                                fill="black"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+                      <ProjectShareSection
+                        projectId={projectId}
+                        projectName={project.project_name}
+                        eventName={eventDetails?.event_name}
+                        teamNames={(teamMembers || []).map(
+                          (m) => m.displayName,
+                        )}
+                        videoUrl={project.video_url}
+                        showCertificateLink={!!project.submitted}
+                      />
                     </div>
                   </div>
                 </TabsContent>
@@ -954,31 +992,61 @@ export default function PublicProjectPage() {
                       <CardTitle>Team Members</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 border rounded">
-                          <div>
-                            <p className="font-medium">{project.lead_name}</p>
-                            <p className="text-sm text-gray-500">
-                              {project.lead_email}
-                            </p>
-                          </div>
-                          <Badge>Lead</Badge>
-                        </div>
+                      <div className="space-y-4">
+                        {teamMembers?.map((member) => {
+                          const emailKey = member.email.toLowerCase();
+                          const profile = teamProfileByEmail[emailKey];
+                          const title =
+                            member.displayName?.trim() || member.email;
+                          const subtitle =
+                            profile?.affiliation?.trim() ||
+                            (title.toLowerCase() === member.email.toLowerCase()
+                              ? member.email
+                              : null);
 
-                        {project.teammates?.map((teammate, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 border rounded"
-                          >
-                            <div>
-                              <p className="font-medium">{teammate}</p>
-                              <p className="text-sm text-gray-500">
-                                Team Member
-                              </p>
+                          return (
+                            <div
+                              key={member.email}
+                              className="flex items-center justify-between gap-4"
+                            >
+                              <div className="flex items-center gap-4 min-w-0">
+                                <Avatar className="h-14 w-14 shrink-0">
+                                  <AvatarImage
+                                    src={profile?.avatarUrl ?? undefined}
+                                    alt={title}
+                                  />
+                                  <AvatarFallback>
+                                    {getInitials(title)}
+                                  </AvatarFallback>
+                                </Avatar>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <p className="font-semibold text-base text-black truncate">
+                                      {title}
+                                    </p>
+                                    {member.role === "lead" ? (
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                      >
+                                        Lead
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  {subtitle ? (
+                                    <p className="text-base text-black truncate">
+                                      {subtitle}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              {/* Placeholder for future actions like Follow button */}
+                              <div className="shrink-0" />
                             </div>
-                            <Badge variant="secondary">Member</Badge>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -1120,16 +1188,15 @@ export default function PublicProjectPage() {
 
                                 {/* Scoring Form */}
                                 {selectedTrack.scoring_criteria ? (
-                                  <ProjectScoringForm
+                                  <DefaultScoring
                                     projectId={project.id}
+                                    eventId={project.event_id}
+                                    judgeId={judgeId}
                                     trackId={selectedTrackId}
-                                    criteria={
-                                      (
-                                        selectedTrack.scoring_criteria as TrackScoringConfig
-                                      ).criteria
+                                    finalistFeatureEnabled={
+                                      finalistFeatureEnabled
                                     }
-                                    onScoreSubmitted={handleScoreSubmitted}
-                                    finalistFeatureEnabled={finalistFeatureEnabled}
+                                    hideProjectHeader
                                   />
                                 ) : (
                                   <div className="text-center py-8">
@@ -1138,8 +1205,8 @@ export default function PublicProjectPage() {
                                       track.
                                     </p>
                                     <p className="text-sm text-gray-500">
-                                      Contact the event organizer to set up scoring
-                                      criteria.
+                                      Contact the event organizer to set up
+                                      scoring criteria.
                                     </p>
                                   </div>
                                 )}
@@ -1168,22 +1235,21 @@ export default function PublicProjectPage() {
 
                                     {/* Scoring Form */}
                                     {track.scoring_criteria ? (
-                                      <ProjectScoringForm
+                                      <DefaultScoring
                                         projectId={project.id}
+                                        eventId={project.event_id}
+                                        judgeId={judgeId}
                                         trackId={track.track_id}
-                                        criteria={
-                                          (
-                                            track.scoring_criteria as TrackScoringConfig
-                                          ).criteria
+                                        finalistFeatureEnabled={
+                                          finalistFeatureEnabled
                                         }
-                                        onScoreSubmitted={handleScoreSubmitted}
-                                        finalistFeatureEnabled={finalistFeatureEnabled}
+                                        hideProjectHeader
                                       />
                                     ) : (
                                       <div className="text-center py-8">
                                         <p className="text-yellow-600 mb-2">
-                                          Scoring criteria not configured for this
-                                          track.
+                                          Scoring criteria not configured for
+                                          this track.
                                         </p>
                                         <p className="text-sm text-gray-500">
                                           Contact the event organizer to set up

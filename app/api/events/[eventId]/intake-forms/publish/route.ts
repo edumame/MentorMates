@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import type { IntakeFormContext, IntakeFormSchema } from "@/features/intake-forms/types";
+import {
+  INTAKE_FORM_CONTEXTS,
+  type IntakeFormContext,
+  type IntakeFormSchema,
+} from "@/features/intake-forms/types";
 import {
   getAuthContext,
   getOrCreateTemplateId,
 } from "../_shared";
 
 const publishSchema = z.object({
-  context: z.enum(["registration", "project_submission"]),
+  context: z.enum(INTAKE_FORM_CONTEXTS),
   schema: z
     .object({
       title: z.string().min(1),

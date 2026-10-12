@@ -3,7 +3,12 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Project, EventTrack } from "@/lib/types";
+import {
+  EventScoringConfig,
+  EventTrack,
+  Project,
+  TrackScoringConfig,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
@@ -15,12 +20,16 @@ import {
 } from "@/components/ui/accordion";
 import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
 import Link from "next/link";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
   getNextProjectId,
   isProjectFullyScored,
   truncateWithEllipsis,
 } from "./utils";
+import { getActiveRound } from "@/lib/judging/rounds";
+import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
 interface JudgeDashboardProps {
   eventId: string;
@@ -30,9 +39,11 @@ interface ProjectAssignmentRow {
   project_id: string;
 }
 
+const DEFAULT_PROJECT_NAME = "Project Name Not Set";
+
 interface ProjectRow {
   id: string;
-  project_name: string;
+  project_name: string | null;
   project_description: string | null;
   created_at: string;
   event_id: string;
@@ -45,6 +56,70 @@ interface ProjectRow {
 interface ScoreRow {
   project_id: string;
   track_id: string;
+  scores: Record<string, number> | null;
+}
+
+type NavigatorSort = "default" | "score_high" | "score_low" | "unscored_first";
+
+/**
+ * Compute the weighted average of a judge's scores for a single track.
+ * Returns null if no scores exist or weights sum to zero.
+ */
+function computeTrackAverage(
+  scores: Record<string, number> | null,
+  track: EventTrack | undefined,
+  scoringConfig: EventScoringConfig | null,
+  roundNumber: number
+): number | null {
+  if (!scores || !track) return null;
+  const resolvedTrackConfig =
+    getTrackScoringConfigForRound({
+      scoringConfig,
+      trackId: track.track_id,
+      roundNumber,
+      fallbackTrackName: track.name,
+      trackScoringCriteria: track.scoring_criteria,
+    }) ||
+    (track.scoring_criteria as TrackScoringConfig | null);
+  const criteria = resolvedTrackConfig?.criteria || [];
+  if (criteria.length === 0) return null;
+
+  let weightedSum = 0;
+  let totalWeight = 0;
+  for (const criterion of criteria) {
+    const score = scores[criterion.id];
+    if (typeof score !== "number") continue;
+    const weight = criterion.weight || 0;
+    weightedSum += score * weight;
+    totalWeight += weight;
+  }
+
+  if (totalWeight === 0) return null;
+  return weightedSum / totalWeight;
+}
+
+/**
+ * Compute the overall average across all tracks the judge has scored for a project.
+ */
+function computeProjectAverage(
+  projectId: string,
+  scoresMap: Map<string, Map<string, Record<string, number>>>,
+  tracksById: Map<string, EventTrack>,
+  scoringConfig: EventScoringConfig | null,
+  roundNumber: number
+): number | null {
+  const projectScores = scoresMap.get(projectId);
+  if (!projectScores || projectScores.size === 0) return null;
+
+  const trackAverages: number[] = [];
+  projectScores.forEach((scores, trackId) => {
+    const track = tracksById.get(trackId);
+    const avg = computeTrackAverage(scores, track, scoringConfig, roundNumber);
+    if (avg !== null) trackAverages.push(avg);
+  });
+
+  if (trackAverages.length === 0) return null;
+  return trackAverages.reduce((a, b) => a + b, 0) / trackAverages.length;
 }
 
 export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
@@ -54,6 +129,11 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [scoredProjects, setScoredProjects] = useState<
     Map<string, Set<string>>
   >(new Map());
+  // Stores actual numeric scores per project per track: Map<projectId, Map<trackId, scoresObject>>
+  const [scoreValues, setScoreValues] = useState<
+    Map<string, Map<string, Record<string, number>>>
+  >(new Map());
+  const [navigatorSort, setNavigatorSort] = useState<NavigatorSort>("default");
   const [judgeId, setJudgeId] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [openTracksByProject, setOpenTracksByProject] = useState<
@@ -66,6 +146,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [deckFilter, setDeckFilter] = useState<"pending" | "all">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState(false);
+  const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(
+    null
+  );
+  const [activeRound, setActiveRound] = useState(1);
   const previousVisibleIdsRef = useRef<string[]>([]);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeEnabledRef = useRef(false);
@@ -74,15 +158,17 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   const filteredProjects = useMemo(
     () =>
-      projects.filter(
-        (project) =>
-          project.project_name
+      projects.filter((project) => {
+        const projectName = project.project_name || DEFAULT_PROJECT_NAME;
+        const projectDescription = project.project_description || "";
+
+        return (
+          projectName
             .toLowerCase()
             .includes(normalizedSearchQuery) ||
-          (project.project_description || "")
-            .toLowerCase()
-            .includes(normalizedSearchQuery)
-      ),
+          projectDescription.toLowerCase().includes(normalizedSearchQuery)
+        );
+      }),
     [projects, normalizedSearchQuery]
   );
 
@@ -98,7 +184,56 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     () => (deckFilter === "all" ? filteredProjects : remainingProjects),
     [deckFilter, filteredProjects, remainingProjects]
   );
-  const navigatorProjects = visibleProjects;
+  // Map from track_id → EventTrack for quick lookups
+  const tracksById = useMemo(() => {
+    const m = new Map<string, EventTrack>();
+    eventTracks.forEach((t) => m.set(t.track_id, t));
+    return m;
+  }, [eventTracks]);
+
+  // Average score per project (null if no scores yet)
+  const averagesByProject = useMemo(() => {
+    const m = new Map<string, number | null>();
+    projects.forEach((p) => {
+      m.set(
+        p.id,
+        computeProjectAverage(
+          p.id,
+          scoreValues,
+          tracksById,
+          scoringConfig,
+          activeRound
+        )
+      );
+    });
+    return m;
+  }, [projects, scoreValues, tracksById, scoringConfig, activeRound]);
+
+  // Apply sort to the visible projects for the navigator
+  const navigatorProjects = useMemo(() => {
+    if (navigatorSort === "default") return visibleProjects;
+    const sorted = [...visibleProjects];
+    sorted.sort((a, b) => {
+      const avgA = averagesByProject.get(a.id);
+      const avgB = averagesByProject.get(b.id);
+      const hasA = avgA !== null && avgA !== undefined;
+      const hasB = avgB !== null && avgB !== undefined;
+
+      if (navigatorSort === "unscored_first") {
+        if (hasA && !hasB) return 1;
+        if (!hasA && hasB) return -1;
+        return a.project_name.localeCompare(b.project_name);
+      }
+      // For score sorts, unscored projects go to the bottom
+      if (!hasA && !hasB) return a.project_name.localeCompare(b.project_name);
+      if (!hasA) return 1;
+      if (!hasB) return -1;
+      return navigatorSort === "score_high"
+        ? (avgB as number) - (avgA as number)
+        : (avgA as number) - (avgB as number);
+    });
+    return sorted;
+  }, [visibleProjects, navigatorSort, averagesByProject]);
   const judgedProjectsCount = useMemo(
     () =>
       projects.filter((project) => isProjectFullyScored(project, scoredProjects))
@@ -323,7 +458,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             .eq("event_id", eventId),
           supabase
             .from("events")
-            .select("finalist_recommendation_enabled")
+            .select("finalist_recommendation_enabled, scoring_config")
             .eq("event_id", eventId)
             .maybeSingle(),
           supabase
@@ -357,9 +492,44 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           );
         }
 
-        const projectIds = assignedProjectsResponse.data?.map(
+        let projectIds = assignedProjectsResponse.data?.map(
           (project) => project.project_id
         ) || [];
+
+        // Multi-round judging (#706): filter assigned projects down to those
+        // advanced to the active round. If no advancements exist for round 1,
+        // fall back to all assigned projects (backward compat).
+        const scoringCfg = buildEventScoringConfig({
+          event_tracks: trackResponse.data || [],
+          scoring_config:
+            (eventSettingsResponse.data?.scoring_config as EventScoringConfig | null) ??
+            null,
+        });
+        setScoringConfig(scoringCfg);
+        const activeRound = getActiveRound(scoringCfg);
+        setActiveRound(activeRound);
+
+        if (projectIds.length > 0) {
+          const { data: advancements } = await supabase
+            .from("project_round_advancements")
+            .select("project_id")
+            .eq("event_id", eventId)
+            .eq("round_number", activeRound)
+            .in("project_id", projectIds);
+
+          const advancedIds = (advancements ?? []).map(
+            (a: { project_id: string }) => a.project_id
+          );
+
+          if (advancedIds.length > 0) {
+            projectIds = advancedIds;
+          } else if (activeRound > 1) {
+            // Explicitly past round 1 with no advancements for this judge →
+            // show nothing.
+            projectIds = [];
+          }
+          // Round 1 with no advancement rows → fall through (legacy behavior).
+        }
 
         if (projectIds.length === 0) {
           setProjects([]);
@@ -405,7 +575,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
           projectMap.set(project.id, {
             id: project.id,
-            project_name: project.project_name,
+            project_name: project.project_name?.trim() || DEFAULT_PROJECT_NAME,
             project_description: project.project_description || "",
             created_at: project.created_at,
             event_id: project.event_id,
@@ -427,9 +597,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
         const { data: scoresData, error: scoresError } = await supabase
           .from("project_scores")
-          .select("project_id, track_id")
+          .select("project_id, track_id, scores")
           .eq("judge_id", session.user.id)
           .eq("event_id", eventId)
+          .eq("round_number", activeRound)
           .overrideTypes<ScoreRow[]>();
 
         if (scoresError) {
@@ -438,13 +609,27 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         }
 
         const scoredMap = new Map<string, Set<string>>();
+        const valuesMap = new Map<
+          string,
+          Map<string, Record<string, number>>
+        >();
         scoresData?.forEach((score) => {
           if (!scoredMap.has(score.project_id)) {
             scoredMap.set(score.project_id, new Set());
           }
           scoredMap.get(score.project_id)?.add(score.track_id);
+
+          if (score.scores && typeof score.scores === "object") {
+            if (!valuesMap.has(score.project_id)) {
+              valuesMap.set(score.project_id, new Map());
+            }
+            valuesMap
+              .get(score.project_id)
+              ?.set(score.track_id, score.scores as Record<string, number>);
+          }
         });
         setScoredProjects(scoredMap);
+        setScoreValues(valuesMap);
       } catch (error) {
         console.error(
           "Error fetching data:",
@@ -634,11 +819,24 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
           {filteredProjects.length > 0 && (
             <section className="p-0">
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-[rgba(0,0,0,0.82)]">
                   Project Navigator
                 </p>
                 <div className="flex items-center gap-2">
+                  <select
+                    value={navigatorSort}
+                    onChange={(e) =>
+                      setNavigatorSort(e.target.value as NavigatorSort)
+                    }
+                    className="h-8 rounded-md border border-[#D4DDEC] bg-white px-2 text-xs font-medium text-[rgba(0,0,0,0.68)] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
+                    aria-label="Sort projects"
+                  >
+                    <option value="default">Alphabetical</option>
+                    <option value="score_high">Score: high → low</option>
+                    <option value="score_low">Score: low → high</option>
+                    <option value="unscored_first">Unscored first</option>
+                  </select>
                   <p className="inline-flex h-7 items-center rounded-full bg-[#E8F8EC] px-2.5 text-xs font-semibold text-[#19703A]">
                     Judged {judgedProjectsCount}/{projects.length}
                   </p>
@@ -687,11 +885,16 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   const isJudged = isProjectFullyScored(project, scoredProjects);
                   const scoredTrackCount = scoredProjects.get(project.id)?.size || 0;
                   const isActive = currentProject?.id === project.id;
+                  const avgScore = averagesByProject.get(project.id);
+                  const projectTracks = project.track_ids
+                    .map((tid) => tracksById.get(tid))
+                    .filter((t): t is EventTrack => Boolean(t));
+
                   return (
                     <button
                       key={project.id}
                       type="button"
-                      className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition ${
+                      className={`flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left transition ${
                         index !== navigatorProjects.length - 1
                           ? "border-b border-[#E7EDF8]"
                           : ""
@@ -704,16 +907,42 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                         setActiveProjectId(project.id);
                       }}
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-[rgba(0,0,0,0.84)]">
                           {project.project_name}
                         </p>
                         <p className="text-xs text-[rgba(0,0,0,0.52)]">
                           Tracks scored {scoredTrackCount}/{project.track_ids.length}
+                          {avgScore !== null && avgScore !== undefined && (
+                            <>
+                              {" · "}
+                              <span className="font-semibold text-[#2E68CA]">
+                                Avg {avgScore.toFixed(1)}
+                              </span>
+                            </>
+                          )}
                         </p>
+                        {projectTracks.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {projectTracks.slice(0, 3).map((t) => (
+                              <span
+                                key={t.track_id}
+                                className="inline-flex items-center rounded-full bg-[#EEF3FB] px-2 py-0.5 text-[10px] font-medium text-[#2E68CA]"
+                                title={t.name}
+                              >
+                                {t.name}
+                              </span>
+                            ))}
+                            {projectTracks.length > 3 && (
+                              <span className="inline-flex items-center rounded-full bg-[#F2F4F7] px-2 py-0.5 text-[10px] font-medium text-[rgba(0,0,0,0.6)]">
+                                +{projectTracks.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <span
-                        className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                        className={`inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold ${
                           isJudged
                             ? "bg-[#E8F8EC] text-[#19703A]"
                             : "bg-[#FFF5E5] text-[#9A5C00]"
@@ -780,8 +1009,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   onPointerLeave={resetSwipeState}
                 >
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="mt-1 text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
+                    <div className="min-w-0">
+                      <h3 className="mt-1 break-words text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
                         <Link
                           href={`/projects/public/${currentProject.id}`}
                           target="_blank"
@@ -805,8 +1034,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     <section className="order-1 min-w-0 space-y-4 lg:order-2">
                       <div className="overflow-hidden rounded-2xl bg-white">
                         {currentProject.cover_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
+                          <CoverImageWithFallback
                             src={currentProject.cover_image_url}
                             alt={`${currentProject.project_name} cover`}
                             className="h-[240px] w-full object-cover md:h-[280px]"
@@ -930,12 +1158,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                   data-no-swipe="true"
                                   className="py-3 hover:no-underline"
                                 >
-                                  <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
-                                    <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                                  <div className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-3 text-left">
+                                    <span className="min-w-0 flex-1 truncate font-medium text-[rgba(0,0,0,0.8)]">
                                       {trackInfo?.name || "Track"}
                                     </span>
                                     <span
-                                      className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                      className={`inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold ${
                                         isScored
                                           ? "bg-[#E8F8EC] text-[#19703A]"
                                           : "bg-[#FFF5E5] text-[#9A5C00]"
@@ -953,6 +1181,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                       eventId={eventId}
                                       judgeId={judgeId}
                                       trackId={trackId}
+                                      scoringConfig={scoringConfig}
+                                      roundNumber={activeRound}
                                       finalistFeatureEnabled={finalistFeatureEnabled}
                                       hideProjectHeader
                                       onScoreSaved={() =>
@@ -1044,12 +1274,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                             data-no-swipe="true"
                             className="py-3 hover:no-underline"
                           >
-                            <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
-                              <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-3 text-left">
+                              <span className="min-w-0 flex-1 truncate font-medium text-[rgba(0,0,0,0.8)]">
                                 {trackInfo?.name || "Track"}
                               </span>
                               <span
-                                className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                className={`inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold ${
                                   isScored
                                     ? "bg-[#E8F8EC] text-[#19703A]"
                                     : "bg-[#FFF5E5] text-[#9A5C00]"
@@ -1067,6 +1297,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                 eventId={eventId}
                                 judgeId={judgeId}
                                 trackId={trackId}
+                                scoringConfig={scoringConfig}
+                                roundNumber={activeRound}
                                 finalistFeatureEnabled={finalistFeatureEnabled}
                                 hideProjectHeader
                                 onScoreSaved={() =>

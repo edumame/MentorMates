@@ -85,6 +85,11 @@ export function SubmissionFormPreview({ fields }: SubmissionFormPreviewProps) {
           </div>
 
           <div className="space-y-4">
+            {fields.length === 0 && (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-sm text-gray-600">
+                No submission requirements yet. Add fields in Edit mode to preview them here.
+              </div>
+            )}
             {fields.map((field, idx) => {
               const FieldIcon = FIELD_TYPE_ICONS[field.type];
               const isLocked = LOCKED_FIELD_IDS.includes(field.id);

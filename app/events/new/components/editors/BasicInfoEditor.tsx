@@ -11,8 +11,9 @@ import {
 } from "lucide-react";
 import type { WizardEventData } from "@/lib/types/wizard";
 import { slugify } from "@/lib/types/wizard";
+import { Switch } from "@/components/ui/switch";
 
-const EVENT_TYPES = ["Hackathon", "Workshop", "Conference", "Other"] as const;
+const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
 
 interface BasicInfoEditorProps {
   event: WizardEventData;
@@ -58,6 +59,39 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
           <p className="text-xs text-gray-400">
             A short tagline that appears in the event card and header.
           </p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-gray-700">
+            External link <span className="text-gray-400">(optional)</span>
+          </label>
+          <input
+            type="url"
+            value={event.external_url}
+            onChange={(e) => update({ external_url: e.target.value })}
+            placeholder="https://example.com/your-event"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
+          />
+          <p className="text-xs text-gray-400">
+            Leave blank for a normal event.
+          </p>
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800">
+                Redirect visitors to external link
+              </p>
+              <p className="text-xs text-gray-500">
+                Turn off to keep the MentorMates event page open while storing
+                the external URL.
+              </p>
+            </div>
+            <Switch
+              checked={event.external_redirect_enabled === true}
+              disabled={!event.external_url.trim()}
+              onCheckedChange={(checked) =>
+                update({ external_redirect_enabled: checked })
+              }
+            />
+          </div>
         </div>
       </div>
 
@@ -235,49 +269,103 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             </div>
           </div>
 
-          {/* Event Type */}
+          {/* Event Type (tags) */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">
               Event Type
             </label>
-            <select
-              value={
-                EVENT_TYPES.includes(
-                  event.event_type as (typeof EVENT_TYPES)[number]
-                )
-                  ? event.event_type
-                  : "Other"
-              }
-              onChange={(e) => {
-                if (e.target.value === "Other") {
-                  update({ event_type: customEventType });
-                } else {
-                  update({ event_type: e.target.value });
-                  setCustomEventType("");
-                }
-              }}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
-            >
-              {EVENT_TYPES.map((type) => (
-                <option key={type} value={type}>
+            {/* Selected tags */}
+            <div className="flex flex-wrap gap-2">
+              {(event.event_type || []).map((type) => (
+                <span
+                  key={type}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-800"
+                >
                   {type}
-                </option>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update({
+                        event_type: (event.event_type || []).filter(
+                          (t) => t !== type
+                        ),
+                      })
+                    }
+                    className="ml-1 text-blue-400 hover:text-blue-600"
+                  >
+                    &times;
+                  </button>
+                </span>
               ))}
-            </select>
-            {!EVENT_TYPES.includes(
-              event.event_type as (typeof EVENT_TYPES)[number]
-            ) && (
+            </div>
+            {/* Preset buttons */}
+            <div className="flex flex-wrap gap-2">
+              {PRESET_EVENT_TYPES.filter(
+                (opt) => !(event.event_type || []).includes(opt)
+              ).map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      event_type: [...(event.event_type || []), opt],
+                    })
+                  }
+                  className="px-3 py-1 border border-dashed border-gray-300 rounded-full text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                >
+                  + {opt}
+                </button>
+              ))}
+            </div>
+            {/* Custom type input */}
+            <div className="flex gap-2">
               <input
                 type="text"
-                value={customEventType || event.event_type}
-                onChange={(e) => {
-                  setCustomEventType(e.target.value);
-                  update({ event_type: e.target.value });
+                value={customEventType}
+                onChange={(e) => setCustomEventType(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && customEventType.trim()) {
+                    e.preventDefault();
+                    if (
+                      !(event.event_type || []).includes(
+                        customEventType.trim()
+                      )
+                    ) {
+                      update({
+                        event_type: [
+                          ...(event.event_type || []),
+                          customEventType.trim(),
+                        ],
+                      });
+                    }
+                    setCustomEventType("");
+                  }
                 }}
-                placeholder="Enter custom type (e.g., Demo Day)"
-                className="mt-2 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
+                placeholder="Add custom type (e.g., Demo Day)"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
               />
-            )}
+              <button
+                type="button"
+                disabled={!customEventType.trim()}
+                onClick={() => {
+                  if (
+                    customEventType.trim() &&
+                    !(event.event_type || []).includes(customEventType.trim())
+                  ) {
+                    update({
+                      event_type: [
+                        ...(event.event_type || []),
+                        customEventType.trim(),
+                      ],
+                    });
+                    setCustomEventType("");
+                  }
+                }}
+                className="px-4 h-11 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                Add
+              </button>
+            </div>
           </div>
         </div>
       </div>

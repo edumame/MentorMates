@@ -23,10 +23,10 @@ export function PageContainer({
     <div
       className={`${
         showBorder
-          ? "h-[calc(100vh-88px)] overflow-hidden"
+          ? "h-[calc(100vh-88px)] overflow-hidden md:h-auto md:flex-1 md:min-h-0"
           : "min-h-[calc(100vh-64px)]"
-      } flex flex-col ${
-        showBorder ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8]" : ""
+      } flex min-w-0 flex-col ${
+        showBorder ? "md:rounded-tl-2xl md:border-t md:border-l md:border-[#D8D8D8]" : ""
       } bg-white ${className}`}
     >
       {children}
@@ -46,9 +46,7 @@ interface PageContentProps {
  */
 export function PageContent({ children, className = "" }: PageContentProps) {
   return (
-    <div
-      className={`flex-grow overflow-auto border-0 flex flex-col ${className}`}
-    >
+    <div className={`min-h-0 flex-grow overflow-auto border-0 ${className}`}>
       {children}
     </div>
   );

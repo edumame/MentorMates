@@ -138,3 +138,52 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  try {
+    const supabase = await createSupabaseClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: isAdminData } = await supabase.rpc("is_admin_user", {
+      user_id: user.id,
+    });
+
+    if (!isAdminData) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+    }
+
+    const { eventId } = await params;
+
+    const { error } = await supabase
+      .from("events")
+      .delete()
+      .eq("event_id", eventId);
+
+    if (error) {
+      console.error("Error deleting event:", error);
+      return NextResponse.json(
+        { error: "Failed to delete event" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error in DELETE /api/admin/events/[eventId]:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

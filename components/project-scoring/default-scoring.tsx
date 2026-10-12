@@ -3,7 +3,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
-import { ScoringCriterion, Project } from "@/lib/types";
+import {
+  EventScoringConfig,
+  EventTrackScoringConfig,
+  Project,
+  ScoringCriterion,
+  TrackScoringConfig,
+} from "@/lib/types";
 import { QuestionFactory } from "./question-types/question-factory";
 import { getDefaultScores } from "./scoring-defaults";
 import { Button } from "@/components/ui/button";
@@ -23,12 +29,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { getActiveRound } from "@/lib/judging/rounds";
+import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
 
 interface DefaultScoringProps {
   projectId: string;
   eventId: string;
   judgeId: string;
   trackId: string;
+  scoringConfig?: EventScoringConfig | null;
+  roundNumber?: number;
   finalistFeatureEnabled?: boolean;
   onScoreSaved?: () => void;
   onScoreDeleted?: () => void;
@@ -47,15 +57,22 @@ export function DefaultScoring({
   eventId,
   judgeId,
   trackId,
+  scoringConfig: scoringConfigProp = null,
+  roundNumber: roundNumberProp,
   finalistFeatureEnabled = false,
   onScoreSaved,
   onScoreDeleted,
   hideProjectHeader = false,
   className = "",
 }: DefaultScoringProps) {
+  const fallbackRoundNumber =
+    typeof roundNumberProp === "number" && roundNumberProp > 0
+      ? roundNumberProp
+      : getActiveRound(scoringConfigProp);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
   const [criteria, setCriteria] = useState<ScoringCriterion[]>([]);
+  const [currentRoundNumber, setCurrentRoundNumber] = useState(fallbackRoundNumber);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [hasExistingScore, setHasExistingScore] = useState(false);
@@ -82,18 +99,49 @@ export function DefaultScoring({
         if (projectError) throw projectError;
         setProject(projectData);
 
-        // Fetch scoring criteria for this track
-        const { data: trackData, error: trackError } = await supabase
-          .from("event_tracks")
-          .select("scoring_criteria")
-          .eq("track_id", trackId)
-          .single();
+        const [trackResponse, eventResponse] = await Promise.all([
+          supabase
+            .from("event_tracks")
+            .select("scoring_criteria, name")
+            .eq("track_id", trackId)
+            .single(),
+          scoringConfigProp
+            ? Promise.resolve({
+                data: { scoring_config: scoringConfigProp },
+                error: null,
+              })
+            : supabase
+                .from("events")
+                .select("scoring_config")
+                .eq("event_id", eventId)
+                .maybeSingle(),
+        ]);
 
-        if (trackError) throw trackError;
+        if (trackResponse.error) throw trackResponse.error;
+        if (eventResponse.error) throw eventResponse.error;
 
-        if (trackData?.scoring_criteria?.criteria) {
-          const trackCriteria = trackData.scoring_criteria
-            .criteria as ScoringCriterion[];
+        const eventScoringConfig =
+          (eventResponse.data?.scoring_config as EventScoringConfig | null) ??
+          null;
+        const resolvedRound =
+          typeof roundNumberProp === "number" && roundNumberProp > 0
+            ? roundNumberProp
+            : getActiveRound(eventScoringConfig);
+        setCurrentRoundNumber(resolvedRound);
+        const resolvedTrackConfig =
+          getTrackScoringConfigForRound({
+            scoringConfig: eventScoringConfig,
+            trackId,
+            roundNumber: resolvedRound,
+            fallbackTrackName: trackResponse.data?.name || "",
+            trackScoringCriteria:
+              (trackResponse.data?.scoring_criteria as EventTrackScoringConfig | null) ??
+              null,
+          }) ||
+          (trackResponse.data?.scoring_criteria as TrackScoringConfig | null);
+
+        if (resolvedTrackConfig?.criteria) {
+          const trackCriteria = resolvedTrackConfig.criteria as ScoringCriterion[];
           setCriteria(trackCriteria);
 
           form.reset({
@@ -110,6 +158,7 @@ export function DefaultScoring({
           .eq("project_id", projectId)
           .eq("track_id", trackId)
           .eq("judge_id", judgeId)
+          .eq("round_number", resolvedRound)
           .maybeSingle();
 
         if (!scoreError && existingScore) {
@@ -136,7 +185,7 @@ export function DefaultScoring({
     }
 
     fetchData();
-  }, [projectId, trackId, judgeId, toast, form]);
+  }, [projectId, trackId, judgeId, toast, form, eventId, roundNumberProp, scoringConfigProp]);
 
 
   const onSubmit = async (values: FormValues) => {
@@ -150,6 +199,7 @@ export function DefaultScoring({
         .eq("project_id", projectId)
         .eq("track_id", trackId)
         .eq("judge_id", judgeId)
+        .eq("round_number", currentRoundNumber)
         .maybeSingle();
 
       if (checkError) throw checkError;
@@ -176,6 +226,7 @@ export function DefaultScoring({
             track_id: trackId,
             judge_id: judgeId,
             event_id: eventId,
+            round_number: currentRoundNumber,
             scores: values.scores,
             comments: values.comments,
             finalist_recommendation: !!values.finalist_recommendation,
@@ -205,13 +256,15 @@ export function DefaultScoring({
   const onDeleteScore = async () => {
     setDeleting(true);
     try {
-      const { error } = await supabase
+      let query = supabase
         .from("project_scores")
         .delete()
         .eq("project_id", projectId)
         .eq("track_id", trackId)
         .eq("judge_id", judgeId);
+      query = query.eq("round_number", currentRoundNumber);
 
+      const { error } = await query;
       if (error) throw error;
 
       form.reset({
