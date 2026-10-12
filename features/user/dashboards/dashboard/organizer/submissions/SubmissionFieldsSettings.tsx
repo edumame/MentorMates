@@ -126,11 +126,12 @@ export function SubmissionFieldsSettings({
         <div className="space-y-1">
           <CardTitle>Submission Form</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Edit the submission schema organizers want participants to complete.
+            Collect project work from participants: project details, demos, and links.
+            To ask people about joining the event, use Application form.
             Preview shows the form exactly as participants will see it.
           </p>
         </div>
-        <Button onClick={save} disabled={isLoading || isSaving}>
+        <Button className="shrink-0 whitespace-nowrap" onClick={save} disabled={isLoading || isSaving}>
           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Save form
         </Button>
