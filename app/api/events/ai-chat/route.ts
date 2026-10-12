@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const messages = buildMessages(event, history, message, context);
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-5.4",
       messages,
       max_completion_tokens: 2000,
     });

@@ -123,7 +123,18 @@ export default function KeysPageClient({
   }, [activeTab, currentEventOptions, eventId, scopeMode]);
 
   const copyToClipboard = async (text: string, field: string) => {
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
     setCopiedField(field);
     window.setTimeout(() => setCopiedField(null), 2000);
   };
@@ -131,12 +142,10 @@ export default function KeysPageClient({
   const buildCopyableMarkdown = () => {
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-    // Security: never embed the raw key in the Copy Page markdown. The Copy
-    // Page is meant to be pasted into an AI agent chat, which would leak the
-    // key into conversation history. Users run the export command in their
-    // shell separately — see the visible "Set env vars" block which does
-    // show the generated key for one-time copying.
-    const keyPlaceholder = "mm_sk_...";
+    // Include the real key when one has just been generated so the user can
+    // copy the page and paste it directly into their shell. Falls back to a
+    // placeholder if no key has been generated yet.
+    const keyValue = generatedKey?.apiKey || "mm_sk_...";
     const installBlock = [
       "**Claude Code**",
       "```",
@@ -216,7 +225,7 @@ export default function KeysPageClient({
       "",
       "### 2. Set env var (in YOUR shell, not in the agent)",
       "```bash",
-      `export ${envVar}="${keyPlaceholder}"`,
+      `export ${envVar}="${keyValue}"`,
       "```",
       "",
       "> The key itself is intentionally omitted here. Copy it from the dashboard into your own shell. Do not paste it into an agent chat — it will end up in conversation history.",
@@ -245,9 +254,7 @@ export default function KeysPageClient({
   };
 
   const handleCopyPage = async () => {
-    await navigator.clipboard.writeText(buildCopyableMarkdown());
-    setCopiedField("page");
-    window.setTimeout(() => setCopiedField(null), 2000);
+    await copyToClipboard(buildCopyableMarkdown(), "page");
   };
 
   const handleCreateKey = async () => {
@@ -770,7 +777,7 @@ export default function KeysPageClient({
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3">
-              <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">
+              <code className="flex-1 overflow-x-auto font-mono text-sm select-all">
                 {generatedKey.apiKey}
               </code>
               <Button

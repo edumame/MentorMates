@@ -25,6 +25,7 @@ export type ProjectBaseRow = {
   project_name: string | null;
   lead_name: string | null;
   lead_email: string | null;
+  private?: boolean | null;
   project_description: string | null;
   teammates: string[] | null;
   project_url: string | null;
@@ -144,6 +145,7 @@ export function hydrateProjectsWithSubmissionData(
         project_name: project.project_name,
         lead_name: project.lead_name || "",
         lead_email: project.lead_email,
+        is_private: Boolean(project.private),
         project_description: project.project_description,
         teammates: project.teammates,
         project_url: project.project_url,

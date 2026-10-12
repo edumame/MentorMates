@@ -13,6 +13,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { SubmissionConfirmation } from "@/features/projects/components/forms/SubmissionConfirmation";
 import VoiceInput from "@/components/utils/VoiceInput";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface AISuggestions {
   "more specific": string;
@@ -72,6 +73,7 @@ export default function FeedbackForm({
   const [hasImprovedWithAI, setHasImprovedWithAI] = useState<boolean>(false);
   const [showSubmitButton, setShowSubmitButton] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const [supabaseClient] = useState(() => createClient());
   const [usedSuggestions, setUsedSuggestions] = useState<Set<string>>(
     new Set(["original"])
@@ -509,9 +511,7 @@ export default function FeedbackForm({
               href="/login"
               className="text-sm font-medium text-blue-700 hover:text-blue-800 transition-colors"
               onClick={() => {
-                if (typeof window !== "undefined") {
-                  localStorage.setItem("returnUrl", window.location.pathname);
-                }
+                setReturnUrlFromCurrentLocation();
               }}
             >
               Sign in →

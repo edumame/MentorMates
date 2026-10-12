@@ -114,7 +114,7 @@ export function InviteRoleTab({
   return (
     <div className="space-y-4 rounded-[var(--Radius-Large,16px)] border bg-card p-4">
       <h3 className="text-lg font-semibold">{title}</h3>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           type="email"
           placeholder={placeholder}
@@ -128,11 +128,12 @@ export function InviteRoleTab({
           disabled={loading || isArchived}
           aria-label={ariaLabel}
           maxLength={254}
-          className="rounded-[12px]"
+          className="min-w-0 flex-1 rounded-[12px]"
         />
         <Button
           onClick={handleInvite}
           disabled={loading || !email.trim() || isArchived}
+          className="shrink-0"
         >
           {loading ? loadingLabel : "Invite"}
         </Button>

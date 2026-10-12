@@ -10,9 +10,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, Close } from "@mui/icons-material";
 import posthog from "posthog-js";
 import { AuthNavbarRight } from "./AuthNavbarRight";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 export function AuthNavbar() {
   const router = useRouter();
+  const { clearReturnUrl } = useRedirect();
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
@@ -29,7 +31,7 @@ export function AuthNavbar() {
   }, []);
 
   const handleSignOut = async () => {
-    localStorage.removeItem("returnUrl");
+    clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
     router.push("/");
