@@ -11,7 +11,7 @@ export function ProjectSubmissionHeader({ currentStep, totalSteps }: ProjectSubm
       </h2>
       <p className="mt-3 text-lg text-gray-600">
         Start building your project with automatic saving as you go.
-        Submit when you're ready!
+        Submit when you&apos;re ready!
       </p>
       <div className="mt-6">
         <p className="text-lg text-gray-700">
