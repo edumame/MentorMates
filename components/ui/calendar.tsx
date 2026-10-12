@@ -95,43 +95,48 @@ export function Calendar({ selected, onSelect, className }: CalendarProps) {
     );
   };
 
+  const nextMonthIndex = month === 11 ? 0 : month + 1;
+  const nextMonthYear = month === 11 ? year + 1 : year;
+
   return (
     <div
       className={cn(
-        "w-[544px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4 shadow-lg",
+        "w-full max-w-full md:w-[544px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-3 sm:p-4 shadow-lg",
         className
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2">
         <button
+          type="button"
           onClick={handlePrevMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 shrink-0 hover:bg-gray-100 rounded-lg transition-colors"
           aria-label="Previous month"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="flex gap-8">
-          <span className="text-[16px] font-semibold">
+        <div className="flex flex-1 justify-center gap-4 md:gap-8 min-w-0">
+          <span className="text-[14px] sm:text-[16px] font-semibold text-center truncate">
             {MONTHS[month]} {year}
           </span>
-          <span className="text-[16px] font-semibold">
-            {MONTHS[month + 1] || MONTHS[0]} {month === 11 ? year + 1 : year}
+          <span className="hidden md:inline text-[16px] font-semibold truncate">
+            {MONTHS[nextMonthIndex]} {nextMonthYear}
           </span>
         </div>
         <button
+          type="button"
           onClick={handleNextMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 shrink-0 hover:bg-gray-100 rounded-lg transition-colors"
           aria-label="Next month"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Two months side by side */}
-      <div className="flex gap-4">
+      {/* Two months side by side on md+; single month on narrow screens */}
+      <div className="flex flex-col gap-6 md:flex-row md:gap-4">
         {/* First month */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS.map((day) => (
               <div
@@ -170,8 +175,8 @@ export function Calendar({ selected, onSelect, className }: CalendarProps) {
           </div>
         </div>
 
-        {/* Second month */}
-        <div className="flex-1">
+        {/* Second month — desktop only to reduce height on mobile */}
+        <div className="hidden md:block md:flex-1 min-w-0">
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS.map((day) => (
               <div

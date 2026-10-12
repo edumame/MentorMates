@@ -9,6 +9,7 @@ import { PasswordTab } from "./PasswordTab";
 import { RoleLabelsTab } from "./RoleLabelsTab";
 import { InviteJudgesTab } from "./InviteJudgesTab";
 import { InviteOrganizersTab } from "./InviteOrganizersTab";
+import { AssignTab } from "../assign";
 import { EventDetails } from "@/lib/types";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,6 +19,7 @@ const ACCESS_SUBTAB_VALUES = [
   "role-labels",
   "invite-judges",
   "invite-organizers",
+  "assign-roles",
 ] as const;
 export type AccessSubTab = (typeof ACCESS_SUBTAB_VALUES)[number];
 
@@ -82,6 +84,9 @@ export function AccessTab({
         )}
         {activeSubTab === "invite-organizers" && (
           <InviteOrganizersTab eventId={eventId} isArchived={isArchived} />
+        )}
+        {activeSubTab === "assign-roles" && (
+          <AssignTab eventId={eventId} />
         )}
       </CardContent>
     </Card>
