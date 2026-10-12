@@ -1,4 +1,5 @@
 "use client";
+import { SoloSubmissionConfirmation, needsSoloConfirmation } from "./components/SoloSubmissionConfirmation";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -42,16 +43,6 @@ import type {
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   ProjectFieldEntriesSection,
   type ProjectFieldEntriesSectionHandle,
@@ -645,24 +636,12 @@ export function NewProjectSubmissionFormSinglePage({
 
   const handlePublish = async (options?: { skipSoloConfirm?: boolean }) => {
     if (isUploading) {
-      toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before leaving." });
-      return;
-    }
-    if (!(await flushSave())) return;
-    router.push(eventDetails?.slug
-      ? `/events/${eventDetails.slug}/overview`
-      : eventId ? `/events/${eventId}/overview` : `/projects`);
-  };
-
-  const handlePublish = async () => {
-    if (isUploading) {
       toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before publishing." });
       return;
     }
     if (
       !options?.skipSoloConfirm &&
-      validTeammates.length === 0 &&
-      participants.length > 0
+      needsSoloConfirmation(validTeammates, participants)
     ) {
       setShowSoloConfirm(true);
       return;
@@ -961,29 +940,7 @@ export function NewProjectSubmissionFormSinglePage({
         />
       ) : null}
 
-      <AlertDialog open={showSoloConfirm} onOpenChange={setShowSoloConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Submitting solo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You haven&apos;t added any teammates. If you built this with
-              others, add them now so they get credit. Teammates must be
-              registered for this event to appear in the picker.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Add teammates</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setShowSoloConfirm(false);
-                handlePublish({ skipSoloConfirm: true });
-              }}
-            >
-              Submit solo
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SoloSubmissionConfirmation open={showSoloConfirm} onOpenChange={setShowSoloConfirm} onConfirm={() => { setShowSoloConfirm(false); void handlePublish({ skipSoloConfirm: true }); }} />
 
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
