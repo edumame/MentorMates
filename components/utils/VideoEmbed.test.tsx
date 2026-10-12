@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { VideoEmbed, getEmbedDescriptor, getEmbedUrl } from './VideoEmbed';
+import { VideoEmbed } from './VideoEmbed';
+import { getEmbedDescriptor, getEmbedUrl } from './video-url';
 it.each([
  ['https://youtu.be/dQw4w9WgXcQ', 'https://www.youtube.com/embed/dQw4w9WgXcQ'],
  ['https://vimeo.com/12345', 'https://player.vimeo.com/video/12345'],
