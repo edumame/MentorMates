@@ -51,6 +51,8 @@ import { useProjectSubmissionAutosave } from "@/features/projects/components/for
 import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
   buildEffectiveSubmissionFields,
+  buildSubmissionFormValues,
+  findMissingRequiredSubmissionField,
   buildSubmissionAnswersPayload,
   hasSubmissionFieldMismatch,
   type SubmissionValue,
@@ -107,6 +109,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   onProjectUpdate,
 }: DraftProjectSubmissionFormProps) {
   const router = useRouter();
+  const [isUploading, setIsUploading] = useState(false);
 
   // Lets publish flush any multi-entry field drafts the submitter typed
   // but didn't explicitly add.
@@ -414,12 +417,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   const submissionFieldValues = useMemo(
     () =>
-      Object.fromEntries(
-        effectiveSubmissionFields.map((field) => [
-          field.key,
-          getSubmissionFieldValue(field),
-        ])
-      ) as Record<string, SubmissionValue>,
+      buildSubmissionFormValues(effectiveSubmissionFields, getSubmissionFieldValue),
     [effectiveSubmissionFields, getSubmissionFieldValue]
   );
 
@@ -576,7 +574,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     setIsPrivate(Boolean(project.is_private));
   }, [project.is_private]);
 
-  const { lastSaved } = useProjectSubmissionAutosave({
+  const { lastSaved, flushSave } = useProjectSubmissionAutosave({
     enabled: true,
     projectId,
     fields: effectiveSubmissionFields,
@@ -662,7 +660,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       if (uploadError) {
         toast({
           title: "Upload Error",
-          description: "Failed to upload file",
+          description: `Failed to upload file: ${uploadError.message}`,
           variant: "destructive",
         });
         return null;
@@ -915,14 +913,14 @@ export default function DraftProjectSubmissionFormSinglePage({
   };
 
   const handlePublish = async () => {
-    const missingRequiredField = effectiveSubmissionFields.find((field) => {
-      if (!field.required) return false;
-      const value = submissionFieldValues[field.key];
-      if (isMultiValueSubmissionFieldType(field.field_type)) {
-        return !Array.isArray(value) || value.every((item) => !item.trim());
-      }
-      return typeof value !== "string" || value.trim().length === 0;
-    });
+    if (isUploading) {
+      toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before publishing." });
+      return;
+    }
+    const missingRequiredField = findMissingRequiredSubmissionField(
+      effectiveSubmissionFields,
+      submissionFieldValues
+    );
 
     if (missingRequiredField) {
       toast({
@@ -930,6 +928,10 @@ export default function DraftProjectSubmissionFormSinglePage({
         description: `"${missingRequiredField.label}" is required`,
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!(await flushSave())) {
       return;
     }
 
@@ -1129,6 +1131,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
               <div className="space-y-4">
                 <ProjectSubmissionSchemaSection
+                  onUploadStateChange={setIsUploading}
                   fields={effectiveSubmissionFields}
                   values={submissionFieldValues}
                   onValueChange={handleSubmissionFieldChange}
@@ -1475,6 +1478,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                 )}
                 <Button
                   onClick={handlePublish}
+                  disabled={isUploading}
                   className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
                 >
                   Publish project
