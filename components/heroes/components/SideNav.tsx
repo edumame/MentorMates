@@ -31,6 +31,7 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
 import type { UserProfile } from "@/lib/types";
 import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 const HomeIcon = (
   <svg
@@ -174,6 +175,7 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(null);
   const pathname = usePathname();
+  const { clearReturnUrl } = useRedirect();
   const { needsProfileCompletion } = useNotificationData();
   const isAdmin = useAdmin();
   const showProfileCompletionWarning = Boolean(
@@ -206,7 +208,7 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
   }, [session]);
 
   const handleSignOut = async () => {
-    localStorage.removeItem("returnUrl");
+    clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
     router.push("/");

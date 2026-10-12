@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
+import { OrganizerTeamsTab } from "@/features/user/dashboards/dashboard/organizer/teams";
 import { AccessTab } from "@/features/user/dashboards/dashboard/organizer/access";
 import { EventTracksContainer } from "@/features/user/dashboards/dashboard/organizer/tracks";
 import { SubmissionsTab } from "@/features/user/dashboards/dashboard/organizer/submissions";
@@ -114,6 +115,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   // Primary tabs in the bar (Advanced Settings is a dropdown)
   const mainTabs = [
     { value: "participants", label: "People", badge: participantCount },
+    { value: "teams", label: "Teams" },
     { value: "project", label: "Projects", badge: projectCount },
     { value: "access", label: "Access" },
     { value: "tracks", label: "Tracks & Prizes" },
@@ -136,16 +138,20 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "notify", label: "Notify" },
   ];
   const isAdvancedTab = (tab: string) => advancedTabValues.includes(tab as (typeof advancedTabValues)[number]);
-  const projectSubTabValues = ["submission", "live-scores"] as const;
-  const projectSubTabs = [
-    { value: "submission", label: "Submission" },
-    { value: "live-scores", label: "Live Score" },
-  ];
-  const projectSubTab = activeTab === "project"
-    ? (projectSubTabValues.includes(searchParams.get("subtab") as (typeof projectSubTabValues)[number])
-        ? searchParams.get("subtab")
-        : "submission")
-    : "submission";
+  // Issue #778: split former "Submission" sub-tab into "Browse" (default,
+  // list-only) and "Submission Settings" (form fields + import). "submission"
+  // remains valid in URLs for backwards compatibility and aliases to "browse".
+  const projectSubTabValues = ["browse", "submission-settings", "live-scores"] as const;
+  const rawProjectSubTab = activeTab === "project"
+    ? searchParams.get("subtab")
+    : null;
+  const projectSubTab: (typeof projectSubTabValues)[number] = activeTab === "project"
+    ? (rawProjectSubTab === "submission"
+        ? "browse"
+        : (projectSubTabValues.includes(rawProjectSubTab as (typeof projectSubTabValues)[number])
+            ? (rawProjectSubTab as (typeof projectSubTabValues)[number])
+            : "browse"))
+    : "browse";
   const isProjectTab = (tab: string) => tab === "project-submission" || tab === "live-scores" || tab === "project";
   const tabsValue = isAdvancedTab(activeTab) ? "advanced-settings" : isProjectTab(activeTab) ? "project" : activeTab;
 
@@ -246,23 +252,33 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   }, [pathname, router, searchParams]);
 
-  // Redirect legacy project-submission / live-scores to Project tab with subtab
+  // Redirect legacy project-submission / live-scores to Project tab with subtab.
+  // Old `?subtab=submission` maps to the new "browse" sub-tab (#778).
   useEffect(() => {
     const tab = searchParams.get("tab");
+    const subtab = searchParams.get("subtab");
     if (tab === "project-submission" || tab === "live-scores") {
       startTransition(() => {
         const params = new URLSearchParams(searchParams);
         params.set("tab", "project");
-        params.set("subtab", tab === "live-scores" ? "live-scores" : "submission");
+        params.set("subtab", tab === "live-scores" ? "live-scores" : "browse");
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       });
       return;
     }
-    if (tab === "project" && !projectSubTabValues.includes(searchParams.get("subtab") as (typeof projectSubTabValues)[number])) {
+    if (tab === "project" && subtab === "submission") {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        params.set("subtab", "browse");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      });
+      return;
+    }
+    if (tab === "project" && !projectSubTabValues.includes(subtab as (typeof projectSubTabValues)[number])) {
       startTransition(() => {
         const params = new URLSearchParams(searchParams);
         params.set("tab", "project");
-        params.set("subtab", "submission");
+        params.set("subtab", "browse");
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       });
     }
@@ -553,13 +569,13 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   }
 
   return (
-    <div className="w-full overflow-x-hidden flex flex-col flex-1 min-h-0">
-      <div className="w-full flex flex-col flex-1 min-h-0">
+    <div className="w-full min-w-0 flex flex-col flex-1 min-h-0">
+      <div className="w-full min-w-0 flex flex-col flex-1 min-h-0">
         {/* 头部 + Tabs 固定，仅下方内容区滚动；背景由右侧 100dvh 区域统一提供 */}
-        <div className="px-4 sm:px-6 lg:px-10 pt-0 w-full flex flex-col flex-1 min-h-0 overflow-x-hidden">
+        <div className="px-4 sm:px-6 lg:px-10 pt-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
           {/* Header with title, action buttons, and notification+avatar (below left nav) */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <h1
                 className="flex flex-col justify-center flex-1 min-w-0 self-stretch font-geist text-[28px] font-semibold leading-[140%] tracking-[-1.68px] text-[var(--Color-Scheme-1-Text,#000)]"
               >
@@ -724,14 +740,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             onValueChange={(value) => {
               if (value !== "advanced-settings") setActiveTab(value);
             }}
-            className="flex flex-col flex-1 min-h-0 w-full min-w-full"
+            className="flex flex-col flex-1 min-h-0 w-full min-w-0"
           >
-            <div className="w-full min-w-full -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-[24px] flex-shrink-0 flex flex-col">
-              <div
-                className="overflow-x-auto no-scrollbar min-w-0"
-                style={{ WebkitOverflowScrolling: "touch" }}
-              >
-                <TabsList className="flex h-auto gap-4 sm:gap-6 items-center p-0 justify-start bg-transparent rounded-none flex-nowrap w-full min-w-full border-0 shadow-none">
+            <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-[24px] flex-shrink-0 border-b border-[#d2d7e7]">
+              <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                <TabsList className="flex h-auto gap-4 sm:gap-6 items-center p-0 justify-start bg-transparent rounded-none flex-nowrap w-max border-0 shadow-none">
                 {mainTabs.map((tab) =>
                   tab.value === "advanced-settings" ? (
                     <DropdownMenu key={tab.value}>
@@ -741,11 +754,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           className={`px-0 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] border-b-2 rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-center gap-1 cursor-pointer hover:opacity-80 ${
                             tabsValue === "advanced-settings"
                               ? "font-medium text-[var(--Color-Scheme-1-Text,#000)] text-base leading-[1.5] border-[#4b89ef]"
-                              : "border-transparent"
+                                                   : "border-transparent"
                           }`}
                         >
                           {tab.label}
-                          <ChevronDown className="h-4 w-4 opacity-70" />
+                          <ChevronDown className="h-4 w-4 flex-shrink-0 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="min-w-[180px]">
@@ -764,7 +777,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
-                      className="px-0 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:text-[var(--Color-Scheme-1-Text,#000)] data-[state=active]:text-base data-[state=active]:leading-[1.5] data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-start gap-3"
+                      className="px-0 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:text-[var(--Color-Scheme-1-Text,#000)] data-[state=active]:text-base data-[state=active]:leading-[1.5] data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-center gap-3"
                     >
                       {tab.label}
                       {tab.badge !== undefined && (
@@ -777,61 +790,53 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     </TabsTrigger>
                   )
                 )}
-              </TabsList>
+                </TabsList>
               </div>
-              {/* Full-width line: extend right to match content area (Export CSV etc.) */}
-              <div
-                className="border-b border-[#d2d7e7] shrink-0 w-[calc(100%+2rem)] -mr-4 sm:w-[calc(100%+3rem)] sm:-mr-6 lg:w-[calc(100%+5rem)] lg:-mr-10"
-                aria-hidden
-              />
             </div>
 
             {tabsValue === "access" && event && (
-              <div className="w-full pl-0 pr-4 sm:pr-6 lg:pr-10 mb-0 flex-shrink-0 flex flex-col items-start gap-0">
+              <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-0 flex-shrink-0">
                 <Tabs
                   value={accessSubTab}
                   onValueChange={(v) => setActiveSubTab(v)}
+                  className="w-full min-w-0"
                 >
-                  <div className="flex flex-col items-start gap-0 w-full">
-                    <div
-                      className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto no-scrollbar overflow-y-visible pl-0 pr-4 sm:pr-6 lg:pr-0"
-                      style={{ WebkitOverflowScrolling: "touch" }}
-                    >
-                      <TabsList className="inline-flex h-auto gap-0 bg-transparent p-0 justify-start items-center flex-nowrap min-w-max border-0 shadow-none rounded-none">
+                  <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                    <TabsList className="flex h-auto gap-1 sm:gap-0 bg-transparent p-0 justify-start items-center flex-nowrap w-max border-0 shadow-none rounded-none">
                         <TabsTrigger
                           value="password"
-                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
                         >
                           Password
                         </TabsTrigger>
                         <TabsTrigger
                           value="role-labels"
-                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
                         >
                           Role Labels
                         </TabsTrigger>
                         <TabsTrigger
                           value="invite-judges"
-                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
                         >
                           Invite Judges
                         </TabsTrigger>
                         <TabsTrigger
                           value="invite-organizers"
-                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
                         >
                           Invite Organizers
                         </TabsTrigger>
                         <TabsTrigger
                           value="assign-roles"
-                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="px-3 py-2 sm:py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
                         >
                           Assign Roles
                         </TabsTrigger>
-                      </TabsList>
-                    </div>
+                    </TabsList>
+                  </div>
                     {accessSubTab === "password" && (
-                      <div className="mt-[24px] flex items-center justify-start">
+                      <div className="mt-[24px] flex items-center justify-start px-4 sm:px-6 lg:px-10">
                         <Select
                           value={event.visibility || ""}
                           onValueChange={(value) =>
@@ -872,48 +877,46 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         </Select>
                       </div>
                     )}
-                  </div>
                 </Tabs>
               </div>
             )}
 
             {/* Content Area - 仅此区域滚动，头部与 Tabs 固定 */}
             <div
-              className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full flex-1 min-h-0 overflow-y-auto no-scrollbar"
+              className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full min-w-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar"
               style={{
                 opacity: isPending ? 0.4 : 1,
                 transition: "opacity 150ms",
               }}
             >
               {/* Left Column - Form Content */}
-              <div className="w-full lg:flex-[2] lg:min-w-0 flex flex-col items-start">
+              <div className="w-full min-w-0 lg:flex-[2] flex flex-col">
                 {/* Advanced Settings (Overview, Intake Forms, etc.) */}
-                <TabsContent value="advanced-settings" className="mt-0 w-full">
+                <TabsContent value="advanced-settings" className="mt-0 w-full min-w-0">
                   {activeTab === "overview" && (
                     <Tabs
                       value={activeSubTab}
                       onValueChange={(value) => setActiveSubTab(value)}
                     >
-                      <div
-                        className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto no-scrollbar overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
-                        style={{ WebkitOverflowScrolling: "touch" }}
-                      >
-                        <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap min-w-max">
+                      <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
+                        <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                          <TabsList className="flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap w-max">
                           {overviewSubTabs.map((subTab) => (
                             <TabsTrigger
                               key={subTab.value}
                               value={subTab.value}
-                              className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                              className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0 whitespace-nowrap"
                               style={{ fontFamily: "Inter, sans-serif" }}
                             >
                               {subTab.label}
                             </TabsTrigger>
                           ))}
-                        </TabsList>
+                          </TabsList>
+                        </div>
                       </div>
 
                       <div className="w-full min-w-0">
-                        <TabsContent value="basics" className="mt-0 ml-2">
+                        <TabsContent value="basics" className="mt-0">
                           {event && (
                             <BasicInfoTab
                               event={event}
@@ -928,7 +931,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             />
                           )}
                         </TabsContent>
-                        <TabsContent value="content" className="mt-0 ml-2">
+                        <TabsContent value="content" className="mt-0">
                           {event && (
                             <ContentTab
                               event={event}
@@ -937,7 +940,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             />
                           )}
                         </TabsContent>
-                        <TabsContent value="schedule" className="mt-0 ml-2">
+                        <TabsContent value="schedule" className="mt-0">
                           {event && (
                             <ScheduleTab
                               event={event}
@@ -948,7 +951,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             />
                           )}
                         </TabsContent>
-                        <TabsContent value="resources" className="mt-0 ml-2">
+                        <TabsContent value="resources" className="mt-0">
                           {event && (
                             <ResourcesTab
                               event={event}
@@ -959,7 +962,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             />
                           )}
                         </TabsContent>
-                        <TabsContent value="rules" className="mt-0 ml-2">
+                        <TabsContent value="rules" className="mt-0">
                           {event && (
                             <RulesTab
                               event={event}
@@ -970,7 +973,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             />
                           )}
                         </TabsContent>
-                        <TabsContent value="faqs" className="mt-0 ml-2">
+                        <TabsContent value="faqs" className="mt-0">
                           {event && (
                             <FAQTab
                               event={event}
@@ -981,7 +984,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             />
                           )}
                         </TabsContent>
-                        <TabsContent value="gallery" className="mt-0 ml-2">
+                        <TabsContent value="gallery" className="mt-0">
                           <div className="text-center py-12">
                             <p className="text-lg text-gray-500">
                               Gallery section coming soon
@@ -1007,6 +1010,40 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         Registration Intake Form
                       </h2>
                         <IntakeFormBuilder eventId={eventId} context="registration" />
+                      </div>
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2
+                          className="font-geist text-xl font-semibold mb-4 text-black"
+                          style={{
+                            fontFamily:
+                              "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                          }}
+                        >
+                          RSVP Form
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Publish an RSVP form to ask registered attendees to
+                          confirm their attendance. An RSVP button appears on the
+                          event page for everyone who has joined.
+                        </p>
+                        <IntakeFormBuilder eventId={eventId} context="rsvp" />
+                      </div>
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2
+                          className="font-geist text-xl font-semibold mb-4 text-black"
+                          style={{
+                            fontFamily:
+                              "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                          }}
+                        >
+                          Post-Event Survey
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Publish a post-event survey to collect feedback from
+                          attendees. A survey button appears on the event page
+                          for everyone who has joined.
+                        </p>
+                        <IntakeFormBuilder eventId={eventId} context="post_survey" />
                       </div>
                     </div>
                   )}
@@ -1069,7 +1106,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 </TabsContent>
 
                 {/* Other Main Tabs */}
-                <TabsContent value="participants" className="mt-0 w-full">
+                <TabsContent value="participants" className="mt-0 w-full min-w-0">
                   {event && (
                     <ParticipantsTab 
                       eventId={eventId} 
@@ -1080,7 +1117,17 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   )}
                 </TabsContent>
 
-                <TabsContent value="access" className="mt-0 w-full">
+                <TabsContent value="teams" className="mt-0 w-full min-w-0">
+                  {event && (
+                    <OrganizerTeamsTab
+                      eventId={eventId}
+                      event={event}
+                      setEvent={setEvent}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="access" className="mt-0 w-full min-w-0">
                   {event && (
                     <div className="mt-[24px]">
                       <AccessTab
@@ -1095,7 +1142,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   )}
                 </TabsContent>
 
-                <TabsContent value="tracks" className="mt-0 w-full">
+                <TabsContent value="tracks" className="mt-0 w-full min-w-0">
                   {event && (
                     <EventTracksContainer
                       eventId={eventId}
@@ -1110,29 +1157,42 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   )}
                 </TabsContent>
 
-                <TabsContent value="project" className="mt-0 w-full">
+                <TabsContent value="project" className="mt-0 w-full min-w-0">
                   <Tabs
-                    value={projectSubTab ?? "submission"}
+                    value={projectSubTab}
                     onValueChange={(v) => setActiveSubTab(v)}
-                    className="w-full"
+                    className="w-full min-w-0"
                   >
-                    <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none mb-6">
-                      <TabsTrigger
-                        value="submission"
-                        className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
-                      >
-                        Submission
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="live-scores"
-                        className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
-                      >
-                        Live Score
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="submission" className="mt-0">
+                    <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
+                      <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
+                        <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none w-max flex-nowrap">
+                        <TabsTrigger
+                          value="browse"
+                          className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Browse
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="submission-settings"
+                          className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Submission Settings
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="live-scores"
+                          className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-sm sm:text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0 whitespace-nowrap"
+                        >
+                          Live Score
+                        </TabsTrigger>
+                        </TabsList>
+                      </div>
+                    </div>
+                    <TabsContent value="browse" className="mt-0">
+                      <SubmissionsTab eventId={eventId} showFieldsSettings={false} />
+                    </TabsContent>
+                    <TabsContent value="submission-settings" className="mt-0">
                       <div className="space-y-6">
-                        <SubmissionsTab eventId={eventId} />
+                        <SubmissionFieldsSettings eventId={eventId} />
                         <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
                           <h2 className="text-xl font-semibold mb-4 text-black">
                             Import Projects
@@ -1158,7 +1218,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   </Tabs>
                 </TabsContent>
 
-                <TabsContent value="agent-keys" className="mt-0 w-full">
+                <TabsContent value="agent-keys" className="mt-0 w-full min-w-0">
                   <ApiKeysTab eventId={eventId} />
                 </TabsContent>
 
