@@ -1,4 +1,5 @@
 "use client";
+import { computeEffectiveCutoff } from "@/lib/events/submission-deadline";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -79,6 +80,7 @@ interface EventOption {
   event_name: string;
   submission_time_start: string;
   submission_time_cutoff: string;
+  submission_late_buffer_minutes: number;
   event_date: string;
 }
 
@@ -189,6 +191,7 @@ export default function DraftProjectSubmissionFormSinglePage({
             event_name,
             submission_time_start,
             submission_time_cutoff,
+            submission_late_buffer_minutes,
             event_date,
             visibility
           )
@@ -209,6 +212,7 @@ export default function DraftProjectSubmissionFormSinglePage({
             event_name: string;
             submission_time_start: string | null;
             submission_time_cutoff: string | null;
+            submission_late_buffer_minutes: number | null;
             event_date: string;
             visibility: string;
           } | null;
@@ -224,6 +228,7 @@ export default function DraftProjectSubmissionFormSinglePage({
             event_name: string;
             submission_time_start: string | null;
             submission_time_cutoff: string | null;
+            submission_late_buffer_minutes: number | null;
             event_date: string;
           };
 
@@ -232,6 +237,7 @@ export default function DraftProjectSubmissionFormSinglePage({
             event_name: event.event_name,
             submission_time_start: event.submission_time_start || "",
             submission_time_cutoff: event.submission_time_cutoff || "",
+            submission_late_buffer_minutes: event.submission_late_buffer_minutes ?? 0,
             event_date: event.event_date,
           };
         })
@@ -750,7 +756,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
     const now = new Date();
     const submissionStart = new Date(selectedEvent.submission_time_start);
-    const submissionCutoff = new Date(selectedEvent.submission_time_cutoff);
+    const submissionCutoff = computeEffectiveCutoff(selectedEvent.submission_time_cutoff, selectedEvent.submission_late_buffer_minutes);
 
     if (now < submissionStart) {
       toast({
@@ -761,7 +767,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       return;
     }
 
-    if (now > submissionCutoff) {
+    if (submissionCutoff && now > submissionCutoff) {
       toast({
         title: "Submission Closed",
         description: `Submissions for "${selectedEvent.event_name}" closed on ${submissionCutoff.toLocaleDateString()}`,
@@ -1203,12 +1209,10 @@ export default function DraftProjectSubmissionFormSinglePage({
                           const submissionStart = new Date(
                             event.submission_time_start
                           );
-                          const submissionCutoff = new Date(
-                            event.submission_time_cutoff
-                          );
+                          const submissionCutoff = computeEffectiveCutoff(event.submission_time_cutoff, event.submission_late_buffer_minutes);
                           const isOpen =
-                            now >= submissionStart && now <= submissionCutoff;
-                          const isPast = now > submissionCutoff;
+                            now >= submissionStart && (!submissionCutoff || now <= submissionCutoff);
+                          const isPast = Boolean(submissionCutoff && now > submissionCutoff);
                           const isFuture = now < submissionStart;
                           const noSubmissionWindow =
                             !event.submission_time_start ||
