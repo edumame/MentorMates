@@ -105,11 +105,7 @@ export default async function EventsPage() {
 
   return (
     <>
-      <div
-        className={
-          isAuthenticated ? "pb-8 pt-0 lg:pt-[24px]" : "pb-8 pt-[24px]"
-        }
-      >
+      <div className={isAuthenticated ? "pb-8" : "pt-16 pb-8"}>
         <div
           className={
             isAuthenticated

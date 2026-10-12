@@ -336,9 +336,11 @@ export function EventsPageClient({
         <div className="min-w-0 max-w-full">
           <div
             className={cn(
-              "sticky z-30 -mx-2 mb-6 border-b border-[rgba(0,0,0,0.08)] bg-white px-2 pb-0",
+              "sticky z-30 bg-white pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]",
+              // Avoid -mt with page top padding: negative margin lets card
+              // banner gradients paint above the sticky "Events" header.
               isAuthenticated
-                ? "top-0 lg:-mt-[24px] lg:pt-[27px]"
+                ? "top-0 pt-[24px]"
                 : "top-[72px] pt-3"
             )}
           >
