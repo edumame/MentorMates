@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { BasicInfoTab } from "./BasicInfoTab";
 import { EventVisibility, type EventDetails } from "@/lib/types";
 
+jest.mock("@/components/markdown/plugins", () => ({ markdownRemarkPlugins: [], markdownRehypePlugins: [] }));
+
 jest.mock("react-markdown", () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

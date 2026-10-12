@@ -76,7 +76,6 @@ const payloadSchema = z
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseClient();
-  const serviceSupabase = createSupabaseServiceClient();
 
   try {
     const {
@@ -145,10 +144,27 @@ export async function POST(req: Request) {
         );
       }
 
+      // Keep edits supplied with an existing-event approval request. Only copy
+      // validated, editable columns, and leave omitted values unchanged.
+      const updatePayload: Database["public"]["Tables"]["events"]["Update"] = {
+        approval_status: ApprovalStatus.Submitted,
+      };
+      if (event) {
+        const editableFields = [
+          "event_name", "event_date", "location", "rules", "slug", "cover_image_url",
+          "event_description", "event_blurb", "submission_time_start",
+          "submission_time_cutoff", "participant_capacity", "max_projects", "paid",
+          "stripe_price_id", "event_schedule", "event_resources", "faq",
+        ] as const;
+        for (const field of editableFields) {
+          if (event[field] !== undefined) Object.assign(updatePayload, { [field]: event[field] });
+        }
+      }
+
       // Update approval status to submitted
       const { data: updatedEvent, error: updateError } = await supabase
         .from("events")
-        .update({ approval_status: ApprovalStatus.Submitted })
+        .update(updatePayload)
         .eq("event_id", eventId)
         .select("*")
         .single();
@@ -198,6 +214,8 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+
+    const serviceSupabase = createSupabaseServiceClient();
 
     // Build insert payload with approval_status set to 'submitted'
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
