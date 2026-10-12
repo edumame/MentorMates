@@ -6,6 +6,7 @@ import {
   resolveAgentPathEvent,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { logAgentEvent } from "@/lib/agent/logging";
 import { EventRole } from "@/lib/types";
 import { getProjectEditAccess } from "@/lib/projects/access";
 import {
@@ -114,7 +115,11 @@ export async function PATCH(
       project: result.project,
     });
   } catch (error) {
-    console.error("Participant agent project PATCH error:", error);
+    logAgentEvent(
+      "participant_project_patch_crashed",
+      { route: "PATCH /api/agent/me/events/[eventId]/projects/[projectId]" },
+      error
+    );
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -19,9 +19,13 @@ interface Event {
   visibility?: EventVisibility;
   event_blurb?: string;
   event_description?: string;
+  external_url?: string | null;
+  external_redirect_enabled?: boolean | null;
   paid?: boolean;
   stripe_price_id?: string;
   event_type?: string[];
+  userRole?: EventRole | null;
+  canManageEvent?: boolean | null;
 }
 
 interface UserEventRole {
@@ -90,16 +94,16 @@ export function EventsList({ events }: EventsListProps) {
   };
 
   return (
-    <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
+    <div className="grid min-w-0 max-w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:auto-rows-fr">
       {events.map((event) => {
         const userRole = getUserRoleForEvent(event.event_id);
 
         return (
           <div
             key={event.event_id}
-            className="relative w-full max-w-[420px] mx-auto"
+            className="relative min-w-0 w-full max-w-full"
           >
-            <EventCard event={event} />
+            <EventCard event={{ ...event, userRole }} />
             {/* User Role Badge Overlay */}
             {userRole && (
               <div className="absolute top-3 left-3 z-10">

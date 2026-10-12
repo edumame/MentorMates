@@ -12,6 +12,7 @@ const PARTICIPANT_PROJECT_SELECT = `
   project_name,
   lead_name,
   lead_email,
+  private,
   project_description,
   teammates,
   project_url,

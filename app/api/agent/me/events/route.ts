@@ -7,7 +7,9 @@ import {
 import {
   listJoinableParticipantAgentEvents,
   listParticipantAgentEvents,
+  toParticipantAgentEvent,
 } from "@/lib/agent/event-access";
+import { logAgentEvent } from "@/lib/agent/logging";
 import { EventRole } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -30,14 +32,21 @@ export async function GET(request: NextRequest) {
       auth.eventId ? Promise.resolve([]) : listJoinableParticipantAgentEvents(auth.userId),
     ]);
 
+    const filteredJoined = auth.eventId
+      ? joinedEvents.filter((event) => event.event_id === auth.eventId)
+      : joinedEvents;
+    const filteredJoinable = auth.eventId ? [] : joinableEvents;
+
     return NextResponse.json({
-      joined_events: auth.eventId
-        ? joinedEvents.filter((event) => event.event_id === auth.eventId)
-        : joinedEvents,
-      joinable_events: auth.eventId ? [] : joinableEvents,
+      joined_events: filteredJoined.map(toParticipantAgentEvent),
+      joinable_events: filteredJoinable.map(toParticipantAgentEvent),
     });
   } catch (error) {
-    console.error("Participant agent events GET error:", error);
+    logAgentEvent(
+      "participant_events_list_crashed",
+      { route: "GET /api/agent/me/events" },
+      error
+    );
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

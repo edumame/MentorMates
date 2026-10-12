@@ -7,7 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Delete, Add, AttachMoney, Inventory} from "@mui/icons-material";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Delete, Add, AttachMoney, Inventory } from "@mui/icons-material";
 import { EventDetails, PricingTier, Coupon } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -15,6 +22,10 @@ import { CouponManagement } from "./CouponManagement";
 import { PromoCodeManagement } from "./PromoCodeManagement";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  DEFAULT_PAYMENT_CURRENCY,
+  PAYMENT_CURRENCY_OPTIONS,
+} from "@/lib/utils/pricing";
 
 interface PricingTabProps {
   event: EventDetails;
@@ -202,6 +213,7 @@ export function PricingTab({
       tier_id: tierId,
       name: "New Tier",
       price: 0,
+      currency: DEFAULT_PAYMENT_CURRENCY,
       description: "",
       stripe_price_id: "price_", // Provide a placeholder that users must complete
       is_active: true,
@@ -280,7 +292,10 @@ export function PricingTab({
         const tiersToInsert = newTiers.map(tier => {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { id, _markedForDeletion, ...tierData } = tier;
-          return tierData;
+          return {
+            ...tierData,
+            currency: tierData.currency || DEFAULT_PAYMENT_CURRENCY,
+          };
         });
 
         const { error: insertError } = await supabase
@@ -298,6 +313,7 @@ export function PricingTab({
           .from("pricing_tiers")
           .update({
             ...tierData,
+            currency: tierData.currency || DEFAULT_PAYMENT_CURRENCY,
             updated_at: new Date().toISOString(),
           })
           .eq("id", tier.id);
@@ -444,7 +460,7 @@ export function PricingTab({
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,180px)_minmax(0,140px)] gap-4">
                         <div className="space-y-2">
                           <Label htmlFor={`tier-name-${actualIndex}`}>Tier Name</Label>
                           <Input
@@ -459,7 +475,7 @@ export function PricingTab({
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor={`tier-price-${actualIndex}`}>
-                            Price (USD)
+                            Price
                           </Label>
                           <Input
                             id={`tier-price-${actualIndex}`}
@@ -475,6 +491,32 @@ export function PricingTab({
                             placeholder="0.00"
                             disabled={isArchived}
                           />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`tier-currency-${actualIndex}`}>
+                            Currency
+                          </Label>
+                          <Select
+                            value={tier.currency || DEFAULT_PAYMENT_CURRENCY}
+                            onValueChange={(value) =>
+                              updatePricingTier(actualIndex, { currency: value })
+                            }
+                            disabled={isArchived}
+                          >
+                            <SelectTrigger id={`tier-currency-${actualIndex}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PAYMENT_CURRENCY_OPTIONS.map((currency) => (
+                                <SelectItem
+                                  key={currency.value}
+                                  value={currency.value}
+                                >
+                                  {currency.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
@@ -564,7 +606,7 @@ export function PricingTab({
                           disabled={isArchived}
                         />
                         <p className="text-xs text-gray-500">
-                          Create a Stripe price in your dashboard and paste the ID here
+                          Create a Stripe price in your dashboard and paste the ID here. Match the display currency above to the Stripe price currency.
                         </p>
                       </div>
                     </CardContent>

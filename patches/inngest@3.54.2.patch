@@ -1,0 +1,27 @@
+diff --git a/package.json b/package.json
+index 93fc74b885d881e62bef5074e68f2986fbcf6c26..223bed89c935ad8b414448855dcb88c3464d14cc 100644
+--- a/package.json
++++ b/package.json
+@@ -224,6 +224,22 @@
+       },
+       "import": "./internals.js",
+       "require": "./internals.cjs"
++    },
++    "./components/InngestFunction": {
++      "types": {
++        "import": "./components/InngestFunction.d.ts",
++        "require": "./components/InngestFunction.d.cts"
++      },
++      "import": "./components/InngestFunction.js",
++      "require": "./components/InngestFunction.cjs"
++    },
++    "./helpers/errors": {
++      "types": {
++        "import": "./helpers/errors.d.ts",
++        "require": "./helpers/errors.d.cts"
++      },
++      "import": "./helpers/errors.js",
++      "require": "./helpers/errors.cjs"
+     }
+   },
+   "homepage": "https://github.com/inngest/inngest-js#readme",
