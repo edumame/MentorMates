@@ -102,15 +102,15 @@ export async function GET(request: Request) {
 
     const { data: mentorProfiles } = await serviceSupabase
       .from("user_profiles")
-      .select("uid, profile_picture, first_name, last_name")
+      .select("uid, avatar_url, display_name")
       .in("uid", mentorIds);
 
     const mentorMap = new Map(
       mentorProfiles?.map((m) => [
         m.uid,
         {
-          avatar: m.profile_picture,
-          name: `${m.first_name} ${m.last_name}`,
+          avatar: m.avatar_url,
+          name: m.display_name,
         },
       ])
     );

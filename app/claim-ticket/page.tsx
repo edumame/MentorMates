@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Ticket, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { User } from "@supabase/supabase-js";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface TicketInfo {
   id: string;
@@ -25,6 +26,7 @@ interface TicketInfo {
 export default function ClaimTicketPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const ticketId = searchParams.get("ticket");
 
   const [ticket, setTicket] = useState<TicketInfo | null>(null);
@@ -98,11 +100,7 @@ export default function ClaimTicketPage() {
   }, [ticketId]);
 
   const handleLogin = () => {
-    // Store the current URL to redirect back after login
-    localStorage.setItem(
-      "returnUrl",
-      window.location.pathname + window.location.search
-    );
+    setReturnUrlFromCurrentLocation();
     router.push("/login");
   };
 

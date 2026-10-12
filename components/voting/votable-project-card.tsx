@@ -5,6 +5,7 @@ import { Trophy, CalendarClock, User } from "lucide-react";
 import { VoteButton } from "./vote-button";
 import { Project } from "@/lib/types";
 import Link from "next/link";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface VotableProjectCardProps {
   project: Project;
@@ -54,8 +55,8 @@ export function VotableProjectCard({
         {/* Thumbnail */}
         <Link href={`/projects/public/${project.id}`} className="block">
           <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-slate-100">
-            <img
-              src={project.cover_image_url || "/img/placeholder.png"}
+            <CoverImageWithFallback
+              src={project.cover_image_url}
               alt={`${project.project_name || "Project"} thumbnail`}
               className="w-full h-full object-cover"
               loading="lazy"
