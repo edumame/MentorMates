@@ -94,7 +94,7 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       {/* One-Click Install */}
       <Card>
         <CardHeader>
@@ -163,8 +163,8 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
           <CardTitle className="text-base">Generate New API Key</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
               <Label htmlFor="key-label">Label (optional)</Label>
               <Input
                 id="key-label"
@@ -173,7 +173,7 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
                 onChange={(e) => setLabel(e.target.value)}
               />
             </div>
-            <Button onClick={handleCreate} disabled={creating}>
+            <Button onClick={handleCreate} disabled={creating} className="shrink-0 w-full sm:w-auto">
               {creating ? "Generating..." : "Generate Key"}
             </Button>
           </div>
@@ -197,9 +197,9 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
               {keys.map((key) => (
                 <div
                   key={key.id}
-                  className="flex items-center justify-between border rounded-lg px-4 py-3"
+                  className="flex items-center justify-between gap-3 border rounded-lg px-4 py-3"
                 >
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">
                       {key.label || "default"}
                     </p>
@@ -218,7 +218,7 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-500 hover:text-red-700"
+                    className="shrink-0 text-red-500 hover:text-red-700"
                     onClick={() => handleRevoke(key.id)}
                   >
                     <Trash2 className="h-4 w-4" />

@@ -17,6 +17,7 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
 import posthog from "posthog-js";
 import { UserProfile } from "@/lib/types";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface ExtendedUserProfile extends UserProfile {
   onboarding_metadata: Record<string, unknown> | null;
@@ -31,6 +32,7 @@ interface AuthNavbarRightProps {
 
 export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
   const router = useRouter();
+  const { clearReturnUrl, setReturnUrlFromCurrentLocation } = useRedirect();
   const [session, setSession] = useState<Session | null>(null);
   const isAdmin = useAdmin();
   const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(
@@ -60,15 +62,12 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
   }, [session]);
 
   const handleLogin = () => {
-    if (typeof window !== "undefined") {
-      const returnUrl = window.location.pathname;
-      if (returnUrl !== "/mentor") localStorage.setItem("returnUrl", returnUrl);
-    }
+    setReturnUrlFromCurrentLocation();
     router.push("/login");
   };
 
   const handleSignOut = async () => {
-    localStorage.removeItem("returnUrl");
+    clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
     router.push("/");

@@ -7,86 +7,101 @@
  */
 
 export function hackathonEventGoal(): string {
-  return `You are on a hackathon event page. Your job is to extract ALL text content VERBATIM from this page and any linked sub-pages. Copy text exactly as it appears on the page — always include the original wording.
+  return `Extract all hackathon event information from the given url.
 
-NAVIGATION: If there are navigation links to separate pages for Rules, Prizes, Schedule, FAQ, About, or similar — navigate to EACH of them and extract that data too. Click "Read More", "Show More", or expand any collapsed/accordion sections to reveal hidden content.
+STEPS:
+1. On the main page, extract the event name, tagline, date, location, cover image URL, and the full About/description text.
+2. Find and click every navigation tab or link for Rules, Prizes, Schedule, FAQ, Tracks, About, or similar. Visit each one before extracting.
+3. On every page, click any "Read More", "Show More", or accordion toggles to reveal hidden content before extracting.
+4. Copy text exactly as displayed. Preserve paragraph breaks with newlines. Do not summarize, paraphrase, or shorten anything.
 
-CRITICAL — VERBATIM EXTRACTION:
-- Copy ALL text exactly as written on the page. Every paragraph, every bullet point, every sentence.
-- For event_description: Include the COMPLETE About section, What to Build, What to Submit, eligibility details, and ALL descriptive text on the page. Combine all descriptive sections into one field. This should be LONG — multiple paragraphs. Always prefer the full original text.
-- For rules: Copy EVERY rule, requirement, and guideline word-for-word. Include full sentences, preserve original wording.
-- For FAQs: Copy every question AND its full answer exactly as written.
-- For track/prize descriptions: Copy the full text as it appears on the page.
-- If text appears on the page, it should appear in your output. When in doubt, INCLUDE more text rather than less.
+STOP when ALL of these are true:
+- You have visited every navigation link on the event page
+- All expandable sections have been opened
+- You have spent no more than 4 minutes
 
-Return ALL extracted data as a SINGLE JSON object (no markdown fences, no commentary, ONLY valid JSON) with this EXACT structure:
+EDGE CASES:
+- If a section (FAQ, Rules, Tracks, Schedule, Prizes) does not exist on the page, set that field to null or an empty array. Do not invent content.
+- If the cover image is set via a CSS background-image, extract the URL from the inline style.
+- If dates appear without a year, assume the current year.
+- event_date must be YYYY-MM-DD format (main event start date).
+- For location, use the full venue name and city as displayed, or "Online" if virtual.
+- For submission times, use YYYY-MM-DDTHH:MM:SS format, or omit if not shown.
+
+Return JSON matching this EXACT structure with these EXACT field names. Sample values shown indicate expected types:
 
 {
-  "cover_image_url": "string - URL of the main event banner, cover image, or hero image displayed on the page. Look for the largest prominent image near the top of the page, event logo, or og:image meta tag. Must be a full absolute URL (https://...).",
-  "event_name": "string - the hackathon name exactly as displayed",
-  "event_blurb": "string - catchy one-liner summary, max 150 chars",
-  "event_date": "YYYY-MM-DD - main event start date",
-  "location": "string - full venue name and city as displayed, or 'Online'",
-  "slug": "string - url-friendly lowercase-hyphen slug derived from event name",
-  "event_description": "string - ALL descriptive text from the page combined. Include About, overview, What to Build, What to Submit, theme descriptions, sponsor descriptions, and any other body text. Preserve all paragraphs with newlines. This should be comprehensive and LONG.",
-  "submission_time_start": "YYYY-MM-DDTHH:MM:SS or omit if unknown",
-  "submission_time_cutoff": "YYYY-MM-DDTHH:MM:SS or omit if unknown",
+  "cover_image_url": "https://cdn.lu.ma/event-covers/abc123.jpg",
+  "event_name": "AI Builders Hackathon 2026",
+  "event_blurb": "Build the future of agents in 48 hours",
+  "event_date": "2026-06-15",
+  "location": "South Park Commons, San Francisco",
+  "event_description": "Full About section text here.\\n\\nSecond paragraph here.\\n\\nWhat to Build section text here.",
+  "submission_time_start": "2026-06-15T09:00:00",
+  "submission_time_cutoff": "2026-06-16T18:00:00",
   "event_schedule": [
     {
-      "date": "YYYY-MM-DD or 'Day 1'",
+      "date": "2026-06-15",
       "events": [
-        { "name": "Activity Name", "time": "HH:MM in 24h format", "description": "optional details — include any description text shown for this schedule item" }
+        {
+          "name": "Opening Keynote",
+          "time": "09:00",
+          "description": "Welcome and intro to the tracks"
+        },
+        {
+          "name": "Hacking Begins",
+          "time": "10:00",
+          "description": null
+        }
       ]
     }
   ],
   "rules": [
     {
-      "title": "Section Title like 'Eligibility' or 'Requirements'",
-      "items": ["VERBATIM full text of each rule — copy every word exactly as written"]
+      "title": "Eligibility",
+      "items": [
+        "Verbatim rule text exactly as written on the page",
+        "Second rule verbatim"
+      ]
     }
   ],
   "event_resources": [
-    { "name": "Resource Name", "link": "https://..." }
+    {
+      "name": "API Documentation",
+      "link": "https://docs.example.com"
+    }
   ],
   "faqs": [
-    { "question": "Verbatim question text", "answer": "Verbatim full answer text — copy every word exactly as written on the page" }
+    {
+      "question": "Verbatim question text?",
+      "answer": "Verbatim full answer text exactly as written."
+    }
   ],
   "tracks": [
     {
-      "client_id": "track-0-slugified-name",
-      "name": "Track or Prize Category Name",
-      "description": "Full verbatim track/category description — copy all text",
-      "scoring_criteria": {
-        "name": "Track Name",
-        "criteria": [
-          {
-            "id": "crit-0-0",
-            "name": "Criterion Name",
-            "description": "full verbatim description of what judges evaluate",
-            "weight": 1,
-            "min": 1,
-            "max": 10,
-            "type": "numeric"
-          }
-        ]
-      }
+      "name": "Best Overall",
+      "description": "Full verbatim track description text from the page.",
+      "criteria": [
+        {
+          "name": "Innovation",
+          "description": "How novel is the idea"
+        }
+      ]
     }
   ],
   "prizes": [
     {
-      "track_client_id": "track-0-slugified-name",
-      "name": "Prize value or label like '$2000' or 'USB Microphone'",
-      "description": "Full verbatim description of what the winner receives"
+      "track_name": "Best Overall",
+      "name": "$2000",
+      "description": "Cash prize plus mentorship credits"
     }
   ]
 }
 
-FORMATTING RULES:
-1. tracks[].client_id format: "track-{index}-{name-in-lowercase-hyphens}" — e.g., "track-0-best-overall", "track-3-best-use-of-ai"
-2. prizes[].track_client_id MUST exactly match one track's client_id
-3. Put judging criteria inside the relevant track's scoring_criteria. If criteria apply to all tracks, put them in the first track.
-4. Each scoring criterion needs a unique id: "crit-{trackIndex}-{criterionIndex}"
-5. VERBATIM TEXT IS ESSENTIAL. Copy text exactly as it appears. Always preserve the original wording. More text is always better than less.
-6. Omit any top-level field where no data was found on the page.
-7. Return ONLY the JSON object. No markdown fences, no explanation text.`;
+IMPORTANT:
+- Use these EXACT field names. Do not rename them.
+- For arrays, return an empty array [] if no items exist, not null.
+- For optional string fields with no data, use null.
+- For the text fields (event_description, rules.items, faqs.answer, tracks.description), copy text verbatim from the page. Longer is better than shorter.
+- Return ONLY the JSON object. No markdown fences, no explanation.`
 }

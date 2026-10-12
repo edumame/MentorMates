@@ -246,7 +246,7 @@ export function ContentTab({
     <div className="space-y-4 w-full min-w-0">
       <Tabs defaultValue="edit" className="w-full">
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-[16px] font-semibold text-black">
               Exclusive Content for Participants
             </h3>
@@ -304,7 +304,7 @@ export function ContentTab({
       {/* Lessons Editor */}
       <div className="w-full mt-4 space-y-4">
         <Tabs defaultValue="edit" className="w-full">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h3 className="text-[16px] font-semibold text-black">
               Lessons {loadingLessons && <span className="text-sm text-gray-500">(Loading...)</span>}
             </h3>

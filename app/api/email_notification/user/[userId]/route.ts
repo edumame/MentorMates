@@ -58,7 +58,7 @@ export async function POST(
     );
   }
 
-  if (!userEmail) {
+  if (!userEmail?.email) {
     return NextResponse.json(
       { error: "User email not found" },
       { status: 404 }

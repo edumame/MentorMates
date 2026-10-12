@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Users, CheckCircle, AlertCircle, Loader2, ShieldAlert } from "lucide-react";
 import { User } from "@supabase/supabase-js";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 interface ProjectInfo {
   id: string;
@@ -27,6 +28,7 @@ interface ProjectInfo {
 function JoinProjectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const projectId = searchParams.get("project");
   const token = searchParams.get("token");
 
@@ -151,11 +153,7 @@ function JoinProjectContent() {
   }, [token, projectId]);
 
   const handleLogin = () => {
-    // Store the current URL to redirect back after login
-    localStorage.setItem(
-      "returnUrl",
-      window.location.pathname + window.location.search
-    );
+    setReturnUrlFromCurrentLocation();
     router.push("/login");
   };
 
