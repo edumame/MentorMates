@@ -1,5 +1,6 @@
 import { Hero } from "@/components/about/Hero";
 import { Mission } from "@/components/about/Mission";
+import { OpenSource } from "@/components/about/OpenSource";
 import { Impact } from "@/components/heroes/components/Impact";
 import { Team } from "@/components/about/Team";
 import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
@@ -12,6 +13,7 @@ export default function AboutPage() {
     <>
       <Hero />
       <Mission />
+      <OpenSource />
       <Impact />
       <Team />
       <LogoCarousel />
