@@ -141,8 +141,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store in cache (fire-and-forget — don't block the response)
-    serviceSupabase
+    // Await persistence so a serverless invocation cannot end before the write.
+    await serviceSupabase
       .from("content_translations")
       .insert({
         source_hash: sourceHash,
