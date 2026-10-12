@@ -7,7 +7,7 @@ export function OpenSource() {
       <div className="max-w-7xl mx-auto rounded-2xl border border-gray-200 p-8 sm:p-12 space-y-4">
         <p className="text-sm font-medium tracking-wide">Community</p>
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
-          Open source, community-owned
+          Open source, built with our community
         </h2>
         <p className="text-base sm:text-md leading-relaxed">
           MentorMates is open source under the{" "}
