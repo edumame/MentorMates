@@ -747,7 +747,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             }}
             className="flex flex-col flex-1 min-h-0 w-full min-w-0"
           >
-            <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-[24px] flex-shrink-0 border-b border-[#d2d7e7]">
+            {/* Parent must not set overflow-x-hidden — it blocks iOS scroll on .scroll-x-tabs. */}
+            <div className="w-full min-w-0 -mx-4 sm:-mx-6 lg:-mx-10 mb-[24px] flex-shrink-0 border-b border-[#d2d7e7]">
               <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
                 <TabsList className="flex h-auto gap-4 sm:gap-6 items-center p-0 justify-start bg-transparent rounded-none flex-nowrap w-max border-0 shadow-none">
                 {mainTabs.map((tab) =>
@@ -800,7 +801,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             </div>
 
             {tabsValue === "access" && event && (
-              <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-0 flex-shrink-0">
+              <div className="w-full min-w-0 -mx-4 sm:-mx-6 lg:-mx-10 mb-0 flex-shrink-0">
                 <Tabs
                   value={accessSubTab}
                   onValueChange={(v) => setActiveSubTab(v)}
@@ -910,7 +911,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       value={activeSubTab}
                       onValueChange={(value) => setActiveSubTab(value)}
                     >
-                      <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
+                      <div className="w-full min-w-0 -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
                         <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
                           <TabsList className="flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap w-max">
                           {overviewSubTabs.map((subTab) => (
@@ -1122,7 +1123,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     onValueChange={(v) => setActiveSubTab(v)}
                     className="w-full min-w-0"
                   >
-                    <div className="w-full min-w-0 overflow-x-hidden -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
+                    <div className="w-full min-w-0 -mx-4 sm:-mx-6 lg:-mx-10 mb-6 flex-shrink-0">
                       <div className="scroll-x-tabs no-scrollbar px-4 sm:px-6 lg:px-10">
                         <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none w-max flex-nowrap">
                         <TabsTrigger
