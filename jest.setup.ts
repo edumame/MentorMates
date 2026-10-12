@@ -14,8 +14,12 @@ jest.mock("next/link", () => ({
   default: ({
     href,
     children,
+    prefetch: _prefetch,
     ...rest
-  }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    href?: string;
+    prefetch?: boolean;
+  }) =>
     React.createElement(
       "a",
       { href: href?.toString(), ...rest },

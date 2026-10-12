@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
-import { useSortable } from "@dnd-kit/react/sortable";
+import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import {
   Copy,
   GripVertical,
@@ -11,8 +11,20 @@ import {
   X,
   FileText,
   ListChecks,
+  ShieldCheck,
 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,11 +38,19 @@ import type {
   IntakeFormField,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { createMLHComplianceTemplate } from "@/features/intake-forms/templates/mlhCompliance";
 
 type IntakeFormBuilderProps = {
   eventId: string;
   context?: IntakeFormContext;
   className?: string;
+};
+
+const CONTEXT_BADGE_LABELS: Record<IntakeFormContext, string> = {
+  registration: "Registration intake",
+  project_submission: "Project submission intake",
+  rsvp: "RSVP form",
+  post_survey: "Post-event survey",
 };
 
 type LastPublishedState = {
@@ -528,20 +548,28 @@ export function IntakeFormBuilder({
   > = (event) => {
     if (event.canceled) return;
 
-    const sourceId = event.operation.source?.id;
-    const targetId = event.operation.target?.id;
+    // dnd-kit's optimistic sorting live-reorders items during the drag, so at
+    // drag end the source's own (initialIndex -> index) describe the move; the
+    // drop target usually resolves to the source itself and must not be used.
+    const { source } = event.operation;
+    if (!source || !isSortable(source)) return;
 
-    if (!sourceId || !targetId || sourceId === targetId) return;
+    const { initialIndex, index } = source.sortable;
+    if (initialIndex === index) return;
 
     setSchema((current) => {
-      const fromIndex = current.fields.findIndex((field) => field.id === sourceId);
-      const toIndex = current.fields.findIndex((field) => field.id === targetId);
-
-      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return current;
+      if (
+        initialIndex < 0 ||
+        index < 0 ||
+        initialIndex >= current.fields.length ||
+        index >= current.fields.length
+      ) {
+        return current;
+      }
 
       return {
         ...current,
-        fields: arrayMove(current.fields, fromIndex, toIndex),
+        fields: arrayMove(current.fields, initialIndex, index),
       };
     });
   };
@@ -604,6 +632,12 @@ export function IntakeFormBuilder({
     }
   }
 
+  function applyMLHTemplate() {
+    const template = createMLHComplianceTemplate();
+    setSchema(template);
+    setSelectedFieldId(template.fields[0]?.id ?? null);
+  }
+
   async function deleteQuestionnaire() {
     const confirmed = window.confirm(
       "Delete this questionnaire for this context? This will unpublish/archive it and participants will no longer see it."
@@ -664,7 +698,7 @@ export function IntakeFormBuilder({
             />
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <span className="rounded-full bg-black/5 px-3 py-1 text-xs text-black/70">
-                {context === "registration" ? "Registration intake" : "Project submission intake"}
+                {CONTEXT_BADGE_LABELS[context]}
               </span>
               <span className="rounded-full bg-[#4B89EF]/10 px-3 py-1 text-xs text-[#2459ad]">
                 {lastPublished
@@ -673,6 +707,36 @@ export function IntakeFormBuilder({
                     ).toLocaleString()}`
                   : "Last published: never"}
               </span>
+              {/* MLH template only applies to registration forms */}
+              {context === "registration" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 px-3"
+                      disabled={isSaving || isPublishing || isDeleting || isLoading}
+                    >
+                      <ShieldCheck className="mr-1.5 h-4 w-4" />
+                      Apply MLH Template
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Apply MLH Compliance Template?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will replace the current form title, description, and all questions with the MLH-required registration fields. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={applyMLHTemplate}>
+                        Apply template
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button
                 type="button"
                 variant="destructive"

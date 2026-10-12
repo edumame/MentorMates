@@ -38,7 +38,7 @@ describe("judge dashboard utils", () => {
       expect(result).toBe(false);
     });
 
-    it("returns true for projects without tracks", () => {
+    it("returns false for projects without tracks so assigned projects stay visible", () => {
       const scoredProjects = new Map<string, Set<string>>();
 
       const result = isProjectFullyScored(
@@ -49,7 +49,7 @@ describe("judge dashboard utils", () => {
         scoredProjects
       );
 
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
   });
 

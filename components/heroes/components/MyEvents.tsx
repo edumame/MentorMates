@@ -22,6 +22,7 @@ type APIEvent = {
   user_event_roles?: { role: number }[];
   visibility?: EventVisibility | null;
   approval_status?: ApprovalStatus | null;
+  event_type?: string[] | [];
 };
 
 type UIEvent = {
@@ -37,6 +38,7 @@ type UIEvent = {
   roleLabel?: string;
   visibility?: EventVisibility;
   approvalStatus?: ApprovalStatus;
+  event_type?: string[];
 };
 
 function toEventItem(event: UIEvent): EventItem {
@@ -50,6 +52,7 @@ function toEventItem(event: UIEvent): EventItem {
     slug: event.slug,
     event_blurb: event.blurb,
     event_description: event.description,
+    event_type: event.event_type,
   };
 }
 
@@ -115,6 +118,7 @@ export function MyEvents() {
             roleLabel,
             visibility: e.visibility as EventVisibility,
             approvalStatus: e.approval_status as ApprovalStatus,
+            event_type: e.event_type ?? [],
           };
         });
 

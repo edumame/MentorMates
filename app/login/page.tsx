@@ -9,6 +9,7 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TESTIMONIALS } from "@/lib/constants/testimonials";
 import Link from "next/link";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 const supabase = createClient();
 
@@ -201,6 +202,7 @@ function LoginContent({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const { consumeReturnUrl } = useRedirect();
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
   const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
@@ -219,16 +221,12 @@ function LoginContent({
         error: sErr,
       } = await supabase.auth.getSession();
       if (sErr) console.error(sErr);
-      if (session) router.push("/login");
+      if (session) {
+        router.push(consumeReturnUrl(searchParams.get("returnUrl"), "/"));
+      }
     };
     check();
-  }, [router]);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.push("/");
-    });
-  }, [router]);
+  }, [consumeReturnUrl, router, searchParams]);
 
 
   // i thinnk this is causing the sign up issue; it only syncs on the home page, so 
@@ -253,12 +251,7 @@ function LoginContent({
     e.preventDefault();
     setLoading(true);
     setError("");
-    const returnUrl = localStorage.getItem("returnUrl");
-    if (returnUrl) {
-      localStorage.removeItem("returnUrl");
-    }
-    const cleanReturnUrl =
-      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
+    const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
 
     const networkErrorMessage =
       "Cannot reach Supabase. Check: 1) Supabase project not paused (Dashboard → Restore). 2) .env.local has NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. 3) Restart dev server after changing env.";
@@ -275,7 +268,7 @@ function LoginContent({
           email,
           password,
           options: {
-            emailRedirectTo: `${cleanBaseUrl}/${cleanReturnUrl || ""}`,
+            emailRedirectTo: `${cleanBaseUrl}${redirectTarget}`,
           },
         });
 
@@ -324,7 +317,7 @@ function LoginContent({
             return;
           }
         }
-        router.push(`${cleanBaseUrl}/${cleanReturnUrl || ""}`);
+        router.push(redirectTarget);
       } catch (err) {
         setError(
           String(err).includes("fetch") || err instanceof TypeError
@@ -356,14 +349,13 @@ function LoginContent({
 
   const handleOAuthSignIn = async (provider: "google" | "github") => {
     setLoading(true);
-    const returnUrl = localStorage.getItem("returnUrl");
-    if (returnUrl) localStorage.removeItem("returnUrl");
-    const cleanReturnUrl =
-      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
+    const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${cleanBaseUrl}/auth/callback?returnUrl=${cleanReturnUrl || ""}`,
+        redirectTo: `${cleanBaseUrl}/auth/callback?returnUrl=${encodeURIComponent(
+          redirectTarget
+        )}`,
       },
     });
     if (error) {

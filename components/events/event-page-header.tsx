@@ -1,8 +1,10 @@
 "use client";
 
-import { CalendarDays, MapPin, ArrowUpRight, Plus } from "lucide-react";
+import { CalendarDays, MapPin, ArrowUpRight, Plus, Pencil } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { JoinEventButton } from "./join-event-button";
+import { RsvpButton } from "@/features/events/rsvp/RsvpButton";
+import { PostSurveyButton } from "@/features/events/post-survey/PostSurveyButton";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { parseEventDateLocal } from "@/lib/utils/date";
@@ -23,6 +25,7 @@ interface EventPageHeaderProps {
    */
   activeRole?: EventRole | null;
   onManageEventClick?: () => void;
+  onEditEventClick?: () => void;
   paid: boolean;
   eventType: string[];
   containerClassName?: string;
@@ -39,6 +42,7 @@ export function EventPageHeader({
   userRole,
   activeRole,
   onManageEventClick,
+  onEditEventClick,
   paid,
   eventType,
   containerClassName,
@@ -58,8 +62,7 @@ export function EventPageHeader({
   })();
   return (
     <div
-      className="bg-white flex flex-col w-full"
-      style={{ maxWidth: "100vw" }}
+      className="bg-white flex min-w-0 max-w-full flex-col w-full overflow-x-clip"
     >
       {/* Cover Image */}
       <div className="h-[200px] sm:h-[224px] w-full relative overflow-hidden">
@@ -172,17 +175,40 @@ export function EventPageHeader({
                     })()}
                   </div>
 
-                  {/* Manage Event Button */}
+                  {/* RSVP and post-event survey (only for joined users, when
+                      the corresponding form is published) */}
+                  {hasJoined && (
+                    <div className="w-full space-y-2">
+                      <RsvpButton eventId={eventId} />
+                      <PostSurveyButton eventId={eventId} />
+                    </div>
+                  )}
+
+                  {/* Manage / Edit Event Buttons (organizer + admin) */}
                   {(userRole === "organizer" || userRole === "admin") && (
-                    <button
-                      onClick={onManageEventClick}
-                      className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] w-full"
-                    >
-                      <ArrowUpRight className="w-6 h-6 text-black" />
-                      <p className="font-medium text-sm sm:text-base leading-[1.5] text-black whitespace-pre md:text-nowrap">
-                        Manage event
-                      </p>
-                    </button>
+                    <div className="flex gap-2 w-full">
+                      <button
+                        onClick={onManageEventClick}
+                        className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex-1"
+                      >
+                        <ArrowUpRight className="w-6 h-6 text-black" />
+                        <p className="font-medium text-sm sm:text-base leading-[1.5] text-black whitespace-pre md:text-nowrap">
+                          Manage event
+                        </p>
+                      </button>
+                      {onEditEventClick && (
+                        <button
+                          onClick={onEditEventClick}
+                          aria-label="Edit event"
+                          className="bg-[#4b89ef] hover:bg-[#3d75d9] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex-1"
+                        >
+                          <Pencil className="w-5 h-5 text-white" />
+                          <p className="font-medium text-sm sm:text-base leading-[1.5] text-white whitespace-pre md:text-nowrap">
+                            Edit event
+                          </p>
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
