@@ -14,6 +14,7 @@ export const NewAgentDialog = ({ open, onOpenChange, eventId } : NewAgentDialogP
             description="Create a new agent"
             open={open}
             onOpenChange={onOpenChange}
+            contentClassName="sm:max-w-6xl"
         >
             <AgentForm eventId={eventId} onSuccess={() => onOpenChange(false)} onCancel={() => onOpenChange(false)} />
         </ResponsiveDialog>

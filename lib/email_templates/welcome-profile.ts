@@ -1,3 +1,9 @@
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]!);
+}
+
 interface WelcomeProfileEmailTemplate {
   subject: string;
   html: string;
@@ -7,7 +13,8 @@ export function getWelcomeProfileEmailTemplate(
   displayName: string,
   profileUrl: string
 ): WelcomeProfileEmailTemplate {
-  const safeName = displayName?.trim() || "there";
+  const safeName = escapeHtml(displayName?.trim() || "there");
+  const safeProfileUrl = escapeHtml(profileUrl);
 
   return {
     subject: "Welcome to MentorMates — complete your profile",
@@ -21,7 +28,7 @@ export function getWelcomeProfileEmailTemplate(
 
         <div style="margin: 24px 0;">
           <a
-            href="${profileUrl}"
+            href="${safeProfileUrl}"
             style="
               display: inline-block;
               background-color: #2563eb;
@@ -40,7 +47,7 @@ export function getWelcomeProfileEmailTemplate(
         <p style="font-size: 14px; line-height: 1.6; color: #6b7280; margin-bottom: 16px;">
           If the button doesn’t work, copy and paste this link into your browser:
           <br />
-          <a href="${profileUrl}" style="color: #2563eb; text-decoration: underline;">${profileUrl}</a>
+          <a href="${safeProfileUrl}" style="color: #2563eb; text-decoration: underline;">${safeProfileUrl}</a>
         </p>
 
         <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">

@@ -5,6 +5,7 @@ import { Loader, Trophy, Users, Vote, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface VotingResultsPanelProps {
   eventId: string;
@@ -38,7 +39,7 @@ export function VotingResultsPanel({ eventId }: VotingResultsPanelProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader className="h-12 w-12 animate-spin text-purple-400" />
+        <Loader className="h-12 w-12 animate-spin text-[#4B89EF]" />
       </div>
     );
   }
@@ -62,8 +63,10 @@ export function VotingResultsPanel({ eventId }: VotingResultsPanelProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Voting Results</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+            Voting Results
+          </h2>
+          <p className="text-black/70 mt-1">
             Real-time voting results for this event
           </p>
         </div>
@@ -81,36 +84,36 @@ export function VotingResultsPanel({ eventId }: VotingResultsPanelProps) {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4">
+        <Card className="p-4 border-[rgba(0,0,0,0.15)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Vote className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-[#eaf2ff] rounded-lg">
+              <Vote className="w-5 h-5 text-[#4B89EF]" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Votes</p>
-              <p className="text-2xl font-bold text-gray-900">{totalVotes}</p>
+              <p className="text-sm text-black/60">Total Votes</p>
+              <p className="text-2xl font-bold text-black">{totalVotes}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-4 border-[rgba(0,0,0,0.15)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-[#eef6ff] rounded-lg">
+              <Users className="w-5 h-5 text-[#356fce]" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Voters</p>
-              <p className="text-2xl font-bold text-gray-900">{totalVoters}</p>
+              <p className="text-sm text-black/60">Total Voters</p>
+              <p className="text-2xl font-bold text-black">{totalVoters}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-4 border-[rgba(0,0,0,0.15)]">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-amber-100 rounded-lg">
               <Trophy className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Projects Voted</p>
-              <p className="text-2xl font-bold text-gray-900">{results.length}</p>
+              <p className="text-sm text-black/60">Projects Voted</p>
+              <p className="text-2xl font-bold text-black">{results.length}</p>
             </div>
           </div>
         </Card>
@@ -129,10 +132,10 @@ export function VotingResultsPanel({ eventId }: VotingResultsPanelProps) {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-12 border border-dashed border-gray-200 rounded-xl">
-          <Vote className="w-12 h-12 text-gray-300 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-700">No votes yet</h3>
-          <p className="text-gray-500 mt-1">
+        <div className="flex flex-col items-center justify-center py-12 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px]">
+          <Vote className="w-12 h-12 text-black/30 mb-4" />
+          <h3 className="text-lg font-semibold text-black/75">No votes yet</h3>
+          <p className="text-black/55 mt-1">
             Votes will appear here as participants vote for projects.
           </p>
         </div>
@@ -153,7 +156,7 @@ function ResultRow({
   const percentage = maxVotes > 0 ? (result.voteCount / maxVotes) * 100 : 0;
 
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow">
+    <Card className="p-4 border-[rgba(0,0,0,0.15)] hover:shadow-md transition-shadow">
       <div className="flex items-center gap-4">
         {/* Rank Badge */}
         <div
@@ -176,8 +179,8 @@ function ResultRow({
 
         {/* Project Image */}
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-          <img
-            src={result.coverImageUrl || "/img/placeholder.png"}
+          <CoverImageWithFallback
+            src={result.coverImageUrl}
             alt={result.projectName}
             className="w-full h-full object-cover"
           />
@@ -187,7 +190,7 @@ function ResultRow({
         <div className="flex-1 min-w-0">
           <Link
             href={`/projects/public/${result.projectId}`}
-            className="font-semibold text-gray-900 hover:text-purple-600 transition-colors truncate block"
+            className="font-semibold text-black hover:text-[#4B89EF] transition-colors truncate block"
           >
             {result.projectName}
           </Link>
@@ -198,7 +201,7 @@ function ResultRow({
         <div className="hidden sm:block flex-1 max-w-[200px]">
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-purple-600 rounded-full transition-all duration-500"
+              className="h-full bg-[#4B89EF] rounded-full transition-all duration-500"
               style={{ width: `${percentage}%` }}
             />
           </div>

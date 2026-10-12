@@ -5,7 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 Essential commands for development:
-- `npm run dev` - Start development server on localhost:3000
+- `npm run dev` - Start development server on localhost:3000 (run from repo root; `package.json` is in `MentorMates/`)
+
+### Local login (bypass Google OAuth)
+
+Google OAuth is not required for local development. Use **email/password** on the login page:
+
+1. Open **http://localhost:3000/login**
+2. Use **Sign In** (or **Sign Up** if you don’t have an account).
+3. Enter any email and password (e.g. `dev@local.test` / `password123`).
+4. Sign up creates the user in Supabase; sign in then redirects into the app.
+
+Ensure `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` pointing to your Supabase project (local or hosted). Email confirmation is disabled in Supabase config, so sign-up works immediately.
 - `npm run build` - Build production version
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint checks
@@ -105,6 +116,20 @@ app/
 
 ## Development Guidelines
 
+## Project Detail Route Parity (Required)
+
+Keep these two routes synced for shared behavior and UI:
+- `app/projects/[id]/page.tsx` (private/authenticated view)
+- `app/projects/public/[id]/page.tsx` (public view)
+
+UI parity is required: core project-detail layout, section order, copy, and visual hierarchy must stay aligned across both routes.
+- Private-only controls (edit/delete/team management) can differ, but non-sensitive presentation UI should match.
+- If you change project-detail logic in one route, update the other in the same PR unless the difference is intentionally role/privacy-specific.
+- Prefer extracting shared code into common `features/projects` or `lib` modules to prevent drift.
+- Prefer shared presentational components for project-detail sections to enforce consistent UI.
+- Add or update tests that cover both routes whenever shared behavior changes.
+- If a difference is intentional, leave a short code comment explaining the reason and include it in the PR notes.
+
 **File Naming:**
 - Components use PascalCase: `AuthProvider.tsx`
 - Pages use kebab-case: `page.tsx`
@@ -134,6 +159,42 @@ app/
 - Development includes Stagewise toolbar for debugging
 - Database setup via `npm run setup-db` command
 
+## MLH Compliance Registration Forms
+
+Hackathons affiliated with Major League Hacking (MLH) must collect specific fields. Use the one-click template via the **Apply MLH Template** button in the intake form builder, or call `createMLHComplianceTemplate()` from `features/intake-forms/templates/mlhCompliance.ts`.
+
+Reference: https://guide.mlh.io/general-information/managing-registrations/registrations
+
+### Required fields
+
+| Field | Type | Notes |
+|---|---|---|
+| First Name | Short text | |
+| Last Name | Short text | |
+| Age | Single select | Dropdown only — do **not** use date of birth |
+| Phone Number | Short text | |
+| Email | Email | |
+| School | Short text | Should match MLH verified schools list |
+| Level of Study | Single select | Use exact MLH-specified option strings (see template) |
+| Country of Residence | Single select | ISO 3166 country names (see template) |
+| LinkedIn URL | Short text | Optional field — display but do not require |
+
+### Mandatory MLH compliance checkboxes
+
+All three must appear on every MLH-affiliated registration form. The first two are required; the third must be displayed but may be left unchecked.
+
+1. **Code of Conduct** *(required)* — "I have read and agree to the MLH Code of Conduct. (https://github.com/MLH/mlh-policies/blob/main/code-of-conduct.md)"
+2. **Data sharing** *(required)* — "I authorize you to share my application/registration information with Major League Hacking for event administration, ranking, and MLH administration in-line with the MLH Privacy Policy (https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md). I further agree to the terms of both the MLH Contest Terms and Conditions (https://github.com/MLH/mlh-policies/blob/main/contest-terms.md) and the MLH Privacy Policy (https://github.com/MLH/mlh-policies/blob/main/privacy-policy.md)."
+3. **Email opt-in** *(optional — display only)* — "I authorize MLH to send me occasional emails about relevant events, career opportunities, and community announcements."
+
+### Pre-membership disclaimer
+
+Before official MLH membership is confirmed, add this disclaimer to the form description:
+
+> "We are currently in the process of partnering with MLH. The following 3 checkboxes are for this partnership. If we do not end up partnering with MLH, your information will not be shared."
+
+Remove it once you have moved into the official MLH Membership Stage. The disclaimer text is exported as `MLH_PRE_MEMBERSHIP_DISCLAIMER` from `features/intake-forms/templates/mlhCompliance.ts` for reference.
+
 ## Branching and Pull Requests
 
 - **Always use Pull Requests (PRs).** Do not push directly to main.
@@ -141,9 +202,85 @@ app/
   - Examples: `chinat/fix-feedback-modal`, `cursor/mentor-agent-scoring`
   - Avoid generic names like `frontend`, `dev`, `fix`
 
+## Plan File Naming
+
+When creating plan files for Claude Code sessions, use descriptive names that reflect the task:
+- Use kebab-case: `fix-auth-redirect-bug.md`, `add-mentor-dashboard-feature.md`
+- Include the feature or area being worked on
+- Avoid generic names like `plan.md` or random word combinations
+- Examples:
+  - `refactor-project-submission-form.md`
+  - `update-email-templates.md`
+  - `fix-qr-scanner-permissions.md`
+
 ## Pre-PR Checklist
 
 Before creating a pull request, always:
 1. Remove all console.log() statements added during development (console.error for error handling is acceptable)
 2. Run `npm run build` to ensure the project builds successfully
 3. Run `npm run lint` to check for linting errors
+
+## Interactive Review Prompt
+
+Review this plan thoroughly before making any code changes. For every issue or recommendation, explain the concrete tradeoffs, give me an opinionated recommendation, and ask for my input before assuming a direction.
+
+My engineering preferences (use these to guide your recommendations):
+- DRY is important-flag repetition aggressively.
+- Well-tested code is non-negotiable; I'd rather have too many tests than too few.
+- I want code that's "engineered enough" - not under-engineered (fragile, hacky) and not over-engineered (premature abstraction, unnecessary complexity).
+- Ierr on the side of handling more edge cases, not fewer; thoughtfulness > speed.
+- Bias toward explicit over clever.
+
+1. Architecture review
+Evaluate:
+- Overall system design and component boundaries.
+- Dependency graph and coupling concerns.
+- Data flow patterns and potential bottlenecks.
+- Scaling characteristics and single points of failure.
+- Security architecture (auth, data access, API boundaries).
+
+2. Code quality review
+Evaluate:
+- Code organization and module structure.
+- DRY violations-be aggressive here.
+- Error handling patterns and missing edge cases (call these out explicitly).
+- Technical debt hotspots.
+- Areas that are over-engineered or under-engineered relative to my preferences.
+
+3. Test review
+Evaluate:
+- Test coverage gaps (unit, integration, e2e).
+- Test quality and assertion strength.
+- Missing edge case coverage-be thorough.
+- Untested failure modes and error paths.
+
+4. Performance review
+Evaluate:
+- N+1 queries and database access patterns.
+- Memory-usage concerns.
+- Caching opportunities.
+- Slow or high-complexity code paths.
+
+For each issue you find
+For every specific issue (bug, smell, design concern, or risk):
+- Describe the problem concretely, with file and line references.
+- Present 2-3 options, including "do nothing" where that's reasonable.
+- For each option, specify: implementation effort, risk, impact on other code, and maintenance burden.
+- Give me your recommended option and why, mapped to my preferences above.
+- Then explicitly ask whether I agree or want to choose a different direction before proceeding.
+
+Workflow and interaction
+- Do not assume my priorities on timeline or scale.
+- After each section, pause and ask for my feedback before moving on.
+
+BEFORE YOU START: Ask if I want one of two options:
+1. BIG CHANGE: Work through this interactively, one section at a time (Architecture -> Code Quality -> Tests -> Performance) with at most 4 top issues in each section.
+2. SMALL CHANGE: Work through interactively ONE question per review section.
+
+FOR EACH STAGE OF REVIEW:
+- Output the explanation and pros and cons of each stage's questions.
+- Output your opinionated recommendation and why.
+- Then use AskUserQuestion.
+- Number issues, then use letters for options.
+- When using AskUserQuestion, make sure each option clearly labels the issue number and option letter so the user doesn't get confused.
+- Make the recommended option always the 1st option.

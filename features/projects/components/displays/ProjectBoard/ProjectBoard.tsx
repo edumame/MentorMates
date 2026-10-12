@@ -33,6 +33,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import QRCode from "react-qr-code";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 export interface ProjectBoardProps {
   isLoading: boolean;
@@ -68,7 +69,7 @@ const ProjectBoard = ({
           className="mx-auto w-full"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -81,10 +82,10 @@ const ProjectBoard = ({
                   <Link
                     href={projectUrl}
                     key={project.id}
-                    className="block group"
+                    className="block group w-full max-w-[420px] mx-auto sm:mx-0"
                   >
                     <Card
-                      className={`bg-white rounded-2xl overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
+                      className={`bg-white rounded-[12px] overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
                         project.prizes_won && project.prizes_won.length > 0
                           ? "ring-2 ring-yellow-400"
                           : ""
@@ -104,20 +105,18 @@ const ProjectBoard = ({
                         </div>
                       )}
 
-                      {/* Thumbnail Section */}
-                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 overflow-hidden">
-                        <img
-                          src={
-                            project.cover_image_url || "/img/placeholder.png"
-                          }
+                      {/* Thumbnail Section - same aspect as event card (335/223) */}
+                      <div className="relative w-full aspect-[335/223] bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 overflow-hidden">
+                        <CoverImageWithFallback
+                          src={project.cover_image_url}
                           alt={`${project.project_name || "Project"} thumbnail`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                           decoding="async"
                         />
                         {!project.cover_image_url && (
-                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-blue-400/80 via-purple-400/80 to-pink-400/80">
-                            <h3 className="text-white text-xl font-semibold text-center break-words drop-shadow-lg">
+                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/25">
+                            <h3 className="text-white text-xl font-semibold text-center break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
                               {project.project_name || "Project"}
                             </h3>
                           </div>
@@ -126,7 +125,7 @@ const ProjectBoard = ({
                         {/* Status Badges - Overlay on Image */}
                         <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
                           <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
-                            <Sparkles className="w-3 h-3" />
+                            {project.submitted ? <Sparkles className="w-3 h-3" /> : <Loader className="w-3 h-3 animate-spin" />}
                             {project.submitted ? "Submitted" : "Draft"}
                           </div>
                           {isOwner && (
@@ -138,8 +137,8 @@ const ProjectBoard = ({
                         </div>
                       </div>
 
-                      {/* Content Section */}
-                      <div className="p-5 flex-1 flex flex-col bg-white">
+                      {/* Content Section - padding aligned with event card */}
+                      <div className="px-6 py-4 flex-1 flex flex-col bg-white">
                         {/* Project Title */}
                         <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2 line-clamp-2">
                           {project.project_name || "Project"}

@@ -1,12 +1,10 @@
-"use client";
-
 import Image from "next/image";
 import { TESTIMONIALS } from "@/lib/constants/testimonials";
 
 export function Customer() {
   return (
     <section className="w-full bg-white py-12 sm:py-16 lg:py-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10">
+      <div className="mx-auto w-full max-w-host px-6 md:px-16">
         {/* Header */}
         <header className="mb-10">
           <h2 className="text-3xl md:text-5xl font-semibold text-black font-geist tracking-[-0.06em]">

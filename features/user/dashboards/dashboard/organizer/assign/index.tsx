@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +21,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Shuffle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Trash2,
+  Plus,
+  Shuffle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+} from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import {
+  buildJudgeProjectPairs,
+  getAssignableTracks,
+} from "./batch-assignments";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -41,6 +55,13 @@ interface Project {
   id: string;
   project_name: string;
   lead_name: string;
+  tracks?: ProjectTrack[];
+}
+
+interface ProjectTrack {
+  track_id: string;
+  name?: string | null;
+  label?: string | null;
 }
 
 interface User {
@@ -63,6 +84,9 @@ interface AssignTabProps {
   eventId: string;
 }
 
+type SortField = "project_name" | "lead_name" | "judges" | "mentors" | "total";
+type SortDirection = "asc" | "desc";
+
 export function AssignTab({ eventId }: AssignTabProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -72,14 +96,159 @@ export function AssignTab({ eventId }: AssignTabProps) {
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [judgesPerProject, setJudgesPerProject] = useState<number>(3);
   const [mentorsPerProject, setMentorsPerProject] = useState<number>(1);
+  const [includeOrganizers, setIncludeOrganizers] = useState<boolean>(false);
+  const [showName, setShowName] = useState<boolean>(false);
+  const [sortField, setSortField] = useState<SortField>("project_name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [batchAssigning, setBatchAssigning] = useState<boolean>(false);
+  const [selectedTrackId, setSelectedTrackId] = useState<string>("");
+  const [trackAssigning, setTrackAssigning] = useState<boolean>(false);
   const { toast } = useToast();
 
-  // Fetch all data
-  useEffect(() => {
-    fetchData();
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4 ml-1" />
+    ) : (
+      <ArrowDown className="h-4 w-4 ml-1" />
+    );
+  };
+
+  const getProjectAssignmentCounts = (projectId: string) => {
+    const judgeCount = assignments.filter(
+      (a) => a.project_id === projectId && a.role === EventRole.Judge
+    ).length;
+    const mentorCount = assignments.filter(
+      (a) => a.project_id === projectId && a.role === EventRole.Mentor
+    ).length;
+    return { judgeCount, mentorCount, total: judgeCount + mentorCount };
+  };
+
+  const sortedProjects = [...projects].sort((a, b) => {
+    const countsA = getProjectAssignmentCounts(a.id);
+    const countsB = getProjectAssignmentCounts(b.id);
+
+    let comparison = 0;
+    switch (sortField) {
+      case "project_name":
+        comparison = a.project_name.localeCompare(b.project_name);
+        break;
+      case "lead_name":
+        comparison = a.lead_name.localeCompare(b.lead_name);
+        break;
+      case "judges":
+        comparison = countsA.judgeCount - countsB.judgeCount;
+        break;
+      case "mentors":
+        comparison = countsA.mentorCount - countsB.mentorCount;
+        break;
+      case "total":
+        comparison = countsA.total - countsB.total;
+        break;
+    }
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+  const assignableTracks = getAssignableTracks(projects);
+  const selectedTrack = assignableTracks.find(
+    (track) => track.track_id === selectedTrackId
+  );
+
+  const fetchUsers = useCallback(async () => {
+    const response = await fetch(
+      `/api/events/${eventId}/users?roles=${EventRole.Judge},${EventRole.Mentor},${EventRole.Organizer}&limit=500`
+    );
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Failed to fetch users");
+    }
+
+    const users: User[] = (payload.users || []).map(
+      (user: {
+        user_id: string;
+        role: EventRole;
+        display_name: string;
+        email: string;
+      }) => ({
+        user_id: user.user_id,
+        display_name:
+          user.display_name || user.email?.split("@")[0] || "Unknown User",
+        email: user.email || "",
+        role: user.role,
+      })
+    );
+    
+    if (includeOrganizers) {
+      // Include organizers in both judges and mentors pools
+      setJudges(users.filter((u) => u.role === EventRole.Judge || u.role === EventRole.Organizer));
+      setMentors(users.filter((u) => u.role === EventRole.Mentor || u.role === EventRole.Organizer));
+    } else {
+      // Exclude organizers
+      setJudges(users.filter((u) => u.role === EventRole.Judge));
+      setMentors(users.filter((u) => u.role === EventRole.Mentor));
+    }
+  }, [eventId, includeOrganizers]);
+
+  const fetchProjects = useCallback(async () => {
+    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
+    if (!response.ok) throw new Error("Failed to fetch projects");
+    const data = await response.json();
+    
+    // Transform the projects to extract tracks from project_tracks
+    const transformedProjects = (data.projects || []).map((project: {
+      id: string;
+      project_name: string;
+      lead_name: string;
+      project_tracks?: Array<{
+        track_id: string;
+        event_tracks?: {
+          track_id: string;
+          name: string | null;
+          label: string | null;
+        };
+      }>;
+      [key: string]: unknown;
+    }) => ({
+      ...project,
+      tracks: project.project_tracks
+        ?.map((pt): ProjectTrack | null => pt.event_tracks ? {
+          track_id: pt.event_tracks.track_id,
+          name: pt.event_tracks.name,
+          label: pt.event_tracks.label,
+        } : null)
+        .filter((track): track is ProjectTrack => track !== null) || [],
+    }));
+    
+    setProjects(transformedProjects);
   }, [eventId]);
 
-  const fetchData = async () => {
+  const fetchAssignments = useCallback(async () => {
+    const response = await fetch(`/api/events/${eventId}/project-assignments`);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Failed to fetch assignments");
+    }
+
+    setAssignments(payload.assignments || []);
+  }, [eventId]);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       await Promise.all([fetchProjects(), fetchUsers(), fetchAssignments()]);
@@ -93,113 +262,54 @@ export function AssignTab({ eventId }: AssignTabProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchProjects, fetchUsers, fetchAssignments, toast]);
 
-  const fetchProjects = async () => {
-    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
-    if (!response.ok) throw new Error("Failed to fetch projects");
-    const data = await response.json();
-    setProjects(data.projects || []);
-  };
+  // Fetch all data
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const fetchUsers = async () => {
-    // Using supabase directly since there's no API endpoint for users by role
-    const { data: userRoles, error } = await supabase
-      .from("user_event_roles")
-      .select(
-        `
-        user_id,
-        role,
-        user_profiles:user_id (
-          display_name,
-          email
-        )
-      `
-      )
-      .eq("event_id", eventId)
-      .in("role", [EventRole.Judge, EventRole.Mentor]);
-
-    if (error) throw error;
-
-    const users: User[] = (userRoles || []).map((ur) => {
-      const profile = Array.isArray(ur.user_profiles)
-        ? ur.user_profiles[0]
-        : ur.user_profiles;
-      return {
-        user_id: ur.user_id,
-        display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
-        email: profile?.email || "",
-        role: ur.role as EventRole,
-      };
-    });
-
-    setJudges(users.filter((u) => u.role === EventRole.Judge));
-    setMentors(users.filter((u) => u.role === EventRole.Mentor));
-  };
-
-  const fetchAssignments = async () => {
-    // First get all project assignments for projects in this event
-    const { data: projectsInEvent } = await supabase
-      .from("projects")
-      .select("id")
-      .eq("event_id", eventId);
-
-    if (!projectsInEvent || projectsInEvent.length === 0) {
-      setAssignments([]);
-      return;
+  // Refetch users when includeOrganizers changes
+  useEffect(() => {
+    if (!loading) {
+      fetchUsers();
     }
+  }, [includeOrganizers, loading, fetchUsers]);
 
-    const projectIds = projectsInEvent.map((p) => p.id);
-
-    const { data: assignmentData, error } = await supabase
-      .from("project_assignments")
-      .select(
-        `
-        id,
-        project_id,
-        user_id,
-        role,
-        projects:project_id (
-          id,
-          project_name,
-          lead_name
-        ),
-        user_profiles:user_id (
-          display_name,
-          email
+  useEffect(() => {
+    setSelectedProjectIds((previousSelection) => {
+      const currentProjectIds = new Set(projects.map((project) => project.id));
+      const validSelection = new Set(
+        [...previousSelection].filter((projectId) =>
+          currentProjectIds.has(projectId)
         )
-      `
-      )
-      .in("project_id", projectIds);
-
-    if (error) throw error;
-
-    const assignments: Assignment[] = (assignmentData || []).map((a) => {
-      const project = Array.isArray(a.projects) ? a.projects[0] : a.projects;
-      const profile = Array.isArray(a.user_profiles)
-        ? a.user_profiles[0]
-        : a.user_profiles;
-      return {
-        id: a.id,
-        project_id: a.project_id,
-        user_id: a.user_id,
-        role: a.role as EventRole,
-        project: {
-          id: project?.id || a.project_id,
-          project_name: project?.project_name || "Unknown Project",
-          lead_name: project?.lead_name || "Unknown Lead",
-        },
-        user: {
-          user_id: a.user_id,
-          display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
-          email: profile?.email || "",
-          role: a.role as EventRole,
-        },
-      };
+      );
+      return validSelection.size === previousSelection.size
+        ? previousSelection
+        : validSelection;
     });
+  }, [projects]);
 
-    setAssignments(assignments);
-  };
+  useEffect(() => {
+    setSelectedJudgeIds((previousSelection) => {
+      const currentJudgeIds = new Set(judges.map((judge) => judge.user_id));
+      const validSelection = new Set(
+        [...previousSelection].filter((judgeId) => currentJudgeIds.has(judgeId))
+      );
+      return validSelection.size === previousSelection.size
+        ? previousSelection
+        : validSelection;
+    });
+  }, [judges]);
+
+  useEffect(() => {
+    if (
+      selectedTrackId &&
+      !assignableTracks.some((track) => track.track_id === selectedTrackId)
+    ) {
+      setSelectedTrackId("");
+    }
+  }, [assignableTracks, selectedTrackId]);
 
   const handleAutoAssign = async (role: EventRole) => {
     setAutoAssigning(true);
@@ -311,6 +421,201 @@ export function AssignTab({ eventId }: AssignTabProps) {
     );
   };
 
+  const toggleJudgeSelection = (judgeId: string, checked: boolean) => {
+    setSelectedJudgeIds((previousSelection) => {
+      const updatedSelection = new Set(previousSelection);
+      if (checked) {
+        updatedSelection.add(judgeId);
+      } else {
+        updatedSelection.delete(judgeId);
+      }
+      return updatedSelection;
+    });
+  };
+
+  const toggleProjectSelection = (projectId: string, checked: boolean) => {
+    setSelectedProjectIds((previousSelection) => {
+      const updatedSelection = new Set(previousSelection);
+      if (checked) {
+        updatedSelection.add(projectId);
+      } else {
+        updatedSelection.delete(projectId);
+      }
+      return updatedSelection;
+    });
+  };
+
+  const handleSelectAllProjects = (checked: boolean) => {
+    if (!checked) {
+      setSelectedProjectIds(new Set());
+      return;
+    }
+    setSelectedProjectIds(new Set(sortedProjects.map((project) => project.id)));
+  };
+
+  const handleClearBatchSelection = () => {
+    setSelectedJudgeIds(new Set());
+    setSelectedProjectIds(new Set());
+  };
+
+  const handleBatchAssignJudges = async () => {
+    const candidatePairs = buildJudgeProjectPairs(
+      selectedJudgeIds,
+      selectedProjectIds
+    );
+    if (candidatePairs.length === 0) {
+      toast({
+        title: "No selections",
+        description: "Select at least one judge and one project.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const existingJudgeAssignmentKeys = new Set(
+      assignments
+        .filter((assignment) => assignment.role === EventRole.Judge)
+        .map((assignment) => `${assignment.project_id}:${assignment.user_id}`)
+    );
+
+    const newPairs = candidatePairs.filter(
+      ({ projectId, judgeId }) =>
+        !existingJudgeAssignmentKeys.has(`${projectId}:${judgeId}`)
+    );
+
+    if (newPairs.length === 0) {
+      toast({
+        title: "No changes",
+        description:
+          "All selected judges are already assigned to the selected projects.",
+      });
+      return;
+    }
+
+    setBatchAssigning(true);
+    try {
+      const results = await Promise.allSettled(
+        newPairs.map(async ({ judgeId, projectId }) => {
+          const response = await fetch(`/api/roles/assign/${judgeId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              role: EventRole.Judge,
+              eventId,
+            }),
+          });
+
+          if (!response.ok) {
+            let errorMessage = "Error assigning role";
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData?.error || errorMessage;
+            } catch {
+              // Best effort parse for failed assignment errors.
+            }
+            throw new Error(errorMessage);
+          }
+        })
+      );
+
+      const failedCount = results.filter(
+        (result) => result.status === "rejected"
+      ).length;
+      const successCount = newPairs.length - failedCount;
+
+      if (failedCount > 0) {
+        toast({
+          title: "Partial success",
+          description: `${successCount} assignments added, ${failedCount} failed.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Assigned ${selectedJudgeIds.size} judge${selectedJudgeIds.size === 1 ? "" : "s"} to ${selectedProjectIds.size} project${selectedProjectIds.size === 1 ? "" : "s"}.`,
+        });
+      }
+
+      await fetchAssignments();
+      if (failedCount === 0) {
+        setSelectedProjectIds(new Set());
+      }
+    } catch (error) {
+      console.error("Error batch assigning judges:", error);
+      toast({
+        title: "Error",
+        description: "Failed to assign judges in bulk.",
+        variant: "destructive",
+      });
+    } finally {
+      setBatchAssigning(false);
+    }
+  };
+
+  const handleTrackAssignJudges = async () => {
+    if (selectedJudgeIds.size === 0) {
+      toast({
+        title: "No judges selected",
+        description: "Select at least one judge.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedTrackId) {
+      toast({
+        title: "No track selected",
+        description: "Choose a track to assign the selected judges.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTrackAssigning(true);
+    try {
+      const response = await fetch(
+        `/api/events/${eventId}/project-assignments/bulk-by-track`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            track_id: selectedTrackId,
+            user_ids: [...selectedJudgeIds],
+            role: EventRole.Judge,
+          }),
+        }
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to assign judges by track");
+      }
+
+      toast({
+        title: payload.assignments_created > 0 ? "Success" : "No changes",
+        description:
+          payload.assignments_created > 0
+            ? `Created ${payload.assignments_created} assignment${payload.assignments_created === 1 ? "" : "s"} for ${payload.track_name}.`
+            : `All selected judges are already assigned to ${payload.track_name}.`,
+      });
+
+      await fetchAssignments();
+    } catch (error) {
+      console.error("Error assigning judges by track:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to assign judges by track.",
+        variant: "destructive",
+      });
+    } finally {
+      setTrackAssigning(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -320,7 +625,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
   }
 
   return (
-    <Card>
+    <Card className="w-full min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle>Judge & Mentor Assignments</CardTitle>
       </CardHeader>
@@ -332,6 +637,30 @@ export function AssignTab({ eventId }: AssignTabProps) {
             Automatically assign judges and mentors to projects using a balanced
             distribution algorithm.
           </p>
+
+          {/* Include Organizers Toggle */}
+          <div className="flex items-center space-x-2 pb-2 border-b">
+            <Switch
+              id="include-organizers"
+              checked={includeOrganizers}
+              onCheckedChange={setIncludeOrganizers}
+            />
+            <Label htmlFor="include-organizers" className="cursor-pointer">
+              Include organizers in assignment pools
+            </Label>
+          </div>
+
+          {/* Show Name/Email Toggle */}
+          <div className="flex items-center space-x-2 pb-2">
+            <Switch
+              id="show-name"
+              checked={showName}
+              onCheckedChange={setShowName}
+            />
+            <Label htmlFor="show-name" className="cursor-pointer">
+              Show names (instead of emails)
+            </Label>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
@@ -417,6 +746,125 @@ export function AssignTab({ eventId }: AssignTabProps) {
             </div>
           </div>
         </div>
+        <div className="space-y-4 p-4 border rounded-lg">
+          <h3 className="font-semibold">Batch Assign Judges</h3>
+          <p className="text-sm text-muted-foreground">
+            Pick one or more judges, then select projects in the table to assign
+            them in one action.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Select judges</Label>
+              <div className="max-h-48 overflow-y-auto rounded-md border p-3 space-y-2">
+                {judges.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No judges available to assign.
+                  </p>
+                ) : (
+                  judges.map((judge) => (
+                    <div
+                      key={judge.user_id}
+                      className="flex items-center gap-2"
+                    >
+                      <Checkbox
+                        id={`batch-judge-${judge.user_id}`}
+                        checked={selectedJudgeIds.has(judge.user_id)}
+                        onCheckedChange={(checked) =>
+                          toggleJudgeSelection(judge.user_id, checked === true)
+                        }
+                      />
+                      <Label
+                        htmlFor={`batch-judge-${judge.user_id}`}
+                        className="cursor-pointer text-sm font-normal flex flex-col"
+                      >
+                        <span className="font-medium text-foreground">
+                          {judge.display_name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {judge.email}
+                        </span>
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                Selected judges: {selectedJudgeIds.size}
+                <br />
+                Selected projects: {selectedProjectIds.size}
+              </div>
+              <div className="space-y-2 rounded-md border p-3">
+                <Label htmlFor="track-batch-assign">Assign selected judges by track</Label>
+                <Select value={selectedTrackId} onValueChange={setSelectedTrackId}>
+                  <SelectTrigger id="track-batch-assign">
+                    <SelectValue placeholder="Select a track" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignableTracks.map((track) => (
+                      <SelectItem key={track.track_id} value={track.track_id}>
+                        {track.name} ({track.projectCount} project
+                        {track.projectCount === 1 ? "" : "s"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  {selectedTrack
+                    ? `Assign the selected judges to all ${selectedTrack.projectCount} submitted project${selectedTrack.projectCount === 1 ? "" : "s"} in ${selectedTrack.name}.`
+                    : "Choose a track to assign the selected judges to every submitted project in that track."}
+                </p>
+                <Button
+                  className="w-full"
+                  disabled={
+                    trackAssigning ||
+                    selectedJudgeIds.size === 0 ||
+                    !selectedTrackId
+                  }
+                  onClick={handleTrackAssignJudges}
+                >
+                  {trackAssigning ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Assigning by track...
+                    </>
+                  ) : (
+                    "Assign selected judges to selected track"
+                  )}
+                </Button>
+              </div>
+              <Button
+                className="w-full"
+                disabled={
+                  batchAssigning ||
+                  selectedJudgeIds.size === 0 ||
+                  selectedProjectIds.size === 0
+                }
+                onClick={handleBatchAssignJudges}
+              >
+                {batchAssigning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  "Assign selected judges to selected projects"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleClearBatchSelection}
+                disabled={
+                  selectedJudgeIds.size === 0 && selectedProjectIds.size === 0
+                }
+              >
+                Clear batch selections
+              </Button>
+            </div>
+          </div>
+        </div>
         {/* Assignment Table */}
         <div className="space-y-4">
           <h3 className="font-semibold">Current Assignments for Submitted Projects</h3>
@@ -426,18 +874,71 @@ export function AssignTab({ eventId }: AssignTabProps) {
               No projects found for this event.
             </div>
           ) : (
-            <Table>
+            <div className="scroll-x-tabs w-full min-w-0 rounded-md border">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Project Lead</TableHead>
-                  <TableHead>Assigned Judges</TableHead>
-                  <TableHead>Assigned Mentors</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        sortedProjects.length > 0 &&
+                        selectedProjectIds.size === sortedProjects.length
+                      }
+                      onCheckedChange={(checked) =>
+                        handleSelectAllProjects(checked === true)
+                      }
+                      aria-label="Select all submitted projects for batch assignment"
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("project_name")}
+                    >
+                      Project
+                      {getSortIcon("project_name")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("lead_name")}
+                    >
+                      Project Lead
+                      {getSortIcon("lead_name")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("judges")}
+                    >
+                      Assigned Judges
+                      {getSortIcon("judges")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("mentors")}
+                    >
+                      Assigned Mentors
+                      {getSortIcon("mentors")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("total")}
+                    >
+                      Total
+                      {getSortIcon("total")}
+                    </button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {projects.map((project) => {
+                {sortedProjects.map((project) => {
                   const projectJudges = getProjectAssignments(
                     project.id,
                     EventRole.Judge
@@ -449,8 +950,30 @@ export function AssignTab({ eventId }: AssignTabProps) {
 
                   return (
                     <TableRow key={project.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedProjectIds.has(project.id)}
+                          onCheckedChange={(checked) =>
+                            toggleProjectSelection(project.id, checked === true)
+                          } 
+                          aria-label={`Select ${project.project_name} for batch assignment`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
-                        {project.project_name}
+                        <div className="space-y-1">
+                          <div>{project.project_name}</div>
+                          <div className="flex flex-wrap gap-1">
+                            {(project.tracks || []).length > 0 ? (
+                              project.tracks?.map((track) => (
+                                <Badge key={track.track_id} variant="outline">
+                                  {track.label || track.name || "Unnamed Track"}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline">No track</Badge>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>{project.lead_name}</TableCell>
                       <TableCell>
@@ -460,7 +983,10 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
                                 {assignment.user.display_name}
                               </Badge>
                               <Button
@@ -492,7 +1018,10 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
                                 {assignment.user.display_name}
                               </Badge>
                               <Button
@@ -519,8 +1048,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm text-muted-foreground">
-                          {projectJudges.length + projectMentors.length} total
-                          assigned
+                          {projectJudges.length + projectMentors.length}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -528,6 +1056,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </div>
       </CardContent>
@@ -572,7 +1101,12 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {user.email}
+              <div className="flex flex-col">
+                <span className="font-medium">{user.display_name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
             </SelectItem>
           ))}
         </SelectContent>

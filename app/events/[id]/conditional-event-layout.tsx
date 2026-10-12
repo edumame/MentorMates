@@ -6,7 +6,6 @@ import { EventHeader } from "@/components/events/event-header";
 import { Footer } from "@/components/layout/Footer";
 import { useLayoutConfig } from "@/components/layout/LayoutConfigProvider";
 import { EventVisibility } from "@/lib/types";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface ConditionalEventLayoutProps {
   children: ReactNode;
@@ -58,20 +57,17 @@ export function ConditionalEventLayout({
     </main>
   );
 
+  // 内容直接交给上层（如 SidebarLayout 的 main），不再包一层 flex-grow overflow-auto px-0
   return (
-    <PageContainer>
-      <PageContent className="px-0">
-        <div className="flex flex-col bg-background">
-          {showEventWrapper ? (
-            <EventRegistrationWrapper eventId={event.event_id}>
-              {content}
-            </EventRegistrationWrapper>
-          ) : (
-            content
-          )}
-          <div className="pt-8">{showFooter && <Footer />}</div>
-        </div>
-      </PageContent>
-    </PageContainer>
+    <div className="flex flex-col bg-background">
+      {showEventWrapper ? (
+        <EventRegistrationWrapper eventId={event.event_id}>
+          {content}
+        </EventRegistrationWrapper>
+      ) : (
+        content
+      )}
+      <div className="pt-8">{showFooter && <Footer />}</div>
+    </div>
   );
 }
