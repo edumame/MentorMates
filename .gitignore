@@ -57,3 +57,8 @@ next-env.d.ts
 
 #sql scripts (non migrations)
 supabase/migrations/scripts_*
+
+#plan directories
+plans/*
+
+.playwright-mcp

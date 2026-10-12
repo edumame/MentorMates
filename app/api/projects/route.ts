@@ -13,6 +13,8 @@ import { canAccessRole } from "@/features/user/roles/roles";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
 
 type ArtifactRow = {
   project_id: string;
@@ -121,6 +123,84 @@ async function fetchArtifactsByProjectIds(
   return map;
 }
 
+async function fetchTeammateProfiles(
+  emails: string[]
+): Promise<Map<string, ExportMemberProfile>> {
+  if (emails.length === 0) return new Map();
+
+  const serviceClient = createSupabaseServiceClient();
+  const { data, error } = await serviceClient
+    .from("user_profiles")
+    .select("email, display_name, affiliation")
+    .in("email", emails);
+
+  if (error || !data) return new Map();
+
+  return new Map(
+    (data as ExportMemberProfile[]).map((profile) => [profile.email, profile])
+  );
+}
+
+// Winner + finalist status for certificates. Prizes are readable through the
+// caller's client (prize_winners RLS is open); round advancements are
+// judge/organizer-only under RLS, so finalist status goes through the service
+// client — it only ever leaks a boolean.
+async function fetchCertificateExtras(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectId: string
+): Promise<{ prizes_won: Prize[]; is_finalist: boolean }> {
+  const { data: prizeRows } = await supabase
+    .from("prize_winners")
+    .select(
+      `
+        id,
+        project_id,
+        prizes (
+          track_id,
+          prize_amount,
+          prize_description
+        )
+      `
+    )
+    .eq("project_id", projectId)
+    .overrideTypes<
+      Array<{
+        id: string;
+        project_id: string;
+        prizes: {
+          track_id: string;
+          prize_amount: string;
+          prize_description: string;
+        } | null;
+      }>
+    >();
+
+  const prizes = (prizeRows ?? []).map((row) => ({
+    id: row.id,
+    track_id: row.prizes?.track_id,
+    prize_amount: row.prizes?.prize_amount,
+    prize_description: row.prizes?.prize_description,
+    winning_project_id: row.project_id,
+  })) as Prize[];
+
+  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId) };
+}
+
+async function fetchIsFinalist(projectId: string): Promise<boolean> {
+  try {
+    const serviceClient = createSupabaseServiceClient();
+    const { data: advancements } = await serviceClient
+      .from("project_round_advancements")
+      .select("id")
+      .eq("project_id", projectId)
+      .limit(1);
+    return (advancements?.length ?? 0) > 0;
+  } catch {
+    // Service key may not exist in local dev; finalist status is best-effort.
+    return false;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseClient();
@@ -155,6 +235,7 @@ export async function GET(request: NextRequest) {
             cover_image_url,
             event_id,
             contextus_project_id,
+            private,
             created_at,
             submitted,
             project_tracks (
@@ -214,6 +295,7 @@ export async function GET(request: NextRequest) {
           lead_email: project.lead_email,
           project_description: project.project_description,
           teammates: project.teammates,
+          is_private: Boolean((project as { private?: boolean | null }).private),
           project_url: project.project_url,
           additional_materials_url: project.additional_materials_url,
           cover_image_url: project.cover_image_url,
@@ -236,6 +318,13 @@ export async function GET(request: NextRequest) {
         answerMap.get(project.id),
         artifactMap.get(project.id) || fallbackArtifacts
         );
+
+        const extras = await fetchCertificateExtras(supabase, project.id);
+        (transformedProject as unknown as ProjectWithPrizes).prizes_won =
+          extras.prizes_won;
+        (
+          transformedProject as unknown as { is_finalist?: boolean }
+        ).is_finalist = extras.is_finalist;
 
         return NextResponse.json({ project: transformedProject });
       }
@@ -303,6 +392,7 @@ export async function GET(request: NextRequest) {
           cover_image_url,
           event_id,
           contextus_project_id,
+          private,
           created_at,
           submitted,
           project_tracks (
@@ -343,6 +433,7 @@ export async function GET(request: NextRequest) {
         lead_email: item.lead_email,
         project_description: item.project_description,
         teammates: item.teammates,
+        is_private: Boolean((item as { private?: boolean | null }).private),
         project_url: item.project_url,
         video_url: item.video_url,
         additional_materials_url: item.additional_materials_url,
@@ -482,6 +573,7 @@ export async function GET(request: NextRequest) {
           cover_image_url,
           event_id,
           contextus_project_id,
+          private,
           created_at,
           submitted,
           project_tracks (
@@ -526,6 +618,7 @@ export async function GET(request: NextRequest) {
         project_name: project.project_name,
         lead_name: project.lead_name,
         lead_email: project.lead_email,
+        is_private: Boolean((project as { private?: boolean | null }).private),
         project_description: project.project_description,
         teammates: project.teammates,
         project_url: project.project_url,
@@ -595,6 +688,10 @@ export async function GET(request: NextRequest) {
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
           prizeWinnersData as unknown as Prize[];
       }
+
+      (
+        transformedProject as unknown as { is_finalist?: boolean }
+      ).is_finalist = await fetchIsFinalist(transformedProject.id);
 
       return NextResponse.json({ project: transformedProject });
     }
@@ -667,22 +764,46 @@ export async function GET(request: NextRequest) {
         transformedProjects.map((project) => project.id)
       );
 
-      const [fieldMap, answerMap] = await Promise.all([
+      // Collect all unique teammate + lead emails for batch profile enrichment
+      const allEmails = new Set<string>();
+      for (const project of transformedProjects) {
+        const p = project as { lead_email?: string; teammates?: string[] };
+        if (p.lead_email) allEmails.add(p.lead_email);
+        for (const email of p.teammates ?? []) allEmails.add(email);
+      }
+
+      const [fieldMap, answerMap, profileMap] = await Promise.all([
         fetchSubmissionFieldsByEventIds(supabase, [eventId]),
         fetchSubmissionAnswersByProjectIds(
           supabase,
           transformedProjects.map((project) => project.id)
         ),
+        fetchTeammateProfiles([...allEmails]),
       ]);
 
-      const transformedProjectsWithArtifacts = transformedProjects.map((project) =>
-        applyEffectiveSubmissionToProject(
+      const transformedProjectsWithArtifacts = transformedProjects.map((project) => {
+        const p = project as {
+          lead_email?: string;
+          teammates?: string[];
+        };
+        const leadProfile = p.lead_email ? profileMap.get(p.lead_email) : undefined;
+        const nonLeadTeammates = (p.teammates ?? []).filter(
+          (e) => e !== p.lead_email
+        );
+        const teammateProfiles = nonLeadTeammates
+          .map((email) => profileMap.get(email))
+          .filter((profile): profile is ExportMemberProfile => profile !== undefined);
+
+        return applyEffectiveSubmissionToProject(
           {
             ...project,
+            is_private: Boolean((project as { private?: boolean | null }).private),
             project_url: project.project_url ?? undefined,
             additional_materials_url:
               project.additional_materials_url ?? undefined,
             video_url: project.video_url ?? undefined,
+            lead_school: leadProfile?.affiliation ?? null,
+            teammate_profiles: teammateProfiles,
           },
           fieldMap.get(eventId) || [],
           answerMap.get(project.id),
@@ -695,8 +816,8 @@ export async function GET(request: NextRequest) {
               ).additional_materials_url,
               video_url: (project as { video_url?: string | null }).video_url,
             })
-        )
-      );
+        );
+      });
 
       return NextResponse.json({ projects: transformedProjectsWithArtifacts });
     }

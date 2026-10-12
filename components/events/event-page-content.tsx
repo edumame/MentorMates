@@ -3,10 +3,19 @@
 import type { ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { normalizeBullets } from "@/lib/markdown/normalize-bullets";
 import { Trophy, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   EventDetails,
   Rule,
@@ -19,6 +28,7 @@ import Link from "next/link";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
 import { UserProjectSection } from "./user-project-section";
+import { EventMentorshipSection } from "@/features/events/mentor-bookings/EventMentorshipSection";
 
 /** JSONB / API may return a string, single object, or non-array; only arrays are safe to .map */
 function normalizeEventRules(rules: unknown): Rule[] {
@@ -148,6 +158,12 @@ export function EventPageContent({
         />
       )}
 
+      <EventMentorshipSection
+        eventId={event.event_id}
+        role={displayRole}
+        hasJoined={hasJoined}
+      />
+
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
@@ -159,6 +175,7 @@ export function EventPageContent({
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <div className="prose prose-blue max-w-full break-words w-full">
           <ReactMarkdown
+            remarkPlugins={markdownRemarkPlugins}
             rehypePlugins={markdownRehypePlugins}
             components={customMarkdownComponents}
           >
@@ -174,7 +191,9 @@ export function EventPageContent({
             🔒 Content for Event Participants
           </h3>
           <div className="prose prose-blue max-w-full w-full break-words">
-            <ReactMarkdown>{normalizeBullets(event.paywall_content)}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={markdownRemarkPlugins}>
+              {normalizeBullets(event.paywall_content)}
+            </ReactMarkdown>
           </div>
         </div>
       )}
@@ -287,28 +306,31 @@ export function EventPageContent({
             </h2>
           </div>
 
-          <div className="flex w-full px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
-            <div className="flex flex-wrap sm:flex-nowrap relative w-full">
+          <div className="flex w-full px-4 py-1 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
+            <Accordion type="multiple" className="w-full">
               {rulesList.map((rule, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]"
+                <AccordionItem
+                  key={`${rule.title}-${idx}`}
+                  value={`${rule.title}-${idx}`}
+                  className="last:border-b-0"
                 >
-                  <div className="font-normal text-black">
-                    <p className="font-bold tracking-[-0.06em] text-[22px] leading-[1.4] mb-2">
+                  <AccordionTrigger className="py-3 text-left text-black hover:no-underline">
+                    <span className="font-bold tracking-[-0.04em] text-[20px] leading-[1.4]">
                       {rule.title}
-                    </p>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-3">
                     <ul className="list-disc pl-6">
                       {(rule.items ?? []).map((item, i) => (
-                        <li key={i} className="mb-0 text-base leading-[1.5]">
+                        <li key={i} className="mb-0 text-base leading-[1.5] text-black">
                           {item}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                </div>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           </div>
         </>
       )}
@@ -348,6 +370,7 @@ export function EventPageContent({
                       {event.description && (
                         <div className="prose prose-sm prose-blue max-w-full w-full text-gray-600 mt-2 break-words">
                           <ReactMarkdown
+                            remarkPlugins={markdownRemarkPlugins}
                             rehypePlugins={markdownRehypePlugins}
                             components={customMarkdownComponents}
                           >

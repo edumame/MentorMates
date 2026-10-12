@@ -2,6 +2,7 @@ import {
   buildArtifactsFromLegacy,
   coerceSubmissionAnswerValue,
   deriveLegacySubmissionFieldsFromArtifacts,
+  isMultiValueSubmissionFieldType,
   normalizeProjectArtifacts,
 } from "./submission";
 
@@ -138,5 +139,22 @@ describe("submission adapters", () => {
       ])
     ).toEqual(["https://one.example", "https://two.example"]);
     expect(coerceSubmissionAnswerValue("multi_url", "oops")).toEqual([]);
+    expect(
+      coerceSubmissionAnswerValue("multi_file", [
+        " https://cdn.example/a.png ",
+        "",
+        "https://cdn.example/b.pdf",
+      ])
+    ).toEqual(["https://cdn.example/a.png", "https://cdn.example/b.pdf"]);
+    expect(coerceSubmissionAnswerValue("multi_file", "oops")).toEqual([]);
+  });
+
+  it("identifies multi-value field types", () => {
+    expect(isMultiValueSubmissionFieldType("multi_url")).toBe(true);
+    expect(isMultiValueSubmissionFieldType("multi_select")).toBe(true);
+    expect(isMultiValueSubmissionFieldType("multi_file")).toBe(true);
+    expect(isMultiValueSubmissionFieldType("file")).toBe(false);
+    expect(isMultiValueSubmissionFieldType("url")).toBe(false);
+    expect(isMultiValueSubmissionFieldType("short_text")).toBe(false);
   });
 });

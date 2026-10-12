@@ -2,6 +2,7 @@ import {
   applyEffectiveSubmissionToProject,
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
+  hasSubmissionFieldMismatch,
   hasConfiguredSubmissionFields,
 } from "./effectiveSubmission";
 import type {
@@ -65,6 +66,28 @@ describe("effective submission helpers", () => {
     },
   ];
 
+  it("excludes multi-entry (team log) fields from the effective form", () => {
+    const withLogField: EventSubmissionField[] = [
+      ...configuredFields,
+      {
+        id: "field-submission-log",
+        event_id: "event-1",
+        key: "submission_log",
+        label: "Submission Log",
+        field_type: "long_text",
+        required: false,
+        sort_order: 99,
+        is_active: true,
+        allows_multiple_entries: true,
+      },
+    ];
+
+    const effective = buildEffectiveSubmissionFields(withLogField, "event-1");
+
+    expect(effective.map((field) => field.key)).not.toContain("submission_log");
+    expect(effective).toHaveLength(configuredFields.length);
+  });
+
   it("falls back to the default project schema when no event config exists", () => {
     const effectiveFields = buildEffectiveSubmissionFields([], "event-1");
 
@@ -114,6 +137,72 @@ describe("effective submission helpers", () => {
         answer: ["Next.js", "Supabase"],
       },
     ]);
+  });
+
+  it("keeps multi-file answers as arrays and drops blank entries", () => {
+    const multiFileField: EventSubmissionField = {
+      id: "field-screenshots",
+      event_id: "event-1",
+      key: "screenshots",
+      label: "Screenshots",
+      field_type: "multi_file",
+      required: false,
+      sort_order: 5,
+      is_active: true,
+      max_files: 8,
+    };
+
+    const answers = buildSubmissionAnswersPayload(
+      [...configuredFields, multiFileField],
+      {
+        project_name: "Shipyard",
+        screenshots: [
+          "https://cdn.example.com/one.png",
+          " ",
+          "https://cdn.example.com/two.png",
+        ],
+      }
+    );
+
+    expect(answers).toContainEqual({
+      eventSubmissionFieldId: "field-screenshots",
+      answer: [
+        "https://cdn.example.com/one.png",
+        "https://cdn.example.com/two.png",
+      ],
+    });
+  });
+
+  it("detects when stored answers reference removed submission fields", () => {
+    expect(
+      hasSubmissionFieldMismatch(
+        [
+          {
+            id: "answer-1",
+            project_id: "project-1",
+            event_submission_field_id: "removed-field",
+            answer: "Legacy answer",
+          },
+        ],
+        configuredFields
+      )
+    ).toBe(true);
+  });
+
+  it("treats orphaned answers as a mismatch when no configured fields remain", () => {
+    expect(
+      hasSubmissionFieldMismatch(
+        [
+          {
+            id: "answer-1",
+            project_id: "project-1",
+            event_submission_field_id: "old-field",
+            answer: "Legacy answer",
+          },
+        ],
+        []
+      )
+    ).toBe(true);
   });
 
   it("hydrates project views from configured submission answers and synthesizes artifacts", () => {
