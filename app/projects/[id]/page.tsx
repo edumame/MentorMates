@@ -1,5 +1,6 @@
 "use client";
 
+import { saveProjectMaterials } from "@/features/projects/client-actions/client-materials";
 import { useEffect, useState, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useParams, useRouter } from "next/navigation";
@@ -623,18 +624,8 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
-        additional_materials_url: newUrl.trim() || undefined,
-      });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update additional materials URL",
-          variant: "destructive",
-        });
-        return false;
-      }
+      if (!project) return false;
+      const data = await saveProjectMaterials(project, newUrl.trim());
 
       setProjectWithArtifacts(data as Project);
       toast({
@@ -715,6 +706,8 @@ export default function ProjectPage() {
     }
   };
 
+  // Editing is private-only. Both public and private views read the shared
+  // effective submission mapping; save its answer/artifact source here too.
   const handleAdditionalMaterialsFileUpload = async (
     file: File
   ): Promise<boolean> => {
@@ -741,18 +734,8 @@ export default function ProjectPage() {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      const { data, error } = await updateProjectClient(projectId, {
-        additional_materials_url: publicUrl,
-      });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update additional materials URL",
-          variant: "destructive",
-        });
-        return false;
-      }
+      if (!project) return false;
+      const data = await saveProjectMaterials(project, publicUrl);
 
       setProjectWithArtifacts(data as Project);
       toast({

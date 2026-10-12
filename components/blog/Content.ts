@@ -1,3 +1,5 @@
+import { caseStudies } from "./case-studies";
+
 export interface BlogPost {
     title: string;
     excerpt: string;
@@ -46,5 +48,16 @@ export const blogContent: BlogPost[] = [
         authorAvatar: "/testimonials/avatarFallback.png",
         thumbnail: "/blog/YUChallenge02.jpg",
         slug: "3",
-    }
-];  
+    },
+    ...caseStudies.map((study) => ({
+        title: study.title,
+        excerpt: study.excerpt,
+        category: study.category,
+        author: "Mentor Mates",
+        date: study.date,
+        readTime: study.readTime,
+        authorAvatar: "/testimonials/avatarFallback.png",
+        thumbnail: study.thumbnail,
+        slug: study.slug,
+    })),
+];
