@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "@/lib/hooks/use-toast";
+import {
+  clearJoinEventIntent,
+  readJoinEventIntent,
+} from "@/features/events/join-flow/join-event-intent";
 
 interface PostPaymentJoinProps {
   eventId: string;
@@ -16,12 +20,12 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
 
   const processEventJoin = useCallback(async () => {
     if (isProcessing || hasProcessed) return;
-    
+
     setIsProcessing(true);
-    
+
     try {
-      const joinIntentStr = localStorage.getItem('joinEventIntent');
-      if (!joinIntentStr) {
+      const joinIntent = readJoinEventIntent();
+      if (!joinIntent?.userId) {
         toast({
           title: "Error",
           description: "Please try joining the event again.",
@@ -30,12 +34,10 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
         return;
       }
 
-      const joinIntent = JSON.parse(joinIntentStr);
-      
-      const response = await fetch('/api/roles/verify', {
-        method: 'POST',
+      const response = await fetch("/api/roles/verify", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(joinIntent),
       });
@@ -52,9 +54,9 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
       }
 
       // Success!
-      localStorage.removeItem('joinEventIntent');
+      clearJoinEventIntent(joinIntent.eventId);
       setHasProcessed(true);
-      
+
       toast({
         title: "Success!",
         description: "You've successfully registered for the event!",
@@ -115,4 +117,4 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
       )}
     </div>
   );
-} 
+}

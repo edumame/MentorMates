@@ -54,15 +54,18 @@ export async function EventPageLayout({
     userRole = (userEventRole?.role as EventRole) || null;
   }
 
-  // Fetch event role labels if available
+  // Fetch event role labels and feature flags if available
   const { data: eventData } = await supabase
     .from("events")
-    .select("role_labels")
+    .select("role_labels, team_formation_enabled")
     .eq("event_id", dbEventId)
     .maybeSingle();
 
   const eventRoleLabels =
     (eventData?.role_labels as Record<string, string> | null) || null;
+
+  // Team tab is opt-in per event and only relevant to joined members.
+  const showTeamTab = Boolean(eventData?.team_formation_enabled) && hasJoined;
 
   // Fetch participant count
   const { count: participantCount } = await supabase
@@ -81,7 +84,7 @@ export async function EventPageLayout({
   return (
     <ActiveRoleProvider initialRole={userRole}>
       {/* 仅做 flex 链，视觉上的“右侧区域”由 SidebarLayout 提供（100dvh + 左边框 + 左上圆角） */}
-      <div className="flex flex-col w-full flex-1 min-h-0" style={{ maxWidth: "100vw" }}>
+      <div className="flex flex-col w-full flex-1 min-h-0 min-w-0 max-w-full">
         {userRole ? (
           <EventPageClientWrapper
             userRole={userRole}
@@ -105,6 +108,7 @@ export async function EventPageLayout({
                   projectCount={projectCount || 0}
                   showTicketsTab={(paid && hasJoined) || false}
                   showParticipantsTab={hasJoined}
+                  showTeamTab={showTeamTab}
                 />
 
                 {/* Main Content */}
@@ -143,6 +147,7 @@ export async function EventPageLayout({
               projectCount={projectCount || 0}
               showTicketsTab={(paid && hasJoined) || false}
               showParticipantsTab={hasJoined}
+              showTeamTab={showTeamTab}
             />
 
             {/* Main Content */}

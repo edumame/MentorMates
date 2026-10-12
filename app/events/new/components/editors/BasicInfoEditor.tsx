@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { WizardEventData } from "@/lib/types/wizard";
 import { slugify } from "@/lib/types/wizard";
+import { Switch } from "@/components/ui/switch";
 
 const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
 
@@ -59,6 +60,39 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
           <p className="text-xs text-gray-400">
             A short tagline that appears in the event card and header.
           </p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-gray-700">
+            External link <span className="text-gray-400">(optional)</span>
+          </label>
+          <input
+            type="url"
+            value={event.external_url}
+            onChange={(e) => update({ external_url: e.target.value })}
+            placeholder="https://example.com/your-event"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
+          />
+          <p className="text-xs text-gray-400">
+            Leave blank for a normal event.
+          </p>
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800">
+                Redirect visitors to external link
+              </p>
+              <p className="text-xs text-gray-500">
+                Turn off to keep the MentorMates event page open while storing
+                the external URL.
+              </p>
+            </div>
+            <Switch
+              checked={event.external_redirect_enabled === true}
+              disabled={!event.external_url.trim()}
+              onCheckedChange={(checked) =>
+                update({ external_redirect_enabled: checked })
+              }
+            />
+          </div>
         </div>
       </div>
 

@@ -43,8 +43,9 @@ const baseEvent: EventDetails = {
 };
 
 function BasicInfoTabHarness() {
-  const [event, setEvent] = useState<EventDetails>(baseEvent);
+  const [event, setEvent] = useState<EventDetails | null>(baseEvent);
 
+  if (!event) return null;
   return (
     <div>
       <BasicInfoTab

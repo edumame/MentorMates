@@ -4,6 +4,9 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
+import { BUILT_IN_SUBMISSION_FIELD_KEYS } from "@/features/projects/utils/effectiveSubmission";
+
+const LOCKED_FIELD_KEYS = ["project_name", "project_description"] as const;
 
 const fieldInputSchema = z.object({
   id: z.string().uuid().optional(),
@@ -20,6 +23,8 @@ const fieldInputSchema = z.object({
   required: z.boolean().default(false),
   is_active: z.boolean().optional(),
   options: z.array(z.string().trim().min(1)).optional(),
+  allows_multiple_entries: z.boolean().optional(),
+  max_files: z.number().int().min(2).max(20).optional().nullable(),
 });
 
 const bodySchema = z.object({
@@ -174,8 +179,28 @@ export async function PUT(
         is_active: field.is_active ?? true,
         sort_order: index,
         options: field.options ?? [],
+        allows_multiple_entries:
+          (field.allows_multiple_entries ?? false) &&
+          !BUILT_IN_SUBMISSION_FIELD_KEYS.has(key),
+        max_files:
+          field.field_type === "multi_file" ? (field.max_files ?? 5) : null,
       };
     });
+
+    const missingLockedKeys = LOCKED_FIELD_KEYS.filter(
+      (lockedKey) => !seenKeys.has(lockedKey),
+    );
+    if (missingLockedKeys.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Locked submission fields cannot be removed. The submission form must always include project_name and project_description.",
+          code: "locked_field_missing",
+          missing: missingLockedKeys,
+        },
+        { status: 400 },
+      );
+    }
 
     // Step 1: deactivate existing fields for this event.
     const { error: deactivateError } = await supabase

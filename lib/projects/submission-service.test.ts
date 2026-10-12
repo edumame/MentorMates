@@ -422,6 +422,8 @@ describe("saveProjectSubmission", () => {
       mode: "create",
       input: {
         leadName: "Lead",
+        projectName: "Project A",
+        projectDescription: "A description.",
       },
     });
 
@@ -436,5 +438,96 @@ describe("saveProjectSubmission", () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it("rejects create when locked project_name is missing", async () => {
+    const projectsTable = { insert: jest.fn() };
+    const supabase = {
+      from: jest.fn((table: string) => {
+        if (table === "projects") return projectsTable;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "create",
+      input: {
+        leadName: "Lead",
+        projectDescription: "A description.",
+      },
+    });
+
+    expect(result).toMatchObject({
+      code: "locked_field_missing",
+      status: 400,
+    });
+    expect(projectsTable.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects create when locked project_description is missing", async () => {
+    const projectsTable = { insert: jest.fn() };
+    const supabase = {
+      from: jest.fn((table: string) => {
+        if (table === "projects") return projectsTable;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "create",
+      input: {
+        leadName: "Lead",
+        projectName: "Project A",
+      },
+    });
+
+    expect(result).toMatchObject({
+      code: "locked_field_missing",
+      status: 400,
+    });
+    expect(projectsTable.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects update when input clears the locked project_name", async () => {
+    const existingProjectQuery = {
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({
+        data: {
+          id: projectId,
+          event_id: null,
+          contextus_project_id: null,
+          project_name: "Existing Name",
+          project_description: "Existing Description",
+        },
+        error: null,
+      }),
+    };
+
+    const projectsTable = {
+      select: jest.fn().mockReturnValueOnce(existingProjectQuery),
+      update: jest.fn(),
+    };
+
+    const supabase = {
+      from: jest.fn((table: string) => {
+        if (table === "projects") return projectsTable;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "update",
+      projectId,
+      input: {
+        projectName: "   ",
+      },
+    });
+
+    expect(result).toMatchObject({
+      code: "locked_field_missing",
+      status: 400,
+    });
+    expect(projectsTable.update).not.toHaveBeenCalled();
   });
 });

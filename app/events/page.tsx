@@ -3,6 +3,7 @@ import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
+import { isEventManagerRole } from "@/lib/events/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,11 @@ export default async function EventsPage() {
           const userRole =
             userRoles.find((role) => role.event_id === event.event_id)?.role ||
             null;
-          return { ...event, userRole };
+          return {
+            ...event,
+            userRole,
+            canManageEvent: isAdmin || isEventManagerRole(userRole),
+          };
         })
         .sort(
           (a, b) =>
@@ -100,11 +105,12 @@ export default async function EventsPage() {
 
   return (
     <>
-      <div className="pt-[24px] pb-8">
-        <div className={
+      <div className={isAuthenticated ? "pt-[24px] pb-8" : "pt-16 pb-8"}>
+        <div
+          className={
             isAuthenticated
-              ? "flex flex-col gap-[24px] px-[32px]"
-              : "mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
+              ? "flex min-w-0 max-w-full flex-col gap-[24px] overflow-x-clip px-[32px]"
+              : "mx-auto flex min-w-0 w-full max-w-10xl flex-col overflow-x-clip px-4 md:px-10"
           }
         >
           <div className="flex flex-col gap-[24px]">
