@@ -1,3 +1,4 @@
+import { normalizeProjectWriteInput, saveProjectSubmission } from "@/lib/projects/submission-service";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
@@ -14,6 +15,7 @@ const submitForParticipantSchema = z.object({
     video_url: z.string().url().nullable().optional(),
     additional_materials_url: z.string().url().nullable().optional(),
     cover_image_url: z.string().url().nullable().optional(),
+    submission_answers: z.unknown().optional(),
     teammates: z.array(z.string()).optional().default([]),
     track_ids: z.array(z.string().uuid()).optional().default([]),
   }),
@@ -117,66 +119,28 @@ export async function POST(
       );
     }
 
-    // Validate all track_ids belong to this event (if any provided)
-    if (project.track_ids.length > 0) {
-      const { data: validTracks } = await serviceSupabase
-        .from("event_tracks")
-        .select("track_id")
-        .eq("event_id", eventId)
-        .in("track_id", project.track_ids);
-
-      if (!validTracks || validTracks.length !== project.track_ids.length) {
-        return NextResponse.json(
-          { error: "One or more tracks do not belong to this event" },
-          { status: 400 }
-        );
-      }
+    // Use the same normalization, field validation, and error handling as participant submissions.
+    const normalized = normalizeProjectWriteInput({
+      ...project,
+      event_id: eventId,
+      lead_name: participantProfile.display_name || participantProfile.email.split("@")[0],
+      lead_email: participantProfile.email,
+      submitted: submit_immediately,
+    });
+    if (!normalized.success) {
+      return NextResponse.json({ error: "Invalid project", details: normalized.error.flatten() }, { status: 400 });
     }
-
-    // Create the project
-    const now = new Date().toISOString();
-    const { data: createdProject, error: insertError } = await serviceSupabase
-      .from("projects")
-      .insert({
-        event_id: eventId,
-        lead_name: participantProfile.display_name || participantProfile.email.split("@")[0] || "Unknown",
-        lead_email: participantProfile.email,
-        project_name: project.project_name,
-        project_description: project.project_description ?? null,
-        project_url: project.project_url ?? null,
-        video_url: project.video_url ?? null,
-        additional_materials_url: project.additional_materials_url ?? null,
-        cover_image_url: project.cover_image_url ?? null,
-        teammates: project.teammates,
-        submitted: submit_immediately,
-        submitted_at: submit_immediately ? now : null,
-      })
-      .select("id, project_name, submitted")
-      .single();
-
-    if (insertError || !createdProject) {
-      console.error("Error creating project for participant:", insertError);
-      return NextResponse.json(
-        { error: "Failed to create project" },
-        { status: 500 }
-      );
+    const result = await saveProjectSubmission(serviceSupabase, {
+      input: normalized.data,
+      mode: "create",
+      defaultSubmitted: submit_immediately,
+    });
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-
-    // Assign tracks if provided
-    if (project.track_ids.length > 0) {
-      const trackInserts = project.track_ids.map((track_id) => ({
-        project_id: createdProject.id,
-        track_id,
-      }));
-
-      const { error: trackError } = await serviceSupabase
-        .from("project_tracks")
-        .insert(trackInserts);
-
-      if (trackError) {
-        console.error("Error assigning tracks:", trackError);
-        // Don't fail — project was created, just note the warning
-      }
+    const createdProject = result.project;
+    if (!createdProject) {
+      return NextResponse.json({ error: "Project was not created" }, { status: 500 });
     }
 
     return NextResponse.json(
