@@ -26,6 +26,20 @@ jest.mock("@/components/events/create-event-modal", () => ({
 describe("EventsPageClient", () => {
   beforeEach(() => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: jest.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
   });
 
   it("uses the server auth state while the client auth context is still loading", () => {
@@ -41,9 +55,10 @@ describe("EventsPageClient", () => {
       />
     );
 
+    // Header create CTA only on Discover empty state; Hosting empty state adds a second.
     expect(
-      screen.getAllByRole("button", { name: "Create an event" })
-    ).toHaveLength(2);
+      screen.getByRole("button", { name: "Create an event" })
+    ).toBeInTheDocument();
   });
 
   it("hides the create action for signed-out renders", () => {
@@ -62,5 +77,24 @@ describe("EventsPageClient", () => {
     expect(
       screen.queryByRole("button", { name: "Create an event" })
     ).not.toBeInTheDocument();
+  });
+
+  it("does not use negative top margin on the authenticated sticky header", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+
+    const { container } = render(
+      <EventsPageClient
+        eventsList={[]}
+        initialIsAuthenticated={true}
+      />
+    );
+
+    const stickyHeader = container.querySelector(".sticky");
+    expect(stickyHeader).toBeTruthy();
+    expect(stickyHeader?.className).toContain("pt-[24px]");
+    expect(stickyHeader?.className).not.toContain("-mt-[24px]");
   });
 });
