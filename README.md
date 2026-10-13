@@ -418,4 +418,6 @@ Questions, partnership or hackathon ideas: [contact@mentormates.ai](mailto:conta
 
 ## 📄 License
 
-MentorMates is open source under the MIT License: see the [LICENSE](LICENSE) file. The website shows the same text at `/license`.
+Copyright (c) 2026 MentorMates contributors. MentorMates is open source under the MIT License: see the [LICENSE](LICENSE) file. The website shows the same text at `/license`.
+
+Source code: [github.com/edumame/MentorMates](https://github.com/edumame/MentorMates).

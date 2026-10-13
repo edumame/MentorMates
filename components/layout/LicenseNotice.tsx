@@ -8,7 +8,10 @@ export function LicenseNotice() {
       <Link href={OPEN_SOURCE.LICENSE_PATH} className="underline">
         {OPEN_SOURCE.LICENSE_NAME}
       </Link>
-      .
+      .{" "}
+      <a href={OPEN_SOURCE.REPO_URL} target="_blank" rel="noopener noreferrer" className="underline">
+        {OPEN_SOURCE.VIEW_SOURCE_LABEL}
+      </a>
     </>
   );
 }
