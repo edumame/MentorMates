@@ -15,9 +15,10 @@ describe("homepage", () => {
     window.matchMedia = ((query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
   });
 
-  it("shows the open source and non-profit section to signed-out visitors", () => {
-    render(<LandingHero />);
-    expect(screen.getByText(new RegExp(OPEN_SOURCE.NONPROFIT_STATUS))).toBeInTheDocument();
+  it("shows the open source section without a non-profit claim to signed-out visitors", () => {
+    const { container } = render(<LandingHero />);
+    expect(screen.getByRole("heading", { name: /open source, built with our community/i })).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/non[\s-]?profit|registering as/i);
     expect(screen.getByRole("link", { name: OPEN_SOURCE.LICENSE_NAME })).toHaveAttribute("href", OPEN_SOURCE.LICENSE_PATH);
   });
 });

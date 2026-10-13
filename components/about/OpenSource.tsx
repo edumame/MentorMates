@@ -14,7 +14,7 @@ export function OpenSource() {
           <Link href={OPEN_SOURCE.LICENSE_PATH} className="underline">
             {OPEN_SOURCE.LICENSE_NAME}
           </Link>
-          , and we are {OPEN_SOURCE.NONPROFIT_STATUS}. We build in the open with the students, mentors, organizers and
+          . We build in the open with the students, mentors, organizers and
           partners who use it, so that support at hackathons stays free and available to every learner.
         </p>
         <p className="text-base sm:text-md leading-relaxed">
