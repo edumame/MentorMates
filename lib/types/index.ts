@@ -258,6 +258,12 @@ export interface EventDetails extends EventItem {
   faq?: { question: string; answer: string }[]; // Structured FAQ items
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
+  /**
+   * Grace period (minutes) after submission_time_cutoff during which
+   * submissions still go through but are flagged late. 0 = legacy hard cutoff.
+   * Validated to 0–60 in the organizer UI.
+   */
+  submission_late_buffer_minutes?: number;
   sponsorship_tiers?: {
     tiers?: Array<{
       id: string; // e.g., "bronze" | "silver" | "gold" or custom
@@ -361,6 +367,13 @@ export interface Project {
   is_finalist?: boolean;
   contextus_project_id?: string;
   submitted?: boolean;
+  submitted_at?: string | null;
+  /**
+   * Owning event's submission_time_cutoff, plumbed through so the gallery
+   * can render a late-submission badge without a second query. May be
+   * absent on legacy payloads.
+   */
+  event_submission_cutoff?: string | null;
 }
 
 export enum ProjectBoardContext {
@@ -529,6 +542,7 @@ export interface ProjectFromDatabase {
   event_id: string;
   created_at: string;
   submitted?: boolean;
+  submitted_at?: string | null;
   project_tracks?: Array<{
     event_tracks?: EventTrack;
   }>;
