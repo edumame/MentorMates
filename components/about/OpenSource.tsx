@@ -18,6 +18,11 @@ export function OpenSource() {
           partners who use it, so that support at hackathons stays free and available to every learner.
         </p>
         <p className="text-base sm:text-md leading-relaxed">
+          <a href={OPEN_SOURCE.REPO_URL} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+            {OPEN_SOURCE.VIEW_SOURCE_LABEL}
+          </a>
+        </p>
+        <p className="text-base sm:text-md leading-relaxed">
           Want to contribute, partner on a hackathon or collaborate? Write to us at{" "}
           <a href={`mailto:${OPEN_SOURCE.CONTACT_EMAIL}`} className="underline">
             {OPEN_SOURCE.CONTACT_EMAIL}
