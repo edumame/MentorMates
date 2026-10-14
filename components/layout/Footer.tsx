@@ -11,7 +11,7 @@ import { LicenseNotice } from "@/components/layout/LicenseNotice";
 
 const SUBSTACK_BASE = "https://mentormates.substack.com/";
 
-export function Footer() {
+export function Footer({ publicPresentation = false }: { publicPresentation?: boolean }) {
     const { isAuthenticated, isLoading } = useAuth();
     const [firstUrl, setFirstUrl] = useState("");
     const [firstReferrer, setFirstReferrer] = useState("");
@@ -21,8 +21,9 @@ export function Footer() {
         setFirstReferrer(document.referrer || "");
     }, []);
 
-    // Hide footer when authenticated or while loading to avoid a flash
-    if (isLoading || isAuthenticated) {
+    // The homepage wrapper owns auth visibility for its public landing content.
+    // Other callers retain the existing authenticated/loading behavior.
+    if (!publicPresentation && (isLoading || isAuthenticated)) {
         return null;
     }
 
