@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TESTIMONIALS } from "@/lib/constants/testimonials";
@@ -400,7 +401,7 @@ function LoginContent({
               )}
 
               <div>
-                <input
+                <Input
                   id="email"
                   name="email"
                   type="email"
@@ -409,12 +410,12 @@ function LoginContent({
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="h-auto rounded-lg border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-blue-600"
                 />
               </div>
 
               <div>
-                <input
+                <Input
                   id="password"
                   name="password"
                   type="password"
@@ -423,7 +424,7 @@ function LoginContent({
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="h-auto rounded-lg border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-blue-600"
                 />
               </div>
 

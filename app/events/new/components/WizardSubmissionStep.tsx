@@ -32,7 +32,7 @@ export function WizardSubmissionStep({ event, setEvent }: WizardStepProps) {
 
       {/* Team Settings */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <h2 className="mb-6 text-lg font-semibold text-gray-900">
+        <h2 className="mb-6 font-geist text-lg font-semibold tracking-[-0.06em] text-gray-900">
           Team Settings
         </h2>
         <div className="space-y-5">

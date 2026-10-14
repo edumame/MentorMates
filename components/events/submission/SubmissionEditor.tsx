@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   Plus,
   Trash2,
@@ -9,7 +10,6 @@ import {
   Lock,
   Paperclip,
   Send,
-  Sparkles,
 } from "lucide-react";
 import type { SubmissionField, ChatMessage } from "./types";
 import {
@@ -169,7 +169,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
           <div className="px-4 py-4 sm:px-8 sm:py-6">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div className="space-y-1">
-                <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                <h1 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
                   Submission Form
                 </h1>
                 <p className="text-base text-[#7f7f7f]">
@@ -308,11 +308,16 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
         <div className="sticky top-6">
           <div className="rounded-xl border border-[rgba(0,0,0,0.15)] bg-white overflow-hidden shadow-sm flex flex-col h-[600px]">
             <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-[#4B89EF]/5 to-[#6B9FEF]/5">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#4B89EF] to-[#6B9FEF] flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                <div>
+              <div className="flex items-center gap-[10px]">
+                <Image
+                  src="/images/form-assistant-robot.png"
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 shrink-0 object-contain"
+                  priority
+                />
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-black">
                     Form Assistant
                   </p>
@@ -438,7 +443,7 @@ function FieldDisplay({
       ) : field.type === "file" && field.multiple ? (
         <div className="space-y-2">
           <div className="border-2 border-dashed border-gray-200 rounded-xl py-4 flex flex-col items-center gap-1">
-            <Paperclip className="h-6 w-6 text-gray-300" />
+            <Paperclip className="h-4 w-4 text-gray-300" />
             <p className="text-sm text-[rgba(0,0,0,0.35)]">
               Drop files here or click to upload
             </p>
@@ -449,7 +454,7 @@ function FieldDisplay({
         </div>
       ) : field.type === "file" ? (
         <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-          <Paperclip className="h-6 w-6 shrink-0" />
+          <Paperclip className="h-4 w-4 shrink-0 text-gray-500" />
           <span className="text-base text-[rgba(0,0,0,0.35)] flex-1 truncate">
             {field.placeholder || "https://..."}
           </span>
@@ -487,7 +492,7 @@ function FieldDisplay({
       ) : field.type === "url" && field.multiple ? (
         <div className="space-y-1.5">
           <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-            <FieldIcon className="h-6 w-6 shrink-0" />
+            <FieldIcon className="h-4 w-4 shrink-0 text-gray-500" />
             <span className="text-base text-[rgba(0,0,0,0.35)]">
               {field.placeholder || "https://..."}
             </span>
@@ -496,7 +501,7 @@ function FieldDisplay({
         </div>
       ) : (
         <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-          <FieldIcon className="h-6 w-6 shrink-0" />
+          <FieldIcon className="h-4 w-4 shrink-0 text-gray-500" />
           <span className="text-base text-[rgba(0,0,0,0.35)]">
             {field.placeholder || `Enter ${field.label.toLowerCase()}`}
           </span>

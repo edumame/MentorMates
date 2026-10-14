@@ -1,4 +1,5 @@
 import { Inter } from "next/font/google";
+import { profileAvatarInitialsLora } from "@/lib/fonts/profile-avatar-initials";
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import { Providers } from "@/components/utils/Providers";
@@ -9,6 +10,7 @@ import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
 import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
+import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { ShipcueReportButton } from "@/components/layout/ShipcueReportButton";
 import { JsonLd } from "./JsonLd";
 import { seoMetadata } from "./seo-metadata";
@@ -26,12 +28,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${profileAvatarInitialsLora.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=optional"
         />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="MentorMates" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={inter.className} suppressHydrationWarning>
@@ -53,6 +62,7 @@ export default function RootLayout({
                   </ConditionalLayout>
                 </AuthProvider>
                 <FloatingSupportButton />
+                <ServiceWorkerRegistration />
                 <ShipcueReportButton />
               </LayoutConfigProvider>
             </AuthContextProvider>

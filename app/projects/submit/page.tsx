@@ -95,7 +95,7 @@ export default function SubmitProjectPage() {
 
   if (isLoading) {
     return (
-      <PageContainer>
+      <PageContainer showBorder={false}>
         <div className="flex items-center justify-center flex-grow">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         </div>
@@ -104,9 +104,9 @@ export default function SubmitProjectPage() {
   }
 
   return (
-    <PageContainer>
+    <PageContainer showBorder={false}>
       <Toaster />
-      <PageContent className="flex flex-col">
+      <PageContent>
         {contextusId && (
           <div className="sticky top-0 z-10 mb-4 rounded-md border p-3 bg-blue-50 text-blue-800 flex items-center justify-between mx-auto shrink-0">
             <div>

@@ -14,8 +14,8 @@ import {
   MoreHorizontal,
   ExternalLink,
 } from "lucide-react";
-import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import { toast } from "@/lib/hooks/use-toast";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import {
@@ -931,8 +931,8 @@ export function NewProjectSubmissionFormSinglePage({
       ) : null}
 
       {/* Sticky Auto-save Banner */}
-      <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
-        <div className="px-6 py-3.5 flex items-center justify-between flex-wrap">
+      <div className="sticky top-0 z-20 border-b border-[#d8d8d8]">
+        <div className="px-6 py-3.5 flex items-center justify-between flex-wrap rounded-tl-[32px] bg-sky-50">
           <div className="flex items-center gap-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -970,10 +970,8 @@ export function NewProjectSubmissionFormSinglePage({
         </div>
       </div>
 
-      {/* Wrapper without top border */}
-      <div className="overflow-visible">
-        {/* Main Content */}
-        <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
+      {/* Main Content */}
+      <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
           <div className="px-8 py-6 min-h-[800px]">
             {/* TODO(lia, #660): Fix mobile layout of this top bar.
                 Currently on mobile (<640px), the visibility dropdown + 3 action
@@ -1422,7 +1420,6 @@ export function NewProjectSubmissionFormSinglePage({
             </div>
           </div>
         </div>
-      </div>
 
       {/* Mobile sticky bottom submit bar */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[rgba(0,0,0,0.15)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">

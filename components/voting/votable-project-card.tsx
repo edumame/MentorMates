@@ -32,7 +32,7 @@ export function VotableProjectCard({
         {/* Winner Banner */}
         {project.prizes_won && project.prizes_won.length > 0 && (
           <div className="absolute top-4 left-4 right-4 z-20">
-            <div className="bg-white border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center shadow-lg rounded-lg">
+            <div className="bg-white border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center rounded-lg">
               <Trophy className="h-4 w-4 mr-2 text-yellow-600" />
               <span className="font-semibold text-sm">
                 {project.prizes_won.length === 1
@@ -46,7 +46,7 @@ export function VotableProjectCard({
         {/* Voted Badge */}
         {hasVoted && (
           <div className="absolute top-4 right-4 z-20">
-            <div className="bg-[#4B89EF] text-white py-1 px-3 rounded-full text-xs font-semibold shadow-lg">
+            <div className="bg-[#4B89EF] text-white py-1 px-3 rounded-full text-xs font-semibold">
               ✓ Voted
             </div>
           </div>

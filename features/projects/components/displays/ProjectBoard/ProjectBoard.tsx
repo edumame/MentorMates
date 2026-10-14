@@ -69,7 +69,7 @@ const ProjectBoard = ({
           className="mx-auto w-full"
         >
           {projectList.length > 0 ? (
-            <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
+            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,280px),339px))] sm:justify-start sm:gap-x-4 sm:gap-y-5 auto-rows-fr">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -82,7 +82,7 @@ const ProjectBoard = ({
                   <Link
                     href={projectUrl}
                     key={project.id}
-                    className="block group w-full max-w-[420px] mx-auto sm:mx-0"
+                    className="block group h-full w-full max-w-[339px] justify-self-center sm:max-w-none sm:justify-self-stretch"
                   >
                     <Card
                       className={`bg-white rounded-[12px] overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
@@ -94,7 +94,7 @@ const ProjectBoard = ({
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
                         <div className="absolute top-4 left-4 right-4 z-20">
-                          <div className="bg-white/95 backdrop-blur-sm border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center shadow-lg rounded-lg">
+                          <div className="bg-white/95 backdrop-blur-sm border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center rounded-lg">
                             <Trophy className="h-4 w-4 mr-2 text-yellow-600" />
                             <span className="font-semibold text-sm">
                               {project.prizes_won.length === 1
@@ -124,12 +124,12 @@ const ProjectBoard = ({
 
                         {/* Status Badges - Overlay on Image */}
                         <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
-                          <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                          <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5">
                             {project.submitted ? <Sparkles className="w-3 h-3" /> : <Loader className="w-3 h-3 animate-spin" />}
                             {project.submitted ? "Submitted" : "Draft"}
                           </div>
                           {isOwner && (
-                            <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                            <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5">
                               <User className="w-3 h-3" />
                               Owner
                             </div>

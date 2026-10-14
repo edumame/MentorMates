@@ -32,8 +32,8 @@ export function ResourcesEditor({ event, update }: ResourcesEditorProps) {
 
   return (
     <>
-      <div>
-        <h2 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+      <div className="px-6">
+        <h2 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
           Resources
         </h2>
         <p className="text-base text-gray-500 mt-1">
@@ -47,7 +47,7 @@ export function ResourcesEditor({ event, update }: ResourcesEditorProps) {
           className="rounded-xl border border-gray-200 bg-white p-6"
         >
           <div className="flex items-start justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="font-geist text-sm font-semibold tracking-[-0.04em] text-gray-900">
               Resource {index + 1}
             </h3>
             <button
@@ -99,13 +99,15 @@ export function ResourcesEditor({ event, update }: ResourcesEditorProps) {
         </div>
       )}
 
-      <button
-        onClick={addResource}
-        className="flex items-center gap-1.5 rounded-xl bg-[#4B89EF] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#3E7EEA]"
-      >
-        <Plus className="size-4" />
-        Add Resource
-      </button>
+      <div className="px-6">
+        <button
+          onClick={addResource}
+          className="flex items-center gap-1.5 rounded-xl bg-[#4B89EF] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#3E7EEA]"
+        >
+          <Plus className="size-4" />
+          Add Resource
+        </button>
+      </div>
     </>
   );
 }

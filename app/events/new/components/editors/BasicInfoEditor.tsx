@@ -45,7 +45,7 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             });
           }}
           placeholder="Event Title"
-          className="w-full border-none bg-transparent text-3xl font-semibold tracking-tight text-gray-900 outline-none placeholder:text-gray-300"
+          className="w-full border-none bg-transparent font-geist text-3xl font-semibold tracking-[-0.06em] text-gray-900 outline-none placeholder:text-gray-300"
         />
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">Blurb</label>
@@ -97,7 +97,7 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
 
       {/* Core Details Card */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <h2 className="mb-6 text-lg font-semibold text-gray-900">
+        <h2 className="mb-6 font-geist text-lg font-semibold tracking-[-0.06em] text-gray-900">
           Basic Information
         </h2>
 
@@ -372,3 +372,5 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
     </>
   );
 }
+
+

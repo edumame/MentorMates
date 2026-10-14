@@ -18,7 +18,7 @@ export function ContentEditor({ event, update }: ContentEditorProps) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="font-geist text-lg font-semibold tracking-[-0.06em] text-gray-900">
           Event Description
         </h2>
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">

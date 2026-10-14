@@ -1059,7 +1059,7 @@ export default function ProjectPage() {
 
   if (isLoading || !fetchComplete) {
     return (
-      <PageContainer>
+      <PageContainer showBorder={false}>
         <div className="flex items-center justify-center flex-grow">
           <div className="flex flex-col items-center gap-3">
             <Loader className="h-10 w-10 animate-spin text-blue-500" />
@@ -1071,7 +1071,7 @@ export default function ProjectPage() {
 
   if (!project) {
     return (
-      <PageContainer>
+      <PageContainer showBorder={false}>
         <div className="flex items-center justify-center flex-grow">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Project not found</h1>
@@ -1138,18 +1138,17 @@ export default function ProjectPage() {
   const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
 
   return (
-    <PageContainer>
+    <PageContainer showBorder={false}>
       <Toaster />
       <PageContent>
-        {/* Header Section */}
+        {/* Main column: same flex height as SidebarLayout content area */}
         <div
-          className="border-gray-200"
+          className="container mx-auto flex min-h-0 flex-1 flex-col px-5 sm:px-8 pt-6 sm:pt-8 pb-0 lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]"
           style={{
             background:
               "linear-gradient(to bottom, rgba(219, 234, 254, 0.45), rgba(255, 255, 255, 0) 13%, #fff)",
           }}
         >
-          <div className="container mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-0">
             {/* Top Actions Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
               {/* Metadata Badges */}
@@ -2208,7 +2207,7 @@ export default function ProjectPage() {
                           <div className="space-y-6">
                             {/* Project Lead */}
                             <div className="flex gap-4 items-center">
-                              <Avatar className="h-14 w-14 shrink-0">
+                              <Avatar className="h-14 w-14 shrink-0 border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5]">
                                 <AvatarImage
                                   src={
                                     teamProfileByEmail[
@@ -2223,7 +2222,7 @@ export default function ProjectPage() {
                                     project.lead_email
                                   }
                                 />
-                                <AvatarFallback>
+                                <AvatarFallback className="bg-[#F5F5F5] text-sm font-semibold text-[#717680]">
                                   {getInitials(project.lead_name || project.lead_email)}
                                 </AvatarFallback>
                               </Avatar>
@@ -2267,7 +2266,7 @@ export default function ProjectPage() {
                                   key={index}
                                   className="flex gap-4 items-center"
                                 >
-                                  <Avatar className="h-14 w-14 shrink-0">
+                                  <Avatar className="h-14 w-14 shrink-0 border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5]">
                                     <AvatarImage
                                       src={
                                         teamProfileByEmail[
@@ -2280,7 +2279,7 @@ export default function ProjectPage() {
                                         ]?.displayName || teammate
                                       }
                                     />
-                                    <AvatarFallback>
+                                    <AvatarFallback className="bg-[#F5F5F5] text-sm font-semibold text-[#717680]">
                                       {getInitials(
                                         teamProfileByEmail[teammate.toLowerCase()]
                                           ?.displayName || teammate
@@ -2513,7 +2512,6 @@ export default function ProjectPage() {
                 </div>
               </div>
             </Tabs>
-          </div>
         </div>
 
         {/* Delete Confirmation Dialog */}

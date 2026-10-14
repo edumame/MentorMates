@@ -14,7 +14,7 @@ export const seoMetadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
-    apple: "/mentormate.png",
+    apple: "/icons/icon-192x192.png",
   },
   openGraph: {
     title: TITLE,

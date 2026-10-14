@@ -215,7 +215,7 @@ export function ScheduleEditor({ event, update }: ScheduleEditorProps) {
             className="rounded-xl border border-gray-200 bg-white p-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="font-geist text-lg font-semibold tracking-[-0.04em] text-gray-900">
                 Day {dayIndex + 1}
               </h3>
               <button

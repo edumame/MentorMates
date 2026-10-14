@@ -76,7 +76,7 @@ export function SubmissionFormPreview({ fields }: SubmissionFormPreviewProps) {
       <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
         <div className="px-4 py-4 min-h-[400px] sm:px-8 sm:py-6">
           <div className="space-y-1 mb-6">
-            <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+            <h1 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
               Create your project
             </h1>
             <p className="text-base text-black">
@@ -142,7 +142,7 @@ export function SubmissionFormPreview({ fields }: SubmissionFormPreviewProps) {
                     ) : field.type === "file" ? (
                       <>
                         <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                          <Paperclip className="h-6 w-6 shrink-0" />
+                          <Paperclip className="h-4 w-4 shrink-0 text-gray-500" />
                           <input
                             type="text"
                             value={fieldValues[field.id] || ""}
@@ -255,7 +255,7 @@ export function SubmissionFormPreview({ fields }: SubmissionFormPreviewProps) {
                     ) : (
                       <>
                         <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                          <FieldIcon className="h-6 w-6 shrink-0" />
+                          <FieldIcon className="h-4 w-4 shrink-0 text-gray-500" />
                           <input
                             type={field.type === "url" ? "url" : "text"}
                             value={fieldValues[field.id] || ""}
@@ -309,7 +309,7 @@ function MultiUrlField({
       {values.map((val, i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11 flex-1">
-            <FieldIcon className="h-5 w-5 shrink-0 text-gray-400" />
+            <FieldIcon className="h-4 w-4 shrink-0 text-gray-400" />
             <input
               type="url"
               value={val}

@@ -355,11 +355,11 @@ function NewEventPageInner() {
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} className="bg-gray-50">
+    <div ref={containerRef} className="bg-gray-50 font-inter">
       {/* Header with save/publish buttons */}
       <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-3 py-3 sm:px-6 sm:py-4">
-          <h1 className="text-xl font-semibold text-gray-900 sm:text-2xl">
+          <h1 className="font-geist text-2xl font-semibold tracking-[-0.06em] text-gray-900 sm:text-3xl">
             Create Event
           </h1>
           <div className="flex items-center gap-2">
@@ -439,7 +439,9 @@ function NewEventPageInner() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Event Published</AlertDialogTitle>
+            <AlertDialogTitle className="font-geist tracking-[-0.06em]">
+              Event Published
+            </AlertDialogTitle>
             <AlertDialogDescription>
               Your event has been published as a private event. Would you like to
               submit it for approval to be featured on the home page?
