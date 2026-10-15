@@ -1,5 +1,6 @@
-/** @jest-environment jsdom */
+/** @jest-environment node */
 
+import { NextRequest } from "next/server";
 import { GET } from "./route";
 import {
   authenticateAgentRequest,
@@ -11,28 +12,6 @@ import {
   listParticipantAgentEvents,
 } from "@/lib/agent/event-access";
 
-jest.mock("next/server", () => {
-  class MockNextResponse {
-    status: number;
-    private readonly body: unknown;
-
-    constructor(body: unknown, init?: ResponseInit) {
-      this.status = init?.status ?? 200;
-      this.body = body;
-    }
-
-    static json(body: unknown, init?: ResponseInit) {
-      return new MockNextResponse(body, init);
-    }
-
-    async json() {
-      return this.body;
-    }
-  }
-
-  return { NextResponse: MockNextResponse };
-});
-
 jest.mock("@/lib/agent/auth", () => ({
   authenticateAgentRequest: jest.fn(),
   authorizeAgentEventAccess: jest.fn(),
@@ -40,6 +19,7 @@ jest.mock("@/lib/agent/auth", () => ({
 }));
 
 jest.mock("@/lib/agent/event-access", () => ({
+  ...jest.requireActual("@/lib/agent/event-access"),
   listParticipantAgentEvents: jest.fn(),
   listJoinableParticipantAgentEvents: jest.fn(),
 }));
@@ -58,15 +38,13 @@ describe("GET /api/agent/me/events", () => {
       keyId: "key-1",
     });
     (listParticipantAgentEvents as jest.Mock).mockResolvedValue([
-      { event_id: "event-1", event_name: "Joined Event" },
+      { event_id: "event-1", event_name: "Joined Event", approval_status: "approved", participant_capacity: 42 },
     ]);
     (listJoinableParticipantAgentEvents as jest.Mock).mockResolvedValue([
       { event_id: "event-2", event_name: "Joinable Event" },
     ]);
 
-    const response = await GET({
-      nextUrl: new URL("https://mentormates.ai/api/agent/me/events"),
-    } as never);
+    const response = await GET(new NextRequest("https://mentormates.ai/api/agent/me/events"));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
