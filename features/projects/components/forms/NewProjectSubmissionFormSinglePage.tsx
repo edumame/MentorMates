@@ -1,4 +1,5 @@
 "use client";
+import { SoloSubmissionConfirmation, needsSoloConfirmation } from "./components/SoloSubmissionConfirmation";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -139,6 +140,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
   const [pendingPublishPayload, setPendingPublishPayload] =
     useState<PublishPayload | null>(null);
+  const [showSoloConfirm, setShowSoloConfirm] = useState(false);
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -632,11 +634,19 @@ export function NewProjectSubmissionFormSinglePage({
       : eventId ? `/events/${eventId}/overview` : `/projects`);
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (options?: { skipSoloConfirm?: boolean }) => {
     if (isUploading) {
       toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before publishing." });
       return;
     }
+    if (
+      !options?.skipSoloConfirm &&
+      needsSoloConfirmation(validTeammates, participants)
+    ) {
+      setShowSoloConfirm(true);
+      return;
+    }
+    setShowSoloConfirm(false);
     setIsSubmitting(true);
 
     if (formData.projectName.trim().length < 2) {
@@ -930,6 +940,8 @@ export function NewProjectSubmissionFormSinglePage({
         />
       ) : null}
 
+      <SoloSubmissionConfirmation open={showSoloConfirm} onOpenChange={setShowSoloConfirm} onConfirm={() => { setShowSoloConfirm(false); void handlePublish({ skipSoloConfirm: true }); }} />
+
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="px-6 py-3.5 flex items-center justify-between flex-wrap">
@@ -1012,7 +1024,7 @@ export function NewProjectSubmissionFormSinglePage({
                     Delete draft
                   </Button>
                   <Button
-                    onClick={handlePublish}
+                    onClick={() => handlePublish()}
                     disabled={isSubmitting || isUploading}
                     className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
                   >
@@ -1427,7 +1439,7 @@ export function NewProjectSubmissionFormSinglePage({
       {/* Mobile sticky bottom submit bar */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[rgba(0,0,0,0.15)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
         <Button
-          onClick={handlePublish}
+          onClick={() => handlePublish()}
           disabled={isSubmitting || isUploading}
           className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl py-3 shadow-sm font-medium text-base"
         >
