@@ -24,6 +24,12 @@ const badgeVariants = cva(
         organizer:
           "border-transparent bg-amber-500 text-white hover:bg-amber-600",
         admin: "border-transparent bg-red-500 text-white hover:bg-red-600",
+        verified:
+          "border-transparent bg-green-500 text-white hover:bg-green-600",
+        pending:
+          "border-transparent bg-amber-500 text-white hover:bg-amber-600",
+        failed: "border-transparent bg-red-500 text-white hover:bg-red-600",
+        expired: "border-transparent bg-gray-500 text-white hover:bg-gray-600",
       },
     },
     defaultVariants: {
