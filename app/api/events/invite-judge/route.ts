@@ -89,6 +89,7 @@ export async function POST(request: Request) {
     .from("user_profiles")
     .select("uid")
     .eq("email", normalizedEmail)
+    .not("uid", "is", null)
     .maybeSingle();
 
   if (existingUser) {

@@ -88,7 +88,7 @@ async function hydrateTeams(
       .in("uid", userIds);
     if (profErr) throw profErr;
     (profiles ?? []).forEach((p) =>
-      profileMap.set(p.uid, {
+      p.uid && profileMap.set(p.uid, {
         display_name: p.display_name,
         email: p.email,
         avatar_url: p.avatar_url,

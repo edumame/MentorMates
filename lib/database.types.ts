@@ -2360,6 +2360,8 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          id: string
+
           affiliation: string | null
           avatar: string | null
           avatar_url: string | null
@@ -2371,9 +2373,11 @@ export type Database = {
           onboarding_metadata: Json | null
           pulse: number
           stripe_customer_id: string | null
-          uid: string
+          uid: string | null;
         }
         Insert: {
+          id?: string
+
           affiliation?: string | null
           avatar?: string | null
           avatar_url?: string | null
@@ -2385,9 +2389,11 @@ export type Database = {
           onboarding_metadata?: Json | null
           pulse?: number
           stripe_customer_id?: string | null
-          uid: string
+          uid?: string | null;
         }
         Update: {
+          id?: string
+
           affiliation?: string | null
           avatar?: string | null
           avatar_url?: string | null
@@ -2399,7 +2405,7 @@ export type Database = {
           onboarding_metadata?: Json | null
           pulse?: number
           stripe_customer_id?: string | null
-          uid?: string
+          uid?: string | null;
         }
         Relationships: []
       }

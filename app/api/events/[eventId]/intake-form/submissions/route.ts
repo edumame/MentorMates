@@ -102,6 +102,7 @@ export async function GET(
         .in("uid", submitterIds);
 
       (profileRows ?? []).forEach((profile) => {
+        if (!profile.uid) return;
         profileMap.set(profile.uid, {
           display_name: profile.display_name,
           email: profile.email,
