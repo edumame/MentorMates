@@ -185,32 +185,90 @@ export interface Prize {
   winning_project?: Project;
 }
 
+/** @deprecated Use EventResource with type='link' instead */
 export interface Resource {
   name: string;
   link: string;
 }
 
+/** @deprecated Use EventResource with type='lesson' instead */
 export interface Lesson {
-  /**
-   * Title of the lesson, shown to users
-   */
   title: string;
-  /**
-   * Public URL for a cover image to display on cards
-   */
   cover_image_url: string;
-  /**
-   * Destination URL for the lesson content
-   */
   url: string;
-  /**
-   * Short description of what this lesson covers
-   */
   description: string;
-  /**
-   * Estimated time to complete the lesson, in minutes
-   */
   duration_minutes: number;
+}
+
+// -- Consolidated event resources (replaces Resource + Lesson + future types) --
+
+export type EventResourceType = "link" | "lesson" | "sponsor" | "tool";
+
+export interface EventResource {
+  id: string;
+  event_id: string;
+  type: EventResourceType;
+  name: string;
+  description: string | null;
+  url: string | null;
+  cover_image_url: string | null;
+  sort_order: number;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Type-narrow helpers */
+export function isLessonResource(r: EventResource): boolean {
+  return r.type === "lesson";
+}
+export function isSponsorResource(r: EventResource): boolean {
+  return r.type === "sponsor";
+}
+export function isToolResource(r: EventResource): boolean {
+  return r.type === "tool";
+}
+
+/** Convert legacy Resource ({name, link}) to EventResource shape for rendering */
+export function legacyResourceToEventResource(
+  r: Resource,
+  eventId: string,
+  idx: number,
+): EventResource {
+  return {
+    id: `legacy-${idx}`,
+    event_id: eventId,
+    type: "link",
+    name: r.name,
+    description: null,
+    url: r.link,
+    cover_image_url: null,
+    sort_order: idx,
+    metadata: {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/** Convert legacy Lesson to EventResource shape */
+export function legacyLessonToEventResource(
+  l: Lesson,
+  eventId: string,
+  idx: number,
+): EventResource {
+  return {
+    id: `legacy-lesson-${idx}`,
+    event_id: eventId,
+    type: "lesson",
+    name: l.title,
+    description: l.description,
+    url: l.url,
+    cover_image_url: l.cover_image_url,
+    sort_order: idx,
+    metadata: { duration_minutes: l.duration_minutes },
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 export interface Rule {
@@ -247,10 +305,10 @@ export interface EventDetails extends EventItem {
   event_schedule: ScheduleDay[];
   event_prizes: Prize[];
   event_resources: Resource[];
-  /**
-   * Exclusive lessons available only to users in the event
-   */
+  /** @deprecated Use resources instead */
   event_lessons?: Lesson[];
+  /** Consolidated typed resources (links, lessons, sponsors, tools) */
+  resources?: EventResource[];
   created_at: string;
   rules: Rule[];
   event_tracks?: EventTrack[];
