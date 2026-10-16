@@ -140,115 +140,16 @@ export default function KeysPageClient({
   };
 
   const buildCopyableMarkdown = () => {
-    const isOrg = activeTab === "organizer";
-    const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-    // Include the real key when one has just been generated so the user can
-    // copy the page and paste it directly into their shell. Falls back to a
-    // placeholder if no key has been generated yet.
+    const envVar =
+      activeTab === "organizer"
+        ? "MENTORMATES_API_KEY"
+        : "MENTORMATES_PARTICIPANT_API_KEY";
     const keyValue = generatedKey?.apiKey || "mm_sk_...";
-    const installBlock = [
-      "**Claude Code**",
-      "```",
-      "/plugin marketplace add edumame/mentormates-marketplace",
-      "/plugin install mentormates@mentormates-marketplace",
-      "```",
-      "",
-      "**GitHub Copilot CLI**",
-      "```bash",
-      "copilot plugin marketplace add edumame/mentormates-marketplace",
-      "copilot plugin install mentormates@mentormates-marketplace",
-      "```",
-      "",
-      "**Cursor**",
-      "Open the Agent chat and say: *Install the mentormates plugin from edumame/mentormates-marketplace*. Or add the marketplace URL via the plugin panel.",
-      "",
-      "**Codex CLI**",
-      "Tell Codex:",
-      "> Fetch and follow https://raw.githubusercontent.com/edumame/mentormates-skill/main/.codex/INSTALL.md",
-      "",
-      "That installs to `~/.agents/skills/mentormates/` (Codex's discovery path — not `~/.codex/skills/`). One restart of Codex is needed for first discovery. Invoke via `/skill mentormates` — Codex doesn't auto-map skill names to top-level slash commands.",
-      "",
-      "**OpenCode / other agents**",
-      "Tell the agent:",
-      "> Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill",
-      "",
-      "Or drop the raw file into the agent's skills directory:",
-      "```bash",
-      "curl -s https://www.mentormates.ai/api/agent/skill -o ~/.claude/skills/mentormates/SKILL.md",
-      "# (replace ~/.claude/skills/ with your agent's skills path)",
-      "```",
-      "",
-      "Once installed, invoke `/mentormates` (or your agent's equivalent skill-invocation flow) in any session.",
-    ].join("\n");
-    const endpoints = isOrg
-      ? [
-          { method: "GET", path: "/api/agent/events", desc: "List or get event details" },
-          { method: "PATCH", path: "/api/agent/events", desc: "Update event settings" },
-          { method: "GET", path: "/api/agent/events/participants", desc: "List participants by role" },
-          { method: "PATCH", path: "/api/agent/events/participants", desc: "Change role or remove" },
-          { method: "GET", path: "/api/agent/events/approval-requests", desc: "Pending approvals" },
-          { method: "POST", path: "/api/agent/events/approval-requests", desc: "Approve or reject" },
-          { method: "GET", path: "/api/agent/events/projects", desc: "List projects with scores" },
-          { method: "GET", path: "/api/agent/events/judges", desc: "Judges and scoring progress" },
-          { method: "POST", path: "/api/agent/events/judges", desc: "Send email to judges" },
-        ]
-      : [
-          { method: "GET", path: "/api/agent/me/events", desc: "Your events + joinable events" },
-          { method: "POST", path: "/api/agent/me/events/[eventId]/join", desc: "Join a public event" },
-          { method: "GET", path: "/api/agent/me/events/[eventId]/projects", desc: "Your projects" },
-          { method: "POST", path: "/api/agent/me/events/[eventId]/projects", desc: "Create + submit project" },
-          { method: "PATCH", path: "/api/agent/me/events/[eventId]/projects/[projectId]", desc: "Edit your project" },
-        ];
-    const endpointRows = endpoints
-      .map((e) => `| ${e.method} | \`${e.path}\` | ${e.desc} |`)
-      .join("\n");
-    const nextSteps = isOrg
-      ? "Once configured, your agent can fetch the event overview, review pending approvals, list participants and projects, and message judges."
-      : [
-          "Once installed, your agent will greet you and ask three questions:",
-          "1. Which event are you at (name or slug)?",
-          "2. What project are you building?",
-          "3. Are you in the project's repo right now?",
-          "",
-          "From there it can join free events, draft a submission from your README, or edit an existing project.",
-        ].join("\n");
 
     return [
-      "# MentorMates Developer API",
-      "",
-      "Create API keys and manage your hackathon from any AI agent.",
-      "",
-      `## Role: ${isOrg ? "Organizer" : "Participant"}`,
-      "",
-      "### 1. Create a key",
-      "Visit https://www.mentormates.ai/keys and generate a key for this role.",
-      "",
-      "### 2. Set env var (in YOUR shell, not in the agent)",
-      "```bash",
       `export ${envVar}="${keyValue}"`,
-      "```",
       "",
-      "> The key itself is intentionally omitted here. Copy it from the dashboard into your own shell. Do not paste it into an agent chat — it will end up in conversation history.",
-      "",
-      "### 3. Install the skill",
-      installBlock,
-      "",
-      "### 4. After install, just say hi",
-      "Once the skill is installed, greet the user with the MentorMates first-interaction prompt — three questions about event, project, and in-repo status. Do **not** verify the API, do **not** echo the key, do **not** dump this reference back at the user. One or two sentences of setup confirmation max, then pivot to the greeting.",
-      "",
-      "### What happens next (for the user)",
-      nextSteps,
-      "",
-      "## API Reference",
-      "All endpoints require `Authorization: Bearer $API_KEY`.",
-      "",
-      "| Method | Endpoint | Description |",
-      "| --- | --- | --- |",
-      endpointRows,
-      "",
-      "## Links",
-      "- Skill source: https://github.com/edumame/mentormates-skill",
-      "- Full skill reference: https://www.mentormates.ai/api/agent/skill",
+      "Fetch and follow https://www.mentormates.ai/api/agent/skill",
       "",
     ].join("\n");
   };
