@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Trash2, Type, Link2, Plus } from "lucide-react";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -26,6 +27,22 @@ export function ResourcesTab({
   toast,
 }: ResourcesTabProps) {
   const { isArchived, checkArchiveStatus } = useEventArchiveStatus(event);
+
+  const updateResource = (
+    index: number,
+    partial: Partial<EventDetails["event_resources"][number]>
+  ) => {
+    const newResources = [...event.event_resources];
+    newResources[index] = {
+      ...newResources[index],
+      ...partial,
+    };
+    setEvent({
+      ...event,
+      event_resources: newResources,
+    });
+  };
+
   const handleResourcesUpdate = async () => {
     if (!event) return;
 
@@ -69,6 +86,15 @@ export function ResourcesTab({
           </AlertDescription>
         </Alert>
       )}
+      <Alert className="border-blue-200 bg-blue-50">
+        <AlertTitle className="text-blue-900">Resource visibility</AlertTitle>
+        <AlertDescription className="text-blue-800">
+          Public resources are visible to anyone viewing this event page,
+          including people who have not joined yet. Turn on Private for links
+          that should only be visible after joining. Use Public for custom
+          pre-join links you want everyone to access.
+        </AlertDescription>
+      </Alert>
       {event.event_resources.length === 0 ? (
         <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
           <div className="flex flex-col items-center gap-2">
@@ -92,7 +118,10 @@ export function ResourcesTab({
               onClick={() => {
                 setEvent({
                   ...event,
-                  event_resources: [...event.event_resources, { name: "", link: "" }],
+                  event_resources: [
+                    ...event.event_resources,
+                    { name: "", link: "", is_private: false },
+                  ],
                 });
               }}
               className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white border-0"
@@ -108,7 +137,7 @@ export function ResourcesTab({
               key={index}
               className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
             >
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_220px_auto] gap-4">
                 <div className="space-y-2">
                   <label className="text-[16px] font-normal text-black">Resource Name</label>
                   <div className="relative">
@@ -117,12 +146,7 @@ export function ResourcesTab({
                       value={resource.name}
                       disabled={isArchived}
                       onChange={(e) => {
-                        const newResources = [...event.event_resources];
-                        newResources[index].name = e.target.value;
-                        setEvent({
-                          ...event,
-                          event_resources: newResources,
-                        });
+                        updateResource(index, { name: e.target.value });
                       }}
                       className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                     />
@@ -138,15 +162,40 @@ export function ResourcesTab({
                       value={resource.link}
                       disabled={isArchived}
                       onChange={(e) => {
-                        const newResources = [...event.event_resources];
-                        newResources[index].link = e.target.value;
-                        setEvent({
-                          ...event,
-                          event_resources: newResources,
-                        });
+                        updateResource(index, { link: e.target.value });
                       }}
                       className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor={`resource-private-${index}`}
+                    className="text-[16px] font-normal text-black"
+                  >
+                    Visibility
+                  </Label>
+                  <div className="h-[44px] px-3 border border-[rgba(0,0,0,0.15)] rounded-[12px] flex items-center justify-between">
+                    <span className="text-sm text-[rgba(0,0,0,0.7)]">
+                      {resource.is_private === true ? "Private" : "Public"}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor={`resource-private-${index}`}
+                        className="text-sm text-[rgba(0,0,0,0.7)]"
+                      >
+                        Private
+                      </Label>
+                      <Switch
+                        id={`resource-private-${index}`}
+                        disabled={isArchived}
+                        checked={resource.is_private === true}
+                        onCheckedChange={(checked) =>
+                          updateResource(index, { is_private: checked })
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -174,7 +223,10 @@ export function ResourcesTab({
             onClick={() => {
               setEvent({
                 ...event,
-                event_resources: [...event.event_resources, { name: "", link: "" }],
+                event_resources: [
+                  ...event.event_resources,
+                  { name: "", link: "", is_private: false },
+                ],
               });
             }}
             className="w-full rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
