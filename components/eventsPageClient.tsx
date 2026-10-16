@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { CreateEventModal } from "@/components/events/create-event-modal";
+import { BucketFilter } from "@/components/buckets/bucket-filter";
 import { EventsList } from "@/components/events/events-list";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,7 @@ export function EventsPageClient({
   eventsList,
   initialIsAuthenticated,
 }: EventsPageClientProps) {
+  const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("discover");
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
@@ -156,6 +158,7 @@ export function EventsPageClient({
 
   const filteredEvents = useMemo(() => {
     return tabFilteredEvents.filter((event) => {
+      if (selectedBucketId && event.bucket_id !== selectedBucketId) return false;
       if (searchTerm && !event.event_name.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
@@ -177,7 +180,7 @@ export function EventsPageClient({
       }
       return true;
     });
-  }, [tabFilteredEvents, searchTerm, selectedLocations, selectedTypes, dateRange]);
+  }, [tabFilteredEvents, searchTerm, selectedLocations, selectedTypes, dateRange, selectedBucketId]);
 
   const featuredEvents = useMemo(
     () => filteredEvents.filter((e) => e.featured).slice(0, 6),
@@ -306,6 +309,7 @@ export function EventsPageClient({
   };
 
   const clearFilters = () => {
+    setSelectedBucketId(null);
     setSelectedLocations(new Set());
     setSelectedTypes(new Set());
     setDateRange({ start: null, end: null });
@@ -323,7 +327,7 @@ export function EventsPageClient({
     });
   };
 
-  const hasActiveFilters =
+  const hasActiveFilters = !!selectedBucketId ||
     selectedLocations.size > 0 || selectedTypes.size > 0 || dateRange.start !== null;
 
   const tabs: TabKey[] = isAuthenticated
@@ -361,6 +365,7 @@ export function EventsPageClient({
               )}
             </div>
             <div className="pb-3">
+              <BucketFilter onBucketChange={setSelectedBucketId} selectedBucketId={selectedBucketId} />
               <EventSearchInput
                 wrapperClassName="w-full"
                 placeholder="Search by event or host title"

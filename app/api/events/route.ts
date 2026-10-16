@@ -18,7 +18,8 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const bucketId = new URL(request.url).searchParams.get("bucket_id");
   const supabase = await createSupabaseClient();
 
   try {
@@ -29,7 +30,7 @@ export async function GET() {
 
     if (!user) {
       // If not authenticated, only return public and private events (exclude archived) that are approved
-      const { data: visibleEvents, error: visibleError } = await supabase
+      let query = supabase
         .from("events")
         .select(
           `event_id, 
@@ -40,11 +41,14 @@ export async function GET() {
           event_date,
           visibility,
           featured,
-          approval_status`
+          approval_status, bucket_id,
+          event_buckets(bucket_id, bucket_name, bucket_slug, bucket_color, bucket_icon)`
         )
         .in("visibility", [EventVisibility.Public, EventVisibility.Private])
         .eq("approval_status", ApprovalStatus.Approved);
 
+      if (bucketId) query = query.eq("bucket_id", bucketId);
+      const { data: visibleEvents, error: visibleError } = await query;
       if (visibleError) throw visibleError;
       return NextResponse.json({ events: visibleEvents });
     }
@@ -70,7 +74,8 @@ export async function GET() {
       .map((role) => role.event_id);
 
     // Build query for events based on visibility and user role
-    let query = supabase.from("events").select("*");
+    let query = supabase.from("events").select("*, event_buckets(bucket_id, bucket_name, bucket_slug, bucket_color, bucket_icon, visibility)");
+    if (bucketId) query = query.eq("bucket_id", bucketId);
 
     if (isAdmin) {
       // Admins can see all events (public, private, draft, demo, test)
