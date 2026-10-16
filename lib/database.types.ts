@@ -645,6 +645,8 @@ export type Database = {
       }
       events: {
         Row: {
+          submissions_anonymized: boolean
+
           approval_status: Database["public"]["Enums"]["approval_status"] | null
           cover_image_url: string | null
           created_at: string | null
@@ -688,6 +690,8 @@ export type Database = {
           visibility: Database["public"]["Enums"]["event_visibility"]
         }
         Insert: {
+          submissions_anonymized?: boolean
+
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
@@ -733,6 +737,8 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Update: {
+          submissions_anonymized?: boolean
+
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
