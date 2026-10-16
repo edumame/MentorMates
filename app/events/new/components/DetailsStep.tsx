@@ -145,6 +145,9 @@ function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
         {event.participant_capacity && (
           <span>Capacity: {event.participant_capacity}</span>
         )}
+        {event.max_projects && (
+          <span>Project cap: {event.max_projects}</span>
+        )}
       </div>
 
       {/* Description */}

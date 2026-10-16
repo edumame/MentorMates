@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
          event_prizes, event_resources, scoring_config, cover_image_url, slug,
          paid, require_participant_approval,
          finalist_recommendation_enabled, featured, event_type, rules, faq,
-         role_labels`
+         role_labels, max_projects`
       )
       .eq("event_id", auth.eventId)
       .single();
@@ -185,6 +185,7 @@ const updateEventSchema = z
     paid: z.boolean().optional(),
     // numerics
     participant_capacity: z.number().int().positive().nullable().optional(),
+    max_projects: z.number().int().positive().nullable().optional(),
     // enums (excluding "archived" — see comment above)
     visibility: z
       .enum(["draft", "private", "public", "demo", "test"])
@@ -273,6 +274,7 @@ const createEventSchema = z.object({
   event_type: z.array(z.string()).optional().default([]),
   paid: z.boolean().optional().default(false),
   event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
+  max_projects: z.number().int().positive().nullable().optional(),
   event_prizes: z
     .array(
       z.object({
@@ -353,6 +355,7 @@ export async function POST(request: NextRequest) {
       approval_status: "not_submitted",
       featured: false,
       event_type: event.event_type ?? [],
+      max_projects: event.max_projects ?? null,
     };
 
     const { data: createdEvent, error: insertError } = await supabase

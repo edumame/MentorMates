@@ -8,6 +8,7 @@ import {
   ImageIcon,
   Calendar,
   Users,
+  FolderKanban,
 } from "lucide-react";
 import type { WizardEventData } from "@/lib/types/wizard";
 import { slugify } from "@/lib/types/wizard";
@@ -192,6 +193,39 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
                 className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="max-projects"
+              className="text-sm font-medium text-gray-700"
+            >
+              Project Submission Cap
+            </label>
+            <div className="relative">
+              <FolderKanban className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
+              <input
+                id="max-projects"
+                type="number"
+                min={1}
+                value={
+                  event.max_projects !== null ? String(event.max_projects) : ""
+                }
+                onChange={(e) =>
+                  update({
+                    max_projects:
+                      e.target.value === ""
+                        ? null
+                        : Math.max(1, parseInt(e.target.value, 10) || 1),
+                  })
+                }
+                placeholder="Leave blank for unlimited submissions"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              Limits how many projects can be submitted to this event per participant.
+            </p>
           </div>
 
           {/* Location */}
