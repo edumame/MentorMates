@@ -66,7 +66,10 @@ export async function GET() {
 
     // Get event IDs where user is an organizer
     const organizerEventIds = userRoles
-      .filter((role) => role.role === EventRole.Organizer)
+      .filter(
+        (role) =>
+          role.role === EventRole.Organizer || role.role === EventRole.Admin
+      )
       .map((role) => role.event_id);
 
     // Build query for events based on visibility and user role
