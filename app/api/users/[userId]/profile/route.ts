@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { ApprovalStatus, EventVisibility } from "@/lib/types";
+import { presentProfile, publicDisplayName, publicTeammateLabels } from "@/lib/users/profile-presentation";
 
 export async function GET(
   request: NextRequest,
@@ -22,27 +23,24 @@ export async function GET(
     // build query to fetch draft projects if the user is the logged in user
     let fetchDraftProjects = "submitted.eq.true";
 
-    const { data: loggedInUser } = await supabase.auth.getUser();
-    if (loggedInUser.user?.id === userId) {
+    const { data: loggedInUser, error: authError } = await supabase.auth.getUser();
+    const isOwnProfile = !authError && loggedInUser.user?.id === userId;
+    if (isOwnProfile) {
       fetchDraftProjects = "submitted.eq.false,submitted.eq.true";
     }
 
-    // Fetch user profile including all social media and profile fields
-    // Using * to select all columns for resilience if some columns don't exist yet
+    // Keep internal wildcard compatibility for optional deployed fields such as
+    // cover_image_url. presentProfile is the strict public/owner output boundary.
     const { data: profile, error: profileError } = await serviceSupabase
       .from("user_profiles")
       .select("*")
       .eq("uid", userId)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
       console.error("Error fetching user profile:", profileError);
       return NextResponse.json(
-        {
-          error: "Failed to fetch user profile",
-          details: profileError.message,
-          code: profileError.code,
-        },
+        { error: "Failed to fetch user profile" },
         { status: 500 }
       );
     }
@@ -54,12 +52,9 @@ export async function GET(
       );
     }
 
-    const avatarUrl = profile?.avatar_url || null;
-
     // Fetch phone number from user_phone_numbers table
     // Only fetch phone numbers for the user's own profile (privacy)
     let primaryPhoneNumber: string | null = null;
-    const isOwnProfile = loggedInUser.user?.id === userId;
 
     if (isOwnProfile) {
       // Prefer verified phone number, otherwise get the most recent one
@@ -98,8 +93,11 @@ export async function GET(
       }
     }
 
+    // Profile email is editable; owner membership must use the verified auth identity.
+    const membershipEmail = isOwnProfile ? loggedInUser.user?.email : profile.email;
+
     // Fetch projects where user is lead
-    const { data: leadProjects, error: leadError } = await supabase
+    const { data: leadProjects, error: leadError } = membershipEmail ? await supabase
       .from("projects")
       .select(
         `
@@ -122,8 +120,8 @@ export async function GET(
         submitted
       `
       )
-      .eq("lead_email", profile.email)
-      .or(fetchDraftProjects);
+      .eq("lead_email", membershipEmail)
+      .or(fetchDraftProjects) : { data: [], error: null };
 
     if (leadError) {
       console.error("Error fetching lead projects:", leadError);
@@ -134,7 +132,7 @@ export async function GET(
     }
 
     // Fetch projects where user is teammate
-    const { data: teamProjects, error: teamError } = await supabase
+    const { data: teamProjects, error: teamError } = membershipEmail ? await supabase
       .from("projects")
       .select(
         `
@@ -157,8 +155,8 @@ export async function GET(
         submitted
       `
       )
-      .contains("teammates", [profile.email])
-      .or(fetchDraftProjects);
+      .contains("teammates", [membershipEmail])
+      .or(fetchDraftProjects) : { data: [], error: null };
 
     if (teamError) {
       console.error("Error fetching team projects:", teamError);
@@ -174,13 +172,18 @@ export async function GET(
         (project, index, self) =>
           index === self.findIndex((p) => p.id === project.id)
       )
-      .map((project) => ({
+      .map((project) => {
+        const canViewMemberIdentities = isOwnProfile && Boolean(membershipEmail) && (
+          project.lead_email === membershipEmail ||
+          (Array.isArray(project.teammates) && project.teammates.includes(membershipEmail!))
+        );
+        return {
         id: project.id,
         project_name: project.project_name,
         project_description: project.project_description,
-        lead_name: project.lead_name,
-        lead_email: project.lead_email,
-        teammates: project.teammates,
+        lead_name: canViewMemberIdentities ? project.lead_name : publicDisplayName(project.lead_name, "Project lead"),
+        ...(canViewMemberIdentities ? { lead_email: project.lead_email } : {}),
+        teammates: canViewMemberIdentities ? project.teammates : publicTeammateLabels(project.teammates),
         project_url: project.project_url,
         cover_image_url: project.cover_image_url,
         event_id: project.event_id,
@@ -205,7 +208,8 @@ export async function GET(
             }))
             .filter(Boolean) || [],
           submitted: project.submitted,
-      }));
+      };
+      });
 
     // Fetch events where user has roles
     // If the logged-in user is viewing their own profile, show all events where the user has a role
@@ -303,24 +307,15 @@ export async function GET(
       });
     }
 
-    // Return profile with avatar_url and phone_number included
-    const profileWithAvatar = {
-      ...profile,
-      avatar_url: avatarUrl,
-      phone_number: primaryPhoneNumber,
-    };
-
     return NextResponse.json({
-      profile: profileWithAvatar,
+      profile: presentProfile(profile, isOwnProfile, primaryPhoneNumber),
       projects: allProjects,
       events: events || [],
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("API Error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error", details: errorMessage },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
