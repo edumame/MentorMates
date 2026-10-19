@@ -2443,6 +2443,27 @@ export type Database = {
       }
     }
     Functions: {
+      project_meeting_timeline: {
+        Args: { p_project_id: string }
+        Returns: {
+          id: string
+          name: string | null
+          status: Database["public"]["Enums"]["meeting_status"] | null
+          started_at: string | null
+          ended_at: string | null
+          created_at: string | null
+          score: number | null
+          can_view_details: boolean
+        }[]
+      }
+      meeting_associations_allowed: {
+        Args: { p_agent: string; p_event: string | null; p_project: string | null }
+        Returns: boolean
+      }
+      meeting_full_access: {
+        Args: { p_owner: string | null; p_event: string | null }
+        Returns: boolean
+      }
       increment_internal_invite_uses: {
         Args: { p_invite_id: string }
         Returns: undefined
