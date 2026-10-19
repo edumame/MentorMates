@@ -15,12 +15,15 @@ CONTAINER = "mentormates-quota-test-" + uuid.uuid4().hex[:12]
 
 
 def docker(*args, input=None, check=True, timeout=90):
-    return subprocess.run(["docker", *args], input=input, text=True,
-                          capture_output=True, check=check, timeout=timeout)
+    result = subprocess.run(["docker", *args], input=input, text=True,
+                            capture_output=True, check=False, timeout=timeout)
+    if check and result.returncode:
+        raise RuntimeError(f"Disposable Docker command failed: {result.stderr or result.stdout}")
+    return result
 
 
 def sql(statement, check=True):
-    return docker("exec", "-i", CONTAINER, "psql", "-X", "-U", "postgres",
+    return docker("exec", "-i", CONTAINER, "psql", "-X", "-h", "127.0.0.1", "-U", "postgres",
                   "-v", "ON_ERROR_STOP=1", "-Atq", input=statement, check=check)
 
 
@@ -37,7 +40,9 @@ def main():
                "--tmpfs", "/var/lib/postgresql/data:rw", "--env",
                "POSTGRES_HOST_AUTH_METHOD=trust", "postgres:16.15")
         for _ in range(60):
-            if docker("exec", CONTAINER, "pg_isready", "-U", "postgres", check=False).returncode == 0:
+            # The image init server accepts Unix sockets before restarting. TCP
+            # readiness only succeeds once the final server is running.
+            if docker("exec", CONTAINER, "pg_isready", "-h", "127.0.0.1", "-U", "postgres", check=False).returncode == 0:
                 break
             time.sleep(0.5)
         else:
