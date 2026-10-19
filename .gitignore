@@ -62,3 +62,6 @@ supabase/migrations/scripts_*
 plans/*
 
 .playwright-mcp
+# Generated macOS metadata and local agent output
+._*
+/.cursor/.agent-tools/
