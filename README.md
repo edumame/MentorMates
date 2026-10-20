@@ -73,6 +73,7 @@ For functional development, replace placeholders only with credentials for your 
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only privileged database operations. Use the matching development project key; never expose it through a `NEXT_PUBLIC_` variable. |
 | `OPENAI_API_KEY` | Optional AI-backed features. |
 | `RESEND_API_KEY` | Optional email delivery; use a test configuration and authorized sender. |
+| `APPROVAL_NOTIFICATION_RECIPIENTS` | Optional comma-separated addresses notified when an event needs approval. Defaults to `admin@mentormates.ai`. |
 | `NEXT_PUBLIC_STREAM_CHAT_API_KEY`, `STREAM_CHAT_SECRET_KEY` | Optional Stream chat integration. |
 | `NEXT_PUBLIC_STREAM_VIDEO_API_KEY`, `STREAM_VIDEO_SCRET_KEY` | Optional Stream video integration. `SCRET` is the current spelling in the source. |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Optional payments and webhooks; use Stripe test mode. See [payment integration notes](STRIPE_README.md). |
