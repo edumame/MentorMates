@@ -7,7 +7,14 @@ import z from "zod";
 import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
+import { authorizeMeetingProvider, isMissingVideoCall } from "@/lib/meetings/provider-access";
 import { streamChat } from "@/lib/stream-chat";
+
+async function providerOperation<T>(operation: () => Promise<T>): Promise<T> {
+    try { return await operation(); } catch {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to prepare meeting provider access" });
+    }
+}
 
 interface MeetingRow {
   id: string;
@@ -137,9 +144,11 @@ export const meetingsRouter = createTRPCRouter({
         const createdMeeting = createdRows?.[0];
 
         const call = streamVideo.video.call("default", createdMeeting.id);
-        await call.create({
+        await providerOperation(() => streamVideo.upsertUsers([{ id: ctx.auth.user.id, role: "user" }]));
+        await providerOperation(() => call.create({
             data: {
                 created_by_id: ctx.auth.user.id,
+                members: [{ user_id: ctx.auth.user.id }],
                 custom: {
                     meetingId: createdMeeting.id,
                     meetingName: createdMeeting.name
@@ -156,21 +165,21 @@ export const meetingsRouter = createTRPCRouter({
                     },
                 },
             },
-        });
+        }));
 
         const { data: agentRows, error: agentError } = await supabase.from('agents').select('*').eq('id', createdMeeting.agent_id).limit(1);
         const existingAgent = agentRows?.[0];
         if (agentError) throw agentError;
         if (!existingAgent) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' });
 
-        await streamVideo.upsertUsers([
+        await providerOperation(() => streamVideo.upsertUsers([
             {
                 id: existingAgent.id,
                 name: existingAgent.name,
                 role: "user",
                 image: existingAgent.avatar_url,
             },
-        ]);
+        ]));
     
         return createdMeeting;
     }),
@@ -377,26 +386,26 @@ export const meetingsRouter = createTRPCRouter({
         if (!removedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
         return removedMeeting;
     }),
-    generateToken: protectedProcedure.mutation(async ({ ctx }) => {
-        await streamVideo.upsertUsers([
-            {
-                id: ctx.auth.user.id,
-                name: ctx.auth.user.user_metadata.full_name,
-                role: "admin",
-                image: ctx.auth.user.user_metadata?.avatar_url,
-            },
-        ]);
-
-        const expirationTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour
-        const issuedAt = Math.floor(Date.now() / 1000) - 60;
-
-        const token = streamVideo.generateUserToken({
+    generateToken: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+        await authorizeMeetingProvider(ctx.supabase, ctx.auth.user.id, input.id);
+        try {
+        await streamVideo.upsertUsers([{
+            id: ctx.auth.user.id,
+            name: ctx.auth.user.user_metadata?.full_name,
+            role: "user",
+            image: ctx.auth.user.user_metadata?.avatar_url,
+        }]);
+        await streamVideo.video.call("default", input.id).updateCallMembers({ update_members: [{ user_id: ctx.auth.user.id }] });
+        const now = Math.floor(Date.now() / 1000);
+        return streamVideo.generateCallToken({
             user_id: ctx.auth.user.id,
-            exp: expirationTime,
-            validity_in_seconds: issuedAt,
+            call_cids: [`default:${input.id}`],
+            exp: now + 900,
+            iat: now,
         });
-
-        return token;
+        } catch {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to prepare meeting provider access" });
+        }
     }),
     getTranscript: protectedProcedure.input(z.object({ id: z.string()} )).query(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
@@ -496,77 +505,49 @@ export const meetingsRouter = createTRPCRouter({
 
         return transcriptWithSpeakers;
     }),
-    generateChatToken: protectedProcedure.mutation(async ({ ctx }) => {
-        const token = streamChat.createToken(ctx.auth.user.id);
-        await streamChat.upsertUsers([{
-                id: ctx.auth.user.id,
-                role: "admin",
-        }]);
-
-        return token;
-    }),
-    ensureCallExists: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ input, ctx }) => {
-        const supabase = ctx.supabase;
-
-        // Get the meeting from database
-        const { data: existingMeeting, error: meetingError } = await supabase
-            .from('meetings')
-            .select('*')
-            .eq('id', input.id)
-            .maybeSingle();
-
-        if (meetingError) throw meetingError;
-        if (!existingMeeting) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
-        }
-
-        // Check if user has access to this meeting
+    generateChatToken: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+        await authorizeMeetingProvider(ctx.supabase, ctx.auth.user.id, input.id);
+        try {
         const userId = ctx.auth.user.id;
-        const meetingOwnerId = (existingMeeting as MeetingRow).user_id ? String((existingMeeting as MeetingRow).user_id) : null;
-        const meetingEventId = (existingMeeting as MeetingRow).event_id ? String((existingMeeting as MeetingRow).event_id) : null;
-
-        let isAuthorized = meetingOwnerId === userId;
-
-        if (!isAuthorized && meetingEventId) {
-            const { data: isAdmin } = await supabase.rpc('is_admin_user', { user_id: userId });
-            if (isAdmin) {
-                isAuthorized = true;
-            } else {
-                const { data: eventRow, error: eventErr } = await supabase
-                    .from("events")
-                    .select("owner_id")
-                    .eq("event_id", meetingEventId)
-                    .maybeSingle();
-                if (eventErr) throw eventErr;
-
-                if (eventRow?.owner_id && String(eventRow.owner_id) === userId) {
-                    isAuthorized = true;
-                } else {
-                    const { data: roleRow, error: roleErr } = await supabase
-                        .from("user_event_roles")
-                        .select("role")
-                        .eq("event_id", meetingEventId)
-                        .eq("user_id", userId)
-                        .maybeSingle();
-                    if (roleErr) throw roleErr;
-                    if (roleRow?.role) isAuthorized = true;
-                }
-            }
+        await streamChat.upsertUsers([{ id: userId, role: "user" }]);
+        // queryChannels is read-only; channel.query/watch may implicitly create.
+        // An upstream error must never be treated as an absent channel.
+        const channels = await streamChat.queryChannels(
+            { cid: { $eq: `messaging:${input.id}` } }, [], { limit: 1, watch: false, state: false }
+        );
+        const channel = channels[0] ?? streamChat.channel("messaging", input.id, {
+            created_by_id: userId, members: [userId],
+        });
+        if (!channels.length) await channel.create();
+        // Idempotent membership also covers a concurrent creator and repeat access.
+        await channel.addMembers([userId]);
+        const now = Math.floor(Date.now() / 1000);
+        // Chat tokens are user-scoped: provider channel permissions remain required.
+        return streamChat.createToken(userId, now + 900, now);
+        } catch {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to prepare meeting provider access" });
         }
-
-        if (!isAuthorized) {
-            throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to access this meeting" });
-        }
+    }),
+    ensureCallExists: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ input, ctx }) => {
+        const supabase = ctx.supabase;
+        const userId = ctx.auth.user.id;
+        const existingMeeting = await authorizeMeetingProvider(supabase, userId, input.id);
 
         // Try to get the call from Stream.io
         const call = streamVideo.video.call("default", input.id);
 
+        await providerOperation(() => streamVideo.upsertUsers([{ id: userId, role: "user" }]));
+        let missing = false;
         try {
             await call.get();
-            // Call exists, we're done
-            return { created: false };
-        } catch {
-            // Call doesn't exist, create it
+        } catch (error) {
+            if (!isMissingVideoCall(error)) {
+                throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to retrieve meeting call" });
+            }
+            missing = true;
+        }
+        if (missing) {
+            // Only a confirmed missing call permits creation.
             const agentId = (existingMeeting as MeetingRow).agent_id;
             if (!agentId) {
                 throw new TRPCError({ code: "BAD_REQUEST", message: "Meeting has no agent assigned" });
@@ -579,14 +560,14 @@ export const meetingsRouter = createTRPCRouter({
                 .eq('id', agentId)
                 .limit(1);
 
-            if (agentError) throw agentError;
+            if (agentError) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to retrieve meeting agent" });
             const existingAgent = agentRows?.[0];
             if (!existingAgent) {
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' });
             }
 
             // Create the Stream.io call
-            await call.create({
+            await providerOperation(() => call.create({
                 data: {
                     created_by_id: userId,
                     custom: {
@@ -605,19 +586,20 @@ export const meetingsRouter = createTRPCRouter({
                         },
                     },
                 },
-            });
+            }));
 
             // Upsert agent user in Stream
-            await streamVideo.upsertUsers([
+            await providerOperation(() => streamVideo.upsertUsers([
                 {
                     id: existingAgent.id,
                     name: existingAgent.name,
                     role: "user",
                     image: existingAgent.avatar_url,
                 },
-            ]);
+            ]));
 
-            return { created: true };
         }
+        await providerOperation(() => call.updateCallMembers({ update_members: [{ user_id: userId }] }));
+        return { created: missing };
     }),
 });

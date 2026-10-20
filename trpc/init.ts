@@ -28,8 +28,8 @@ export const createCallerFactory = t.createCallerFactory;
 export const baseProcedure = t.procedure;
 export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
   const supabase = await createSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (!authError && user) {
     return next({ ctx: { ...ctx, auth: { user }, supabase } });
   }
 
