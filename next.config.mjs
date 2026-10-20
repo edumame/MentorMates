@@ -1,7 +1,12 @@
 import path from "path";
 import { fileURLToPath } from "url";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// i18n plugin — loads messages via ./i18n/request.ts
+// Gated by NEXT_PUBLIC_I18N_ENABLED while we roll out the [locale] routing refactor.
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -87,4 +92,6 @@ const nextConfig = {
   // },
 };
 
-export default nextConfig;
+export default process.env.NEXT_PUBLIC_I18N_ENABLED === "1"
+  ? withNextIntl(nextConfig)
+  : nextConfig;

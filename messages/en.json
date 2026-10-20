@@ -1,0 +1,53 @@
+{
+  "Common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "Nav": {
+    "home": "Home",
+    "events": "Events",
+    "projects": "Projects",
+    "learn": "Learn",
+    "feedback": "Feedback",
+    "profile": "Profile",
+    "signIn": "Sign in",
+    "signOut": "Sign out"
+  },
+  "Auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "resetPassword": "Reset password",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "forgotPassword": "Forgot password?",
+    "backToLogin": "Back to login"
+  },
+  "Errors": {
+    "notFound": "Not found",
+    "unauthorized": "Unauthorized",
+    "forbidden": "You don't have permission to do that",
+    "somethingWrong": "Something went wrong. Please try again.",
+    "required": "This field is required"
+  },
+  "Toasts": {
+    "saved": "Saved",
+    "failed": "Something went wrong",
+    "deleted": "Deleted",
+    "copied": "Copied to clipboard"
+  }
+}

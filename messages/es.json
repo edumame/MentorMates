@@ -1,0 +1,53 @@
+{
+  "Common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "submit": "Enviar",
+    "loading": "Cargando...",
+    "saving": "Guardando...",
+    "saved": "Guardado",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "continue": "Continuar",
+    "confirm": "Confirmar",
+    "yes": "Sí",
+    "no": "No"
+  },
+  "Nav": {
+    "home": "Inicio",
+    "events": "Eventos",
+    "projects": "Proyectos",
+    "learn": "Aprender",
+    "feedback": "Comentarios",
+    "profile": "Perfil",
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión"
+  },
+  "Auth": {
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "resetPassword": "Restablecer contraseña",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "backToLogin": "Volver al inicio de sesión"
+  },
+  "Errors": {
+    "notFound": "No encontrado",
+    "unauthorized": "No autorizado",
+    "forbidden": "No tienes permiso para hacer eso",
+    "somethingWrong": "Algo salió mal. Por favor, inténtalo de nuevo.",
+    "required": "Este campo es obligatorio"
+  },
+  "Toasts": {
+    "saved": "Guardado",
+    "failed": "Algo salió mal",
+    "deleted": "Eliminado",
+    "copied": "Copiado al portapapeles"
+  }
+}
