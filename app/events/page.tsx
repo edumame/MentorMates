@@ -26,13 +26,13 @@ export default async function EventsPage() {
 
       const userId = user.id;
 
-      // Get user's roles in all events
-      const { data: userRoles, error: rolesError } = await supabase
-        .from("user_event_roles")
-        .select("event_id, role")
-        .eq("user_id", userId);
+        // Get user's roles in all events
+        const { data: userRoles, error: rolesError } = await supabase
+          .from("user_event_roles")
+          .select("event_id, role")
+          .eq("user_id", userId);
 
-      if (rolesError) throw rolesError;
+        if (rolesError) throw rolesError;
 
       const isAdmin = isAdminGlobal;
       
