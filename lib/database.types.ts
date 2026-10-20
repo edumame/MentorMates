@@ -2464,6 +2464,7 @@ export type Database = {
         Args: { p_owner: string | null; p_event: string | null }
         Returns: boolean
       }
+      reserve_scraper_request: { Args: { p_user_id: string }; Returns: { allowed: boolean; retry_after_seconds: number }[] }
       increment_internal_invite_uses: {
         Args: { p_invite_id: string }
         Returns: undefined
