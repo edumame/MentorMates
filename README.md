@@ -45,7 +45,7 @@ You can install dependencies and run unit checks without a live database. End-to
 
 ### Environment configuration
 
-Create `.env.local` in the repository root; it is ignored by Git. There is currently no checked-in `.env.example`.
+Copy [`.env.example`](.env.example) to `.env.local` in the repository root; `.env.local` is ignored by Git. The template lists every variable the application reads, grouped by integration.
 
 The following **non-working placeholders** match the production-build validation configuration. They support build validation without real service credentials; they do not provide a functioning database, authentication, email, AI, or chat service.
 
@@ -76,7 +76,7 @@ For functional development, replace placeholders only with credentials for your 
 | `APPROVAL_NOTIFICATION_RECIPIENTS` | Optional comma-separated addresses notified when an event needs approval. Defaults to `admin@mentormates.ai`. |
 | `NEXT_PUBLIC_STREAM_CHAT_API_KEY`, `STREAM_CHAT_SECRET_KEY` | Optional Stream chat integration. |
 | `NEXT_PUBLIC_STREAM_VIDEO_API_KEY`, `STREAM_VIDEO_SCRET_KEY` | Optional Stream video integration. `SCRET` is the current spelling in the source. |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Optional payments and webhooks; use Stripe test mode. See [payment integration notes](STRIPE_README.md). |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Optional payments and webhooks; use Stripe test mode. See [payment integration notes](docs/payments/stripe.md). |
 
 These are the main application variables, not an exhaustive inventory of every integration. Some optional SDKs initialize during builds, which is why CI supplies placeholders even when those features are not exercised. Variables beginning with `NEXT_PUBLIC_` are exposed to the browser. Keep service secrets server-only and out of commits, screenshots, logs, and issue reports.
 
@@ -130,26 +130,19 @@ Unit tests are colocated with application code. [Generated database types](lib/d
 
 ## Contributing
 
-Bug reports, focused fixes, tests, and documentation improvements are welcome.
+Bug reports, focused fixes, tests, and documentation improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the pull request checklist, and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-1. Check existing issues and pull requests before starting. Discuss larger behavioral or schema changes in an issue first.
-2. Fork the repository and create a branch for your change.
-3. Keep the change focused, add regression coverage, and run the validation commands relevant to it.
-4. Open a pull request describing the problem, resulting behavior, validation performed, and any migration or configuration requirements.
-
-Read [AGENTS.md](AGENTS.md) for repository review requirements, including the interactive review workflow for coding agents. Keep the private project-detail route (`app/projects/[id]/page.tsx`) and public route (`app/projects/public/[id]/page.tsx`) aligned in layout, section order, copy, and visual hierarchy. Prefer shared presentation components; test both routes when shared behavior changes. Document intentional access-controlled differences in code and the pull request.
-
-Dedicated `CONTRIBUTING.md` and `SECURITY.md` documents are not yet available. For a suspected security vulnerability, use the existing private contact address, [contact@mentormates.ai](mailto:contact@mentormates.ai), to request a reporting channel before sharing sensitive details. Do not publish exploit details, private user data, or credentials in a public issue. This is the project's published contact address, not a dedicated security response service.
+To report a security vulnerability, follow [SECURITY.md](SECURITY.md). Do not publish exploit details, private user data, or credentials in a public issue.
 
 ## Current limitations and next steps
 
 Open-source contributor setup is still being improved. Priorities include:
 
-- A tested initial database baseline, sanitized seed data, and a maintained environment template.
+- A tested initial database baseline and sanitized seed data.
 - Database-backed tests for permissions, migrations, and concurrent writes.
 - Browser coverage in CI for critical participant, organizer, and judging workflows.
 - Simplifying shared data access and project-detail presentation to reduce duplication.
-- Dedicated contribution, security reporting, and integration setup documentation.
+- Integration setup documentation for each optional service.
 
 These are improvement areas, not guarantees that every workflow is complete or that pending pull requests are ready to merge. Use [issues](https://github.com/edumame/MentorMates/issues) and [pull requests](https://github.com/edumame/MentorMates/pulls) to discuss scope and track work.
 

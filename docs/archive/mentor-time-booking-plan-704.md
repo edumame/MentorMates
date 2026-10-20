@@ -61,7 +61,7 @@ open slots without double-booking.
 - Atomic capacity via RPC.
 
 ## Commit Plan
-1. ULTRAPLAN.md.
+1. This plan (docs/archive/mentor-time-booking-plan-704.md).
 2. SQL migration.
 3. TS types.
 4. API routes.

@@ -65,3 +65,9 @@ plans/*
 # Generated macOS metadata and local agent output
 ._*
 /.cursor/.agent-tools/
+
+# Local agent worktrees
+.claude/worktrees/
+
+# Allow the checked-in environment template
+!.env.example
