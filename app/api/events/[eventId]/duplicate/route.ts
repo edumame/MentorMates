@@ -103,6 +103,7 @@ export async function POST(
         sourceEvent.finalist_recommendation_enabled ?? false,
       submission_time_start: sourceEvent.submission_time_start ?? null,
       submission_time_cutoff: sourceEvent.submission_time_cutoff ?? null,
+      max_projects: sourceEvent.max_projects ?? null,
 
       // Important: do NOT copy payment config / Stripe ids
       paid: false,

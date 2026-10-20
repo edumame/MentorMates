@@ -125,6 +125,7 @@ export interface WizardEventData {
 
   // Capacity & Pricing
   participant_capacity: number | null;
+  max_projects: number | null;
   paid: boolean;
   stripe_price_id: string;
 
@@ -181,6 +182,7 @@ export const INITIAL_WIZARD_EVENT: WizardEventData = {
   submission_time_cutoff: "",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   participant_capacity: null,
+  max_projects: null,
   paid: false,
   stripe_price_id: "",
   schedule: [],
@@ -228,6 +230,7 @@ export interface EventApiPayload {
     submission_time_start?: string;
     submission_time_cutoff?: string;
     participant_capacity?: number;
+    max_projects?: number;
     visibility?: string;
     featured?: boolean;
     event_schedule?: {
@@ -295,6 +298,8 @@ export function buildApiPayload(event: WizardEventData): EventApiPayload {
   if (event.participant_capacity)
     e.participant_capacity = event.participant_capacity;
   if (event.event_type) e.event_type = event.event_type;
+  if (event.max_projects)
+    e.max_projects = event.max_projects;
 
   // Pricing
   if (event.paid) {
@@ -420,6 +425,8 @@ export function applyScrapedData(
     updated.submission_time_start = scraped.submission_time_start;
   if (typeof scraped.submission_time_cutoff === "string")
     updated.submission_time_cutoff = scraped.submission_time_cutoff;
+  if (typeof scraped.max_projects === "number")
+    updated.max_projects = scraped.max_projects;
 
   // Auto-derive slug from name if scraper didn't provide one
   if (!updated.slug && updated.event_name) {
