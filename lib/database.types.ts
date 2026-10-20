@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      content_translations: {
+        Row: {
+          id: string
+          source_hash: string
+          source_lang: string | null
+          target_lang: string
+          translated_text: string
+          model: string
+          token_count: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          source_hash: string
+          source_lang?: string | null
+          target_lang: string
+          translated_text: string
+          model: string
+          token_count?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          source_hash?: string
+          source_lang?: string | null
+          target_lang?: string
+          translated_text?: string
+          model?: string
+          token_count?: number | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       internal_api_usage: {
         Row: {
           completion_tokens: number | null
