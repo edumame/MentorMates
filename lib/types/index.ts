@@ -102,9 +102,39 @@ export interface CreateCouponRequest {
   codes?: string[]; // Optional promo codes to create with the coupon
 }
 
+export enum BucketPermission {
+  Read = "read",
+  Write = "write",
+  Admin = "admin",
+}
+
 export interface UserProfile {
   uid: string;
   display_name: string;
+}
+
+export interface EventBucket {
+  bucket_id: string;
+  bucket_name: string;
+  bucket_description?: string;
+  bucket_slug: string;
+  bucket_color: string;
+  bucket_icon?: string;
+  visibility: EventVisibility;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  event_count?: number; // Optional count of events in bucket
+}
+
+export interface BucketPermissionItem {
+  id: string;
+  bucket_id: string;
+  user_id: string;
+  permission: BucketPermission;
+  granted_by?: string;
+  granted_at: string;
+  user_profile?: UserProfile; // Optional joined user data
 }
 
 export type EventItem = {
@@ -120,6 +150,8 @@ export type EventItem = {
   scoring_config?: EventScoringConfig;
   paid?: boolean;
   stripe_price_id?: string; // Stripe price ID for paid events
+  bucket_id?: string; // Reference to event bucket
+  bucket?: EventBucket; // Optional joined bucket data
   participant_capacity?: number | null; // Max participants; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
   event_type?: string[];

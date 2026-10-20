@@ -14,6 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
+          event_buckets: {
+        Row: {
+          bucket_color: string
+          bucket_description: string | null
+          bucket_icon: string | null
+          bucket_id: string
+          bucket_name: string
+          bucket_slug: string
+          created_at: string | null
+          created_by: string | null
+          updated_at: string | null
+          visibility: Database["public"]["Enums"]["event_visibility"]
+        }
+        Insert: {
+          bucket_color?: string
+          bucket_description?: string | null
+          bucket_icon?: string | null
+          bucket_id?: string
+          bucket_name: string
+          bucket_slug: string
+          created_at?: string | null
+          created_by?: string | null
+          updated_at?: string | null
+          visibility?: Database["public"]["Enums"]["event_visibility"]
+        }
+        Update: {
+          bucket_color?: string
+          bucket_description?: string | null
+          bucket_icon?: string | null
+          bucket_id?: string
+          bucket_name?: string
+          bucket_slug?: string
+          created_at?: string | null
+          created_by?: string | null
+          updated_at?: string | null
+          visibility?: Database["public"]["Enums"]["event_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_buckets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+
+          bucket_permissions: {
+        Row: {
+          bucket_id: string
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          permission: string
+          user_id: string
+        }
+        Insert: {
+          bucket_id: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          permission: string
+          user_id: string
+        }
+        Update: {
+          bucket_id?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          permission?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bucket_permissions_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "event_buckets"
+            referencedColumns: ["bucket_id"]
+          },
+          {
+            foreignKeyName: "bucket_permissions_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bucket_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+
       internal_api_usage: {
         Row: {
           completion_tokens: number | null
@@ -645,6 +743,8 @@ export type Database = {
       }
       events: {
         Row: {
+          bucket_id: string | null
+
           approval_status: Database["public"]["Enums"]["approval_status"] | null
           cover_image_url: string | null
           created_at: string | null
@@ -688,6 +788,8 @@ export type Database = {
           visibility: Database["public"]["Enums"]["event_visibility"]
         }
         Insert: {
+          bucket_id?: string | null
+
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
@@ -733,6 +835,8 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Update: {
+          bucket_id?: string | null
+
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
@@ -778,6 +882,7 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Relationships: [
+          { foreignKeyName: "events_bucket_id_fkey"; columns: ["bucket_id"]; isOneToOne: false; referencedRelation: "event_buckets"; referencedColumns: ["bucket_id"] },
           {
             foreignKeyName: "events_owner_id_fkey"
             columns: ["owner_id"]

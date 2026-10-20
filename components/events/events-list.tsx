@@ -15,6 +15,14 @@ interface Event {
   event_date: string;
   location: string;
   cover_image_url?: string;
+  bucket_id?: string;
+  event_buckets?: {
+    bucket_id: string;
+    bucket_name: string;
+    bucket_slug: string;
+    bucket_color: string;
+    bucket_icon?: string;
+  };
   role_labels?: Record<string, string>;
   visibility?: EventVisibility;
   event_blurb?: string;
@@ -104,6 +112,21 @@ export function EventsList({ events }: EventsListProps) {
             className="relative min-w-0 w-full max-w-full"
           >
             <EventCard event={{ ...event, userRole }} />
+                  {event.event_buckets && (
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs sm:text-sm border-2"
+                      style={{ 
+                        borderColor: event.event_buckets.bucket_color,
+                        color: event.event_buckets.bucket_color
+                      }}
+                    >
+                      {event.event_buckets.bucket_icon && (
+                        <span className="mr-1">{event.event_buckets.bucket_icon}</span>
+                      )}
+                      {event.event_buckets.bucket_name}
+                    </Badge>
+                  )}
             {/* User Role Badge Overlay */}
             {userRole && (
               <div className="absolute top-3 left-3 z-10">
