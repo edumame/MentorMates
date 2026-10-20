@@ -79,6 +79,7 @@ describe("POST /api/events/invite-judge", () => {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue({
               data: {
                 event_name: "Hack Night",
@@ -93,6 +94,7 @@ describe("POST /api/events/invite-judge", () => {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue({
               data: {
                 display_name: "Casey Organizer",
@@ -111,6 +113,7 @@ describe("POST /api/events/invite-judge", () => {
       from: jest.fn(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
         maybeSingle: jest.fn().mockResolvedValue({
           data: { uid: "judge-user-1" },
         }),
@@ -164,6 +167,7 @@ describe("POST /api/events/invite-judge", () => {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
             maybeSingle: jest.fn().mockResolvedValue({
               data: { role: EventRole.Organizer },
             }),
@@ -174,6 +178,7 @@ describe("POST /api/events/invite-judge", () => {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue({
               data: {
                 event_name: "Hack Night",
@@ -188,6 +193,7 @@ describe("POST /api/events/invite-judge", () => {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue({
               data: {
                 display_name: "Casey Organizer",
@@ -206,6 +212,7 @@ describe("POST /api/events/invite-judge", () => {
       from: jest.fn(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
         maybeSingle: jest.fn().mockResolvedValue({
           data: null,
         }),

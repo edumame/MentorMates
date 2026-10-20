@@ -13,6 +13,9 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
+
+// we probably need to build a new table
+
 export async function POST(request: Request) {
   // TODO: Consider implementing rate limiting to prevent invite spam
   // Example: Allow max 10 invites per organizer per hour
@@ -85,6 +88,7 @@ export async function POST(request: Request) {
     .from('user_profiles')
     .select('uid')
     .eq('email', email.trim().toLowerCase())
+    .not('uid', 'is', null)
     .maybeSingle();
 
   // If user exists, add them directly as organizer
