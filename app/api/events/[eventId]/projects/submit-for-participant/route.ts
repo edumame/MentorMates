@@ -104,15 +104,25 @@ export async function POST(
       );
     }
 
-    // Verify the participant is actually in this event
-    const { data: participantRole } = await serviceSupabase
+    // Verify the target user holds the participant role in this event. Any
+    // other role (mentor, judge, organizer) must not receive a project, since
+    // the write below uses service-role credentials and bypasses RLS.
+    const { data: participantRole, error: participantRoleError } = await serviceSupabase
       .from("user_event_roles")
       .select("role")
       .eq("event_id", eventId)
       .eq("user_id", participant_user_id)
       .maybeSingle();
 
-    if (!participantRole) {
+    if (participantRoleError) {
+      console.error("Failed to verify participant role:", participantRoleError);
+      return NextResponse.json(
+        { error: "Failed to verify participant" },
+        { status: 500 }
+      );
+    }
+
+    if (participantRole?.role !== EventRole.Participant) {
       return NextResponse.json(
         { error: "User is not a participant of this event" },
         { status: 400 }
