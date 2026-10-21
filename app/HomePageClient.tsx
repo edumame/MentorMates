@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import posthog from "posthog-js";
 import { AuthHero } from "@/components/heroes/AuthHero";
@@ -18,8 +18,12 @@ import { useAuth } from "@/features/user/authentication/auth/AuthContext";
  * for search engine crawlers).
  */
 export function HomePageClient({ children }: { children: React.ReactNode }) {
-  const { session, isLoading } = useAuth();
+  const { session } = useAuth();
   const hasSyncedRef = useRef(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Match the server landing HTML even when the browser has a cached session.
+  useEffect(() => { setHasMounted(true); }, []);
 
   useEffect(() => {
     const syncUserProfile = async () => {
@@ -43,7 +47,9 @@ export function HomePageClient({ children }: { children: React.ReactNode }) {
           .select();
 
         if (error) {
-          console.error("Error syncing profile:", error);
+          const msg = error.message ?? String(error);
+          const code = (error as { code?: string }).code;
+          console.error("Error syncing profile:", code ? `[${code}] ${msg}` : msg);
         }
 
         posthog.identify(user.id, {
@@ -58,15 +64,10 @@ export function HomePageClient({ children }: { children: React.ReactNode }) {
     syncUserProfile();
   }, [session]);
 
-  // Show nothing briefly while auth state initializes (no cached session)
-  if (isLoading && !session) {
-    return null;
-  }
-
   // Authenticated: show dashboard
-  if (session) {
+  if (hasMounted && session) {
     return (
-      <SidebarLayout>
+      <SidebarLayout showLogoInSidebar>
         <AuthHero />
         <ServiceWorkerRegistration />
       </SidebarLayout>

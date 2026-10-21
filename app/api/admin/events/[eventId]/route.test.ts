@@ -1,3 +1,6 @@
+/** @jest-environment node */
+
+import { NextRequest } from "next/server";
 import { PATCH } from "./route";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventVisibility } from "@/lib/types";
@@ -60,13 +63,13 @@ describe("PATCH /api/admin/events/[eventId]", () => {
       from,
     });
 
-    const request = new Request("http://localhost/api/admin/events/event-1", {
+    const request = new NextRequest("http://localhost/api/admin/events/event-1", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approval_status: "approved" }),
     });
 
-    const response = await PATCH(request as never, {
+    const response = await PATCH(request, {
       params: Promise.resolve({ eventId: "event-1" }),
     });
 

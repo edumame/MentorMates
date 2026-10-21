@@ -13,6 +13,7 @@ function makeSlot(
     max_bookings: 1,
     created_at: "2026-04-18T12:00:00.000Z",
     booking_count: 0,
+    participants: [],
     viewer_booking_id: null,
     mentor: null,
     ...overrides,

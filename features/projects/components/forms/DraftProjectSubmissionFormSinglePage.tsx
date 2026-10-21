@@ -1,4 +1,5 @@
 "use client";
+import { SoloSubmissionConfirmation, needsSoloConfirmation } from "./components/SoloSubmissionConfirmation";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -116,6 +117,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
 
   const [project, setProject] = useState<Project>(initialProject);
+  const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeIntakeForm, setActiveIntakeForm] =
@@ -912,11 +914,16 @@ export default function DraftProjectSubmissionFormSinglePage({
     return json.project || null;
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (options?: { skipSoloConfirm?: boolean }) => {
     if (isUploading) {
       toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before publishing." });
       return;
     }
+    if (!options?.skipSoloConfirm && needsSoloConfirmation(project.teammates ?? [], participants)) {
+      setShowSoloConfirm(true);
+      return;
+    }
+    setShowSoloConfirm(false);
     const missingRequiredField = findMissingRequiredSubmissionField(
       effectiveSubmissionFields,
       submissionFieldValues
@@ -1477,7 +1484,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                   </Button>
                 )}
                 <Button
-                  onClick={handlePublish}
+                  onClick={() => handlePublish()}
                   disabled={isUploading}
                   className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
                 >
@@ -1582,6 +1589,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       </div>
 
       {/* Delete Confirmation Dialog */}
+      <SoloSubmissionConfirmation open={showSoloConfirm} onOpenChange={setShowSoloConfirm} onConfirm={() => { setShowSoloConfirm(false); void handlePublish({ skipSoloConfirm: true }); }} />
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

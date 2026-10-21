@@ -27,7 +27,7 @@ export function EventPageTabs({
   const searchParams = useSearchParams();
   const { activeRole } = useActiveRole();
 
-  // Judges only need the Overview tab — the scoring UI is embedded there
+  // Judges use Overview for the scoring deck; they still need Projects to open the event gallery.
   const isJudge = activeRole === EventRole.Judge;
 
   const tabs: Array<{
@@ -37,6 +37,14 @@ export function EventPageTabs({
   }> = [
     { name: "Overview", path: `/events/${eventId}/overview` },
   ];
+
+  if (isJudge) {
+    tabs.push({
+      name: "Projects",
+      path: `/events/${eventId}/gallery`,
+      badge: projectCount,
+    });
+  }
 
   if (!isJudge) {
     tabs.push({ name: "Schedule", path: `/events/${eventId}/schedule`, badge: null });
