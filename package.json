@@ -2,12 +2,18 @@
   "name": "mentor-mate",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edumame/MentorMates.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:unit": "jest",
     "test:e2e": "playwright test",

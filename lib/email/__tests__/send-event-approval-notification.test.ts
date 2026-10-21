@@ -10,7 +10,13 @@ jest.mock("@/lib/email_templates/constants", () => ({
   NOTIFICATIONS_EMAIL_FROM: "MentorMates <notifications@hello.mentormates.ai>",
 }));
 
-import { sendEventApprovalNotification } from "../send-event-approval-notification";
+import {
+  getApprovalNotificationRecipients,
+  sendEventApprovalNotification,
+} from "../send-event-approval-notification";
+
+const CONFIGURED_RECIPIENTS =
+  "admin@mentormates.ai,reviewer-one@example.com,reviewer-two@example.com";
 
 const sampleData = {
   eventName: "TreeHacks 2025",
@@ -26,9 +32,14 @@ describe("sendEventApprovalNotification", () => {
     mockSend.mockClear();
     mockSend.mockResolvedValue({ data: { id: "test-id" }, error: null });
     process.env.RESEND_API_KEY = "re_test_key";
+    process.env.APPROVAL_NOTIFICATION_RECIPIENTS = CONFIGURED_RECIPIENTS;
   });
 
-  it("sends emails to all 3 admin recipients", async () => {
+  afterAll(() => {
+    delete process.env.APPROVAL_NOTIFICATION_RECIPIENTS;
+  });
+
+  it("sends emails to all 3 configured recipients", async () => {
     const result = await sendEventApprovalNotification(sampleData);
 
     expect(mockSend).toHaveBeenCalledTimes(3);
@@ -36,16 +47,28 @@ describe("sendEventApprovalNotification", () => {
     expect(result.failed).toBe(0);
   });
 
-  it("sends to admin@mentormates.ai, chinatchinat123@gmail.com, and jefferyjzhou@gmail.com", async () => {
+  it("sends to each address in APPROVAL_NOTIFICATION_RECIPIENTS", async () => {
     await sendEventApprovalNotification(sampleData);
 
     const recipients = mockSend.mock.calls.map(
       (call: unknown[]) => (call[0] as { to: string }).to
     );
 
-    expect(recipients).toContain("admin@mentormates.ai");
-    expect(recipients).toContain("chinatchinat123@gmail.com");
-    expect(recipients).toContain("jefferyjzhou@gmail.com");
+    expect(recipients).toEqual([
+      "admin@mentormates.ai",
+      "reviewer-one@example.com",
+      "reviewer-two@example.com",
+    ]);
+  });
+
+  it("falls back to the admin inbox when the env var is unset", async () => {
+    delete process.env.APPROVAL_NOTIFICATION_RECIPIENTS;
+
+    const result = await sendEventApprovalNotification(sampleData);
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(mockSend.mock.calls[0][0].to).toBe("admin@mentormates.ai");
+    expect(result).toEqual({ sent: 1, failed: 0 });
   });
 
   it("sends from the MentorMates notifications address", async () => {
@@ -112,5 +135,41 @@ describe("sendEventApprovalNotification", () => {
     expect(mockSend).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
+  });
+});
+
+describe("getApprovalNotificationRecipients", () => {
+  afterEach(() => {
+    delete process.env.APPROVAL_NOTIFICATION_RECIPIENTS;
+  });
+
+  it.each([
+    ["unset", undefined],
+    ["empty", ""],
+    ["only separators and whitespace", " , ,, "],
+  ])("returns the admin inbox when the env var is %s", (_label, value) => {
+    if (value === undefined) {
+      delete process.env.APPROVAL_NOTIFICATION_RECIPIENTS;
+    } else {
+      process.env.APPROVAL_NOTIFICATION_RECIPIENTS = value;
+    }
+
+    expect(getApprovalNotificationRecipients()).toEqual(["admin@mentormates.ai"]);
+  });
+
+  it("trims whitespace, drops empty entries, and removes duplicates", () => {
+    process.env.APPROVAL_NOTIFICATION_RECIPIENTS =
+      " a@example.com ,, b@example.com,a@example.com , ";
+
+    expect(getApprovalNotificationRecipients()).toEqual([
+      "a@example.com",
+      "b@example.com",
+    ]);
+  });
+
+  it("does not include the admin inbox when other recipients are configured", () => {
+    process.env.APPROVAL_NOTIFICATION_RECIPIENTS = "only@example.com";
+
+    expect(getApprovalNotificationRecipients()).toEqual(["only@example.com"]);
   });
 });

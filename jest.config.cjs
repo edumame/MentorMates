@@ -6,6 +6,8 @@ const createJestConfig = nextJest({
 
 const customJestConfig = {
   testEnvironment: "jsdom",
+  // Browser journeys run through the dedicated Playwright configuration.
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/e2e/"],
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
