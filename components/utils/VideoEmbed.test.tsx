@@ -20,3 +20,12 @@ it('provides a fallback for web links but suppresses unsafe links and disabled f
 it('reports iframe loading errors', () => {
  const error=jest.fn(); render(<VideoEmbed url="https://youtu.be/dQw4w9WgXcQ" onLoadError={error} />); fireEvent.error(screen.getByTitle('Video')); expect(error).toHaveBeenCalledTimes(1);
 });
+it.each([
+ ['https://cdn.example.test/demo.mp4', true],
+ ['https://cdn.example.test/demo.WEBM?token=1#t=5', true],
+ ['https://evil.test/page.html?x=.mp4', false],
+ ['https://evil.test/page.html#demo.mp4', false],
+ ['http://cdn.example.test/demo.mp4', false],
+])('classifies direct video %s by its HTTPS path only', (url, isVideo) => {
+ expect(getEmbedDescriptor(url as string)).toEqual(isVideo ? { src: url, kind: 'video' } : null);
+});

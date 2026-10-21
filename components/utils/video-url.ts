@@ -12,7 +12,9 @@ export function safeVideoUrl(value: string): URL | null {
   } catch { return null; }
 }
 
-const DIRECT_VIDEO_REGEX = /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i;
+// Matched against the URL path only, so query strings and fragments cannot
+// make a non-video page look like a video file.
+const DIRECT_VIDEO_PATH_REGEX = /\.(mp4|webm|mov|m4v|ogg)$/i;
 
 // Utility function to convert video URLs to embed URLs (iframe src or direct media src).
 export const getEmbedDescriptor = (url: string): EmbedDescriptor | null => {
@@ -59,8 +61,9 @@ export const getEmbedDescriptor = (url: string): EmbedDescriptor | null => {
     (["facebook.com", "www.facebook.com"].includes(host) && parsed.pathname === "/plugins/video.php")
   ) return { src: url, kind: "iframe" };
 
-  // Direct video files (mp4/webm/mov/m4v/ogg)
-  if (DIRECT_VIDEO_REGEX.test(url)) {
+  // Direct video files (mp4/webm/mov/m4v/ogg). HTTPS only: plain HTTP media is
+  // mixed content on our HTTPS pages.
+  if (parsed.protocol === "https:" && DIRECT_VIDEO_PATH_REGEX.test(parsed.pathname)) {
     return { src: url, kind: "video" };
   }
 
