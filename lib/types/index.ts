@@ -129,6 +129,7 @@ export type EventItem = {
   require_participant_approval?: boolean; // Whether participants need approval to join
   external_url?: string | null; // Optional outside event URL
   external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
+  submissions_anonymized?: boolean | null; // When true, hide participant identities on /api/projects for non-organizer viewers
   team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
   submitter_email?: string | null; // Contact email from the public submit form
   submitter_name?: string | null; // Submitter name from the public submit form
