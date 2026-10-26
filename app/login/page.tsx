@@ -229,6 +229,11 @@ function LoginContent({
     check();
   }, [consumeReturnUrl, router, searchParams]);
 
+
+  // i thinnk this is causing the sign up issue; it only syncs on the home page, so 
+  // redirects to another page might break it
+  // or it could be the flow as well
+
   const syncUserProfile = async (user: User) => {
     if (!user) return null;
     const { error } = await supabase.from("user_profiles").upsert(

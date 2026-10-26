@@ -101,6 +101,7 @@ export async function GET(
         .select("uid, display_name")
         .in("uid", submitterIds);
       for (const profile of profiles || []) {
+        if (!profile.uid) continue;
         displayNameByUserId.set(profile.uid, profile.display_name);
       }
     }
