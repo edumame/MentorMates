@@ -1,4 +1,8 @@
-import { saveProjectSubmission } from "./submission-service";
+import {
+  normalizeProjectWriteInput,
+  ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES,
+  saveProjectSubmission,
+} from "./submission-service";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import {
   fetchArtifactsByProjectIds,
@@ -529,5 +533,209 @@ describe("saveProjectSubmission", () => {
       status: 400,
     });
     expect(projectsTable.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveProjectSubmission submission window", () => {
+  const eventId = "11111111-1111-4111-8111-111111111111";
+  const createdProjectId = "55555555-5555-4555-8555-555555555555";
+  const pastCutoff = "2020-01-01T00:00:00.000Z";
+  const futureStart = "2999-01-01T00:00:00.000Z";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchSubmissionFieldsByEventIds as jest.Mock).mockResolvedValue(new Map());
+    (fetchSubmissionAnswersByProjectIds as jest.Mock).mockResolvedValue(
+      new Map(),
+    );
+    (fetchArtifactsByProjectIds as jest.Mock).mockResolvedValue(new Map());
+    (hydrateProjectsWithSubmissionData as jest.Mock).mockImplementation(
+      (projects) => projects,
+    );
+  });
+
+  function buildSupabase(event: {
+    submission_time_start: string | null;
+    submission_time_cutoff: string | null;
+  }) {
+    const eventsQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({
+        data: { event_id: eventId, event_name: "Demo Day", ...event },
+        error: null,
+      }),
+    };
+    const submissionFieldsQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    const insertSelectQuery = {
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({
+        data: { id: createdProjectId, contextus_project_id: "ctx-1" },
+        error: null,
+      }),
+    };
+    const updatedProjectQuery = {
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({
+        data: {
+          id: createdProjectId,
+          project_name: "Late Project",
+          project_description: "Rescued",
+          event_id: eventId,
+          contextus_project_id: "ctx-1",
+          submitted: true,
+          project_tracks: [],
+        },
+        error: null,
+      }),
+    };
+    const projectsTable = {
+      insert: jest.fn().mockReturnValue(insertSelectQuery),
+      select: jest.fn().mockReturnValue(updatedProjectQuery),
+    };
+    const artifactsTable = {
+      delete: jest
+        .fn()
+        .mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) }),
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    };
+    const supabase = {
+      from: jest.fn((table: string) => {
+        if (table === "events") return eventsQuery;
+        if (table === "event_submission_fields") return submissionFieldsQuery;
+        if (table === "projects") return projectsTable;
+        if (table === "project_artifacts") return artifactsTable;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+    return { supabase, projectsTable };
+  }
+
+  const lateInput = {
+    eventId,
+    leadName: "Lead",
+    leadEmail: "lead@example.com",
+    projectName: "Late Project",
+    projectDescription: "Rescued",
+  };
+
+  it("still rejects participant (default) submissions after the cutoff", async () => {
+    const { supabase, projectsTable } = buildSupabase({
+      submission_time_start: null,
+      submission_time_cutoff: pastCutoff,
+    });
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "create",
+      input: lateInput,
+      defaultSubmitted: true,
+    });
+
+    expect(result).toMatchObject({
+      error: "Project submission deadline has passed",
+      status: 400,
+      submission_cutoff: pastCutoff,
+    });
+    expect(projectsTable.insert).not.toHaveBeenCalled();
+  });
+
+  it("allows the organizer on-behalf override to submit after the cutoff and flags it", async () => {
+    const { supabase, projectsTable } = buildSupabase({
+      submission_time_start: null,
+      submission_time_cutoff: pastCutoff,
+    });
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "create",
+      input: lateInput,
+      defaultSubmitted: true,
+      overrides: ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES,
+    });
+
+    expect(result).toMatchObject({ status: 200, submittedAfterDeadline: true });
+    expect(projectsTable.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ submitted: true, event_id: eventId }),
+    );
+  });
+
+  it("does not flag on-time submissions as late", async () => {
+    const { supabase } = buildSupabase({
+      submission_time_start: null,
+      submission_time_cutoff: null,
+    });
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "create",
+      input: lateInput,
+      overrides: ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES,
+    });
+
+    expect(result).toMatchObject({ status: 200, submittedAfterDeadline: false });
+  });
+
+  it("keeps enforcing the submission start even with the override", async () => {
+    const { supabase, projectsTable } = buildSupabase({
+      submission_time_start: futureStart,
+      submission_time_cutoff: null,
+    });
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "create",
+      input: lateInput,
+      overrides: ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES,
+    });
+
+    expect(result).toMatchObject({
+      error: "Project submission has not started yet",
+      status: 400,
+    });
+    expect(projectsTable.insert).not.toHaveBeenCalled();
+  });
+
+  it("cannot be enabled through request input", async () => {
+    const { supabase, projectsTable } = buildSupabase({
+      submission_time_start: null,
+      submission_time_cutoff: pastCutoff,
+    });
+
+    const normalized = normalizeProjectWriteInput({
+      event_id: eventId,
+      lead_name: "Lead",
+      project_name: "Late Project",
+      project_description: "Rescued",
+      allowAfterDeadline: true,
+      overrides: { allowAfterDeadline: true },
+    });
+    expect(normalized.success).toBe(true);
+    if (!normalized.success) return;
+    expect(normalized.data).not.toHaveProperty("allowAfterDeadline");
+    expect(normalized.data).not.toHaveProperty("overrides");
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "create",
+      input: normalized.data,
+      defaultSubmitted: true,
+    });
+
+    expect(result).toMatchObject({
+      error: "Project submission deadline has passed",
+      status: 400,
+    });
+    expect(projectsTable.insert).not.toHaveBeenCalled();
+  });
+
+  it("exposes a frozen override constant", () => {
+    expect(ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES).toEqual({
+      allowAfterDeadline: true,
+    });
+    expect(Object.isFrozen(ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES)).toBe(true);
   });
 });
