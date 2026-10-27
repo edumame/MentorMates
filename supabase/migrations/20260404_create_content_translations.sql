@@ -21,12 +21,12 @@ CREATE TABLE IF NOT EXISTS content_translations (
 CREATE INDEX IF NOT EXISTS idx_content_translations_lookup
   ON content_translations(source_hash, target_lang);
 
--- RLS: only authenticated users can read; inserts happen via service role from the API
+-- RLS on with no client policies: cached rows may contain private content,
+-- so only the service role (used by /api/translate) can read or write them.
+-- Folded in from 202610120001_secure_translation_cache.sql so a fresh
+-- database never has a window with a broad authenticated SELECT policy.
 ALTER TABLE content_translations ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can read translations"
-  ON content_translations FOR SELECT
-  TO authenticated
-  USING (true);
+REVOKE ALL ON content_translations FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON content_translations TO service_role;
 
 COMMENT ON TABLE content_translations IS 'Cache of AI-generated translations keyed by source text hash.';
