@@ -48,14 +48,3 @@ export const TESTIMONIALS: Testimonial[] = [
     logoHeight: 21,
   },
 ];
-
-// Helper function to get testimonials by ID
-export const getTestimonialById = (id: number): Testimonial | undefined => {
-  return TESTIMONIALS.find((testimonial) => testimonial.id === id);
-};
-
-// Helper function to get random testimonials
-export const getRandomTestimonials = (count: number): Testimonial[] => {
-  const shuffled = [...TESTIMONIALS].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
-};
