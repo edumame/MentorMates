@@ -1,73 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { streamChat } from "@/lib/stream-chat";
-import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 import { inngest } from "@/lib/inngest/client";
+import { authorizeMeetingRequest } from "@/lib/meetings/route-access";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const meetingId = body?.meetingId;
-
-    if (!meetingId) {
-      return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
+    const access = await authorizeMeetingRequest(req);
+    if (access.response) return access.response;
+    const { service, meeting } = access;
+    if (meeting.status === "processing" || meeting.status === "completed") {
+      return NextResponse.json({ status: meeting.status }, { status: 202 });
+    }
+    if (meeting.status !== "upcoming") {
+      return NextResponse.json({ error: "Meeting cannot be submitted in its current state" }, { status: 409 });
     }
 
-    const supabase = await createSupabaseServiceClient();
+    // One winner even when multiple requests read the same upcoming meeting.
+    const claimedAt = new Date().toISOString();
+    const { data: claimed, error: claimError } = await service.from("meetings")
+      .update({ status: "processing", ended_at: meeting.ended_at || claimedAt, updated_at: claimedAt })
+      .eq("id", meeting.id).eq("status", "upcoming").select("id").maybeSingle();
+    if (claimError) throw new Error("Unable to claim meeting processing");
+    if (!claimed) return NextResponse.json({ error: "Meeting state changed; refresh before retrying" }, { status: 409 });
 
-    const { data: meetingRow, error: meetingError } = await supabase
-      .from("meetings")
-      .select("*")
-      .eq("id", meetingId)
-      .maybeSingle();
-
-    if (meetingError || !meetingRow) {
-      return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
-    }
-
-    // Fetch recent messages from Stream Chat channel for this meeting
+    let transcriptText: string;
     try {
-      const channel = streamChat.channel("messaging", meetingId);
-      await channel.watch();
+      const channel = streamChat.channel("messaging", meeting.id);
       const { messages } = await channel.query({ messages: { limit: 200 } });
-
-      // Build JSONL transcript lines with speaker_id and text only.
-      // Example line: {"speaker_id":"<id>","text":"Hello."}
-      type StreamMessage = { text?: string | null; user?: { id?: string; name?: string } };
-
-      const transcriptLines = (messages || [])
-        .map((m) => m as StreamMessage)
-        .filter((m) => !!(m.text && m.text.toString().trim()))
-        .map((m) => {
-          const speakerId = m.user?.id || m.user?.name || "unknown";
-          const text = (m.text || "").toString();
-          return JSON.stringify({ speaker_id: speakerId, text });
-        });
-
-      const transcriptText = transcriptLines.join("\n");
-      // Update meeting to processing and set ended_at if missing
-      await supabase
-        .from("meetings")
-        .update({ status: "processing", ended_at: meetingRow.ended_at || new Date().toISOString() })
-        .eq("id", meetingId);
-
-      // Send to inngest to trigger the same processing pipeline as session end
-      await inngest.send({
-        name: "meetings/processing",
-        data: {
-          meetingId,
-          // provide JSONL transcript that inngest pipeline can parse
-          transcriptText,
-          agentId: meetingRow.agent_id,
-        },
-      });
-
-      return NextResponse.json({ status: "ok" });
-    } catch (e) {
-      console.error("failed to fetch channel messages", e);
-      return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+      transcriptText = (messages || [])
+        .filter((message) => typeof message.text === "string" && message.text.trim())
+        .map((message) => JSON.stringify({
+          speaker_id: message.user?.id || message.user?.name || "unknown",
+          text: message.text,
+        })).join("\n");
+      if (!transcriptText) throw new Error("No transcript messages available");
+    } catch {
+      // Safe to release only before dispatch; never undo another completed job.
+      const { data: released, error: releaseError } = await service.from("meetings")
+        .update({ status: "upcoming", ended_at: meeting.ended_at, updated_at: meeting.updated_at })
+        .eq("id", meeting.id).eq("status", "processing").eq("updated_at", claimedAt)
+        .select("id").maybeSingle();
+      if (releaseError || !released) {
+        return NextResponse.json({ error: "Transcript unavailable; processing state requires reconciliation" }, { status: 503 });
+      }
+      return NextResponse.json({ error: "No transcript available; retry after messages are available" }, { status: 503 });
     }
-  } catch (e) {
-    console.error("Invalid request", e);
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+
+    try {
+      await inngest.send({
+        id: `meeting-transcript-${meeting.id}`,
+        name: "meetings/processing",
+        data: { meetingId: meeting.id, transcriptText, agentId: meeting.agent_id },
+      });
+    } catch {
+      // Delivery may have succeeded despite a transport error. Retain the claim
+      // for reconciliation instead of enabling duplicate work with a rollback.
+      // Operators must inspect the deterministic event ID in Inngest before
+      // retrying delivery or resetting status; event deduplication is time-limited.
+      return NextResponse.json({ error: "Processing delivery is uncertain; reconciliation required" }, { status: 503 });
+    }
+    return NextResponse.json({ status: "ok" });
+  } catch (error) {
+    console.error("Transcript submission failed", error);
+    return NextResponse.json({ error: "Unable to submit transcript" }, { status: 500 });
   }
 }

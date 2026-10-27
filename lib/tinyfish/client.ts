@@ -1,3 +1,4 @@
+import { MAX_RESPONSE_BYTES } from "@/lib/scraper/request";
 /**
  * TinyFish API Client
  *
@@ -84,8 +85,8 @@ export class TinyFishClient {
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`TinyFish API error (${response.status}): ${text}`);
+        void response.body?.cancel().catch(() => undefined);
+        throw new Error("TinyFish request failed");
       }
 
       if (!response.body) {
@@ -108,10 +109,14 @@ export class TinyFishClient {
     let runId: string | undefined;
     let streamingUrl: string | undefined;
 
+    let totalBytes = 0;
+    try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_RESPONSE_BYTES) throw new Error("Scraper response exceeds size limit");
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
@@ -234,6 +239,10 @@ export class TinyFishClient {
       }
     }
 
+    } finally {
+      void reader.cancel().catch(() => undefined);
+      reader.releaseLock();
+    }
     return {
       success: false,
       data: null,

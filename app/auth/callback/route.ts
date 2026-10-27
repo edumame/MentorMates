@@ -1,3 +1,4 @@
+import { sendWelcomeProfileEmail } from "@/lib/email/send-welcome-profile";
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "../../utils/supabase/server";
 import { hasPersistedOnboardingState } from "@/features/user/onboarding/metadata";
@@ -62,6 +63,19 @@ export async function GET(request: Request) {
 
     if (profileError) {
       return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
+    }
+
+    // Best-effort: send a welcome email asking them to complete their profile.
+    // This is done only the first time we create their profile record.
+    try {
+      const profileUrl = `${cleanBaseUrl}/profile/${user.id}`;
+      await sendWelcomeProfileEmail({
+        to: user.email,
+        displayName: profileData.display_name,
+        profileUrl,
+      });
+    } catch (emailError) {
+      console.error("Error sending welcome email:", emailError);
     }
   }
 

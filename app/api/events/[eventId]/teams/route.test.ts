@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 
+import { NextRequest } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
@@ -87,7 +88,7 @@ describe("teams API", () => {
     mockCreateSupabaseServiceClient.mockReturnValue({ from: jest.fn() });
 
     const res = await GET(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`),
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`),
       params()
     );
 
@@ -99,7 +100,7 @@ describe("teams API", () => {
     mockCreateSupabaseServiceClient.mockReturnValue({ from: jest.fn() });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({ name: "Team Rocket" }),
       }),
@@ -122,7 +123,7 @@ describe("teams API", () => {
     });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({ name: "Dupes" }),
       }),
@@ -198,7 +199,7 @@ describe("teams API", () => {
     });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({ name: "Avengers" }),
       }),
@@ -283,7 +284,7 @@ describe("teams API", () => {
     });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({
           name: "Org Team",
