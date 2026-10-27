@@ -35,12 +35,6 @@ export function getActiveRound(
   return 1;
 }
 
-export function isMultiRound(
-  scoringConfig: EventScoringConfig | null | undefined
-): boolean {
-  return !!scoringConfig?.rounds && scoringConfig.rounds.length > 1;
-}
-
 export interface AdvancementScoreRow {
   project_id: string;
   scores: Record<string, unknown> | null;
