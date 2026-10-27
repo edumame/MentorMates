@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 type PathPattern = string | RegExp;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isLoading, setIsLoading] = useState(true);
+  const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -17,6 +17,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/",
       "/project",
       "/projects",
+      // Shared direct links land here after /events/[id]/submit; must stay public
+      // so unauthenticated users keep ?eventId= through sign-in.
+      "/projects/submit",
       "/login",
       "/auth/callback",
       "/auth/auth-code-error",
@@ -61,37 +64,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-      setIsLoading(false);
+    let active = true;
+    // Auth events supersede an older in-flight session lookup.
+    let authEventReceived = false;
+    const applySession = (authenticated: boolean) => {
+      if (!active) return;
+      setAuthenticatedPath(authenticated ? pathname : null);
+      if (!authenticated && !isPublicPath(pathname)) router.push("/");
+    };
 
-      // Only redirect if (not authenticated or error) and not on a public path
-      if ((!session || error) && !isPublicPath(pathname)) {
-        router.push("/");
+    const checkAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!authEventReceived) applySession(Boolean(session) && !error);
+      } catch {
+        if (!authEventReceived) applySession(false);
       }
     };
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authEventReceived = true;
+      applySession(Boolean(session));
+    });
     checkAuth();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session && !isPublicPath(pathname)) {
-        router.push("/");
-      }
-    });
-
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
   }, [pathname, router, isPublicPath]);
 
-  if (isLoading) {
-    return null; // Or a loading spinner
-  }
+  // Public pages must be present in the initial HTML before effects resolve auth.
+  // Protected pages stay hidden until this path has an authenticated session,
+  // including while a signed-out visitor is being redirected.
+  if (!isPublicPath(pathname) && authenticatedPath !== pathname) return null;
 
   return <>{children}</>;
 }

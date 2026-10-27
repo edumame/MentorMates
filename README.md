@@ -1,411 +1,153 @@
-# [Mentor Mates](https://www.mentor-mates.com/)
+# MentorMates
 
-> ### Exploring the synergy of generative AI and personalized formative feedback.
+MentorMates helps hackathon teams connect with mentors, collect actionable feedback, and share their work. Organizers can manage events and submissions, while judges evaluate projects using event-specific scoring criteria.
 
-<!-- thumbnail -->
-<img src="/public/img/landing.png" alt="landing">
+[Source repository](https://github.com/edumame/MentorMates) · [Issues](https://github.com/edumame/MentorMates/issues) · [MIT license](LICENSE)
 
-A Next.js application designed to streamline the process of collecting and managing mentor feedback for projects and hackathons, with comprehensive role-based access control and project scoring systems.
+## Features
 
-## 🚀 Features
+- Event creation, participant management, tracks, and project submissions.
+- Participant, mentor, judge, organizer, and administrator workflows.
+- Mentor feedback, booking availability, and project sharing.
+- Project scoring and judging dashboards.
+- Supabase authentication and database access controls.
+- Integrations for AI assistance, email, chat/video, and payments.
 
-- **Multi-Role Support**: Participants, Mentors, Judges, Organizers, and Admins
-- **Project Management**: Submission system with QR code generation for easy access
-- **Feedback System**: AI-enhanced mentor feedback with real-time suggestions
-- **Event Management**: Complete hackathon lifecycle management
-- **Scoring & Judging**: Flexible project scoring with custom criteria
-- **Real-time Dashboard**: Role-specific dashboards and analytics
-- **Authentication**: OAuth integration with Supabase Auth
-- **Dark Mode**: Full dark/light theme support
+The application uses Next.js App Router, React, TypeScript, Supabase, Tailwind CSS, and Radix UI. External integrations require their own configuration; they are not included services.
 
-## 🛠️ Tech Stack
-
-<div>
-    <img src="https://img.shields.io/badge/next.js-%23000000.svg?logo=next.js&logoColor=white&style=for-the-badge" alt="Next.js" /> 
-    <img src="https://img.shields.io/badge/typescript-%23007acc.svg?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript" /> 
-    <img src="https://img.shields.io/badge/supabase-%233ecf8e.svg?logo=supabase&logoColor=white&style=for-the-badge" alt="Supabase" /> 
-    <img src="https://img.shields.io/badge/tailwindcss-%2338b2ac.svg?logo=tailwind-css&logoColor=white&style=for-the-badge" alt="TailwindCSS" /> 
-    <img src="https://img.shields.io/badge/react-%2320232a.svg?logo=react&logoColor=%2361dafb&style=for-the-badge" alt="React" />
-</div>
-
-## 📁 Project Structure
-
-### **App Directory (Next.js 15 App Router)**
-```
-app/
-├── (auth)/                    # Authentication route group  
-│   ├── login/                 # Main login/signup page
-│   ├── auth/                  # OAuth callbacks and error handling
-│   └── select-role/           # Role selection after authentication
-├── (users)/                   # Authenticated user pages
-│   ├── admin/                 # Admin-only access page
-│   └── mentor/                # Mentor-specific pages and QR scanning
-├── (static)/                  # Public pages (no auth required)
-│   ├── about/                 # About page
-│   ├── privacy/               # Privacy policy
-│   ├── teams/                 # Team information
-│   └── terms/                 # Terms of service
-├── events/                    # Event management
-│   ├── [id]/                  # Dynamic event pages
-│   │   ├── dashboard/         # Event organizer dashboard
-│   │   ├── feed/              # Event activity feed
-│   │   ├── gallery/           # Project gallery
-│   │   ├── overview/          # Event overview
-│   │   ├── participants/      # Participant management
-│   │   ├── submit/            # Project submission
-│   │   └── tools/             # Event tools (brainstormer, etc.)
-│   └── page.tsx               # Events listing
-├── projects/                  # 🆕 UNIFIED PROJECT MANAGEMENT
-│   ├── [id]/                  # Unified project view
-│   ├── public/[id]/           # Public project showcase
-│   ├── join/[id]/[token]/     # Secure project invitations
-│   └── page.tsx               # Personal project gallery
-├── feedback/                  # Feedback management
-│   └── given/                 # Feedback history
-├── profile/                   # User profiles
-│   └── [userId]/              # Dynamic user profile pages
-├── resources/                 # Resource library
-├── api/                       # API routes
-│   ├── email/                 # Email notifications
-│   ├── events/                # Event CRUD operations
-│   ├── feedback/              # Feedback processing
-│   ├── projects/              # Legacy project API (submit only)
-│   └── roles/                 # Role verification and management
-└── utils/supabase/            # Next.js specific Supabase utilities
-    ├── client.ts              # Client-side Supabase config
-    ├── middleware.ts          # Session management middleware
-    └── server.ts              # Server-side Supabase config
-
-```
-
-### **Library Structure**
-```
-lib/
-├── config/                    # Configuration files
-│   └── constants.ts           # Application constants
-├── templates/                 # Email templates
-│   ├── feedback-notification.ts
-│   ├── project-submission.ts
-│   └── project-teammate.ts
-├── hooks/                     # Custom React hooks
-│   ├── use-media-query.ts     # Responsive design hook
-│   ├── use-profile.ts         # User profile management
-│   ├── use-project.ts         # Project data management
-│   └── use-toast.ts           # Toast notification hook
-├── utils/                     # Utility functions
-│   ├── invite-links.ts        # Project invitation utilities
-│   ├── roles.ts               # Role management utilities
-│   └── ui.ts                  # UI utility functions
-├── types/                     # TypeScript type definitions
-│   └── index.ts               # Application-wide types
-├── helpers/                   # Helper functions
-│   └── projects.ts            # Project-related helper functions
-├── database.types.ts          # Supabase generated types
-└── supabase.ts               # Supabase client configuration
-```
-
-### **Components Structure**
-```
-🆕 features/                   # Feature-based component organization
-├── projects/                  # 🆕 Project management feature
-│   ├── components/
-│   │   ├── forms/            # ProjectSubmissionForm, SubmissionConfirmation
-│   │   ├── displays/         # ProjectBoard, project cards
-│   │   ├── feedback/         # FeedbackForm and management
-│   │   └── management/       # Project dashboard and settings
-│   ├── api/                  # Complete project API layer
-│   │   ├── submit.ts         # Project submission
-│   │   ├── update.ts         # Project updates
-│   │   ├── delete.ts         # Project deletion
-│   │   ├── join.ts           # Team management
-│   │   └── feedback.ts       # Feedback management
-│   ├── hooks/                # useProject and related hooks
-│   └── utils/                # Project-specific utilities
-└── user/                     # 🆕 User management feature
-    ├── authentication/       # AuthProvider, AuthRedirectProvider
-    ├── dashboards/           # All 5 role-specific dashboards
-    │   ├── admin-dashboard.tsx
-    │   ├── judge-dashboard.tsx
-    │   ├── mentor-dashboard.tsx
-    │   ├── participant-dashboard.tsx
-    │   └── organizer/        # Organizer dashboard components
-    │       ├── access/       # Access control (passwords, roles)
-    │       ├── details/      # Event details management
-    │       ├── participants/ # Participant management
-    │       ├── scores/       # Scoring management
-    │       ├── submissions/  # Submission management
-    │       └── tracks/       # Track and prize management
-    ├── profiles/             # Profile management utilities
-    └── roles/                # Role management utilities
-
-components/                   # Shared components
-├── ui/                      # Design system components (Radix UI + custom)
-├── events/                  # Event-related components
-├── heroes/                  # Landing page hero components
-├── journal/                 # Personal journal components
-├── layout/                  # Layout components (navbar, footer, etc.)
-├── project-scoring/         # Project scoring system
-├── resources/               # Resource library components
-└── utils/                   # Utility components
-    ├── QRScanner.tsx        # QR code scanning
-    ├── UserSearch.tsx       # User search functionality
-    └── VoiceInput.tsx       # Voice input component
-```
-
-## 🗄️ Database Schema
-
-### **Core Tables**
-
-#### **User Management**
-```sql
--- User profiles (extends Supabase auth.users)
-user_profiles (
-    uid UUID PRIMARY KEY,
-    display_name TEXT,
-    email TEXT,
-    links JSON,
-    pulse BIGINT,
-    created_at TIMESTAMPTZ
-)
-
--- User roles per event
-user_event_roles (
-    id UUID PRIMARY KEY,
-    user_id UUID REFERENCES user_profiles(uid),
-    event_id UUID REFERENCES events(event_id),
-    role event_role,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ,
-    UNIQUE(user_id, event_id)
-)
-
--- Role-based passwords for protected access
-role_passwords (
-    id UUID PRIMARY KEY,
-    event_id UUID REFERENCES events(event_id),
-    role event_role,
-    password_hash TEXT,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ
-)
-```
-
-#### **Event Management**
-```sql
--- Events
-events (
-    event_id UUID PRIMARY KEY,
-    event_name TEXT,
-    event_date TEXT,
-    location TEXT,
-    event_description TEXT,
-    event_schedule JSONB,
-    event_prizes JSONB,
-    event_resources JSONB,
-    created_at TIMESTAMPTZ,
-    rules JSONB,
-    cover_image_url TEXT,
-    scoring_config JSONB,
-    event_blurb TEXT,
-    submission_time_start TIMESTAMPTZ,
-    submission_time_cutoff TIMESTAMPTZ,
-    visibility event_visibility,
-    role_labels JSONB,
-    slug TEXT
-)
-
--- Event tracks/categories
-event_tracks (
-    track_id UUID PRIMARY KEY,
-    event_id UUID REFERENCES events(event_id),
-    name TEXT,
-    description TEXT,
-    label TEXT,
-    prize_amount TEXT,
-    prize_description TEXT,
-    scoring_criteria JSONB,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ
-)
-
--- Track prizes
-prizes (
-    id UUID PRIMARY KEY,
-    track_id UUID REFERENCES event_tracks(track_id),
-    prize_amount TEXT,
-    prize_description TEXT,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ
-)
-```
-
-#### **Project Management**
-```sql
--- Projects
-projects (
-    id UUID PRIMARY KEY,
-    project_name TEXT,
-    lead_name TEXT,
-    lead_email TEXT,
-    project_description TEXT,
-    teammates TEXT[],
-    project_url TEXT,
-    additional_materials_url TEXT,
-    cover_image_url TEXT,
-    event_id UUID,
-    created_at TIMESTAMPTZ
-)
-
--- Project scores from judges
-project_scores (
-    id UUID PRIMARY KEY,
-    project_id UUID REFERENCES projects(id),
-    judge_id UUID,
-    scores JSONB,
-    comments TEXT,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ,
-    track_id UUID,
-    event_id UUID
-)
-
--- Project to track relationship
-project_tracks (
-    project_id UUID REFERENCES projects(id),
-    track_id UUID REFERENCES event_tracks(track_id),
-    created_at TIMESTAMPTZ
-)
-
--- Mentor feedback
-feedback (
-    id UUID PRIMARY KEY,
-    mentor_id UUID,
-    mentor_email TEXT,
-    mentor_name TEXT,
-    feedback_text TEXT,
-    modifier_field TEXT[],
-    specific_ai_suggestion TEXT,
-    positive_ai_suggestion TEXT,
-    actionable_ai_suggestion TEXT,
-    original_feedback_text TEXT,
-    project_id UUID,
-    event_id UUID,
-    created_at TIMESTAMPTZ
-)
-
--- Journaling and goals
-platform_engagement (
-    id UUID PRIMARY KEY,
-    user_id UUID,
-    event_id UUID,
-    type TEXT,
-    content TEXT,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ,
-    display_name TEXT,
-    status TEXT,
-    is_private BOOLEAN,
-    tags TEXT[]
-)
-```
-
-### **Role Hierarchy & Permissions**
-
-1. **Participant** (Default)
-   - Submit projects
-   - Join events
-   - Access personal dashboard
-
-2. **Mentor** (Password Protected)
-   - Provide project feedback
-   - Access mentor dashboard
-   - QR code scanning
-
-3. **Judge** (Password Protected)
-   - Score and evaluate projects
-   - Access judging interface
-   - View all submissions
-
-4. **Organizer** (Password Protected)
-   - Full event management
-   - Configure tracks and scoring
-   - Manage participants
-
-5. **Admin** (Super User)
-   - System-wide access
-   - User management
-   - Cross-event analytics
-
-## 🚀 Getting Started
+## Development setup
 
 ### Prerequisites
-- Node.js 18+
-- npm/yarn/pnpm/bun
-- Supabase account and project
 
-### Installation & Setup
+- **Node.js 22 recommended**, matching CI. Newer releases are not covered by the current CI matrix.
+- **pnpm 9.12.3**, pinned in the `packageManager` field in [package.json](package.json).
+- For authenticated or database-backed development, a dedicated **non-production Supabase environment with a compatible schema**, test data, and Auth configuration.
 
-1. **Clone the repository:**
-```bash
-git clone https://github.com/your-username/mentor-mates.git
-cd mentor-mates
+### Install
+
+```sh
+git clone https://github.com/edumame/MentorMates.git
+cd MentorMates
+corepack enable
+corepack prepare pnpm@9.12.3 --activate
+pnpm install --frozen-lockfile
 ```
 
-2. **Install dependencies:**
-```bash
-npm install
+If Corepack is unavailable, install pnpm 9.12.3 using your Node tooling before running the final command. Keep `pnpm-lock.yaml` as the dependency source of truth.
+
+### Database setup: current limitation
+
+**A reproducible empty-database bootstrap is not available yet.** The [migration directory](supabase/migrations) contains incremental changes that depend on pre-existing tables and types. There is also a historical schema dump, but it is not a verified current bootstrap. Do not assume `supabase db reset` or applying all migrations to a fresh project will produce a working environment.
+
+`setup-db.ts` is currently empty: `pnpm setup-db` does **not** initialize the database. For database-backed work, coordinate with a maintainer to obtain a compatible, sanitized development baseline and confirm which migrations it already includes. Review migration changes against that baseline before applying them to a disposable development database. Do not connect local development or automated tests to production.
+
+You can install dependencies and run unit checks without a live database. End-to-end authentication and data workflows need the compatible development environment described above.
+
+### Environment configuration
+
+Copy [`.env.example`](.env.example) to `.env.local` in the repository root; `.env.local` is ignored by Git. The template lists every variable the application reads, grouped by integration.
+
+The following **non-working placeholders** match the production-build validation configuration. They support build validation without real service credentials; they do not provide a functioning database, authentication, email, AI, or chat service.
+
+```dotenv
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=build-placeholder
+SUPABASE_SERVICE_ROLE_KEY=build-placeholder
+OPENAI_API_KEY=build-placeholder
+RESEND_API_KEY=re_build_placeholder
+NEXT_PUBLIC_STREAM_CHAT_API_KEY=build-placeholder
+STREAM_CHAT_SECRET_KEY=build-placeholder
+NEXT_PUBLIC_STREAM_VIDEO_API_KEY=build-placeholder
+STREAM_VIDEO_SCRET_KEY=build-placeholder
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_placeholder
+NEXT_TELEMETRY_DISABLED=1
 ```
 
-3. **Environment setup:**
-Create `.env.local` with your Supabase credentials:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-EMAIL_USER=your_email@gmail.com
-EMAIL_APP_PASSWORD=your_app_password
+For functional development, replace placeholders only with credentials for your isolated development services:
+
+| Configuration | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_APP_URL` | Local origin used for redirects and generated links. Keep it set to your local application URL. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Core browser and server Supabase connection. Configure the development project's Auth redirects for `http://localhost:3000/auth/callback`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only privileged database operations. Use the matching development project key; never expose it through a `NEXT_PUBLIC_` variable. |
+| `OPENAI_API_KEY` | Optional AI-backed features. |
+| `RESEND_API_KEY` | Optional email delivery; use a test configuration and authorized sender. |
+| `APPROVAL_NOTIFICATION_RECIPIENTS` | Optional comma-separated addresses notified when an event needs approval. Defaults to `admin@mentormates.ai`. |
+| `NEXT_PUBLIC_STREAM_CHAT_API_KEY`, `STREAM_CHAT_SECRET_KEY` | Optional Stream chat integration. |
+| `NEXT_PUBLIC_STREAM_VIDEO_API_KEY`, `STREAM_VIDEO_SCRET_KEY` | Optional Stream video integration. `SCRET` is the current spelling in the source. |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Optional payments and webhooks; use Stripe test mode. See [payment integration notes](docs/payments/stripe.md). |
+
+These are the main application variables, not an exhaustive inventory of every integration. Some optional SDKs initialize during builds, which is why CI supplies placeholders even when those features are not exercised. Variables beginning with `NEXT_PUBLIC_` are exposed to the browser. Keep service secrets server-only and out of commits, screenshots, logs, and issue reports.
+
+### Run locally
+
+After configuring the development environment:
+
+```sh
+pnpm dev
 ```
 
-4. **Database setup:**
-```bash
-npm run setup-db
+Open [localhost:3000](http://localhost:3000). Placeholder-only configuration is useful for build checks, but database-backed pages and external integrations will not work.
+
+## Validation
+
+```sh
+pnpm lint
+pnpm typecheck
+pnpm test:unit --ci --runInBand
+pnpm build --webpack
+node scripts/check-homepage-prerender.mjs
 ```
 
-5. **Start development server:**
-```bash
-npm run dev
+These commands mirror the [validation workflow](.github/workflows/validation.yml). The build needs environment configuration; CI uses non-production placeholders. The prerender check inspects the generated homepage body for its heading and footer, excluding serialized script content. Run it after a successful build.
+
+To serve the production build locally, run `pnpm start`.
+
+Browser tests use Playwright separately from Jest:
+
+```sh
+pnpm test:e2e:install
+pnpm test:e2e
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+The [Playwright configuration](playwright.config.ts) starts a local development server by default. To use an already running local server, set `PLAYWRIGHT_SKIP_WEB_SERVER=1`; `PLAYWRIGHT_BASE_URL` overrides the default `http://localhost:3000`. Use a test environment for journeys that require accounts or data. Browser tests are not currently part of the validation workflow, and passing unit/build checks does not establish that all external integrations work.
 
-### Available Scripts
+## Repository layout
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run setup-db` - Initialize database schema
-- `scripts/test-webhook-message-new.sh` - CLI webhook smoke test for the chat `message.new` path
+| Path | Contents |
+| --- | --- |
+| `app/` | App Router pages, API handlers, and Supabase server/browser helpers. |
+| `features/` | Project, event, user, and other feature-specific UI and logic. |
+| `components/` | Shared UI, layouts, and event/project components. |
+| `lib/` | Types, database clients, integrations, and shared application utilities. |
+| `supabase/` | Incremental database migrations and historical SQL assets. |
+| `e2e/` | Playwright browser tests. |
+| `scripts/` | Validation and integration utilities; inspect each before running it. |
+| `.github/workflows/` | CI and repository automation. |
 
-### Testing Docs
+Unit tests are colocated with application code. [Generated database types](lib/database.types.ts) describe the expected schema but do not create it.
 
-- Responses migration CLI test guide: [`RESPONSES_CLI_TESTING.md`](./RESPONSES_CLI_TESTING.md)
+## Contributing
 
-## 🏗️ Architecture
+Bug reports, focused fixes, tests, and documentation improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the pull request checklist, and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-The project has undergone a complete architectural transformation from scattered, type-based organization to a clean, feature-based structure. 
+To report a security vulnerability, follow [SECURITY.md](SECURITY.md). Do not publish exploit details, private user data, or credentials in a public issue.
 
-**Status**: ✅ **ALL ARCHITECTURAL DEBT RESOLVED!**
+## Current limitations and next steps
 
-For detailed architecture documentation, migration history, and technical decisions, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+Open-source contributor setup is still being improved. Priorities include:
 
-## 📝 Contributing
+- A tested initial database baseline and sanitized seed data.
+- Database-backed tests for permissions, migrations, and concurrent writes.
+- Browser coverage in CI for critical participant, organizer, and judging workflows.
+- Simplifying shared data access and project-detail presentation to reduce duplication.
+- Integration setup documentation for each optional service.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+These are improvement areas, not guarantees that every workflow is complete or that pending pull requests are ready to merge. Use [issues](https://github.com/edumame/MentorMates/issues) and [pull requests](https://github.com/edumame/MentorMates/pulls) to discuss scope and track work.
 
-## 📄 License
+## License and contact
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2026 MentorMates contributors. Licensed under the [MIT License](LICENSE).
+
+Questions, partnerships, and community inquiries: [contact@mentormates.ai](mailto:contact@mentormates.ai).

@@ -76,7 +76,7 @@ const ProjectBoard = ({
                     ? `/projects/${project.id}`
                     : `/projects/public/${project.id}`;
 
-                const isOwner = project.lead_email === session?.user?.email;
+                const isOwner = Boolean(session?.user?.email) && project.lead_email === session?.user?.email;
 
                 return (
                   <Link

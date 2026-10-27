@@ -144,7 +144,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<{
     display_name: string | null;
-    email: string | null;
+    email?: string | null;
     links: SocialLinks | null;
     bio?: string | null;
     avatar_url?: string | null;
@@ -265,7 +265,7 @@ export default function ProfilePage() {
             project_name: project.project_name,
             project_description: project.project_description,
             lead_name: project.lead_name,
-            lead_email: project.lead_email,
+            lead_email: project.lead_email ?? "",
             teammates: project.teammates,
             project_url: project.project_url,
             cover_image_url: project.cover_image_url,
@@ -776,7 +776,7 @@ export default function ProfilePage() {
                     </div>
                   )}
                   <p className="text-base text-gray-600">
-                    {userProfile?.bio || userProfile?.email || ""}
+                    {userProfile?.bio || ""}
                   </p>
                   {/* School / Company (stored as `user_profiles.affiliation`) */}
                   {(userProfile?.affiliation || isOwnProfile) && (

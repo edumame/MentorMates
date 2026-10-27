@@ -8,6 +8,22 @@
  */
 import fs from "fs";
 import path from "path";
+import { renderToString } from "react-dom/server";
+import HomePage from "../page";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+
+jest.mock("@/features/user/authentication/auth/AuthContext", () => ({ useAuth: jest.fn() }));
+jest.mock("@/lib/supabase", () => ({ supabase: { from: jest.fn() } }));
+jest.mock("posthog-js", () => ({ identify: jest.fn() }));
+jest.mock("@/components/heroes/LandingHero", () => ({ LandingHero: () => <h1>MentorMates landing</h1> }));
+jest.mock("@/components/layout/Footer", () => ({ Footer: () => <footer>MentorMates footer</footer> }));
+jest.mock("@/components/heroes/AuthHero", () => ({ AuthHero: () => <main>Member dashboard</main> }));
+jest.mock("@/components/layout/SidebarLayout", () => ({
+  SidebarLayout: ({ children, showLogoInSidebar }: { children: React.ReactNode; showLogoInSidebar?: boolean }) =>
+    <div data-sidebar-logo={showLogoInSidebar}>{children}</div>,
+}));
+jest.mock("@/components/utils/ServiceWorkerRegistration", () => ({ ServiceWorkerRegistration: () => null }));
+
 
 // ─── Metadata from seo-metadata.ts ───
 // Extracted to avoid pulling in Supabase/auth deps from layout.tsx.
@@ -131,13 +147,20 @@ describe("SEO: Server-rendered landing page", () => {
     expect(pageSrc).not.toContain('"use client"');
   });
 
-  it("page.tsx renders LandingHero content in the server response", () => {
-    const pageSrc = fs.readFileSync(
-      path.join(process.cwd(), "app", "page.tsx"),
-      "utf-8",
-    );
-    expect(pageSrc).toContain("LandingHero");
-    expect(pageSrc).toContain("Footer");
+  it.each([true, false])("renders landing HTML with no session when loading=%s", (isLoading) => {
+    (useAuth as jest.Mock).mockReturnValue({ session: null, isLoading });
+    const html = renderToString(<HomePage />);
+    expect(html).toContain("<h1>MentorMates landing</h1>");
+    expect(html).toContain("<footer>MentorMates footer</footer>");
+    expect(html).not.toContain("Member dashboard");
+  });
+
+  it.each([true, false])("keeps cached-session initial HTML consistent with the server when loading=%s", (isLoading) => {
+    (useAuth as jest.Mock).mockReturnValue({ session: { user: { id: "member" } }, isLoading });
+    const html = renderToString(<HomePage />);
+    expect(html).toContain("MentorMates landing");
+    expect(html).toContain("MentorMates footer");
+    expect(html).not.toContain("Member dashboard");
   });
 
   it("Build component is a server component", () => {

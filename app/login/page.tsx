@@ -1,5 +1,6 @@
 "use client";
 
+import { OPEN_SOURCE } from "@/lib/config/open-source";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
@@ -182,7 +183,7 @@ function TestimonialPanelMobile() {
 
       {/* © moved below the blue card on mobile */}
       <div className="px-6 mt-4 text-xs text-slate-500 text-center lg:text-left">
-        © 2025 MentorMates
+        © {new Date().getFullYear()} {OPEN_SOURCE.COPYRIGHT_HOLDER}
       </div>
     </section>
   );
@@ -528,7 +529,7 @@ function LoginContent({
 
         <div className="px-6 pb-6 hidden lg:block">
           <div className="text-xs text-slate-500 text-center lg:text-left">
-            © 2025 MentorMates
+            © {new Date().getFullYear()} {OPEN_SOURCE.COPYRIGHT_HOLDER}
           </div>
         </div>
       </main>
