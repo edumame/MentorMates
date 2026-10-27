@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      content_translations: {
+        Row: {
+          id: string
+          source_hash: string
+          source_lang: string | null
+          target_lang: string
+          translated_text: string
+          model: string
+          token_count: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          source_hash: string
+          source_lang?: string | null
+          target_lang: string
+          translated_text: string
+          model: string
+          token_count?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          source_hash?: string
+          source_lang?: string | null
+          target_lang?: string
+          translated_text?: string
+          model?: string
+          token_count?: number | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       internal_api_usage: {
         Row: {
           completion_tokens: number | null
@@ -2444,6 +2477,7 @@ export type Database = {
     }
     Functions: {
       reserve_scraper_request: { Args: { p_user_id: string }; Returns: { allowed: boolean; retry_after_seconds: number }[] }
+      reserve_translation_request: { Args: { p_user_id: string; p_char_count: number }; Returns: { allowed: boolean; retry_after_seconds: number }[] }
       increment_internal_invite_uses: {
         Args: { p_invite_id: string }
         Returns: undefined
