@@ -1,0 +1,49 @@
+name: Validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:unit --ci --runInBand
+      - name: Build production app with non-production placeholders
+        run: pnpm build --webpack
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: build-placeholder
+          OPENAI_API_KEY: build-placeholder
+          RESEND_API_KEY: re_build_placeholder
+          NEXT_PUBLIC_STREAM_CHAT_API_KEY: build-placeholder
+          STREAM_CHAT_SECRET_KEY: build-placeholder
+          NEXT_PUBLIC_STREAM_VIDEO_API_KEY: build-placeholder
+          STREAM_VIDEO_SCRET_KEY: build-placeholder
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Verify homepage content is prerendered
+        run: node scripts/check-homepage-prerender.mjs
+
+  scraper-quota:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test scraper quota in disposable PostgreSQL
+        run: python3 scripts/test_scraper_quota.py

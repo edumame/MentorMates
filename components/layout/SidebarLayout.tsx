@@ -28,12 +28,12 @@ export function SidebarLayout({ children, showLogoInSidebar }: SidebarLayoutProp
     <>
       {isAuthenticated ? (
         <div
-          className="fixed inset-0 flex h-screen min-h-screen flex-col bg-[#fbfcfe]"
-          style={{ minHeight: "100dvh", height: "100dvh" }}
+          className="fixed inset-0 flex min-h-0 h-[100dvh] max-h-[100dvh] flex-col bg-[#fbfcfe]"
+          style={{ minHeight: "100dvh" }}
         >
           <MobileSidebarHeader showLogoInSidebar={showLogoInSidebar} />
 
-          <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             {/* Desktop Sidebar - 灰底铺满到底部，与右侧白底同高 */}
             <aside
               className="fixed bottom-0 left-0 top-0 z-10 hidden w-[var(--sidebar-width,280px)] overflow-y-auto bg-[#fbfcfe] lg:block"
@@ -47,7 +47,7 @@ export function SidebarLayout({ children, showLogoInSidebar }: SidebarLayoutProp
               className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:ml-[var(--sidebar-width,280px)] lg:mt-4 lg:rounded-tl-[32px] lg:border-t lg:border-l lg:border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
             >
               <div className="flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]">
-                <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip overflow-y-auto pt-0">
+                <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip overflow-y-auto overscroll-y-contain pt-0">
                   {children}
                 </main>
               </div>

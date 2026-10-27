@@ -3,13 +3,24 @@
  */
 
 const insertSingleMock = jest.fn();
-const insertMock = jest.fn(() => ({
+import type { Database } from "@/lib/database.types";
+
+const insertMock = jest.fn<
+  { select: () => { single: typeof insertSingleMock } },
+  [Database["public"]["Tables"]["events"]["Insert"]]
+>(() => ({
   select: jest.fn(() => ({
     single: insertSingleMock,
   })),
 }));
 const fromMock = jest.fn(() => ({
   insert: insertMock,
+}));
+
+jest.mock("@/app/utils/supabase/server", () => ({
+  createSupabaseClient: jest.fn(async () => ({
+    auth: { getUser: async () => ({ data: { user: null }, error: null }) },
+  })),
 }));
 
 jest.mock("@/lib/supabase/service", () => ({
@@ -23,6 +34,7 @@ jest.mock("@/lib/email/send-event-approval-notification", () => ({
 import { POST } from "./route";
 
 const VALID_PAYLOAD = {
+  submitter_name: "Sample Submitter",
   email: "submitter@example.com",
   event_name: "Sample Demo Day",
   start_datetime: "2026-08-01T18:00:00Z",
@@ -74,6 +86,16 @@ describe("POST /api/events/public-submit", () => {
     const body = await res.json();
     expect(body).toMatchObject({ ok: true, event_id: "evt-uuid-123" });
     expect(fromMock).toHaveBeenCalledWith("events");
+  });
+
+  it.each([undefined, ""])("rejects missing or empty submitter_name (%s) before inserting", async (submitter_name) => {
+    const response = await POST(makeRequest({ ...VALID_PAYLOAD, submitter_name }));
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.details.fieldErrors.submitter_name).toContain(
+      submitter_name === undefined ? "Required" : "Name is required",
+    );
+    expect(insertMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when email is malformed", async () => {

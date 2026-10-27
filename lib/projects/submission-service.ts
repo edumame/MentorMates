@@ -339,6 +339,7 @@ async function validateProjectEventContext(
     >();
 
   if (eventError) {
+    console.error("[submit] fetch event failed", { eventId, error: eventError });
     return { error: "Failed to fetch event data", status: 500 as const };
   }
 
@@ -396,6 +397,10 @@ async function validateProjectEventContext(
       >();
 
   if (fieldsError) {
+    console.error("[submit] fetch submission fields failed", {
+      eventId,
+      error: fieldsError,
+    });
     return {
       error: "Failed to fetch submission field configuration",
       status: 500 as const,
@@ -412,6 +417,11 @@ async function validateProjectEventContext(
       .overrideTypes<Array<{ track_id: string }>>();
 
     if (trackError) {
+      console.error("[submit] validate tracks failed", {
+        eventId,
+        trackIds,
+        error: trackError,
+      });
       return { error: "Failed to validate tracks", status: 500 as const };
     }
 
@@ -553,6 +563,10 @@ export async function saveProjectSubmission(
         >
       >();
     if (error || !existingProject) {
+      console.error("[submit] fetch existing project failed", {
+        projectId,
+        error,
+      });
       return { error: "Project not found", status: 404 as const };
     }
 
@@ -710,11 +724,19 @@ export async function saveProjectSubmission(
       .update(updateData)
       .eq("id", finalProjectId!);
     if (error) {
+      console.error("[submit] update project failed", {
+        projectId: finalProjectId,
+        error,
+      });
       return { error: "Failed to update project", status: 500 as const };
     }
   }
 
   if (!finalProjectId) {
+    console.error("[submit] finalProjectId missing after create/update", {
+      mode,
+      projectId,
+    });
     return { error: "Project not found", status: 404 as const };
   }
 
@@ -771,6 +793,10 @@ export async function saveProjectSubmission(
     );
 
     if (deleteAnswersError) {
+      console.error("[submit] delete prior submission answers failed", {
+        projectId: finalProjectId,
+        error: deleteAnswersError,
+      });
       return {
         error: "Failed to update submission answers",
         status: 500 as const,
@@ -787,6 +813,11 @@ export async function saveProjectSubmission(
           })),
         );
       if (insertAnswersError) {
+        console.error("[submit] insert submission answers failed", {
+          projectId: finalProjectId,
+          answerCount: normalizedSubmissionAnswers.length,
+          error: insertAnswersError,
+        });
         return {
           error: "Failed to save submission answers",
           status: 500 as const,
@@ -804,6 +835,10 @@ export async function saveProjectSubmission(
       finalProjectId,
     );
     if (deleteTracksError) {
+      console.error("[submit] delete project tracks failed", {
+        projectId: finalProjectId,
+        error: deleteTracksError,
+      });
       return { error: "Failed to update project tracks", status: 500 as const };
     }
 
@@ -815,6 +850,11 @@ export async function saveProjectSubmission(
         })),
       );
       if (trackInsertError) {
+        console.error("[submit] insert project tracks failed", {
+          projectId: finalProjectId,
+          trackIds: input.trackIds,
+          error: trackInsertError,
+        });
         return {
           error: "Failed to create project track relationships",
           status: 500 as const,
@@ -862,6 +902,10 @@ export async function saveProjectSubmission(
     .overrideTypes<ProjectBaseRow>();
 
   if (updatedProjectError || !updatedProjectRow) {
+    console.error("[submit] fetch updated project failed", {
+      projectId: finalProjectId,
+      error: updatedProjectError,
+    });
     return { error: "Failed to fetch updated project", status: 500 as const };
   }
 
