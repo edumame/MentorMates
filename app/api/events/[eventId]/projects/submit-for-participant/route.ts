@@ -1,10 +1,19 @@
-import { normalizeProjectWriteInput, saveProjectSubmission } from "@/lib/projects/submission-service";
+import {
+  normalizeProjectWriteInput,
+  ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES,
+  saveProjectSubmission,
+} from "@/lib/projects/submission-service";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { EventRole } from "@/lib/types";
+import { EventRole, type EventSubmissionField } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { submissionAnswerInputSchema } from "@/features/projects/utils/submission";
+import {
+  findMissingRequiredSubmissionAnswer,
+  sortActiveSubmissionFields,
+} from "@/features/projects/utils/effectiveSubmission";
 
 const submitForParticipantSchema = z.object({
   participant_user_id: z.string().uuid(),
@@ -15,7 +24,7 @@ const submitForParticipantSchema = z.object({
     video_url: z.string().url().nullable().optional(),
     additional_materials_url: z.string().url().nullable().optional(),
     cover_image_url: z.string().url().nullable().optional(),
-    submission_answers: z.unknown().optional(),
+    submission_answers: z.array(submissionAnswerInputSchema).max(100).optional(),
     teammates: z.array(z.string()).optional().default([]),
     track_ids: z.array(z.string().uuid()).optional().default([]),
   }),
@@ -129,6 +138,51 @@ export async function POST(
       );
     }
 
+    // Participants can only publish once every required configured submission
+    // field is answered (enforced by the submission forms). Apply the same rule
+    // here, server-side, because this path skips those forms. Drafts are exempt,
+    // matching participant draft autosave.
+    if (submit_immediately) {
+      const { data: submissionFields, error: submissionFieldsError } =
+        await serviceSupabase
+          .from("event_submission_fields")
+          .select("*")
+          .eq("event_id", eventId)
+          .eq("is_active", true)
+          .overrideTypes<EventSubmissionField[]>();
+
+      if (submissionFieldsError) {
+        console.error(
+          "Failed to load submission fields for on-behalf submission:",
+          submissionFieldsError,
+        );
+        return NextResponse.json(
+          { error: "Failed to load submission fields" },
+          { status: 500 },
+        );
+      }
+
+      const missingField = findMissingRequiredSubmissionAnswer(
+        sortActiveSubmissionFields(submissionFields ?? []),
+        {
+          projectName: project.project_name,
+          projectDescription: project.project_description,
+          answers: project.submission_answers ?? [],
+        },
+      );
+
+      if (missingField) {
+        return NextResponse.json(
+          {
+            error: `"${missingField.label}" is required`,
+            code: "required_submission_answer_missing",
+            field_id: missingField.id,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     // Use the same normalization, field validation, and error handling as participant submissions.
     const normalized = normalizeProjectWriteInput({
       ...project,
@@ -144,6 +198,9 @@ export async function POST(
       input: normalized.data,
       mode: "create",
       defaultSubmitted: submit_immediately,
+      // Server-side constant, never derived from the request: organizers and
+      // admins (verified above) may rescue a participant after the cutoff.
+      overrides: ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES,
     });
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
@@ -157,12 +214,13 @@ export async function POST(
       {
         success: true,
         project: createdProject,
+        submitted_after_deadline: result.submittedAfterDeadline === true,
         participant: {
           user_id: participantProfile.uid,
           display_name: participantProfile.display_name,
           email: participantProfile.email,
         },
-        message: `Project "${createdProject.project_name}" created for ${participantProfile.display_name || participantProfile.email}${submit_immediately ? " and marked as submitted" : " as a draft"}.`,
+        message: `Project "${createdProject.project_name}" created for ${participantProfile.display_name || participantProfile.email}${submit_immediately ? " and marked as submitted" : " as a draft"}${result.submittedAfterDeadline ? " after the submission deadline" : ""}.`,
       },
       { status: 201 }
     );
