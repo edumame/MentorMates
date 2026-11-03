@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import { createSupabaseClient } from "../../utils/supabase/server";
 import { hasPersistedOnboardingState } from "@/features/user/onboarding/metadata";
 import { getSafeRedirectPath } from "@/features/user/authentication/redirect/redirect-url";
+import {
+  buildSignupConsentMetadata,
+  hasRecordedTermsAcceptance,
+  parseConsentParams,
+} from "@/features/user/authentication/signup-consent";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -36,6 +41,19 @@ export async function GET(request: Request) {
   const user = session.user;
   if (!user?.email) {
     return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
+  }
+
+  // Record sign-up consent passed through from the OAuth sign-up form. Never
+  // overwrite an existing acceptance (e.g. a returning user who re-clicked
+  // "Sign up with Google").
+  const consent = parseConsentParams(searchParams);
+  if (consent.acceptedTerms && !hasRecordedTermsAcceptance(user.user_metadata)) {
+    const { error: consentError } = await supabase.auth.updateUser({
+      data: buildSignupConsentMetadata(consent),
+    });
+    if (consentError) {
+      console.error("Error recording sign-up consent:", consentError);
+    }
   }
 
   // Try to check user profile first

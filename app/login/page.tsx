@@ -11,6 +11,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TESTIMONIALS } from "@/lib/constants/testimonials";
 import Link from "next/link";
 import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
+import {
+  appendConsentParams,
+  buildSignupConsentMetadata,
+} from "@/features/user/authentication/signup-consent";
 
 const supabase = createClient();
 
@@ -203,6 +207,8 @@ function LoginContent({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const { consumeReturnUrl } = useRedirect();
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
@@ -243,8 +249,15 @@ function LoginContent({
     return error ?? null;
   };
 
+  const termsRequiredMessage =
+    "Please accept the Terms of Service and Privacy Policy to create an account.";
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSignUp && !acceptedTerms) {
+      setError(termsRequiredMessage);
+      return;
+    }
     setLoading(true);
     setError("");
     const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
@@ -265,6 +278,7 @@ function LoginContent({
           password,
           options: {
             emailRedirectTo: `${cleanBaseUrl}${redirectTarget}`,
+            data: buildSignupConsentMetadata({ acceptedTerms, marketingOptIn }),
           },
         });
 
@@ -344,14 +358,23 @@ function LoginContent({
   };
 
   const handleOAuthSignIn = async (provider: "google" | "github") => {
+    if (isSignUp && !acceptedTerms) {
+      setError(termsRequiredMessage);
+      return;
+    }
     setLoading(true);
+    setError("");
     const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
+    const callbackUrl = `${cleanBaseUrl}/auth/callback?returnUrl=${encodeURIComponent(
+      redirectTarget
+    )}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${cleanBaseUrl}/auth/callback?returnUrl=${encodeURIComponent(
-          redirectTarget
-        )}`,
+        // Consent is only collected in sign-up mode; sign-in leaves it untouched.
+        redirectTo: isSignUp
+          ? appendConsentParams(callbackUrl, { acceptedTerms, marketingOptIn })
+          : callbackUrl,
       },
     });
     if (error) {
@@ -448,8 +471,59 @@ function LoginContent({
                   </button>
                 </div>
               ) : (
-                <div className="text-xs text-slate-600">
-                  Use at least 6 characters. Strong &amp; unique is best.
+                <div className="space-y-3">
+                  <div className="text-xs text-slate-600">
+                    Use at least 6 characters. Strong &amp; unique is best.
+                  </div>
+                  <label className="flex items-start gap-2 text-sm text-slate-800">
+                    <input
+                      id="accept-terms"
+                      name="accept-terms"
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => {
+                        setAcceptedTerms(e.target.checked);
+                        if (e.target.checked) setError("");
+                      }}
+                      aria-required="true"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      I agree to the{" "}
+                      <Link
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-700 underline"
+                      >
+                        Terms of Service
+                      </Link>{" "}
+                      and{" "}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-700 underline"
+                      >
+                        Privacy Policy
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-sm text-slate-800">
+                    <input
+                      id="marketing-opt-in"
+                      name="marketing-opt-in"
+                      type="checkbox"
+                      checked={marketingOptIn}
+                      onChange={(e) => setMarketingOptIn(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      Send me occasional emails about hackathons, events, and
+                      MentorMates updates. You can unsubscribe anytime.
+                    </span>
+                  </label>
                 </div>
               )}
 
