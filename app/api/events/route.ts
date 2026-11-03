@@ -5,6 +5,11 @@ import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { randomUUID } from "crypto";
+import {
+  buildEventInsert,
+  eventCreateFieldsSchema,
+  isSlugTakenError,
+} from "@/lib/events/create-event";
 import { Resend } from "resend";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import {
@@ -115,38 +120,19 @@ export async function GET() {
   }
 }
 
-const eventSchema = z.object({
-  event_name: z.string().min(3, "Event name must be at least 3 characters"),
-  event_date: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
-    message: "Invalid event_date - expected ISO date string",
-  }),
-  location: z.string().min(1, "Location is required"),
+// Shared fields (and their limits) come from lib/events/create-event so this
+// route and POST /api/agent/events validate a create the same way.
+const eventSchema = eventCreateFieldsSchema.extend({
   visibility: z.nativeEnum(EventVisibility).optional(),
-  slug: z.string().min(1).optional(),
   cover_image_url: z.string().url().optional(),
-  event_description: z.string().optional(),
-  event_blurb: z.string().optional(),
   external_url: z.string().url("external_url must be a valid URL").optional(),
   external_redirect_enabled: z.boolean().optional(),
-  submission_time_start: z.string().optional(),
-  submission_time_cutoff: z.string().optional(),
-  participant_capacity: z.number().int().nonnegative().optional(),
-  paid: z.boolean().optional(),
   stripe_price_id: z.string().optional(),
-  event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
   event_resources: z
     .array(
       z.object({
         name: z.string(),
         link: z.string(),
-      })
-    )
-    .optional(),
-  faq: z
-    .array(
-      z.object({
-        question: z.string(),
-        answer: z.string(),
       })
     )
     .optional(),
@@ -170,17 +156,8 @@ const eventSchema = z.object({
       })
     )
     .optional(),
-  rules: z
-    .array(
-      z.object({
-        title: z.string(),
-        items: z.array(z.string()),
-      })
-    )
-    .optional(),
   approval_status: z.nativeEnum(ApprovalStatus).optional(),
   featured: z.boolean().optional(),
-  event_type: z.array(z.string()).optional(),
 });
 
 const payloadSchema = z.object({
@@ -192,7 +169,6 @@ const payloadSchema = z.object({
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseClient();
-  const serviceSupabase = createSupabaseServiceClient();
 
   try {
     const {
@@ -232,32 +208,18 @@ export async function POST(req: Request) {
       organizerEmails = [],
     } = parsed.data;
 
-    // Build insert payload, providing sane defaults
+    // Shared fields map the same way as the agent route; web-only extras on top.
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
-      event_name: event.event_name,
-      event_date: event.event_date,
-      location: event.location,
-      rules: ((event.rules ?? []) as unknown as Json),
+      ...buildEventInsert(event, user.id),
       visibility: (event.visibility ??
         EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
-      slug: event.slug ?? null,
       cover_image_url: event.cover_image_url ?? null,
-      event_description: event.event_description ?? null,
-      event_blurb: event.event_blurb ?? null,
       external_url: event.external_url ?? null,
       external_redirect_enabled: event.external_redirect_enabled ?? false,
-      submission_time_start: event.submission_time_start ?? null,
-      submission_time_cutoff: event.submission_time_cutoff ?? null,
-      participant_capacity: event.participant_capacity ?? null,
-      paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
-      ...(event.event_schedule ? { event_schedule: event.event_schedule as Json } : {}),
       event_resources: (event.event_resources as Json) ?? ([] as Json),
-      faq: (event.faq as Json) ?? null,
-      owner_id: user.id, // Set the creator as the owner
       approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
       featured: event.featured ?? false,
-      event_type: (event.event_type ?? []) as string[],
     };
 
     const { data: createdEvent, error: insertError } = await supabase
@@ -269,7 +231,7 @@ export async function POST(req: Request) {
     if (insertError || !createdEvent) {
       console.error("Error creating event:", insertError);
 
-      if (insertError?.message?.toLowerCase().includes("events_slug_key")) {
+      if (isSlugTakenError(insertError)) {
         return NextResponse.json(
           { error: "Event slug already exists. Please try a different slug." },
           { status: 400 }
@@ -383,16 +345,20 @@ export async function POST(req: Request) {
     const existingOrganizerInviteEmails: string[] = [];
     const newOrganizerInviteEmails: string[] = [];
 
-    if (organizerEmails.length > 0) {
-      const normalizedEmails = Array.from(
-        new Set(
-          organizerEmails
-            .map((e) => e.trim().toLowerCase())
-            .filter((email) => email && email !== inviterEmail)
-        )
-      );
+    // The creator is already the organizer; only other emails need a lookup.
+    const normalizedEmails = Array.from(
+      new Set(
+        organizerEmails
+          .map((e) => e.trim().toLowerCase())
+          .filter((email) => email && email !== inviterEmail)
+      )
+    );
 
-      // Fetch all users by email in one query
+    if (normalizedEmails.length > 0) {
+      // Fetch all users by email in one query. The service client is only
+      // needed for this lookup, so a create with no co-organizers never
+      // depends on the service role key.
+      const serviceSupabase = createSupabaseServiceClient();
       const { data: usersByEmail, error: usersError } = await serviceSupabase
         .from("user_profiles")
         .select("uid, email")

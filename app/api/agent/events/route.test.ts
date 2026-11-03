@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { GET, PATCH } from "./route";
+import { GET, PATCH, POST } from "./route";
 import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { NextResponse } from "next/server";
@@ -525,5 +525,80 @@ describe("PATCH /api/agent/events (expanded field set)", () => {
     });
     const res = await patchWith({ event_name: "New Name" });
     expect(res.status).toBe(500);
+  });
+});
+
+describe("POST /api/agent/events (shared create fields)", () => {
+  function mockCreateChain(insertError: { message: string } | null = null) {
+    const inserted: Record<string, unknown>[] = [];
+    const roles: Record<string, unknown>[] = [];
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) =>
+        table === "events"
+          ? {
+              insert: jest.fn((row: Record<string, unknown>) => {
+                inserted.push(row);
+                return {
+                  select: () => ({
+                    single: async () =>
+                      insertError
+                        ? { data: null, error: insertError }
+                        : { data: { event_id: "event-9", event_name: row.event_name, slug: row.slug }, error: null },
+                  }),
+                };
+              }),
+            }
+          : {
+              upsert: jest.fn(async (row: Record<string, unknown>) => {
+                roles.push(row);
+                return { error: null };
+              }),
+            }
+      ),
+    });
+    return { inserted, roles };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authenticateAgentRequest as jest.Mock).mockResolvedValue({ userId: "user-1", eventId: "", scopes: ["event:write"] });
+    (requireScope as jest.Mock).mockReturnValue(null);
+  });
+
+  const postWith = (body: Record<string, unknown>) =>
+    POST({ json: async () => body, nextUrl: new URL("https://mentormates.ai/api/agent/events") } as never);
+
+  it("persists approval and hosts (approval used to be validated then dropped)", async () => {
+    const { inserted, roles } = mockCreateChain();
+    const res = await postWith({
+      event_name: "BUILD NEXT@Stanford",
+      event_date: "2026-11-06T23:30:00.000Z",
+      location: "Stanford",
+      slug: "build-next-stanford",
+      require_participant_approval: true,
+      organizer_affiliation: "Plug and Play",
+    });
+    expect(res.status).toBe(201);
+    expect(inserted[0]).toMatchObject({
+      require_participant_approval: true,
+      organizer_affiliation: "Plug and Play",
+      owner_id: "user-1",
+      visibility: "draft",
+      approval_status: "not_submitted",
+    });
+    expect(roles[0]).toMatchObject({ user_id: "user-1", event_id: "event-9", role: "organizer" });
+  });
+
+  it("rejects unsafe slugs on create, as on update", async () => {
+    const { inserted } = mockCreateChain();
+    const res = await postWith({ event_name: "Hack Day", event_date: "2026-11-06", location: "SF", slug: "../x" });
+    expect(res.status).toBe(400);
+    expect(inserted).toHaveLength(0);
+  });
+
+  it("explains a taken slug", async () => {
+    mockCreateChain({ message: 'duplicate key value violates unique constraint "events_slug_key"' });
+    const res = await postWith({ event_name: "Hack Day", event_date: "2026-11-06", location: "SF", slug: "taken" });
+    expect(res.status).toBe(400);
   });
 });
