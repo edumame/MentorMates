@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
@@ -105,25 +106,29 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
                   {session.user.email}
                 </p>
                 {profileNeedsCompletion(userProfile) ? (
-                  <Button
-                    variant="defaultGray"
-                    onClick={() =>
+                  <DropdownMenuItem
+                    onSelect={() =>
                       router.push(`/profile/${session?.user?.id}?edit=1`)
                     }
-                    className="mt-4 w-full text-base"
+                    className={cn(
+                      buttonVariants({ variant: "defaultGray" }),
+                      "mt-4 w-full text-base"
+                    )}
                   >
                     Set up profile
-                  </Button>
+                  </DropdownMenuItem>
                 ) : (
-                  <Button
-                    variant="defaultGray"
-                    onClick={() =>
+                  <DropdownMenuItem
+                    onSelect={() =>
                       router.push(`/profile/${session?.user?.id}`)
                     }
-                    className="mt-4 w-full text-base"
+                    className={cn(
+                      buttonVariants({ variant: "defaultGray" }),
+                      "mt-4 w-full text-base"
+                    )}
                   >
                     View profile
-                  </Button>
+                  </DropdownMenuItem>
                 )}
               </div>
               <DropdownMenuSeparator />
