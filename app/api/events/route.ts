@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
+import {
+  ApprovalStatus,
+  EventRole,
+  EventVisibility,
+  NON_ADMIN_CREATE_VISIBILITIES,
+} from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
@@ -204,15 +209,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify admin via DB function; no longer needed for general event creation flow
-
-    // const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-    //   user_id: user.id,
-    // });
-    // if (!isAdmin) {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
-
     const json = await req.json();
     const parsed = payloadSchema.safeParse(json);
     if (!parsed.success) {
@@ -232,14 +228,24 @@ export async function POST(req: Request) {
       organizerEmails = [],
     } = parsed.data;
 
+    // Anyone signed in can create an event, but only admins may publish, approve
+    // or feature one. A failed lookup leaves isAdmin false, which is the safe side.
+    const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+      user_id: user.id,
+    });
+    const requestedVisibility = event.visibility ?? EventVisibility.Draft;
+    const visibility =
+      isAdmin || NON_ADMIN_CREATE_VISIBILITIES.includes(requestedVisibility)
+        ? requestedVisibility
+        : EventVisibility.Draft;
+
     // Build insert payload, providing sane defaults
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
       rules: ((event.rules ?? []) as unknown as Json),
-      visibility: (event.visibility ??
-        EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
+      visibility: visibility as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
       cover_image_url: event.cover_image_url ?? null,
       event_description: event.event_description ?? null,
@@ -255,8 +261,8 @@ export async function POST(req: Request) {
       event_resources: (event.event_resources as Json) ?? ([] as Json),
       faq: (event.faq as Json) ?? null,
       owner_id: user.id, // Set the creator as the owner
-      approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
-      featured: event.featured ?? false,
+      approval_status: (isAdmin && event.approval_status) || ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
+      featured: Boolean(isAdmin && event.featured),
       event_type: (event.event_type ?? []) as string[],
     };
 

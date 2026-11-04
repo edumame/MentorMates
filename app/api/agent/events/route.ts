@@ -9,6 +9,11 @@ import { listManagedAgentEvents } from "@/lib/agent/event-access";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { randomUUID } from "crypto";
+import {
+  ApprovalStatus,
+  EventVisibility,
+  NON_ADMIN_CREATE_VISIBILITIES,
+} from "@/lib/types";
 
 const DEFAULT_EVENT_LIST_LIMIT = 20;
 const MAX_EVENT_LIST_LIMIT = 100;
@@ -158,6 +163,8 @@ const slugPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
 // featured) and immutable fields (event_id, owner_id, created_at) are intentionally
 // excluded and rejected via .strict(). `archived` visibility is excluded: archive
 // flow goes through the dedicated web route that performs additional bookkeeping.
+// `public` is accepted here but limited in PATCH: this route writes with the service
+// role, which the event moderation trigger does not guard.
 const updateEventSchema = z
   .object({
     // text
@@ -226,6 +233,35 @@ export async function PATCH(request: NextRequest) {
     }
 
     const supabase = createSupabaseServiceClient();
+
+    // Same rule as the moderation trigger: non-admins may only make an event
+    // public once it is approved. Resending the current value changes nothing,
+    // so it stays allowed. access.isAdmin is reliable here: a failed admin lookup
+    // throws in authorizeAgentEventAccess and ends in the 500 below.
+    if (parsed.data.visibility === EventVisibility.Public && !access.isAdmin) {
+      const { data: current, error: currentError } = await supabase
+        .from("events")
+        .select("visibility, approval_status")
+        .eq("event_id", auth.eventId)
+        .single();
+
+      if (currentError || !current) {
+        return NextResponse.json(
+          { error: "Failed to update event" },
+          { status: 500 }
+        );
+      }
+
+      if (
+        current.visibility !== EventVisibility.Public &&
+        current.approval_status !== ApprovalStatus.Approved
+      ) {
+        return NextResponse.json(
+          { error: "Only admins can make an unapproved event public" },
+          { status: 403 }
+        );
+      }
+    }
 
     const { data: event, error } = await supabase
       .from("events")
@@ -330,6 +366,31 @@ export async function POST(request: NextRequest) {
 
     const event = parsed.data;
     const supabase = createSupabaseServiceClient();
+
+    // Same rule as POST /api/events, which this service-role insert would
+    // otherwise bypass. It rejects instead of coercing so an agent is told its
+    // event is not public. A failed admin lookup counts as non-admin.
+    if (
+      !NON_ADMIN_CREATE_VISIBILITIES.includes(
+        event.visibility as EventVisibility
+      )
+    ) {
+      const { data: isAdmin, error: adminError } = await supabase.rpc(
+        "is_admin_user",
+        { user_id: auth.userId }
+      );
+
+      if (adminError) {
+        console.error("Error checking admin status:", adminError);
+      }
+
+      if (adminError || !isAdmin) {
+        return NextResponse.json(
+          { error: "Only admins can create an event with this visibility" },
+          { status: 403 }
+        );
+      }
+    }
 
     // Build the insert payload
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
