@@ -1,3 +1,5 @@
+import type { ModelKey, ModelRequestRecord } from "@/lib/model-api/types";
+
 export type Json =
   | string
   | number
@@ -87,6 +89,24 @@ export type Database = {
           service?: string
           uses?: number
         }
+        Relationships: []
+      }
+      model_api_keys: {
+        Row: ModelKey & { key_hash: string }
+        Insert: Partial<ModelKey> & { user_id: string; key_hash: string; key_prefix: string; label: string }
+        Update: Partial<ModelKey> & { key_hash?: string }
+        Relationships: []
+      }
+      model_api_requests: {
+        Row: ModelRequestRecord
+        Insert: Partial<ModelRequestRecord> & { id: string; user_id: string }
+        Update: Partial<ModelRequestRecord>
+        Relationships: []
+      }
+      model_api_limits: {
+        Row: { user_id: string; minute_start: string; minute_count: number; day_start: string; day_count: number }
+        Insert: { user_id: string; minute_start?: string; minute_count?: number; day_start?: string; day_count?: number }
+        Update: { minute_start?: string; minute_count?: number; day_start?: string; day_count?: number }
         Relationships: []
       }
       agent_api_keys: {
@@ -2447,6 +2467,10 @@ export type Database = {
       increment_internal_invite_uses: {
         Args: { p_invite_id: string }
         Returns: undefined
+      }
+      begin_model_api_request: {
+        Args: { p_user_id: string; p_key_id: string; p_request_id: string; p_request_body: Json; p_model: string | null; p_minute_limit: number; p_day_limit: number }
+        Returns: { allowed: boolean; retry_after: number }[]
       }
       can_view_feedback: {
         Args: { p_feedback_id: string; p_user_id: string }
