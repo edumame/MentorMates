@@ -2448,6 +2448,10 @@ export type Database = {
         Args: { p_invite_id: string }
         Returns: undefined
       }
+      delete_event_with_related: {
+        Args: { p_event_id: string }
+        Returns: undefined
+      }
       can_view_feedback: {
         Args: { p_feedback_id: string; p_user_id: string }
         Returns: boolean
