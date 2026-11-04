@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import type { Channel as StreamChannel } from "stream-chat";
+import { StreamChat, type Channel as StreamChannel } from "stream-chat";
 import {
     Chat,
     Channel,
@@ -8,7 +8,6 @@ import {
     MessageList,
     Thread,
     Window,
-    useCreateChatClient,
 } from "stream-chat-react";
 import { useTRPC } from "@/trpc/client";
 import { LoadingState } from "@/components/loading-state";
@@ -45,70 +44,64 @@ export const ChatUI = ({
     const trpc = useTRPC();
     const { mutateAsync: generateChatToken } = useMutation(trpc.meetings.generateChatToken.mutationOptions());
 
-    const [channel, setChannel] = useState<StreamChannel>();
-    const [isChannelLoading, setIsChannelLoading] = useState(true);
-    const [chatError, setChatError] = useState<string | null>(null);
-
-    const client = useCreateChatClient({
-        apiKey: process.env.NEXT_PUBLIC_STREAM_CHAT_API_KEY!,
-        tokenOrProvider: generateChatToken,
-        userData: {
-            id: userId,
-            name: userName,
-            image: userImage,
-        },
-    });
+    const identity = JSON.stringify([meetingId, userId]);
+    const [connection, setConnection] = useState<{ identity: string; client: StreamChat; channel: StreamChannel }>();
+    const [failure, setFailure] = useState<{ identity: string }>();
 
     useEffect(() => {
-        if (!client) return;
-
-        const nextChannel = client.channel("messaging", meetingId, { members: [userId] });
-        setChannel(nextChannel);
-        setIsChannelLoading(true);
-        setChatError(null);
-
-        let mounted = true;
-
-        const initializeChannel = async () => {
+        let active = true;
+        let nextClient: StreamChat | undefined;
+        let nextChannel: StreamChannel | undefined;
+        let disposed = false;
+        const dispose = async () => {
+            if (disposed) return;
+            disposed = true;
+            try { await nextChannel?.stopWatching(); } catch { /* Already disconnected. */ }
+            try { await nextClient?.disconnectUser(); } catch { /* Cleanup is best effort. */ }
+        };
+        setConnection(undefined);
+        setFailure(undefined);
+        const tokenProvider = async () => {
+            if (!active || disposed) throw new Error("Connection closed");
             try {
-                await nextChannel.watch();
-                if (!mounted) return;
-
-                setIsChannelLoading(false);
-            } catch (error) {
-                console.error("Failed to initialize chat channel", error);
-                if (!mounted) return;
-                setChannel(undefined);
-                setIsChannelLoading(false);
-                setChatError("Unable to load this chat right now. Please refresh and try again.");
+                // Each refresh rechecks this meeting and provisions membership
+                // server-side before the browser can watch the channel.
+                const token = await generateChatToken({ id: meetingId });
+                if (!active || disposed) throw new Error("Connection closed");
+                return token;
+            } catch {
+                if (active) setFailure({ identity });
+                void pending.then(dispose);
+                throw new Error("Unable to authorize this chat");
             }
         };
-
-        void initializeChannel();
-
-        return () => {
-            mounted = false;
-            void nextChannel.stopWatching?.();
+        const setup = async () => {
+            try {
+                nextClient = new StreamChat(process.env.NEXT_PUBLIC_STREAM_CHAT_API_KEY!);
+                await nextClient.connectUser({ id: userId, name: userName, image: userImage }, tokenProvider);
+                if (!active) return;
+                nextChannel = nextClient.channel("messaging", meetingId);
+                await nextChannel.watch();
+                if (active) setConnection({ identity, client: nextClient, channel: nextChannel });
+            } catch {
+                if (active) setFailure({ identity });
+                await dispose();
+            }
         };
-    }, [client, meetingId, userId]);
+        const pending = setup();
+        return () => {
+            active = false;
+            void pending.then(dispose);
+        };
+    }, [identity, meetingId, userId, userName, userImage, generateChatToken]);
 
-    if (!client || isChannelLoading) {
-        return (
-            <LoadingState
-                title="Loading Chat"
-                description="This may take a few seconds"
-            />
-        );
+    if (failure?.identity === identity) {
+        return <ErrorState title="Unable to load chat" description="Please refresh and try again, or check your access to this meeting." />;
     }
-
-    if (chatError || !channel) {
-        return (
-            <ErrorState
-                title="Unable to load chat"
-                description={chatError ?? "Please refresh and try again."}
-            />
-        );
+    if (connection?.identity !== identity) {
+        return <LoadingState title="Loading Chat" description="This may take a few seconds" />;
     }
+    const { client, channel } = connection;
 
     const emptyStateContextName = projectName?.trim() || "this project";
 
