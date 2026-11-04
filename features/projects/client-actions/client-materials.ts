@@ -29,13 +29,17 @@ export function buildMaterialsUpdate(project: Project, url: string) {
   };
 }
 
-export async function saveProjectMaterials(project: Project, url: string): Promise<Project> {
-  const response = await fetch(`/api/projects/${project.id}`, {
+export async function patchProject(projectId: string, body: unknown, fallbackError: string): Promise<Project> {
+  const response = await fetch(`/api/projects/${projectId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildMaterialsUpdate(project, url.trim())),
+    body: JSON.stringify(body),
   });
-  const result = await response.json();
-  if (!response.ok || !result.project) throw new Error(result.error || 'Failed to save slide deck');
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.project) throw new Error(result.error || fallbackError);
   return result.project;
+}
+
+export function saveProjectMaterials(project: Project, url: string): Promise<Project> {
+  return patchProject(project.id, buildMaterialsUpdate(project, url.trim()), 'Failed to save slide deck');
 }

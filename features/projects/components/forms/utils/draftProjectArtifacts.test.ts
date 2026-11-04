@@ -2,10 +2,22 @@ import {
   buildDraftArtifactsPayload,
   hasDraftUrlListChanged,
   normalizeDraftUrls,
+  resolveDraftPrimaryUrl,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
 
 describe("draft project artifact helpers", () => {
+  it("keeps the saved column URL over a stale primary artifact", () => {
+    expect(resolveDraftPrimaryUrl("https://new.example", "https://old.example")).toBe(
+      "https://new.example"
+    );
+  });
+
+  it("falls back to the primary artifact when no column URL is saved", () => {
+    expect(resolveDraftPrimaryUrl("", "https://artifact.example")).toBe("https://artifact.example");
+    expect(resolveDraftPrimaryUrl(null, "https://artifact.example")).toBe("https://artifact.example");
+  });
+
   it("builds payload with primary and extra links for every artifact kind", () => {
     const artifacts = buildDraftArtifactsPayload({
       projectUrl: " https://project-primary.example ",

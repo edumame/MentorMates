@@ -87,6 +87,15 @@ export function buildDraftArtifactsPayload(params: {
   return artifacts;
 }
 
+// The saved column wins: older inline edits changed it without updating the
+// artifact row, and rehydrating that stale row would autosave the old URL back.
+export function resolveDraftPrimaryUrl(
+  savedUrl: string | null | undefined,
+  artifactPrimaryUrl: string
+): string {
+  return savedUrl?.trim() || artifactPrimaryUrl;
+}
+
 export function splitPrimaryAndExtrasFromArtifacts(
   artifacts: ArtifactInputRecord[]
 ): {
