@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       input: parsed.data,
       mode: parsed.data.projectId ? "update" : "create",
       projectId: parsed.data.projectId,
+      actorUserId: user.id,
       defaultSubmitted: true,
     });
 

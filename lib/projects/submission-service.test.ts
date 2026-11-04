@@ -530,4 +530,208 @@ describe("saveProjectSubmission", () => {
     });
     expect(projectsTable.update).not.toHaveBeenCalled();
   });
+
+  describe("moving a project to another event", () => {
+    const targetEventId = "55555555-5555-4555-8555-555555555555";
+    const userId = "66666666-6666-4666-8666-666666666666";
+
+    function buildMoveClient(options: {
+      targetRole?: string | null;
+      prizeWins?: Array<{ id: string }>;
+      prizeWinsError?: { message: string } | null;
+      updateError?: { code: string; message: string } | null;
+    }) {
+      const {
+        targetRole = "participant",
+        prizeWins = [],
+        prizeWinsError = null,
+        updateError = null,
+      } = options;
+
+      const projectRow = {
+        id: projectId,
+        event_id: eventId,
+        contextus_project_id: "ctx-1",
+        project_name: "Moved Project",
+        project_description: "Description",
+        project_tracks: [],
+      };
+      const projectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest
+          .fn()
+          .mockResolvedValue({ data: projectRow, error: null }),
+      };
+      const projectsTable = {
+        select: jest.fn().mockReturnValue(projectQuery),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: updateError }),
+        }),
+      };
+      const rolesQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: targetRole ? { role: targetRole } : null,
+          error: null,
+        }),
+      };
+      const prizeWinnersQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        limit: jest
+          .fn()
+          .mockResolvedValue({ data: prizeWins, error: prizeWinsError }),
+      };
+      const eventsQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            event_id: targetEventId,
+            event_name: "Target Event",
+            submission_time_start: null,
+            submission_time_cutoff: null,
+          },
+          error: null,
+        }),
+      };
+      const submissionFieldsQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (table === "projects") return projectsTable;
+          if (table === "user_event_roles") return rolesQuery;
+          if (table === "prize_winners") return prizeWinnersQuery;
+          if (table === "events") return eventsQuery;
+          if (table === "event_submission_fields") return submissionFieldsQuery;
+          throw new Error(`Unexpected table ${table}`);
+        }),
+      };
+
+      return { supabase, projectsTable, rolesQuery };
+    }
+
+    it("refuses a move into an event the user has no role in", async () => {
+      const { supabase, projectsTable, rolesQuery } = buildMoveClient({
+        targetRole: null,
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        actorUserId: userId,
+        input: { eventId: targetEventId },
+      });
+
+      expect(result).toMatchObject({ status: 403 });
+      expect(rolesQuery.eq).toHaveBeenCalledWith("event_id", targetEventId);
+      expect(rolesQuery.eq).toHaveBeenCalledWith("user_id", userId);
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses a move when no acting user is known", async () => {
+      const { supabase, projectsTable } = buildMoveClient({});
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId: targetEventId },
+      });
+
+      expect(result).toMatchObject({ status: 403 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses to move a project that has won a prize", async () => {
+      const { supabase, projectsTable } = buildMoveClient({
+        prizeWins: [{ id: "winner-1" }],
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        actorUserId: userId,
+        input: { eventId: targetEventId },
+      });
+
+      expect(result).toMatchObject({ status: 409 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses the move when prize wins cannot be checked", async () => {
+      const { supabase, projectsTable } = buildMoveClient({
+        prizeWinsError: { message: "boom" },
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        actorUserId: userId,
+        input: { eventId: targetEventId },
+      });
+
+      expect(result).toMatchObject({ status: 500 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("reports the database guard's refusal as a conflict", async () => {
+      const { supabase } = buildMoveClient({
+        updateError: {
+          code: "MM001",
+          message: "This project has round results and cannot be moved.",
+        },
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        actorUserId: userId,
+        input: { eventId: targetEventId },
+      });
+
+      expect(result).toEqual({
+        error: "This project has round results and cannot be moved.",
+        status: 409,
+      });
+    });
+
+    it("allows a move into an event the user belongs to", async () => {
+      const { supabase, projectsTable } = buildMoveClient({});
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        actorUserId: userId,
+        input: { eventId: targetEventId },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ event_id: targetEventId }),
+      );
+    });
+
+    it("does not run move checks when the event is unchanged", async () => {
+      const { supabase } = buildMoveClient({ targetRole: null });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(supabase.from).not.toHaveBeenCalledWith("user_event_roles");
+      expect(supabase.from).not.toHaveBeenCalledWith("prize_winners");
+    });
+  });
 });

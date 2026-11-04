@@ -11,6 +11,7 @@ let viewer: string | null, authError: boolean, missing: boolean, failedTable: st
 let viewerEmail: string | undefined;
 let profile: Record<string, unknown>, projects: Record<string, unknown>[];
 let verifiedPhones: {phone_number: string}[], recentPhones: {phone_number: string}[];
+let prizeWinners: Record<string, unknown>[];
 const calls: { client: string; table: string; ops: Op[] }[] = [];
 function from(client: string) {
   return (table: string) => {
@@ -18,10 +19,13 @@ function from(client: string) {
     calls.push({ client, table, ops });
     const result = () => {
       if (failedTable === table) return { data: null, error: { message: 'private-error-canary', code: 'private-code' } };
-      if (client === 'service' && table !== 'user_profiles') throw new Error('Privileged non-profile query');
+      if (client === 'service' && !['user_profiles', 'prize_winners'].includes(table)) throw new Error('Privileged query outside profile and prize lookup');
       if (table === 'user_profiles') return { data: missing ? null : profile, error: null };
       if (table === 'projects') return { data: projects, error: null };
-      if (table === 'events' || table === 'prize_winners') return { data: [], error: null };
+      if (table === 'events') return { data: [], error: null };
+      // Models anonymous event_tracks RLS on an archived event: the caller's embed
+      // comes back null, so only the service client can resolve the prize's event.
+      if (table === 'prize_winners') return { data: client === 'service' ? prizeWinners : prizeWinners.map(row => ({ ...row, prizes: { event_tracks: null } })), error: null };
       if (table === 'user_phone_numbers') return { data: ops.some(([op, args]) => op === 'eq' && args[0] === 'verification_status') ? verifiedPhones : recentPhones, error: null };
       throw new Error(`Unexpected table ${table}`);
     };
@@ -40,7 +44,7 @@ beforeEach(() => {
   profile = { uid, display_name: 'Member', bio: '', affiliation: 'School', avatar_url: null, cover_image_url: null,
     email: 'account-private@example.test', phone_number: 'old-phone-canary', stripe_customer_id: 'stripe-canary',
     onboarding_metadata: { secret: 'onboarding-canary' }, future_secret: 'future-canary', links: { github: 'https://github.com/member', secret: 'link-canary' } };
-  projects = [];
+  projects = []; prizeWinners = [];
   verifiedPhones = [{ phone_number: '+15555555555' }]; recentPhones = [{ phone_number: '+16666666666' }];
   jest.mocked(createSupabaseClient).mockResolvedValue({
     auth: { getUser: async () => ({ data: { user: viewer ? { id: viewer, email: viewerEmail } : null }, error: authError ? new Error('private-auth-canary') : null }) },
@@ -126,4 +130,42 @@ it('preserves member identities when the verified owner is a teammate', async ()
   const body = await (await run()).json();
   expect(body.projects[0].lead_email).toBe('lead@example.test');
   expect(body.projects[0].teammates).toEqual(['account-private@example.test']);
+});
+
+it('only counts prizes won in the event the project currently belongs to', async () => {
+  projects = [{ id: 'moved', event_id: 'event-b', submitted: true, teammates: [], project_tracks: [] }, { id: 'stayed', event_id: 'event-a', submitted: true, teammates: [], project_tracks: [] }];
+  prizeWinners = [
+    { id: 'w1', prize_id: 'p1', project_id: 'moved', prizes: { event_tracks: { event_id: 'event-a' } } },
+    { id: 'w2', prize_id: 'p1', project_id: 'stayed', prizes: { event_tracks: { event_id: 'event-a' } } },
+  ];
+  const response = await run(); expect(response.status).toBe(200);
+  const body = await response.json();
+  const won = (id: string) => body.projects.find((p: { id: string }) => p.id === id).prizes_won;
+  expect(won('moved')).toEqual([]);
+  expect(won('stayed')).toEqual([{ id: 'w2', prize_id: 'p1', project_id: 'stayed' }]);
+});
+
+it('reports a win to an anonymous viewer when RLS hides the archived event from the caller', async () => {
+  viewer = null;
+  projects = [{ id: 'winner', event_id: 'archived-event', submitted: true, teammates: [], project_tracks: [] }];
+  prizeWinners = [{ id: 'w1', prize_id: 'p1', project_id: 'winner', prizes: { event_tracks: { event_id: 'archived-event' } } }];
+  const response = await run(); expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.projects[0].prizes_won).toEqual([{ id: 'w1', prize_id: 'p1', project_id: 'winner' }]);
+  const prizeCalls = calls.filter(call => call.table === 'prize_winners');
+  expect(prizeCalls.map(call => call.client)).toEqual(['service']);
+  expect(prizeCalls[0].ops).toContainEqual(['in', ['project_id', ['winner']]]);
+});
+it('still drops a prize from another event for an anonymous viewer', async () => {
+  viewer = null;
+  projects = [{ id: 'moved', event_id: 'archived-event', submitted: true, teammates: [], project_tracks: [] }];
+  prizeWinners = [{ id: 'w1', prize_id: 'p1', project_id: 'moved', prizes: { event_tracks: { event_id: 'other-event' } } }];
+  const body = await (await run()).json();
+  expect(body.projects[0].prizes_won).toEqual([]);
+});
+it('returns a generic error when the prize lookup fails', async () => {
+  projects = [{ id: 'winner', event_id: 'event', submitted: true, teammates: [], project_tracks: [] }];
+  failedTable = 'prize_winners';
+  const response = await run(); expect(response.status).toBe(500);
+  expect(JSON.stringify(await response.json())).not.toContain('private-');
 });

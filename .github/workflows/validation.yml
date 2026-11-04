@@ -47,3 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test scraper quota in disposable PostgreSQL
         run: python3 scripts/test_scraper_quota.py
+
+  project-event-awards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test project event move guard in disposable PostgreSQL
+        run: python3 scripts/test_project_event_awards.py

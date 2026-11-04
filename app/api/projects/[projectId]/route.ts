@@ -51,6 +51,7 @@ export async function PATCH(
       input: parsed.data,
       mode: "update",
       projectId,
+      actorUserId: user.id,
     });
 
     if ("error" in result) {

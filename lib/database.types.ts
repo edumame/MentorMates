@@ -2500,8 +2500,16 @@ export type Database = {
         Returns: boolean
       }
       is_feedback_public: { Args: { p_feedback_id: string }; Returns: boolean }
+      is_prize_event_organizer: {
+        Args: { p_prize_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_project_event_organizer: {
         Args: { p_project_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_project_in_prize_event: {
+        Args: { p_prize_id: string; p_project_id: string }
         Returns: boolean
       }
       is_project_member: {
