@@ -6,14 +6,14 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 const requestSchema = z.object({ meetingId: z.string().max(36).uuid() });
 
 /** Match meetings.getOne: standalone meetings are owner-only. */
-export async function authorizeMeetingRequest(request: Request) {
+export async function authorizeMeetingRequest(request: Request, { maxBodyBytes = 4096 } = {}) {
   const sessionClient = await createSupabaseClient();
   const { data: { user }, error: authError } = await sessionClient.auth.getUser();
   if (authError || !user) {
     return { response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
   }
 
-  // Bound actual bytes, not just Content-Length, before parsing a tiny ID payload.
+  // Bound actual bytes, not just Content-Length, before parsing the payload.
   let body: unknown;
   const reader = request.body?.getReader();
   try {
@@ -25,7 +25,7 @@ export async function authorizeMeetingRequest(request: Request) {
       const { done, value } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
-      if (bytes > 4096) {
+      if (bytes > maxBodyBytes) {
         void reader.cancel().catch(() => {});
         return { response: NextResponse.json({ error: "Request body too large" }, { status: 413 }) };
       }
@@ -71,5 +71,5 @@ export async function authorizeMeetingRequest(request: Request) {
     }
   }
   if (!allowed) return { response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
-  return { service, meeting, userId: user.id };
+  return { service, meeting, userId: user.id, body };
 }
