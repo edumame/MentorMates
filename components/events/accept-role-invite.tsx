@@ -130,6 +130,9 @@ const ROLE_ACCENT_CLASSES: Record<
   },
 };
 
+// Password required (400), payment required (402), questionnaire required (412).
+const NEXT_STEP_ON_EVENT_PAGE_STATUSES = [400, 402, 412];
+
 export function AcceptRoleInvite({
   eventId,
   eventName,
@@ -183,6 +186,51 @@ export function AcceptRoleInvite({
     router.push("/login");
   };
 
+  // Participants join through the server so that payment, approval, password
+  // and questionnaire rules apply. The invite link has no token, so it grants
+  // no exemption from them.
+  const acceptParticipantInvite = async (userId: string) => {
+    const overviewUrl = `/events/${eventSlug || eventId}/overview`;
+
+    const response = await fetch("/api/roles/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventId, role, userId }),
+    });
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      toast({
+        title: "Error",
+        description: data.error || `Failed to accept ${role} invitation`,
+        variant: "destructive",
+      });
+
+      // The join button on the event page handles these next steps.
+      if (NEXT_STEP_ON_EVENT_PAGE_STATUSES.includes(response.status)) {
+        router.push(overviewUrl);
+      }
+      return;
+    }
+
+    if (data.requires_approval) {
+      toast({
+        title: "Request Submitted",
+        description:
+          data.message ||
+          "Your request has been submitted and is pending organizer approval",
+      });
+      router.push(overviewUrl);
+      return;
+    }
+
+    setHasAccepted(true);
+
+    setTimeout(() => {
+      router.push(overviewUrl);
+    }, 2000);
+  };
+
   const handleAcceptInvite = async () => {
     if (!user) {
       handleLogin();
@@ -222,6 +270,11 @@ export function AcceptRoleInvite({
       const currentRole = existingRole?.role as EventRole | undefined;
       if (currentRole && canAccessRole(currentRole, role)) {
         router.push(`/events/${eventSlug || eventId}/overview`);
+        return;
+      }
+
+      if (role === EventRole.Participant) {
+        await acceptParticipantInvite(user.id);
         return;
       }
 

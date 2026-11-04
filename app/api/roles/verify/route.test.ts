@@ -4,6 +4,10 @@
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
+import {
+  hasPaidEventAccess,
+  joinParticipantEvent,
+} from "@/lib/events/participant-access";
 import { POST } from "./route";
 
 jest.mock("next/server", () => {
@@ -38,11 +42,14 @@ jest.mock("@/app/utils/supabase/server", () => ({
 
 jest.mock("@/lib/events/participant-access", () => ({
   joinParticipantEvent: jest.fn(),
+  hasPaidEventAccess: jest.fn(),
 }));
 
 describe("POST /api/roles/verify", () => {
   const mockCreateSupabaseClient = createSupabaseClient as jest.Mock;
   const mockCompare = bcrypt.compare as jest.Mock;
+  const mockHasPaidEventAccess = hasPaidEventAccess as jest.Mock;
+  const mockJoinParticipantEvent = joinParticipantEvent as jest.Mock;
 
   const buildSupabase = () => {
     const rolePasswordEqRole = jest.fn();
@@ -190,5 +197,86 @@ describe("POST /api/roles/verify", () => {
       }),
       { onConflict: "user_id,event_id" }
     );
+  });
+
+  describe("paid events", () => {
+    const buildPaidEventSupabase = () => {
+      const built = buildSupabase();
+      built.eventEq.mockReturnValue({
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: { event_id: "event-1", paid: true },
+          error: null,
+        }),
+      });
+      built.rolePasswordMaybeSingle.mockResolvedValue({
+        data: null,
+        error: null,
+      });
+      mockCreateSupabaseClient.mockResolvedValue(built.supabase);
+      return built;
+    };
+
+    const postRole = (role: EventRole) =>
+      POST(
+        new Request("http://localhost/api/roles/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventId: "event-1", role, userId: "user-1" }),
+        })
+      );
+
+    it("refuses a mentor who has not paid", async () => {
+      const { upsert } = buildPaidEventSupabase();
+      mockHasPaidEventAccess.mockResolvedValue({ allowed: false, failed: false });
+
+      const response = await postRole(EventRole.Mentor);
+
+      expect(response.status).toBe(402);
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when the mentor payment lookup errors", async () => {
+      const { upsert } = buildPaidEventSupabase();
+      mockHasPaidEventAccess.mockResolvedValue({ allowed: false, failed: true });
+
+      const response = await postRole(EventRole.Mentor);
+
+      expect(response.status).toBe(500);
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it("assigns a mentor who has paid", async () => {
+      const { upsert } = buildPaidEventSupabase();
+      mockHasPaidEventAccess.mockResolvedValue({ allowed: true, failed: false });
+
+      const response = await postRole(EventRole.Mentor);
+
+      expect(response.status).toBe(200);
+      expect(upsert).toHaveBeenCalled();
+    });
+
+    it("does not charge judges", async () => {
+      const { upsert } = buildPaidEventSupabase();
+
+      const response = await postRole(EventRole.Judge);
+
+      expect(response.status).toBe(200);
+      expect(mockHasPaidEventAccess).not.toHaveBeenCalled();
+      expect(upsert).toHaveBeenCalled();
+    });
+
+    it("leaves the participant payment check to joinParticipantEvent", async () => {
+      buildPaidEventSupabase();
+      mockJoinParticipantEvent.mockResolvedValue({
+        status: "error",
+        httpStatus: 402,
+        payload: { error: "Payment required to join this event." },
+      });
+
+      const response = await postRole(EventRole.Participant);
+
+      expect(response.status).toBe(402);
+      expect(mockHasPaidEventAccess).not.toHaveBeenCalled();
+    });
   });
 });
