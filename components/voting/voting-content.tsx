@@ -21,6 +21,7 @@ export function VotingContent({
 }: VotingContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const {
@@ -38,9 +39,15 @@ export function VotingContent({
   useEffect(() => {
     const fetchProjects = async () => {
       setIsLoadingProjects(true);
+      setProjectsError(null);
       try {
+        // The public listing only serves events with "public" visibility, so
+        // members load through the authenticated listing instead. submitted=true
+        // keeps organizers from seeing draft projects on the ballot.
         const response = await fetch(
-          `/api/projects?eventId=${eventId}&public=true`
+          hasJoined
+            ? `/api/projects?eventId=${eventId}&submitted=true`
+            : `/api/projects?eventId=${eventId}&public=true`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
@@ -50,12 +57,17 @@ export function VotingContent({
       } catch (error) {
         console.error("Error fetching projects:", error);
         setProjects([]);
+        setProjectsError(
+          hasJoined
+            ? "Couldn’t load projects right now. Please try again."
+            : "Couldn’t load projects for this event. It may be private or unavailable."
+        );
       }
       setIsLoadingProjects(false);
     };
 
     fetchProjects();
-  }, [eventId]);
+  }, [eventId, hasJoined]);
 
   const filteredProjects = projects.filter(
     (project) =>
@@ -142,6 +154,11 @@ export function VotingContent({
         <div className="flex justify-center items-center h-64">
           <Loader className="h-12 w-12 animate-spin text-[#4B89EF]" />
         </div>
+      ) : projectsError ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{projectsError}</AlertDescription>
+        </Alert>
       ) : (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
