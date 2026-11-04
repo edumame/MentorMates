@@ -4,33 +4,27 @@ import { supabase } from "@/lib/supabase";
 import { Loader, Video, Clock, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import type { Database } from "@/lib/database.types";
 import { Progress } from "@/components/ui/progress";
 
-type MeetingRow = {
-  id: string;
-  name?: string | null;
-  status?: string | null;
-  started_at?: string | null;
-  ended_at?: string | null;
-  user_id?: string | null;
-  score?: number | null;
-};
+type MeetingRow = Database["public"]["Functions"]["project_meeting_timeline"]["Returns"][number];
 
+// Intentionally used only by the authenticated project-detail route: this RPC
+// exposes project-authorized metadata, not an anonymous public session listing.
 export default function ProjectTimeline({ projectId }: { projectId: string }) {
   const [items, setItems] = useState<MeetingRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
     const fetch = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const { data, error } = await supabase
-          .from("meetings")
-          .select("id, name, status, started_at, ended_at, created_at, score")
-          .eq("project_id", projectId)
-          .order("started_at", { ascending: false, nullsFirst: true })
-          .order("created_at", { ascending: false });
+        const { data, error } = await supabase.rpc("project_meeting_timeline", {
+          p_project_id: projectId,
+        });
 
 
         if (error) throw error;
@@ -38,7 +32,10 @@ export default function ProjectTimeline({ projectId }: { projectId: string }) {
         setItems((data || []) as MeetingRow[]);
       } catch (e) {
         console.error("Failed to load project meetings", e);
-        if (mounted) setItems([]);
+        if (mounted) {
+          setItems([]);
+          setError("Unable to load sessions. Please try again later.");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -61,6 +58,8 @@ export default function ProjectTimeline({ projectId }: { projectId: string }) {
           <div className="flex items-center justify-center py-8">
             <Loader className="h-6 w-6 animate-spin text-gray-500" />
           </div>
+        ) : error ? (
+          <div role="alert" className="text-sm text-red-600">{error}</div>
         ) : !items || items.length === 0 ? (
           <div className="text-sm text-gray-500">No sessions for this project yet.</div>
         ) : (
@@ -99,7 +98,7 @@ export default function ProjectTimeline({ projectId }: { projectId: string }) {
                         <Badge variant="secondary" className="text-xs">
                           {m.status || "unknown"}
                         </Badge>
-                        {m.status === "processing" ? (
+                        {!m.can_view_details || m.status === "processing" ? (
                           <span className="text-sm text-gray-400 flex items-center gap-1" aria-disabled>
                             <Video className="h-4 w-4" />
                             View

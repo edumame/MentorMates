@@ -1,7 +1,7 @@
 import { MeetingGetOne } from "../../types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { meetingsInsertSchema } from "@/modules/meetings/schemas";
@@ -62,6 +62,7 @@ export const MeetingForm = ({
   const [projectSearch, setProjectSearch] = useState("");
   const [events, setEvents] = useState<EventOption[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const projectsRequestRef = useRef(0);
 
   const agents = useQuery(
     trpc.agents.getMany.queryOptions({ pageSize: 100, search: agentSearch })
@@ -114,9 +115,11 @@ export const MeetingForm = ({
     }
   }, [session]);
 
-  // Fetch projects for selected event or all user projects
+  // Keep project choices coherent with the selected event, including standalone.
   const fetchProjects = useCallback(
     async (eventId?: string) => {
+      const requestId = ++projectsRequestRef.current;
+      setProjects([]);
       if (!session?.user?.email) return;
 
       try {
@@ -126,6 +129,8 @@ export const MeetingForm = ({
 
         if (eventId) {
           projectsQuery = projectsQuery.eq("event_id", eventId);
+        } else {
+          projectsQuery = projectsQuery.is("event_id", null);
         }
 
         const { data: projectsData, error: projectsError } =
@@ -147,8 +152,9 @@ export const MeetingForm = ({
           project_name: p.project_name,
         }));
 
-        setProjects(projectOptions);
+        if (requestId === projectsRequestRef.current) setProjects(projectOptions);
       } catch (error) {
+        if (requestId !== projectsRequestRef.current) return;
         console.error("Error fetching projects:", error);
         toast({
           title: "Error",
@@ -177,13 +183,16 @@ export const MeetingForm = ({
   const selectedEventId = form.watch("eventId");
   const selectedAgentId = form.watch("agentId");
 
+  const previousEventRef = useRef(selectedEventId || null);
   useEffect(() => {
-    if (selectedEventId) {
+    const eventId = selectedEventId || null;
+    // Preserve initial edit/prefill project; clear only after an actual event change.
+    if (previousEventRef.current !== eventId) {
       form.setValue("projectId", "");
-      fetchProjects(selectedEventId);
-    } else {
-      fetchProjects();
+      previousEventRef.current = eventId;
     }
+    void fetchProjects(eventId || undefined);
+    return () => { projectsRequestRef.current += 1; };
   }, [selectedEventId, fetchProjects, form]);
 
   const filteredAgents = useMemo(() => {
@@ -206,6 +215,19 @@ export const MeetingForm = ({
       }
     );
   }, [agents.data, selectedEventId]);
+
+  const previousAgentEventRef = useRef(selectedEventId || null);
+  useEffect(() => {
+    const eventId = selectedEventId || null;
+    // Only event transitions invalidate a selection. Loading/search updates and
+    // initial historical edits must not silently discard the selected agent.
+    if (previousAgentEventRef.current === eventId) return;
+    previousAgentEventRef.current = eventId;
+    const agentId = form.getValues("agentId");
+    if (agentId && !filteredAgents.some((agent: AgentGetOne) => agent.id === agentId)) {
+      form.setValue("agentId", "");
+    }
+  }, [selectedEventId, filteredAgents, form]);
 
   const filteredEvents = useMemo(() => {
     const q = eventSearch.trim().toLowerCase();
