@@ -1,5 +1,10 @@
 import { buildMaterialsUpdate, saveProjectMaterials } from './client-materials';
 import type { Project } from '@/lib/types';
+import { deriveLegacySubmissionFieldsFromArtifacts, type ProjectArtifactRecord } from '@/features/projects/utils/submission';
+
+const row = (kind: string, url: string, is_primary = true, sort_order = 0) => ({
+  kind, label: 'Link', url, sort_order, is_primary, metadata: null,
+});
 const project = {
   id: 'p1', has_submission_field_config: true,
   submission_fields: [{ id: 'deck', key: 'additional_materials', field_type: 'file' }],
@@ -33,5 +38,68 @@ describe('deck replacement persistence', () => {
   it('does not report success when persistence fails', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'Permission denied' }) });
     await expect(saveProjectMaterials(project, 'new')).rejects.toThrow('Permission denied');
+  });
+});
+
+describe('materials save on a project with stale artifact rows', () => {
+  // The state older column-only inline edits left behind.
+  const stale = {
+    id: 'p1',
+    has_submission_field_config: false,
+    project_url: 'https://new.example',
+    video_url: 'https://new.example/video',
+    additional_materials_url: 'https://example.com/old.pdf',
+    artifacts: [
+      row('project_link', 'https://old.example'),
+      row('project_link', 'https://extra.example', false, 1),
+      row('video_link', 'https://old.example/video'),
+      row('additional_material', 'https://example.com/old.pdf'),
+      row('additional_material', 'https://example.com/appendix.pdf', false, 1),
+    ],
+  } as unknown as Project;
+
+  // A PATCH with artifacts rederives every URL column from them on the server.
+  const derive = (update: ReturnType<typeof buildMaterialsUpdate>) =>
+    deriveLegacySubmissionFieldsFromArtifacts(update.artifacts as ProjectArtifactRecord[]);
+  const urls = (update: ReturnType<typeof buildMaterialsUpdate>) => update.artifacts?.map((item) => item.url);
+
+  it('derives the current project and video columns, not the stale rows', () => {
+    const update = buildMaterialsUpdate(stale, 'https://deck.example');
+    expect(update.additional_materials_url).toBe('https://deck.example');
+    expect(derive(update)).toEqual({
+      project_url: 'https://new.example',
+      video_url: 'https://new.example/video',
+      additional_materials_url: 'https://deck.example',
+    });
+    expect(urls(update)).not.toEqual(expect.arrayContaining(['https://old.example']));
+    expect(urls(update)).not.toEqual(expect.arrayContaining(['https://old.example/video']));
+  });
+
+  it('keeps the current columns when the materials are cleared', () => {
+    const update = buildMaterialsUpdate(stale, '');
+    expect(update.additional_materials_url).toBe('');
+    expect(derive(update)).toMatchObject({
+      project_url: 'https://new.example',
+      video_url: 'https://new.example/video',
+    });
+    expect(urls(update)).not.toContain('https://example.com/old.pdf');
+  });
+
+  it('keeps extra links and extra materials', () => {
+    const update = buildMaterialsUpdate(stale, 'https://deck.example');
+    expect(urls(update)).toEqual(expect.arrayContaining(['https://extra.example', 'https://example.com/appendix.pdf']));
+    expect(urls(update)).not.toContain('https://example.com/old.pdf');
+  });
+
+  it('sends the reconciled artifacts through the PATCH', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ project: stale }) });
+    global.fetch = fetchMock;
+    await saveProjectMaterials(stale, ' https://deck.example ');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(deriveLegacySubmissionFieldsFromArtifacts(body.artifacts)).toMatchObject({
+      project_url: 'https://new.example',
+      video_url: 'https://new.example/video',
+      additional_materials_url: 'https://deck.example',
+    });
   });
 });

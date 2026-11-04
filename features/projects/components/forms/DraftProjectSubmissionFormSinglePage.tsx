@@ -44,6 +44,7 @@ import {
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import {
   buildDraftArtifactsPayload,
+  resolveDraftPrimaryUrl,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
 import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
@@ -545,10 +546,12 @@ export default function DraftProjectSubmissionFormSinglePage({
 
       setFormData((prev) => ({
         ...prev,
-        project_url: projectLinks.primaryUrl || prev.project_url,
-        video_url: videoLinks.primaryUrl || prev.video_url,
-        additional_materials_url:
-          materialLinks.primaryUrl || prev.additional_materials_url,
+        project_url: resolveDraftPrimaryUrl(prev.project_url, projectLinks.primaryUrl),
+        video_url: resolveDraftPrimaryUrl(prev.video_url, videoLinks.primaryUrl),
+        additional_materials_url: resolveDraftPrimaryUrl(
+          prev.additional_materials_url,
+          materialLinks.primaryUrl
+        ),
       }));
 
       setExtraProjectUrls(projectLinks.extraUrls);
