@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import {
   getProjectIdsForRound,
   rankProjectsForAdvancement,
@@ -97,21 +98,25 @@ export async function GET(
       .eq("round_number", toRound);
     if (advancedErr) throw advancedErr;
 
-    const { data: scoreRows, error: scoreErr } = await supabase
-      .from("project_scores")
-      .select(
+    const { data: scoreRows, error: scoreErr } = await fetchAllRows((from, to) =>
+      supabase
+        .from("project_scores")
+        .select(
+          `
+          project_id,
+          scores,
+          projects:projects!inner (
+            project_name,
+            lead_name,
+            event_id
+          )
         `
-        project_id,
-        scores,
-        projects:projects!inner (
-          project_name,
-          lead_name,
-          event_id
         )
-      `
-      )
-      .eq("event_id", eventId)
-      .eq("round_number", fromRound);
+        .eq("event_id", eventId)
+        .eq("round_number", fromRound)
+        .order("id")
+        .range(from, to)
+    );
     if (scoreErr) throw scoreErr;
 
     const rankedProjects = rankProjectsForAdvancement(

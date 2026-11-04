@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { getPopularVotePermission } from "@/features/voting/utils/voting-permissions";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MAX_VOTES_PER_USER = 3;
@@ -61,10 +62,14 @@ export async function GET(
     const permission = getPopularVotePermission(userRole);
 
     // Get all votes for this event grouped by project
-    const { data: votes, error: votesError } = await supabase
-      .from("project_votes")
-      .select("project_id, user_id")
-      .eq("event_id", eventId);
+    const { data: votes, error: votesError } = await fetchAllRows((from, to) =>
+      supabase
+        .from("project_votes")
+        .select("project_id, user_id")
+        .eq("event_id", eventId)
+        .order("id")
+        .range(from, to)
+    );
 
     if (votesError) {
       console.error("Error fetching votes:", votesError);

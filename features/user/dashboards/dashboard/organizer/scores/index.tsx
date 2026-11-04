@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { RoundsEditor } from "@/components/events/rounds-editor";
 import {
   getActiveRound,
@@ -519,31 +520,35 @@ export function ScoresTab({
         }
 
         // Fetch complete raw scores data with all needed fields
-        const { data, error } = await supabase
-          .from("project_scores")
-          .select(
+        const { data, error } = await fetchAllRows((from, to) =>
+          supabase
+            .from("project_scores")
+            .select(
+              `
+              project_id,
+              track_id,
+              judge_id,
+              created_at,
+              scores,
+              comments,
+              round_number,
+              projects:projects!inner (
+                project_name,
+                lead_name,
+                lead_email,
+                event_id
+              ),
+              event_tracks:event_tracks!fk_project_scores_track (
+                name,
+                track_id
+              )
             `
-            project_id,
-            track_id,
-            judge_id,
-            created_at,
-            scores,
-            comments,
-            round_number,
-            projects:projects!inner (
-              project_name,
-              lead_name,
-              lead_email,
-              event_id
-            ),
-            event_tracks:event_tracks!fk_project_scores_track (
-              name,
-              track_id
             )
-          `
-          )
-          .eq("projects.event_id", eventId)
-          .order("track_id");
+            .eq("projects.event_id", eventId)
+            .order("track_id")
+            .order("id")
+            .range(from, to)
+        );
 
         if (error) {
           console.error("Error fetching scores:", error);
