@@ -1,4 +1,5 @@
 import { createSupabaseClient } from '@/app/utils/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 import * as bcrypt from 'bcrypt';
 import { EventRole } from '@/lib/types';
@@ -56,8 +57,11 @@ export async function POST(request: Request) {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Update or insert password
-    const { error } = await supabase
+    // Update or insert password. The upsert reads excluded.password_hash, which
+    // needs SELECT on that column, and only the service role has it. The caller
+    // was authorized above.
+    const serviceSupabase = createSupabaseServiceClient();
+    const { error } = await serviceSupabase
       .from('role_passwords')
       .upsert({
         event_id: eventId,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { EventRole } from "@/lib/types";
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { joinParticipantEvent } from "@/lib/events/participant-access";
 
 export async function POST(request: Request) {
@@ -48,7 +49,9 @@ export async function POST(request: Request) {
     }
 
     // If this role has a configured password, require and verify it.
-    const { data: rolePassword, error: rolePasswordError } = await supabase
+    // password_hash is not readable by client roles, only by the service role.
+    const serviceSupabase = createSupabaseServiceClient();
+    const { data: rolePassword, error: rolePasswordError } = await serviceSupabase
       .from("role_passwords")
       .select("password_hash")
       .eq("event_id", eventId)
