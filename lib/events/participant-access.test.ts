@@ -150,4 +150,74 @@ describe("joinParticipantEvent", () => {
     });
     expect(upsert).toHaveBeenCalled();
   });
+
+  it.each([
+    ["the event is full", { code: "45000", message: "Event is full." }, 409],
+    ["the write fails", { code: "XX000", message: "boom" }, 500],
+  ])("maps the join error when %s", async (_case, error, httpStatus) => {
+    const chain = (result: { data: unknown; error: unknown }) => {
+      const builder: Record<string, jest.Mock> = {
+        select: jest.fn(() => builder),
+        eq: jest.fn(() => builder),
+        order: jest.fn(() => builder),
+        limit: jest.fn(() => builder),
+        maybeSingle: jest.fn(() => maybeSingleResult(result)),
+      };
+      return builder;
+    };
+    const supabase = {
+      from: jest.fn((table: string) => {
+        if (table === "events") {
+          return chain({
+            data: {
+              event_id: "event-1",
+              event_name: "Capped Event",
+              visibility: "public",
+              approval_status: "approved",
+              require_participant_approval: false,
+              // The count below sees a free seat: a concurrent join takes it
+              // between that count and the upsert, so the trigger rejects.
+              participant_capacity: 1,
+              paid: false,
+            },
+            error: null,
+          });
+        }
+
+        if (table === "user_event_roles") {
+          return {
+            select: jest.fn((columns: string) =>
+              columns === "role"
+                ? chain({ data: null, error: null })
+                : {
+                    eq: jest.fn(() => ({
+                      eq: jest.fn().mockResolvedValue({ count: 0, error: null }),
+                    })),
+                  },
+            ),
+            upsert: jest.fn().mockResolvedValue({ error }),
+          };
+        }
+
+        return chain({ data: null, error: null });
+      }),
+    } as unknown as ServiceSupabaseClient;
+
+    const result = await joinParticipantEvent(supabase, {
+      eventId: "event-1",
+      userId: "user-1",
+      channel: "agent",
+    });
+
+    expect(result).toEqual({
+      status: "error",
+      httpStatus,
+      payload: {
+        error:
+          httpStatus === 409
+            ? "Event is full. No seats available."
+            : "Failed to join event",
+      },
+    });
+  });
 });

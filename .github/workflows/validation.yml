@@ -47,3 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test scraper quota in disposable PostgreSQL
         run: python3 scripts/test_scraper_quota.py
+
+  capacity-race:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test capacity limits in disposable PostgreSQL
+        run: python3 scripts/test_capacity_race.py

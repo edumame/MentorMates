@@ -2,6 +2,10 @@ import { EventRole, EventVisibility } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 
+// SQLSTATE raised by the database capacity triggers, which are the authoritative
+// check: a seat can go between a route's own count and its write.
+export const CAPACITY_EXCEEDED_ERROR_CODE = "45000";
+
 export interface ParticipantJoinSuccess {
   status: "joined" | "approval_requested";
   requestId?: string;
@@ -248,6 +252,9 @@ export async function joinParticipantEvent(
   );
 
   if (roleError) {
+    if (roleError.code === CAPACITY_EXCEEDED_ERROR_CODE) {
+      return failure(409, { error: "Event is full. No seats available." });
+    }
     return failure(500, { error: "Failed to join event" });
   }
 
