@@ -77,14 +77,22 @@ export async function GET() {
       // No additional filter needed
     } else if (organizerEventIds.length > 0) {
       // For organizers:
-      // - Public and private events (visible to everyone)
-      // - Draft events where user is an organizer
-      // - Archived events where user is an organizer
+      // - Approved public and private events (same as regular users)
+      // - Public, private, draft and archived events the user organizes, in any
+      //   approval status
       // - No demo or test events
+      const publicVisibilities = [
+        EventVisibility.Public,
+        EventVisibility.Private,
+      ];
+      const ownEventVisibilities = [
+        ...publicVisibilities,
+        EventVisibility.Draft,
+        EventVisibility.Archived,
+      ];
       query = query.or(
-        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` +
-          `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")})),` +
-          `and(visibility.eq.${EventVisibility.Archived},event_id.in.(${organizerEventIds.join(",")}))`
+        `and(visibility.in.(${publicVisibilities.join(",")}),approval_status.eq.${ApprovalStatus.Approved}),` +
+          `and(visibility.in.(${ownEventVisibilities.join(",")}),event_id.in.(${organizerEventIds.join(",")}))`
       );
     } else {
       // Regular users only see public and private events (exclude archived) that are approved
