@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 interface CheckoutOptions {
   eventId?: string | null;
@@ -98,6 +99,11 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     throw new Error("No pricing tier selected. Please select a pricing tier to continue.");
   }
 
+  const eventId = options?.eventId;
+  if (!eventId) {
+    throw new Error("No event selected. Please select an event to continue.");
+  }
+
   // Create Checkout Sessions from body params.
   const session = await stripe.checkout.sessions.create({
     customer: userProfile?.stripe_customer_id,
@@ -110,15 +116,19 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   });
 
   // greedily create a user event payment record for the user in the processing state
-  const { data: userEventPayment, error: userEventPaymentError } = await supabase
+  // Payment rows are server-write-only. This must be the cookie-less service client:
+  // the cookie-based one in app/utils/supabase/server sends the user's JWT, so RLS applies.
+  const serviceSupabase = createSupabaseServiceClient();
+  const { data: userEventPayment, error: userEventPaymentError } = await serviceSupabase
     .from("user_event_payments")
     .upsert(
       {
         user_id: user.id,
-        event_id: options?.eventId,
+        event_id: eventId,
         stripe_customer_id: userProfile?.stripe_customer_id,
         stripe_session_id: session.id,
-        stripe_payment_intent_id: session.payment_intent,
+        stripe_payment_intent_id:
+          typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent?.id ?? null),
         amount_paid: session.amount_total,
         currency: session.currency,
         payment_status: "processing",

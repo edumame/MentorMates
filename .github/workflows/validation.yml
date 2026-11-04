@@ -47,3 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test scraper quota in disposable PostgreSQL
         run: python3 scripts/test_scraper_quota.py
+
+  payment-write-policies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test payment write policies in disposable PostgreSQL
+        run: python3 scripts/test_payment_write_policies.py
