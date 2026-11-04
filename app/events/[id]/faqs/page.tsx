@@ -39,6 +39,8 @@ export default async function FAQPage({ params }: PageProps) {
     notFound();
   }
 
+  // Deliberately viewer-scoped: the owner's account email is private, so anyone
+  // RLS hides it from gets the platform contact fallback in FAQContent.
   let organizerEmail: string | null = null;
 
   if (eventData.owner_id) {
