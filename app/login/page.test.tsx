@@ -5,6 +5,8 @@ const mockPush = jest.fn();
 const mockSignUp = jest.fn();
 const mockSignInWithOAuth = jest.fn();
 const mockSignInWithPassword = jest.fn();
+const mockUpsert = jest.fn();
+const mockFrom = jest.fn<{ upsert: jest.Mock }, [string]>(() => ({ upsert: mockUpsert }));
 let mockSearchParams = new URLSearchParams("mode=signup");
 
 jest.mock("next/navigation", () => ({
@@ -26,6 +28,7 @@ jest.mock("@/app/utils/supabase/client", () => ({
       signInWithOAuth: (...args: unknown[]) => mockSignInWithOAuth(...args),
       signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
     },
+    from: (table: string) => mockFrom(table),
   }),
 }));
 
@@ -51,6 +54,7 @@ beforeEach(() => {
   mockSignUp.mockResolvedValue({ error: null });
   mockSignInWithOAuth.mockResolvedValue({ error: null });
   mockSignInWithPassword.mockResolvedValue({ data: { user: null }, error: null });
+  mockUpsert.mockResolvedValue({ error: null });
 });
 
 describe("sign-up consent", () => {
@@ -130,5 +134,47 @@ describe("sign-in", () => {
     await waitFor(() => expect(mockSignInWithOAuth).toHaveBeenCalledTimes(1));
     const redirectTo = new URL(mockSignInWithOAuth.mock.calls[0][0].options.redirectTo);
     expect(redirectTo.searchParams.has("acceptTerms")).toBe(false);
+  });
+
+  describe("profile sync after email/password sign-in", () => {
+    const signIn = async () => {
+      render(<LoginPage />);
+      fillCredentials();
+      fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
+      await waitFor(() => expect(mockSignInWithPassword).toHaveBeenCalledTimes(1));
+    };
+
+    beforeEach(() => {
+      mockSignInWithPassword.mockResolvedValue({
+        data: { user: { id: "user-1", email: "dev@local.test" } },
+        error: null,
+      });
+    });
+
+    it("creates a missing profile but leaves an existing row untouched", async () => {
+      await signIn();
+
+      await waitFor(() => expect(mockUpsert).toHaveBeenCalledTimes(1));
+      expect(mockFrom).toHaveBeenCalledWith("user_profiles");
+      const [row, options] = mockUpsert.mock.calls[0];
+      expect(row).toEqual({
+        uid: "user-1",
+        email: "dev@local.test",
+        display_name: "dev",
+        created_at: expect.any(String),
+      });
+      // Without ignoreDuplicates PostgREST runs ON CONFLICT DO UPDATE, which
+      // would reset a chosen display_name and created_at on every sign-in.
+      expect(options).toEqual({ onConflict: "uid", ignoreDuplicates: true });
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/"));
+    });
+
+    it("stops the redirect and shows an error when the profile write fails", async () => {
+      mockUpsert.mockResolvedValue({ error: { message: "denied" } });
+      await signIn();
+
+      expect(await screen.findByText(/Error signing in/i)).toBeInTheDocument();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
   });
 });

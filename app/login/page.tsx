@@ -244,7 +244,8 @@ function LoginContent({
         display_name: user.email?.split("@")[0],
         created_at: new Date().toISOString(),
       },
-      { onConflict: "uid" }
+      // Create-if-missing only: an existing profile keeps its display_name and created_at.
+      { onConflict: "uid", ignoreDuplicates: true }
     );
     return error ?? null;
   };
