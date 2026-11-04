@@ -92,6 +92,37 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (existingUser) {
+    const { data: existingRole, error: existingRoleError } =
+      await serviceSupabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("event_id", eventId)
+        .eq("user_id", existingUser.uid)
+        .maybeSingle();
+
+    if (existingRoleError) {
+      return NextResponse.json(
+        { error: "Failed to invite judge" },
+        { status: 500 }
+      );
+    }
+
+    const currentRole = existingRole?.role as EventRole | undefined;
+
+    // The upsert below replaces the role, so it must never run for someone who
+    // outranks a judge. Role changes for organizers go through the participants
+    // route, which only allows admins to make them.
+    if (currentRole && canAccessRole(currentRole, EventRole.Organizer)) {
+      return NextResponse.json(
+        { error: "This user is already an organizer of this event." },
+        { status: 409 }
+      );
+    }
+
+    if (currentRole === EventRole.Judge) {
+      return NextResponse.json({ success: true, userExists: true });
+    }
+
     const { error } = await supabase.from("user_event_roles").upsert(
       {
         user_id: existingUser.uid,
