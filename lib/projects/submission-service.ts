@@ -42,6 +42,9 @@ const projectWriteSchema = z.object({
 
 export type NormalizedProjectWriteInput = z.infer<typeof projectWriteSchema>;
 
+// SQLSTATE raised by the guard_project_event_move trigger.
+const PROJECT_EVENT_MOVE_REFUSED_SQLSTATE = "MM001";
+
 type ConfiguredSubmissionField = {
   key: string;
   fieldType:
@@ -446,6 +449,74 @@ async function validateProjectEventContext(
   };
 }
 
+/**
+ * A project may only move into an event its editor belongs to, and never once
+ * it holds a prize, because the prize belongs to the event that awarded it.
+ * Round advancements are hidden from participants by RLS, so those are refused
+ * by the guard_project_event_move trigger, which also covers direct table writes.
+ */
+async function checkProjectEventMove(
+  supabase: ServiceSupabaseClient,
+  options: {
+    projectId: string;
+    targetEventId: string;
+    actorUserId: string | undefined;
+  },
+) {
+  const { projectId, targetEventId, actorUserId } = options;
+  const noRole = {
+    error: "You must be part of an event to move a project into it",
+    status: 403 as const,
+  };
+
+  if (!actorUserId) {
+    return noRole;
+  }
+
+  const { data: targetRole, error: roleError } = await supabase
+    .from("user_event_roles")
+    .select("role")
+    .eq("event_id", targetEventId)
+    .eq("user_id", actorUserId)
+    .maybeSingle()
+    .overrideTypes<{ role: string } | null>();
+
+  if (roleError) {
+    console.error("[submit] fetch target event role failed", {
+      targetEventId,
+      error: roleError,
+    });
+    return { error: "Failed to verify event access", status: 500 as const };
+  }
+
+  if (!targetRole) {
+    return noRole;
+  }
+
+  const { data: prizeWins, error: prizeWinsError } = await supabase
+    .from("prize_winners")
+    .select("id")
+    .eq("project_id", projectId)
+    .limit(1);
+
+  if (prizeWinsError) {
+    console.error("[submit] fetch prize wins failed", {
+      projectId,
+      error: prizeWinsError,
+    });
+    return { error: "Failed to verify project prizes", status: 500 as const };
+  }
+
+  if (prizeWins && prizeWins.length > 0) {
+    return {
+      error: "A project that has won a prize cannot be moved to another event",
+      status: 409 as const,
+    };
+  }
+
+  return null;
+}
+
 async function maybeCreateContextusProject(
   supabase: ServiceSupabaseClient,
   options: {
@@ -512,6 +583,8 @@ export async function saveProjectSubmission(
     mode: "create" | "update";
     projectId?: string;
     defaultSubmitted?: boolean;
+    /** Required for an update to change the project's event. */
+    actorUserId?: string;
   },
 ) {
   const { input, mode } = options;
@@ -568,6 +641,17 @@ export async function saveProjectSubmission(
         error,
       });
       return { error: "Project not found", status: 404 as const };
+    }
+
+    if (input.eventId && input.eventId !== existingProject.event_id) {
+      const moveRefusal = await checkProjectEventMove(supabase, {
+        projectId,
+        targetEventId: input.eventId,
+        actorUserId: options.actorUserId,
+      });
+      if (moveRefusal) {
+        return moveRefusal;
+      }
     }
 
     existingProjectEventId = input.eventId ?? existingProject.event_id;
@@ -723,6 +807,9 @@ export async function saveProjectSubmission(
       .from("projects")
       .update(updateData)
       .eq("id", finalProjectId!);
+    if (error?.code === PROJECT_EVENT_MOVE_REFUSED_SQLSTATE) {
+      return { error: error.message, status: 409 as const };
+    }
     if (error) {
       console.error("[submit] update project failed", {
         projectId: finalProjectId,
