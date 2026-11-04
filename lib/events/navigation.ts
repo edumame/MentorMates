@@ -1,4 +1,4 @@
-import { EventRole } from "@/lib/types";
+import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 
 export type EventNavigationRole = EventRole | string | null | undefined;
 
@@ -10,6 +10,26 @@ export type EventNavigationItem = {
   userRole?: EventNavigationRole;
   canManageEvent?: boolean | null;
 };
+
+export type EventReviewState = {
+  visibility?: string | null;
+  approval_status?: string | null;
+};
+
+// Private events go live before review, so only public events are gated here.
+export function isUnapprovedPublicEvent({ visibility, approval_status }: EventReviewState) {
+  return visibility === EventVisibility.Public && approval_status !== ApprovalStatus.Approved;
+}
+
+// Awaiting review or turned down. Public events that never entered review
+// (not_submitted) stay reachable by direct link.
+export function isPublicEventHiddenByReview(event: EventReviewState) {
+  return (
+    isUnapprovedPublicEvent(event) &&
+    (event.approval_status === ApprovalStatus.Submitted ||
+      event.approval_status === ApprovalStatus.Rejected)
+  );
+}
 
 export function isEventManagerRole(role: EventNavigationRole) {
   return role === EventRole.Organizer || role === EventRole.Admin;

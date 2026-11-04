@@ -1,9 +1,11 @@
-import { EventRole } from "@/lib/types";
+import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import {
   getEventNavigationTarget,
   getInternalEventHref,
   isEventManagerRole,
   canUseInternalEventRoute,
+  isPublicEventHiddenByReview,
+  isUnapprovedPublicEvent,
 } from "./navigation";
 
 describe("event navigation", () => {
@@ -103,5 +105,41 @@ describe("event navigation", () => {
       href: "/events/partner-event/overview",
       isExternal: false,
     });
+  });
+});
+
+describe("event review gating", () => {
+  const publicEvent = (approval_status: ApprovalStatus | null) => ({
+    visibility: EventVisibility.Public,
+    approval_status,
+  });
+
+  it("treats every non-approved public event as unapproved", () => {
+    expect(isUnapprovedPublicEvent(publicEvent(ApprovalStatus.Approved))).toBe(false);
+    for (const status of [
+      ApprovalStatus.NotSubmitted,
+      ApprovalStatus.Submitted,
+      ApprovalStatus.Rejected,
+      null,
+    ]) {
+      expect(isUnapprovedPublicEvent(publicEvent(status))).toBe(true);
+    }
+  });
+
+  it("hides only submitted and rejected public events", () => {
+    expect(isPublicEventHiddenByReview(publicEvent(ApprovalStatus.Submitted))).toBe(true);
+    expect(isPublicEventHiddenByReview(publicEvent(ApprovalStatus.Rejected))).toBe(true);
+    expect(isPublicEventHiddenByReview(publicEvent(ApprovalStatus.Approved))).toBe(false);
+    expect(isPublicEventHiddenByReview(publicEvent(ApprovalStatus.NotSubmitted))).toBe(false);
+    expect(isPublicEventHiddenByReview(publicEvent(null))).toBe(false);
+  });
+
+  it("does not gate private events", () => {
+    const privateEvent = {
+      visibility: EventVisibility.Private,
+      approval_status: ApprovalStatus.Submitted,
+    };
+    expect(isUnapprovedPublicEvent(privateEvent)).toBe(false);
+    expect(isPublicEventHiddenByReview(privateEvent)).toBe(false);
   });
 });
