@@ -238,6 +238,33 @@ describe("project team tab", () => {
     expect(updateTeam).toHaveBeenCalledWith("project-1", ["b@x.com"]);
   });
 
+  it("removes a teammate whose display name contains parentheses", async () => {
+    mockApi(
+      { event_id: "event-1", teammates: ["ann@x.com", "b@x.com"] },
+      jsonResponse({ users: [participant("ann@x.com", "Ann (she/her)")] })
+    );
+    await openTeamTab();
+
+    removeChip("Ann (she/her) (ann@x.com)");
+
+    await waitFor(() => expect(updateTeam).toHaveBeenCalledTimes(1));
+    expect(updateTeam).toHaveBeenCalledWith("project-1", ["b@x.com"]);
+  });
+
+  it("adds a participant whose display name contains parentheses", async () => {
+    mockApi(
+      { event_id: "event-1", teammates: ["a@x.com"] },
+      jsonResponse({ users: [participant("p@x.com", "Pat (they/them)")] })
+    );
+    const user = await openTeamTab();
+
+    await user.type(searchInput(), "pat");
+    await user.click(await screen.findByText("Pat (they/them) (p@x.com)"));
+
+    await waitFor(() => expect(updateTeam).toHaveBeenCalledTimes(1));
+    expect(updateTeam).toHaveBeenCalledWith("project-1", ["a@x.com", "p@x.com"]);
+  });
+
   it("does not write when removing the chip of a pending invite", async () => {
     mockApi({ event_id: null, teammates: ["a@x.com"] });
     const user = await openTeamTab();
