@@ -165,6 +165,7 @@ export default function ProfilePage() {
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
@@ -447,9 +448,16 @@ export default function ProfilePage() {
     }
   };
 
+  const clearAvatarSelection = () => {
+    setAvatarPreview(null);
+    setPendingAvatarFile(null);
+  };
+
   // Handle avatar file selection
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset so picking the same file again still fires a change event.
+    e.target.value = "";
     if (file) {
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
@@ -464,6 +472,7 @@ export default function ProfilePage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
+        setPendingAvatarFile(file);
       };
       reader.readAsDataURL(file);
     }
@@ -515,7 +524,7 @@ export default function ProfilePage() {
         description: "Your profile picture has been updated",
       });
 
-      setAvatarPreview(null);
+      clearAvatarSelection();
     } catch (error) {
       console.error("Error uploading avatar:", error);
       toast({
@@ -714,12 +723,8 @@ export default function ProfilePage() {
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const input = document.querySelector(
-                        'input[type="file"]'
-                      ) as HTMLInputElement;
-                      const file = input?.files?.[0];
-                      if (file) {
-                        await handleAvatarUpload(file);
+                      if (pendingAvatarFile) {
+                        await handleAvatarUpload(pendingAvatarFile);
                       }
                     }}
                   >
@@ -728,7 +733,7 @@ export default function ProfilePage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setAvatarPreview(null)}
+                    onClick={clearAvatarSelection}
                   >
                     Cancel
                   </Button>
@@ -1101,7 +1106,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => {
                     setIsEditingLinks(false);
-                    setAvatarPreview(null);
+                    clearAvatarSelection();
                     setValidationErrors({});
                   }}
                   className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
@@ -1220,18 +1225,16 @@ export default function ProfilePage() {
                     <div className="flex gap-2 ml-[52px]">
                       <button
                         onClick={async () => {
-                          const input = document.querySelector(
-                            'input[type="file"]'
-                          ) as HTMLInputElement;
-                          const file = input?.files?.[0];
-                          if (file) await handleAvatarUpload(file);
+                          if (pendingAvatarFile) {
+                            await handleAvatarUpload(pendingAvatarFile);
+                          }
                         }}
                         className="text-sm text-[#4b89ef] hover:underline"
                       >
                         Save image
                       </button>
                       <button
-                        onClick={() => setAvatarPreview(null)}
+                        onClick={clearAvatarSelection}
                         className="text-sm text-gray-500 hover:underline"
                       >
                         Cancel
@@ -1666,7 +1669,7 @@ export default function ProfilePage() {
                   <button
                     onClick={() => {
                       setIsEditingLinks(false);
-                      setAvatarPreview(null);
+                      clearAvatarSelection();
                       setValidationErrors({});
                     }}
                     className="flex-1 h-10 bg-black/5 hover:bg-black/10 rounded-xl text-base font-medium text-black transition-colors"
