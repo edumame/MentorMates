@@ -5,9 +5,16 @@ import { Mail, UserPlus, Link2 } from "lucide-react";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { toast } from "@/lib/hooks/use-toast";
 
+// The single edit behind an onTagsChange call, so a parent never has to infer
+// it by diffing tags against data that may have drifted from the chips.
+export interface TagChange {
+  type: "added" | "removed";
+  email: string;
+}
+
 interface UserSearchWithInviteProps {
   allTags: string[];
-  onTagsChange: (tags: string[]) => void;
+  onTagsChange: (tags: string[], change: TagChange) => void;
   initialTags?: string[];
   projectId?: string;
   enableInvite?: boolean;
@@ -63,14 +70,17 @@ const UserSearchWithInvite = ({
       setSelectedTags(newSelectedTags);
       setTagInput("");
       setFilteredTags([]);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { type: "added", email: extractEmail(tag) });
     }
   };
 
   const removeTag = (tagToRemove: string): void => {
     const newSelectedTags = selectedTags.filter((tag) => tag !== tagToRemove);
     setSelectedTags(newSelectedTags);
-    onTagsChange(newSelectedTags);
+    onTagsChange(newSelectedTags, {
+      type: "removed",
+      email: extractEmail(tagToRemove),
+    });
   };
 
   const sendInvitation = async (email: string): Promise<void> => {
@@ -112,7 +122,7 @@ const UserSearchWithInvite = ({
       // Add the invited email to selected tags so it shows up in the UI
       const newSelectedTags = [...selectedTags, email.trim()];
       setSelectedTags(newSelectedTags);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { type: "added", email: email.trim() });
 
       setTagInput("");
       setFilteredTags([]);
@@ -299,9 +309,10 @@ const UserSearchWithInvite = ({
     return selectedTags.map((tag, index) => getTagMarkup(tag, index));
   };
 
-  // Extract email from formatted tag "Name (email)" or return the tag itself
+  // Extract email from formatted tag "Name (email)" or return the tag itself.
+  // Takes the last group because display names can contain parentheses.
   const extractEmail = (tag: string): string => {
-    const emailMatch = tag.match(/\((.+?)\)$/);
+    const emailMatch = tag.match(/\(([^()]+)\)$/);
     return emailMatch ? emailMatch[1] : tag;
   };
 

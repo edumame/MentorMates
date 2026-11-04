@@ -1959,53 +1959,27 @@ export default function ProjectPage() {
                                   (p) =>
                                     `${p.display_name || p.email} (${p.email})`
                                 )}
-                                onTagsChange={(tags) => {
-                                  // Extract emails from tags
-                                  const emails = tags.map((tag) => {
-                                    const emailMatch = tag.match(/\((.+?)\)$/);
-                                    return emailMatch ? emailMatch[1] : tag;
-                                  });
-
-                                  // Get list of participant emails for validation
-                                  const participantEmails = participants.map((p) =>
-                                    p.email.toLowerCase()
+                                onTagsChange={(_tags, change) => {
+                                  const changedEmail = change.email.toLowerCase();
+                                  const teammate = (project?.teammates || []).find(
+                                    (email) => email.toLowerCase() === changedEmail
                                   );
 
-                                  // Only process emails that are actual event participants
-                                  const validEmails = emails.filter((email) =>
-                                    participantEmails.includes(email.toLowerCase())
-                                  );
-
-                                  // Find newly added emails (only from valid participants)
-                                  const currentTeammates = project?.teammates || [];
-                                  const newEmails = validEmails.filter(
-                                    (email) =>
-                                      !currentTeammates.some(
-                                        (t) =>
-                                          t.toLowerCase() === email.toLowerCase()
-                                      )
-                                  );
-
-                                  // Find removed emails
-                                  const removedEmails = currentTeammates.filter(
-                                    (email) =>
-                                      !validEmails.some(
-                                        (e) => e.toLowerCase() === email.toLowerCase()
-                                      )
-                                  );
-
-                                  // Handle additions (only for event participants)
-                                  if (newEmails.length > 0) {
-                                    newEmails.forEach((email) =>
-                                      handleAddTeammate(email)
-                                    );
+                                  // Only an explicit chip removal removes someone
+                                  if (change.type === "removed") {
+                                    if (teammate) {
+                                      handleRemoveTeammate(teammate);
+                                    }
+                                    return;
                                   }
 
-                                  // Handle removals
-                                  if (removedEmails.length > 0) {
-                                    removedEmails.forEach((email) =>
-                                      handleRemoveTeammate(email)
-                                    );
+                                  // Only event participants join immediately;
+                                  // anyone else joins by accepting their invite
+                                  const isParticipant = participants.some(
+                                    (p) => p.email.toLowerCase() === changedEmail
+                                  );
+                                  if (isParticipant && !teammate) {
+                                    handleAddTeammate(change.email);
                                   }
                                 }}
                                 initialTags={(project?.teammates || []).map((email) => {
