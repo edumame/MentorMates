@@ -630,7 +630,8 @@ export async function saveProjectSubmission(
   if (input.coverImageUrl !== undefined)
     updateData.cover_image_url = input.coverImageUrl;
   if (input.leadName !== undefined) updateData.lead_name = input.leadName;
-  if (input.leadEmail !== undefined) updateData.lead_email = input.leadEmail;
+  // lead_email is set on create only. It decides who owns the project, and any
+  // member can reach this update, so an update must never reassign the lead.
   if (input.teammates !== undefined) updateData.teammates = input.teammates;
   if (input.videoUrl !== undefined) updateData.video_url = input.videoUrl;
   if (input.eventId !== undefined) updateData.event_id = input.eventId;
@@ -916,7 +917,7 @@ export async function saveProjectSubmission(
     contextusProjectId: updatedProject.contextus_project_id,
     label: input.projectName,
     leadName: input.leadName,
-    leadEmail: input.leadEmail,
+    leadEmail: updatedProject.lead_email ?? undefined,
     eventId: existingProjectEventId ?? input.eventId,
     projectDescription: input.projectDescription,
     projectUrl: legacyFields.project_url,
