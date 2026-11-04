@@ -8,7 +8,7 @@ import { EventRole } from "@/lib/types";
 import { shuffle } from "@/lib/utils/shuffle";
 
 export async function POST(req: Request) {
-  const { eventId, role, rolesPerProject } = await req.json();
+  const { eventId, role, rolesPerProject, includeOrganizers } = await req.json();
 
   const supabase = await createSupabaseClient();
   const {
@@ -54,11 +54,15 @@ export async function POST(req: Request) {
 
   const projectIds = projects.map((project) => project.id);
 
+  // Organizers join the pool but are still assigned under the requested role.
+  const poolRoles =
+    includeOrganizers === true ? [role, EventRole.Organizer] : [role];
+
   const { data: roleToAssign, error: roleToAssignError } = await supabase
     .from("user_event_roles")
     .select("user_id, role")
     .eq("event_id", eventId)
-    .eq("role", role);
+    .in("role", poolRoles);
 
   // need a different algorithm for if the number of judges per project = number of judges
 
