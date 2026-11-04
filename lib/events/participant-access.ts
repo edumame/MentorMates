@@ -1,4 +1,8 @@
-import { EventRole, EventVisibility } from "@/lib/types";
+import {
+  EventRole,
+  EventVisibility,
+  ParticipantRequestStatus,
+} from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 
@@ -35,6 +39,46 @@ function failure(
     httpStatus,
     payload,
   };
+}
+
+interface RevokeParticipantApprovalOptions {
+  eventId: string;
+  userId: string;
+  reviewerId: string;
+}
+
+/**
+ * Withdraws a user's approval when they are removed from an event, so that
+ * joinParticipantEvent cannot treat the old decision as still valid.
+ *
+ * Call this before deleting the role. If it ran after, a failed write would
+ * leave the approval in place, and a retry would 404 because the role is gone.
+ *
+ * Pass a service client: the UPDATE policy on participant_approval_requests is
+ * narrower than the removal routes' permission check, and RLS would turn a
+ * denied write into a silent no-op.
+ */
+export async function revokeParticipantApproval(
+  supabase: ServiceSupabaseClient,
+  options: RevokeParticipantApprovalOptions,
+) {
+  const { eventId, userId, reviewerId } = options;
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("participant_approval_requests")
+    .update({
+      status: ParticipantRequestStatus.Rejected,
+      rejection_reason: "Removed from the event by an organizer.",
+      reviewed_by: reviewerId,
+      reviewed_at: now,
+      updated_at: now,
+    })
+    .eq("event_id", eventId)
+    .eq("user_id", userId)
+    .eq("status", ParticipantRequestStatus.Approved);
+
+  return { error };
 }
 
 export async function joinParticipantEvent(

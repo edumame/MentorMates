@@ -5,6 +5,7 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { revokeParticipantApproval } from "@/lib/events/participant-access";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { z } from "zod";
@@ -156,6 +157,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (action === "remove") {
+      const { error: revokeError } = await revokeParticipantApproval(supabase, {
+        eventId: auth.eventId,
+        userId: user_id,
+        reviewerId: auth.userId,
+      });
+
+      if (revokeError) {
+        console.error("Error revoking participant approval:", revokeError);
+        return NextResponse.json(
+          { error: "Failed to remove participant" },
+          { status: 500 }
+        );
+      }
+
       const { error } = await supabase
         .from("user_event_roles")
         .delete()
