@@ -34,6 +34,7 @@ export function GalleryContent({
 }: GalleryContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [galleryUrl, setGalleryUrl] = useState(
@@ -45,10 +46,17 @@ export function GalleryContent({
   useEffect(() => {
     const fetchProjects = async () => {
       setIsLoading(true);
+      setLoadFailed(false);
       try {
-        const response = await fetch(
-          `/api/projects?eventId=${eventId}`
-        );
+        let response = await fetch(`/api/projects?eventId=${eventId}`);
+        // This page is shared as a public link, so a visitor with no session
+        // gets the public view. Members keep the view above: it also covers
+        // private events, which the public view refuses.
+        if (response.status === 401) {
+          response = await fetch(
+            `/api/projects?eventId=${eventId}&public=true`
+          );
+        }
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
         }
@@ -57,6 +65,7 @@ export function GalleryContent({
       } catch (error) {
         console.error("Error fetching projects:", error);
         setProjects([]);
+        setLoadFailed(true);
       }
       setIsLoading(false);
     };
@@ -258,11 +267,21 @@ export function GalleryContent({
         )}
 
       {/* Project Board */}
-      <ProjectBoard
-        isLoading={isLoading}
-        projectList={filteredProjects}
-        projectBoardContext={ProjectBoardContext.EventGallery}
-      />
+      {loadFailed ? (
+        <div
+          role="alert"
+          className="mx-auto w-full max-w-[820px] rounded-xl border border-[rgba(0,0,0,0.15)] bg-white px-4 py-3 text-sm text-black/70"
+        >
+          Couldn’t load projects for this event. It may be private or
+          unavailable.
+        </div>
+      ) : (
+        <ProjectBoard
+          isLoading={isLoading}
+          projectList={filteredProjects}
+          projectBoardContext={ProjectBoardContext.EventGallery}
+        />
+      )}
 
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent className="sm:max-w-lg">
