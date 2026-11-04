@@ -26,6 +26,7 @@ import { VideoEmbed, canEmbed } from "@/components/utils";
 import {
   getNextProjectId,
   isProjectFullyScored,
+  shouldHandleCardArrowKey,
   truncateWithEllipsis,
 } from "./utils";
 import { getActiveRound } from "@/lib/judging/rounds";
@@ -304,6 +305,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!shouldHandleCardArrowKey(event)) {
+        return;
+      }
+
       if (event.key === "ArrowLeft") {
         navigateCards(-1);
       } else if (event.key === "ArrowRight") {

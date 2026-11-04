@@ -1,6 +1,7 @@
 import {
   getNextProjectId,
   isProjectFullyScored,
+  shouldHandleCardArrowKey,
   truncateWithEllipsis,
 } from "./utils";
 
@@ -81,5 +82,73 @@ describe("judge dashboard utils", () => {
     it("truncates text and appends ellipsis", () => {
       expect(truncateWithEllipsis("hello world", 5)).toBe("hello...");
     });
+  });
+
+  describe("shouldHandleCardArrowKey", () => {
+    function pressArrowOn(target: EventTarget, init: KeyboardEventInit = {}) {
+      let handled: boolean | undefined;
+      const listener = (event: Event) => {
+        handled = shouldHandleCardArrowKey(event as KeyboardEvent);
+      };
+      window.addEventListener("keydown", listener);
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowRight",
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        })
+      );
+      window.removeEventListener("keydown", listener);
+      return handled;
+    }
+
+    function mount(html: string) {
+      document.body.innerHTML = html;
+      return document.querySelector("[data-target]") as HTMLElement;
+    }
+
+    afterEach(() => {
+      document.body.innerHTML = "";
+    });
+
+    it("handles arrows pressed on the page or on a plain button", () => {
+      expect(pressArrowOn(document.body)).toBe(true);
+      expect(pressArrowOn(window)).toBe(true);
+      expect(pressArrowOn(mount("<button data-target>Next</button>"))).toBe(true);
+      expect(pressArrowOn(mount("<div contenteditable='false' data-target></div>"))).toBe(
+        true
+      );
+    });
+
+    it.each([
+      ["input", "<input data-target />"],
+      ["textarea", "<textarea data-target></textarea>"],
+      ["select", "<select data-target></select>"],
+      ["slider", "<span role='slider' tabindex='0' data-target></span>"],
+      ["contenteditable", "<div contenteditable='true' data-target></div>"],
+      ["child of contenteditable", "<div contenteditable><b data-target>x</b></div>"],
+      ["button inside a form", "<form><button data-target>Submit</button></form>"],
+      [
+        "button inside an alert dialog",
+        "<div role='alertdialog'><button data-target>Cancel</button></div>",
+      ],
+    ])("ignores arrows pressed in a %s", (_name, html) => {
+      expect(pressArrowOn(mount(html))).toBe(false);
+    });
+
+    it("ignores arrows another handler already consumed", () => {
+      const target = mount("<div data-target></div>");
+      target.addEventListener("keydown", (event) => event.preventDefault());
+
+      expect(pressArrowOn(target)).toBe(false);
+    });
+
+    it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+      "ignores arrows combined with %s",
+      (modifier) => {
+        expect(pressArrowOn(document.body, { [modifier]: true })).toBe(false);
+      }
+    );
   });
 });
