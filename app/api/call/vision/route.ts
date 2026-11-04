@@ -1,15 +1,59 @@
 import { NextResponse } from 'next/server'
 import { OpenAI } from 'openai'
-import { createClient } from '@supabase/supabase-js'
+import { z } from 'zod'
+import { authorizeMeetingRequest } from '@/lib/meetings/route-access'
+import type { ServiceSupabaseClient } from '@/lib/supabase/service'
+
+// A base64 1024px-wide JPEG is well under this, and hosting caps bodies near 4.5MB.
+const MAX_FRAME_BODY_BYTES = 4 * 1024 * 1024
+// Slightly under the client's one-frame-per-5s cadence so timing jitter is not throttled.
+const MIN_FRAME_INTERVAL_MS = 4000
+
+const frameSchema = z.object({
+  imageBase64: z.string().min(1),
+  ts: z.number().int().positive().max(8.64e15), // largest timestamp a Date can hold
+})
 
 const SYSTEM_PROMPT = `You are summarizing a shared screen for a live meeting assistant. Describe only what's visible and important. Prefer UI text, error messages, numbers, button labels, and user actions. Ignore decoration. Keep it under 40 words. If nothing meaningful changed, respond exactly: 'No meaningful change'.`
 
+/**
+ * Atomically takes this meeting's next frame slot. updated_at is the slot time,
+ * and the conditional write lets only one of several concurrent frames through.
+ */
+async function claimFrameSlot(service: ServiceSupabaseClient, meetingId: string) {
+  const now = Date.now()
+  const updatedAt = new Date(now).toISOString()
+  const { data: inserted, error: insertError } = await service
+    .from('meeting_screen_context')
+    .upsert({ meeting_id: meetingId, updated_at: updatedAt }, { onConflict: 'meeting_id', ignoreDuplicates: true })
+    .select('meeting_id')
+  if (insertError) throw new Error('Frame slot insert failed')
+  if (inserted?.length) return true
+
+  const { data: claimed, error: claimError } = await service
+    .from('meeting_screen_context')
+    .update({ updated_at: updatedAt })
+    .eq('meeting_id', meetingId)
+    .lt('updated_at', new Date(now - MIN_FRAME_INTERVAL_MS).toISOString())
+    .select('meeting_id')
+  if (claimError) throw new Error('Frame slot claim failed')
+  return Boolean(claimed?.length)
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const { meetingId, ts, imageBase64 } = body || {}
-    if (!meetingId || !imageBase64) {
+    const access = await authorizeMeetingRequest(req, { maxBodyBytes: MAX_FRAME_BODY_BYTES })
+    if (access.response) return access.response
+    const meetingId = access.meeting.id
+
+    const frame = frameSchema.safeParse(access.body)
+    if (!frame.success) {
       return NextResponse.json({ error: 'missing params' }, { status: 400 })
+    }
+    const { ts, imageBase64 } = frame.data
+
+    if (!(await claimFrameSlot(access.service, meetingId))) {
+      return NextResponse.json({ error: 'Too many frames' }, { status: 429 })
     }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -94,18 +138,12 @@ export async function POST(req: Request) {
     if (!summary) summary = 'No meaningful change'
     if (summary !== 'No meaningful change') summary = `[Screen] ${summary}`
 
-    // Upsert into Supabase
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
-    await supabase.from('meeting_screen_context').upsert(
-      {
-        meeting_id: meetingId,
-        summary,
-        updated_at: new Date().toISOString(),
-        last_frame_ts: new Date(ts).toISOString(),
-      },
-      { onConflict: 'meeting_id' }
-    )
+    // The claim created the row and owns updated_at; moving it here would count
+    // the OpenAI latency against the next frame's slot.
+    await access.service
+      .from('meeting_screen_context')
+      .update({ summary, last_frame_ts: new Date(ts).toISOString() })
+      .eq('meeting_id', meetingId)
 
     return NextResponse.json({ ok: true, summary })
   } catch (err) {
