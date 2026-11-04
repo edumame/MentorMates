@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
+import UserSearchWithInvite, {
+  type TeamTagChange,
+} from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import {
   EventDetails,
@@ -65,7 +67,8 @@ type PublishPayload = {
   leadName: string;
   leadEmail: string;
   projectDescription: string;
-  teammates: string[];
+  addTeammates: string[];
+  removeTeammates: string[];
   projectUrl: string;
   coverImageUrl: string;
   additionalMaterialsUrl: string;
@@ -157,6 +160,7 @@ export function NewProjectSubmissionFormSinglePage({
     coverImageUrl: "",
     additionalMaterialsUrl: "",
   });
+  const [removedTeammates, setRemovedTeammates] = useState<string[]>([]);
 
   useEffect(() => {
     const init = async () => {
@@ -525,7 +529,10 @@ export function NewProjectSubmissionFormSinglePage({
     extraPayload: {
       lead_name: formData.leadName,
       lead_email: formData.leadEmail,
-      teammates: validTeammates,
+      // Changes, not the whole team: people can join through an invite link
+      // while this form is open, and this form never sees them.
+      addTeammates: validTeammates,
+      removeTeammates: removedTeammates,
       private: isPrivate,
     },
   });
@@ -613,13 +620,23 @@ export function NewProjectSubmissionFormSinglePage({
     );
   };
 
-  const handleTeammatesChange = async (tags: string[]) => {
+  const handleTeammatesChange = async (
+    tags: string[],
+    { added, removed }: TeamTagChange
+  ) => {
     // Extract emails from tags that might be in "Name (email)" format
     const emails = tags.map((tag) => {
       const emailMatch = tag.match(/\((.+?)\)$/);
       return emailMatch ? emailMatch[1] : tag;
     });
     setFormData((prev) => ({ ...prev, teammates: emails }));
+    setRemovedTeammates((prev) => [
+      ...prev.filter(
+        (email) =>
+          !added.some((tag) => tag.toLowerCase() === email.toLowerCase())
+      ),
+      ...removed,
+    ]);
   };
 
   // Submit
@@ -698,7 +715,8 @@ export function NewProjectSubmissionFormSinglePage({
         leadName: formData.leadName,
         leadEmail: formData.leadEmail,
         projectDescription: formData.projectDescription,
-        teammates: validTeammates,
+        addTeammates: validTeammates,
+        removeTeammates: removedTeammates,
         projectUrl: formData.projectUrl,
         coverImageUrl: formData.coverImageUrl,
         additionalMaterialsUrl: formData.additionalMaterialsUrl,
