@@ -102,10 +102,3 @@ export function formatPrice(
     return `${normalizedCurrency} ${(priceInCents / 100).toFixed(2)}`;
   }
 }
-
-/**
- * Get pricing tier by UUID ID
- */
-export function getPricingTierById(pricingTiers: PricingTier[], id: string): PricingTier | null {
-  return pricingTiers.find(tier => tier.id === id) || null;
-}
