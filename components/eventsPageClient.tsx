@@ -193,8 +193,10 @@ export function EventsPageClient({
       later: [],
       past: [],
     };
+    // Skip only the events shown in Featured; overflow stays in its date bucket.
+    const featuredIds = new Set(featuredEvents.map((e) => e.event_id));
     for (const e of filteredEvents) {
-      if (e.featured) continue;
+      if (featuredIds.has(e.event_id)) continue;
       buckets[bucketForDate(e.event_date)].push(e);
     }
     for (const k of Object.keys(buckets) as DateBucket[]) {
@@ -205,7 +207,7 @@ export function EventsPageClient({
       });
     }
     return buckets;
-  }, [filteredEvents]);
+  }, [filteredEvents, featuredEvents]);
 
   const datesWithEvents = useMemo(() => {
     const set = new Set<string>();
