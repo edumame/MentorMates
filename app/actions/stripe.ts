@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
@@ -9,6 +10,29 @@ interface CheckoutOptions {
   eventSlug?: string | null;
   eventName?: string | null;
   pricingTierId?: string | null; // Required: id from pricing_tiers table
+}
+
+interface ExistingPayment {
+  id: string;
+  payment_status: string;
+  stripe_session_id: string | null;
+}
+
+async function isPaymentSettled(payment: ExistingPayment) {
+  if (payment.payment_status === "paid") {
+    return true;
+  }
+
+  // The row stays "processing" until the webhook lands, and replacing its
+  // session id before then would leave that webhook with no row to match.
+  if (payment.payment_status === "processing" && payment.stripe_session_id) {
+    const session = await stripe.checkout.sessions.retrieve(
+      payment.stripe_session_id
+    );
+    return session.status === "complete";
+  }
+
+  return false;
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -20,6 +44,31 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   } = await supabase.auth.getUser();
   if (!user) {
     throw new Error("User not found");
+  }
+
+  // /checkout can be reopened after paying (Back, history, a saved URL), so a
+  // settled purchase must stop here, before any Stripe session or write.
+  let existingPayment: ExistingPayment | null = null;
+  if (options?.eventId) {
+    const { data, error } = await supabase
+      .from("user_event_payments")
+      .select("id, payment_status, stripe_session_id")
+      .eq("user_id", user.id)
+      .eq("event_id", options.eventId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Failed to check existing payment: ", error);
+      throw new Error("Failed to check existing payment");
+    }
+
+    existingPayment = data;
+
+    if (existingPayment && (await isPaymentSettled(existingPayment))) {
+      redirect(
+        `/events/${encodeURIComponent(options.eventSlug || options.eventId)}/overview`
+      );
+    }
   }
 
   let { data: userProfile } = await supabase
@@ -110,27 +159,34 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   });
 
   // greedily create a user event payment record for the user in the processing state
-  const { data: userEventPayment, error: userEventPaymentError } = await supabase
-    .from("user_event_payments")
-    .upsert(
-      {
-        user_id: user.id,
-        event_id: options?.eventId,
-        stripe_customer_id: userProfile?.stripe_customer_id,
-        stripe_session_id: session.id,
-        stripe_payment_intent_id: session.payment_intent,
-        amount_paid: session.amount_total,
-        currency: session.currency,
-        payment_status: "processing",
-        pricing_id: options?.pricingTierId,
-      },
-      {
-        onConflict: "user_id,event_id",
-      }
-    )
-    .select();
+  const paymentRecord = {
+    user_id: user.id,
+    event_id: options?.eventId,
+    stripe_customer_id: userProfile?.stripe_customer_id,
+    stripe_session_id: session.id,
+    stripe_payment_intent_id: session.payment_intent,
+    amount_paid: session.amount_total,
+    currency: session.currency,
+    payment_status: "processing",
+    pricing_id: options?.pricingTierId,
+  };
 
-  if (!userEventPayment || userEventPaymentError) {
+  // The neq keeps a webhook that marks the row paid after the check above from
+  // being overwritten; the client secret is then never handed out.
+  const { data: userEventPayment, error: userEventPaymentError } =
+    existingPayment
+      ? await supabase
+          .from("user_event_payments")
+          .update(paymentRecord)
+          .eq("id", existingPayment.id)
+          .neq("payment_status", "paid")
+          .select()
+      : await supabase
+          .from("user_event_payments")
+          .insert(paymentRecord)
+          .select();
+
+  if (!userEventPayment?.length || userEventPaymentError) {
     console.error("Failed to create user event payment: ", userEventPaymentError);
     throw new Error("Failed to create user event payment");
   }
