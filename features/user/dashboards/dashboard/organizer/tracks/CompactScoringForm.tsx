@@ -52,6 +52,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 
 // ── Templates ─────────────────────────────────────────────────────────
@@ -106,6 +116,32 @@ function cloneTrackScoringConfig(track: TrackScoringConfig): TrackScoringConfig 
   };
 }
 
+function removeTrackFromConfig(
+  config: EventScoringConfig,
+  trackId: string
+): EventScoringConfig {
+  const tracks = { ...config.tracks };
+  delete tracks[trackId];
+
+  return {
+    ...config,
+    tracks,
+    rounds: (config.rounds || []).map((round) => {
+      if (!round.tracks?.[trackId]) {
+        return round;
+      }
+
+      const nextTracks = { ...round.tracks };
+      delete nextTracks[trackId];
+
+      return {
+        ...round,
+        tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
+      };
+    }),
+  };
+}
+
 // ── Props ─────────────────────────────────────────────────────────────
 
 interface CompactScoringFormProps {
@@ -115,6 +151,12 @@ interface CompactScoringFormProps {
   isArchived: boolean;
   eventId: string;
   tracks?: EventTrack[];
+  /**
+   * Called after a track row is deleted. `nextConfig` is this form's current
+   * config without the track, so unsaved edits to other tracks survive the
+   * sync from `initialConfig`.
+   */
+  onTrackDeleted?: (trackId: string, nextConfig: EventScoringConfig) => void;
 }
 
 // ── Main Component ────────────────────────────────────────────────────
@@ -126,6 +168,7 @@ export function CompactScoringForm({
   isArchived,
   eventId,
   tracks: savedTracks = [],
+  onTrackDeleted,
 }: CompactScoringFormProps) {
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
@@ -170,6 +213,13 @@ export function CompactScoringForm({
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [newTrackName, setNewTrackName] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("numeric_10");
+  // scoreCount: undefined while loading, null when it could not be read.
+  const [pendingTrackDelete, setPendingTrackDelete] = useState<{
+    id: string;
+    name: string;
+    scoreCount?: number | null;
+  } | null>(null);
+  const [isDeletingTrack, setIsDeletingTrack] = useState(false);
 
   const { toast } = useToast();
 
@@ -362,33 +412,30 @@ export function CompactScoringForm({
     setTemplateDialogOpen(false);
   };
 
+  const requestTrackDelete = async (id: string) => {
+    if (isArchived) return;
+
+    setPendingTrackDelete({ id, name: config.tracks[id]?.name || "" });
+    const { count, error } = await supabase
+      .from("project_scores")
+      .select("*", { count: "exact", head: true })
+      .eq("track_id", id);
+    setPendingTrackDelete((prev) =>
+      prev?.id === id ? { ...prev, scoreCount: error ? null : count } : prev
+    );
+  };
+
   const removeTrack = async (id: string) => {
+    if (isArchived) return;
+
+    setIsDeletingTrack(true);
     const { error } = await supabase.from("event_tracks").delete().eq("track_id", id);
     if (error) {
       toast({ title: "Error", description: "Failed to delete track", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Track deleted" });
-      setConfig((prev) => {
-        const newTracks = { ...prev.tracks };
-        delete newTracks[id];
-        return {
-          ...prev,
-          tracks: newTracks,
-          rounds: (prev.rounds || []).map((round) => {
-            if (!round.tracks?.[id]) {
-              return round;
-            }
-
-            const nextTracks = { ...round.tracks };
-            delete nextTracks[id];
-
-            return {
-              ...round,
-              tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
-            };
-          }),
-        };
-      });
+      const nextConfig = removeTrackFromConfig(config, id);
+      setConfig(nextConfig);
       setSelectedRubricScopeByTrack((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -399,7 +446,11 @@ export function CompactScoringForm({
         next.delete(id);
         return next;
       });
+      setSelectedTrackForBulkAssign((prev) => (prev === id ? "" : prev));
+      onTrackDeleted?.(id, nextConfig);
     }
+    setIsDeletingTrack(false);
+    setPendingTrackDelete(null);
   };
 
   const updateTrackName = (id: string, name: string) => {
@@ -581,13 +632,15 @@ export function CompactScoringForm({
                   >
                     <CopyIcon className="h-3.5 w-3.5" />
                   </span>
-                  <span
-                    className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50"
-                    onClick={(e) => { e.stopPropagation(); removeTrack(trackId); }}
-                    title="Delete"
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </span>
+                  {!isArchived && (
+                    <span
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50"
+                      onClick={(e) => { e.stopPropagation(); requestTrackDelete(trackId); }}
+                      title="Delete"
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                    </span>
+                  )}
                   <ChevronDown className={`h-4 w-4 text-gray-400 ml-1 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                 </div>
               </button>
@@ -952,6 +1005,50 @@ export function CompactScoringForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Track delete confirmation */}
+      <AlertDialog
+        open={pendingTrackDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingTrack) setPendingTrackDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {pendingTrackDelete?.name ? `"${pendingTrackDelete.name}"` : "this track"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {/* A count of 0 is not reassuring: project_scores RLS hides scores
+                  from admins and owners without an event role. */}
+              {pendingTrackDelete?.scoreCount === undefined
+                ? "Checking recorded judge scores..."
+                : `This permanently deletes ${
+                    pendingTrackDelete.scoreCount
+                      ? `${pendingTrackDelete.scoreCount} judge ${
+                          pendingTrackDelete.scoreCount === 1 ? "score" : "scores"
+                        }`
+                      : "all judge scores"
+                  }, project assignments and prizes for this track. This cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingTrack}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingTrack || pendingTrackDelete?.scoreCount === undefined}
+              onClick={(e) => {
+                // Stay open (and modal) until the delete settles, so Save
+                // cannot upsert the track back while the delete is in flight.
+                e.preventDefault();
+                if (pendingTrackDelete) removeTrack(pendingTrackDelete.id);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeletingTrack ? "Deleting..." : "Delete track"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

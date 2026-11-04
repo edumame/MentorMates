@@ -137,6 +137,24 @@ export function TracksTab({
     }
   };
 
+  const handleTrackDeleted = (
+    trackId: string,
+    nextConfig: EventScoringConfig
+  ) => {
+    setTracks((prev) => prev.filter((t) => t.track_id !== trackId));
+    setScoringConfig(nextConfig);
+    setEvent((prev) =>
+      prev
+        ? {
+            ...prev,
+            event_tracks: prev.event_tracks?.filter(
+              (t) => t.track_id !== trackId
+            ),
+          }
+        : prev
+    );
+  };
+
   return (
     <div className="space-y-6 w-full">
       {/* Top bar: title + Edit/Preview toggle */}
@@ -226,6 +244,7 @@ export function TracksTab({
                 isArchived={isArchived}
                 eventId={eventId}
                 tracks={tracks}
+                onTrackDeleted={handleTrackDeleted}
               />
             </div>
           </div>

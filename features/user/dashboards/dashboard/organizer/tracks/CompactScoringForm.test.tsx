@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CompactScoringForm } from "./CompactScoringForm";
 import type { EventScoringConfig } from "@/lib/types";
 
@@ -17,6 +17,7 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
+  buttonVariants: () => "",
   Button: ({
     children,
     type = "button",
@@ -243,5 +244,112 @@ describe("CompactScoringForm", () => {
     );
 
     expect(screen.queryByText("Rubric")).not.toBeInTheDocument();
+  });
+
+  describe("deleting a track", () => {
+    const deleteEq = jest.fn();
+    const scoreEq = jest.fn();
+
+    beforeEach(() => {
+      deleteEq.mockReset().mockResolvedValue({ error: null });
+      scoreEq.mockReset().mockResolvedValue({ count: 3, error: null });
+      from.mockImplementation((table: string) =>
+        table === "project_scores"
+          ? { select: () => ({ eq: scoreEq }) }
+          : { delete: () => ({ eq: deleteEq }) }
+      );
+    });
+
+    const renderForm = (
+      props: Partial<React.ComponentProps<typeof CompactScoringForm>> = {}
+    ) =>
+      render(
+        <CompactScoringForm
+          initialConfig={multiRoundConfig}
+          onSave={jest.fn()}
+          isArchived={false}
+          eventId="event-1"
+          {...props}
+        />
+      );
+
+    it("offers no delete control on an archived event", () => {
+      renderForm({ isArchived: true });
+
+      expect(screen.queryByTitle("Delete")).not.toBeInTheDocument();
+      expect(deleteEq).not.toHaveBeenCalled();
+    });
+
+    it("does not delete until the confirmation is accepted, and shows the score impact", async () => {
+      const onTrackDeleted = jest.fn();
+      renderForm({ onTrackDeleted });
+
+      fireEvent.click(screen.getByTitle("Delete"));
+
+      expect(await screen.findByText(/3 judge scores/)).toBeInTheDocument();
+      expect(scoreEq).toHaveBeenCalledWith("track_id", "track-1");
+      expect(deleteEq).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Delete track" }));
+
+      await waitFor(() =>
+        expect(deleteEq).toHaveBeenCalledWith("track_id", "track-1")
+      );
+      await waitFor(() => expect(onTrackDeleted).toHaveBeenCalledTimes(1));
+      const [deletedId, nextConfig] = onTrackDeleted.mock.calls[0];
+      expect(deletedId).toBe("track-1");
+      expect(nextConfig.tracks).toEqual({});
+      await waitFor(() =>
+        expect(screen.queryByText("AI Track")).not.toBeInTheDocument()
+      );
+    });
+
+    it("keeps the track when the confirmation is cancelled", async () => {
+      const onTrackDeleted = jest.fn();
+      renderForm({ onTrackDeleted });
+
+      fireEvent.click(screen.getByTitle("Delete"));
+      await screen.findByText(/3 judge scores/);
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("button", { name: "Delete track" })
+        ).not.toBeInTheDocument()
+      );
+      expect(deleteEq).not.toHaveBeenCalled();
+      expect(onTrackDeleted).not.toHaveBeenCalled();
+      expect(screen.getByText("AI Track")).toBeInTheDocument();
+    });
+
+    it("still warns about scores when the score count cannot be loaded", async () => {
+      scoreEq.mockResolvedValue({ count: null, error: { message: "nope" } });
+      renderForm();
+
+      fireEvent.click(screen.getByTitle("Delete"));
+
+      expect(await screen.findByText(/all judge scores/)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Delete track" })
+      ).toBeEnabled();
+    });
+
+    it("keeps the track and does not notify the parent when the delete fails", async () => {
+      deleteEq.mockResolvedValue({ error: { message: "nope" } });
+      const onTrackDeleted = jest.fn();
+      renderForm({ onTrackDeleted });
+
+      fireEvent.click(screen.getByTitle("Delete"));
+      await screen.findByText(/3 judge scores/);
+      fireEvent.click(screen.getByRole("button", { name: "Delete track" }));
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith(
+          expect.objectContaining({ variant: "destructive" })
+        )
+      );
+      expect(onTrackDeleted).not.toHaveBeenCalled();
+      expect(screen.getByText("AI Track")).toBeInTheDocument();
+    });
   });
 });
