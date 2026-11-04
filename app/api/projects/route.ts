@@ -297,6 +297,7 @@ export async function GET(request: NextRequest) {
           teammates: project.teammates,
           is_private: Boolean((project as { private?: boolean | null }).private),
           project_url: project.project_url,
+          video_url: (project as unknown as { video_url?: string | null }).video_url,
           additional_materials_url: project.additional_materials_url,
           cover_image_url: project.cover_image_url,
           event_id: project.event_id,
