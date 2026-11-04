@@ -434,7 +434,8 @@ function OrganizersTab({ event, setEvent }: WizardStepProps) {
         <p className="text-sm text-blue-700">
           Organizers have full access to event settings, submissions, judging
           configuration, and participant management. Your account is
-          automatically added as an organizer.
+          automatically added as an organizer. Draft events do not email
+          invites to people without an account.
         </p>
       </div>
     </div>

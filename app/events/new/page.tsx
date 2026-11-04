@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { useToast } from "@/lib/hooks/use-toast";
+import { getDeferredOrganizerInviteNotice } from "@/lib/events/invite-emails";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import {
@@ -52,6 +53,11 @@ function getInviteFailureCount(inviteSummary: unknown): number {
 function getOrganizerInviteFailureCount(summary: unknown): number {
   const organizerSummary = summary as { failed?: string[] } | undefined;
   return organizerSummary?.failed?.length || 0;
+}
+
+function getDeferredOrganizerEmails(summary: unknown): string[] {
+  const organizerSummary = summary as { deferred?: string[] } | undefined;
+  return organizerSummary?.deferred ?? [];
 }
 
 export default function NewEventPage() {
@@ -252,7 +258,12 @@ function NewEventPageInner() {
       }
 
       await saveSubmissionFields(data.event.event_id);
-      return data.event;
+      return {
+        ...data.event,
+        deferredOrganizerEmails: getDeferredOrganizerEmails(
+          data.organizerInviteSummary
+        ),
+      };
     } catch {
       toast({
         title: "Network error",
@@ -269,9 +280,14 @@ function NewEventPageInner() {
   const handleSaveDraft = async () => {
     const created = await createEvent(EventVisibility.Draft);
     if (created) {
+      // Only one toast shows at a time, so the notice has to go in this one.
+      const saved = `${created.event_name} has been saved.`;
       toast({
         title: "Event saved as draft",
-        description: `${created.event_name} has been saved.`,
+        description:
+          created.deferredOrganizerEmails.length > 0
+            ? `${saved} ${getDeferredOrganizerInviteNotice(created.deferredOrganizerEmails)}`
+            : saved,
       });
       router.push(`/events/${created.slug || created.event_id}/overview`);
     }
