@@ -47,3 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test scraper quota in disposable PostgreSQL
         run: python3 scripts/test_scraper_quota.py
+
+  feedback-sender-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test feedback sender RLS in disposable PostgreSQL
+        run: python3 scripts/test_feedback_sender_rls.py
