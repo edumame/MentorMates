@@ -4,6 +4,7 @@ import {
   getInternalEventHref,
   isEventManagerRole,
   canUseInternalEventRoute,
+  isEventInviteAcceptancePath,
 } from "./navigation";
 
 describe("event navigation", () => {
@@ -30,6 +31,44 @@ describe("event navigation", () => {
         canManageEvent: true,
       })
     ).toBe(true);
+  });
+
+  it("keeps judges on internal routes because scoring only exists there", () => {
+    expect(canUseInternalEventRoute({ userRole: EventRole.Judge })).toBe(true);
+    expect(isEventManagerRole(EventRole.Judge)).toBe(false);
+  });
+
+  it.each([EventRole.Participant, EventRole.Mentor, null, undefined])(
+    "keeps sending %s out of internal routes",
+    (userRole) => {
+      expect(canUseInternalEventRoute({ userRole })).toBe(false);
+    }
+  );
+
+  it.each([
+    "/events/spring-showcase/accept",
+    "/events/spring-showcase/accept-judge",
+    "/events/spring-showcase/accept-organizer",
+    "/events/spring-showcase/accept-participant",
+    "/events/spring-showcase/accept-judge/",
+  ])("recognizes %s as an invite acceptance route", (pathname) => {
+    expect(isEventInviteAcceptancePath(pathname)).toBe(true);
+  });
+
+  it.each([
+    "/events/spring-showcase",
+    "/events/spring-showcase/overview",
+    "/events/spring-showcase/tickets",
+    "/events/spring-showcase/accepted",
+    "/events/accept-judge",
+    "/events/accept-judge/overview",
+    "/events/spring-showcase/tools/accept-judge",
+    "/accept-judge",
+    "",
+    null,
+    undefined,
+  ])("does not treat %s as an invite acceptance route", (pathname) => {
+    expect(isEventInviteAcceptancePath(pathname)).toBe(false);
   });
 
   it("links external events out for non-manager roles when redirects are enabled", () => {
@@ -83,6 +122,21 @@ describe("event navigation", () => {
         slug: "partner-event",
         external_url: "https://partner.example.com/hack",
         userRole: EventRole.Organizer,
+      })
+    ).toEqual({
+      href: "/events/partner-event/overview",
+      isExternal: false,
+    });
+  });
+
+  it("keeps external events internal for judges", () => {
+    expect(
+      getEventNavigationTarget({
+        event_id: "event-123",
+        slug: "partner-event",
+        external_url: "https://partner.example.com/hack",
+        external_redirect_enabled: true,
+        userRole: EventRole.Judge,
       })
     ).toEqual({
       href: "/events/partner-event/overview",

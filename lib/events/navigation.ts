@@ -2,6 +2,13 @@ import { EventRole } from "@/lib/types";
 
 export type EventNavigationRole = EventRole | string | null | undefined;
 
+// Set by middleware so server layouts, which do not receive the pathname, can
+// tell which /events/[id] child route is being rendered.
+export const EVENT_REQUEST_PATHNAME_HEADER = "x-mm-pathname";
+
+const EVENT_INVITE_ACCEPTANCE_PATH =
+  /^\/events\/[^/]+\/accept(?:-judge|-organizer|-participant)?\/?$/;
+
 export type EventNavigationItem = {
   event_id: string;
   slug?: string | null;
@@ -19,7 +26,18 @@ export function canUseInternalEventRoute({
   userRole,
   canManageEvent,
 }: Pick<EventNavigationItem, "userRole" | "canManageEvent">) {
-  return Boolean(canManageEvent) || isEventManagerRole(userRole);
+  // Judges score from the internal event page, which has no external equivalent.
+  return (
+    Boolean(canManageEvent) ||
+    isEventManagerRole(userRole) ||
+    userRole === EventRole.Judge
+  );
+}
+
+// Invite links are the only way a new invitee can get a role, so they have to
+// stay reachable even when the event redirects everyone else away.
+export function isEventInviteAcceptancePath(pathname: string | null | undefined) {
+  return EVENT_INVITE_ACCEPTANCE_PATH.test(pathname ?? "");
 }
 
 export function getInternalEventHref(event: Pick<EventNavigationItem, "event_id" | "slug">) {
