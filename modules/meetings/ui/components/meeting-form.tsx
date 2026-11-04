@@ -235,6 +235,9 @@ export const MeetingForm = ({
         await queryClient.invalidateQueries(
           trpc.meetings.getMany.queryOptions({})
         );
+        await queryClient.invalidateQueries(
+          trpc.meetings.getFilterOptions.queryOptions()
+        );
 
         if (initialValues?.id) {
           await queryClient.invalidateQueries(
@@ -262,6 +265,9 @@ export const MeetingForm = ({
       onSuccess: async () => {
         await queryClient.invalidateQueries(
           trpc.meetings.getMany.queryOptions({})
+        );
+        await queryClient.invalidateQueries(
+          trpc.meetings.getFilterOptions.queryOptions()
         );
 
         if (initialValues?.id) {
