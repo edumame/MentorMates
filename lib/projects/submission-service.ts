@@ -544,6 +544,7 @@ export async function saveProjectSubmission(
   let existingProjectEventId: string | null | undefined = input.eventId;
   let existingProjectName: string | null = null;
   let existingProjectDescription: string | null = null;
+  let trackIdsToSave = input.trackIds;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
@@ -573,6 +574,12 @@ export async function saveProjectSubmission(
     existingProjectEventId = input.eventId ?? existingProject.event_id;
     existingProjectName = existingProject.project_name ?? null;
     existingProjectDescription = existingProject.project_description ?? null;
+
+    // Tracks belong to a single event and nothing in the database enforces
+    // that, so a move must not leave the old event's tracks on the project.
+    if (input.eventId !== undefined && input.eventId !== existingProject.event_id) {
+      trackIdsToSave ??= [];
+    }
   }
 
   const validation = await validateProjectEventContext(
@@ -826,7 +833,7 @@ export async function saveProjectSubmission(
     }
   }
 
-  if (existingProjectEventId && input.trackIds !== undefined) {
+  if (existingProjectEventId && trackIdsToSave !== undefined) {
     const { error: deleteTracksError } = await supabase
       .from("project_tracks")
       .delete()
@@ -842,9 +849,9 @@ export async function saveProjectSubmission(
       return { error: "Failed to update project tracks", status: 500 as const };
     }
 
-    if (input.trackIds.length > 0) {
+    if (trackIdsToSave.length > 0) {
       const { error: trackInsertError } = await supabase.from("project_tracks").insert(
-        input.trackIds.map((trackId) => ({
+        trackIdsToSave.map((trackId) => ({
           project_id: finalProjectId,
           track_id: trackId,
         })),
@@ -852,7 +859,7 @@ export async function saveProjectSubmission(
       if (trackInsertError) {
         console.error("[submit] insert project tracks failed", {
           projectId: finalProjectId,
-          trackIds: input.trackIds,
+          trackIds: trackIdsToSave,
           error: trackInsertError,
         });
         return {
