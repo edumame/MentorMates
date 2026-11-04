@@ -5,9 +5,16 @@ import { Mail, UserPlus, Link2 } from "lucide-react";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { toast } from "@/lib/hooks/use-toast";
 
+// `tags` is seeded at mount and never refreshed, so callers must save this
+// change rather than the list, which can be missing people who joined since.
+export interface TeamTagChange {
+  added: string[];
+  removed: string[];
+}
+
 interface UserSearchWithInviteProps {
   allTags: string[];
-  onTagsChange: (tags: string[]) => void;
+  onTagsChange: (tags: string[], change: TeamTagChange) => void;
   initialTags?: string[];
   projectId?: string;
   enableInvite?: boolean;
@@ -63,14 +70,17 @@ const UserSearchWithInvite = ({
       setSelectedTags(newSelectedTags);
       setTagInput("");
       setFilteredTags([]);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { added: [extractEmail(tag)], removed: [] });
     }
   };
 
   const removeTag = (tagToRemove: string): void => {
     const newSelectedTags = selectedTags.filter((tag) => tag !== tagToRemove);
     setSelectedTags(newSelectedTags);
-    onTagsChange(newSelectedTags);
+    onTagsChange(newSelectedTags, {
+      added: [],
+      removed: [extractEmail(tagToRemove)],
+    });
   };
 
   const sendInvitation = async (email: string): Promise<void> => {
@@ -112,7 +122,7 @@ const UserSearchWithInvite = ({
       // Add the invited email to selected tags so it shows up in the UI
       const newSelectedTags = [...selectedTags, email.trim()];
       setSelectedTags(newSelectedTags);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { added: [email.trim()], removed: [] });
 
       setTagInput("");
       setFilteredTags([]);

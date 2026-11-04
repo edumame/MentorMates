@@ -23,7 +23,9 @@ import { toast } from "@/lib/hooks/use-toast";
 import { EventSubmissionField, Project } from "@/lib/types";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
-import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
+import UserSearchWithInvite, {
+  type TeamTagChange,
+} from "@/components/utils/UserSearchWithInvite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -683,16 +685,23 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleTeammatesChange = async (emails: string[]) => {
+  const handleTeammatesChange = async (
+    _tags: string[],
+    { added, removed }: TeamTagChange
+  ) => {
     if (!project) return;
 
     try {
       // Filter out the lead email
-      const validEmails = emails.filter(
+      const add = added.filter(
         (email) => email.toLowerCase() !== project.lead_email?.toLowerCase()
       );
+      if (add.length === 0 && removed.length === 0) return;
 
-      const { data } = await updateProjectTeamClient(projectId, validEmails);
+      const { data } = await updateProjectTeamClient(projectId, {
+        add,
+        remove: removed,
+      });
 
       if (data) {
         setProject(data);
@@ -708,14 +717,9 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   const handleRemoveTeammate = async (teammateEmail: string) => {
     try {
-      const currentTeammates = project?.teammates || [];
-      const updatedTeammates = currentTeammates.filter(
-        (email) => email !== teammateEmail
-      );
-      const { data } = await updateProjectTeamClient(
-        projectId,
-        updatedTeammates
-      );
+      const { data } = await updateProjectTeamClient(projectId, {
+        remove: [teammateEmail],
+      });
 
       if (data) {
         setProject(data);
