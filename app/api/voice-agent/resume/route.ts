@@ -11,5 +11,5 @@ export async function POST(request: NextRequest) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ meetingId }),
   });
-  return NextResponse.json(await response.json());
+  return NextResponse.json(await response.json(), { status: response.status });
 }

@@ -17,5 +17,5 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ meetingId }),
     }
   );
-  return NextResponse.json(await response.json());
+  return NextResponse.json(await response.json(), { status: response.status });
 }
