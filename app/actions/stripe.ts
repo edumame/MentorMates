@@ -3,12 +3,46 @@
 import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { countReservedParticipantSeats } from "@/lib/events/participant-access";
+import { EventRole } from "@/lib/types";
 
 interface CheckoutOptions {
   eventId?: string | null;
   eventSlug?: string | null;
   eventName?: string | null;
   pricingTierId?: string | null; // Required: id from pricing_tiers table
+  role?: EventRole | null; // Role being purchased; treated as participant if absent
+}
+
+// The last check before money is taken: nothing refunds a charge automatically
+// if the post-payment join then finds the event full.
+async function assertParticipantSeatAvailable(eventId: string, userId: string) {
+  const serviceSupabase = createSupabaseServiceClient();
+
+  const { data: event, error } = await serviceSupabase
+    .from("events")
+    .select("participant_capacity, paid")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Failed to verify event capacity");
+  }
+
+  if (event?.participant_capacity == null) {
+    return;
+  }
+
+  const reservedSeats = await countReservedParticipantSeats(serviceSupabase, {
+    eventId,
+    paid: Boolean(event.paid),
+    excludeUserId: userId,
+  });
+
+  if (reservedSeats >= event.participant_capacity) {
+    throw new Error("Event is full. No seats available.");
+  }
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -96,6 +130,14 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     }
   } else {
     throw new Error("No pricing tier selected. Please select a pricing tier to continue.");
+  }
+
+  // participant_capacity limits participants only; mentors also pay on paid events.
+  if (
+    options?.eventId &&
+    (options.role ?? EventRole.Participant) === EventRole.Participant
+  ) {
+    await assertParticipantSeatAvailable(options.eventId, user.id);
   }
 
   // Create Checkout Sessions from body params.

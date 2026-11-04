@@ -26,6 +26,101 @@ interface JoinParticipantEventOptions {
   channel: "web" | "agent";
 }
 
+// Matches PostgREST's default row cap, so a full page means there may be more.
+const USER_ID_PAGE_SIZE = 1000;
+
+async function collectUserIds(
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: { user_id: string }[] | null;
+    error: unknown;
+  }>,
+): Promise<Set<string>> {
+  const userIds = new Set<string>();
+
+  for (let from = 0; ; from += USER_ID_PAGE_SIZE) {
+    const { data, error } = await fetchPage(
+      from,
+      from + USER_ID_PAGE_SIZE - 1,
+    );
+
+    if (error) {
+      throw new Error("Failed to count reserved seats");
+    }
+
+    data?.forEach(({ user_id }) => userIds.add(user_id));
+
+    if ((data?.length ?? 0) < USER_ID_PAGE_SIZE) {
+      return userIds;
+    }
+  }
+}
+
+/**
+ * Counts seats that are spoken for: participants who have joined, plus, on paid
+ * events, approved users who have not joined yet. Paid approvals create no role
+ * until after payment, so without the second group they would hold no seat.
+ *
+ * Reads other users' rows, so callers must pass a service client (RLS would
+ * otherwise hide them). Throws on a query error so callers fail closed.
+ */
+export async function countReservedParticipantSeats(
+  supabase: ServiceSupabaseClient,
+  options: { eventId: string; paid: boolean; excludeUserId?: string },
+): Promise<number> {
+  const { eventId, paid, excludeUserId } = options;
+
+  const reservedUserIds = await collectUserIds((from, to) =>
+    supabase
+      .from("user_event_roles")
+      .select("user_id")
+      .eq("event_id", eventId)
+      .eq("role", EventRole.Participant)
+      .order("user_id")
+      .range(from, to),
+  );
+
+  if (paid) {
+    const approvedUserIds = await collectUserIds((from, to) =>
+      supabase
+        .from("participant_approval_requests")
+        .select("user_id")
+        .eq("event_id", eventId)
+        .eq("requested_role", EventRole.Participant)
+        .eq("status", "approved")
+        .order("user_id")
+        .range(from, to),
+    );
+
+    approvedUserIds.forEach((userId) => reservedUserIds.add(userId));
+  }
+
+  if (excludeUserId) {
+    reservedUserIds.delete(excludeUserId);
+  }
+
+  return reservedUserIds.size;
+}
+
+async function findPaidPayment(
+  supabase: ServiceSupabaseClient,
+  eventId: string,
+  userId: string,
+) {
+  return supabase
+    .from("user_event_payments")
+    .select("payment_status")
+    .eq("user_id", userId)
+    .eq("event_id", eventId)
+    .eq("payment_status", "paid")
+    .maybeSingle()
+    .overrideTypes<{
+      payment_status: Database["public"]["Tables"]["user_event_payments"]["Row"]["payment_status"];
+    } | null>();
+}
+
 function failure(
   httpStatus: number,
   payload: Record<string, unknown>,
@@ -105,6 +200,23 @@ export async function joinParticipantEvent(
     }
 
     if ((count || 0) >= event.participant_capacity) {
+      const { data: payment } = event.paid
+        ? await findPaidPayment(supabase, eventId, userId)
+        : { data: null };
+
+      if (payment) {
+        // Nothing refunds this automatically, so the log is what staff act on.
+        console.error("Paid user could not join a full event", {
+          eventId,
+          userId,
+        });
+        return failure(409, {
+          error:
+            "This event filled up before your registration finished, so you do not have a seat. Your payment went through. Please contact the organizers for a refund.",
+          refund_required: true,
+        });
+      }
+
       return failure(409, { error: "Event is full. No seats available." });
     }
   }
@@ -178,16 +290,11 @@ export async function joinParticipantEvent(
 
     if (existingRequest?.status === "approved") {
       if (event.paid && channel === "web") {
-        const { data: payment, error: paymentError } = await supabase
-          .from("user_event_payments")
-          .select("payment_status")
-          .eq("user_id", userId)
-          .eq("event_id", eventId)
-          .eq("payment_status", "paid")
-          .maybeSingle()
-          .overrideTypes<{
-            payment_status: Database["public"]["Tables"]["user_event_payments"]["Row"]["payment_status"];
-          } | null>();
+        const { data: payment, error: paymentError } = await findPaidPayment(
+          supabase,
+          eventId,
+          userId,
+        );
 
         if (paymentError) {
           return failure(500, { error: "Failed to verify payment status" });
