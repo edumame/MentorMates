@@ -8,6 +8,7 @@ import {
   STRIPE_REFUNDED_EVENT_TYPES,
   STRIPE_SUCCESSFUL_EVENT_TYPES,
 } from "@/lib/config/constants";
+import { EventRole } from "@/lib/types";
 import Stripe from "stripe";
 
 export async function POST(req: Request) {
@@ -166,6 +167,14 @@ async function handleEvent(event: Stripe.Event) {
       throw new Error("Failed to update user event payment");
     }
   } else if (STRIPE_REFUNDED_EVENT_TYPES.includes(event.type)) {
+    // charge.refunded also fires for partial refunds. Stripe only sets
+    // `refunded` once the cumulative refunds cover the whole charge, so the
+    // final refund still reaches the revocation below.
+    const charge = event.data.object as Stripe.Charge;
+    if (!charge.refunded) {
+      return;
+    }
+
     const { data: userEventPayment } = await supabase
       .from("user_event_payments")
       .update({
@@ -184,6 +193,10 @@ async function handleEvent(event: Stripe.Event) {
       .delete()
       .eq("event_id", userEventPayment.event_id)
       .eq("user_id", userEventPayment.user_id)
+      // Only roles that pay for entry are revoked. On a paid event, the gate in
+      // components/events/join-event-button.tsx exempts organizers and judges
+      // from payment, so participants and mentors are the roles a ticket buys.
+      .in("role", [EventRole.Participant, EventRole.Mentor])
       .select("id");
 
     if (!userEventRoles) {
