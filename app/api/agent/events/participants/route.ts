@@ -5,6 +5,7 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { releaseParticipantSeatReservation } from "@/lib/events/participant-access";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { z } from "zod";
@@ -156,6 +157,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (action === "remove") {
+      await releaseParticipantSeatReservation(supabase, {
+        eventId: auth.eventId,
+        userId: user_id,
+      });
+
       const { error } = await supabase
         .from("user_event_roles")
         .delete()

@@ -1,8 +1,11 @@
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 import {
   countReservedParticipantSeats,
+  isParticipantSeatAvailable,
   joinParticipantEvent,
+  releaseParticipantSeatReservation,
 } from "./participant-access";
+import { createSeatStore } from "./__fixtures__/seat-store";
 
 describe("joinParticipantEvent", () => {
   const maybeSingleResult = (result: { data: unknown; error: unknown }) => ({
@@ -261,7 +264,8 @@ describe("joinParticipantEvent on a full event", () => {
 });
 
 describe("countReservedParticipantSeats", () => {
-  const rows = (ids: string[]) => ids.map((user_id) => ({ user_id }));
+  const rows = (ids: string[]) =>
+    ids.map((user_id) => ({ user_id, role: "participant" }));
 
   const buildClient = (tables: Record<string, unknown[]>, error?: unknown) => {
     const range = jest.fn();
@@ -347,5 +351,269 @@ describe("countReservedParticipantSeats", () => {
     await expect(
       countReservedParticipantSeats(client, { eventId: "event-1", paid: true }),
     ).rejects.toThrow("Failed to count reserved seats");
+  });
+});
+
+describe("countReservedParticipantSeats with stale approvals", () => {
+  it("does not hold a seat for an approved user who took another role", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      roles: { alice: "mentor" },
+      requests: { alice: "approved" },
+    });
+
+    await expect(
+      countReservedParticipantSeats(client, { eventId, paid: true }),
+    ).resolves.toBe(0);
+  });
+
+  it("does not count mentors as participants", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: 1,
+      paid: false,
+      roles: { alice: "mentor", bob: "participant" },
+    });
+
+    await expect(
+      countReservedParticipantSeats(client, { eventId, paid: false }),
+    ).resolves.toBe(1);
+  });
+
+  it("does not hold a seat for a withdrawn request", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      requests: { alice: "withdrawn" },
+    });
+
+    await expect(
+      countReservedParticipantSeats(client, { eventId, paid: true }),
+    ).resolves.toBe(0);
+  });
+});
+
+describe("isParticipantSeatAvailable", () => {
+  it("is always true without a capacity limit", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: null,
+      paid: true,
+      roles: { alice: "participant" },
+    });
+
+    await expect(
+      isParticipantSeatAvailable(client, { eventId, userId: "bob" }),
+    ).resolves.toBe(true);
+  });
+
+  it("is false when other users hold every seat", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      requests: { alice: "approved" },
+    });
+
+    await expect(
+      isParticipantSeatAvailable(client, { eventId, userId: "bob" }),
+    ).resolves.toBe(false);
+  });
+
+  it("does not count the user's own reservation against them", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      requests: { bob: "approved" },
+    });
+
+    await expect(
+      isParticipantSeatAvailable(client, { eventId, userId: "bob" }),
+    ).resolves.toBe(true);
+  });
+
+  it("treats a capacity of zero as full", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: 0,
+      paid: true,
+    });
+
+    await expect(
+      isParticipantSeatAvailable(client, { eventId, userId: "bob" }),
+    ).resolves.toBe(false);
+  });
+
+  it("throws when the event cannot be read", async () => {
+    const { client, eventId } = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      failingTables: ["events"],
+    });
+
+    await expect(
+      isParticipantSeatAvailable(client, { eventId, userId: "bob" }),
+    ).rejects.toThrow("Failed to verify event capacity");
+  });
+});
+
+describe("releaseParticipantSeatReservation", () => {
+  it("frees the seat held by an approved user on a paid event", async () => {
+    const store = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      requests: { alice: "approved" },
+    });
+    const { client, eventId } = store;
+
+    await releaseParticipantSeatReservation(client, {
+      eventId,
+      userId: "alice",
+    });
+
+    expect(store.requestStatusOf("alice")).toBe("withdrawn");
+    await expect(
+      isParticipantSeatAvailable(client, { eventId, userId: "bob" }),
+    ).resolves.toBe(true);
+  });
+
+  it("leaves other users' reservations alone", async () => {
+    const store = createSeatStore({
+      participantCapacity: 2,
+      paid: true,
+      requests: { alice: "approved", bob: "approved" },
+    });
+
+    await releaseParticipantSeatReservation(store.client, {
+      eventId: store.eventId,
+      userId: "alice",
+    });
+
+    expect(store.requestStatusOf("bob")).toBe("approved");
+  });
+
+  it.each(["pending", "rejected", "withdrawn"])(
+    "does not touch a %s request",
+    async (status) => {
+      const store = createSeatStore({
+        participantCapacity: 1,
+        paid: true,
+        requests: { alice: status },
+      });
+
+      await releaseParticipantSeatReservation(store.client, {
+        eventId: store.eventId,
+        userId: "alice",
+      });
+
+      expect(store.requestStatusOf("alice")).toBe(status);
+    },
+  );
+
+  it("keeps approvals on free events, where they hold no seat", async () => {
+    const store = createSeatStore({
+      participantCapacity: 1,
+      paid: false,
+      requests: { alice: "approved" },
+    });
+
+    await releaseParticipantSeatReservation(store.client, {
+      eventId: store.eventId,
+      userId: "alice",
+    });
+
+    expect(store.requestStatusOf("alice")).toBe("approved");
+  });
+
+  it.each(["events", "participant_approval_requests"])(
+    "throws when %s cannot be reached",
+    async (table) => {
+      const { client, eventId } = createSeatStore({
+        participantCapacity: 1,
+        paid: true,
+        requests: { alice: "approved" },
+        failingTables: [table],
+      });
+
+      await expect(
+        releaseParticipantSeatReservation(client, { eventId, userId: "alice" }),
+      ).rejects.toThrow("Failed to release seat reservation");
+    },
+  );
+});
+
+describe("joinParticipantEvent after withdrawing", () => {
+  const buildClient = (updateError: unknown = null) => {
+    const single = (data: unknown) => ({
+      overrideTypes: jest.fn().mockResolvedValue({ data, error: null }),
+    });
+    const update = jest.fn();
+    const chain = (terminal: Record<string, unknown>) => {
+      const builder: Record<string, unknown> = { ...terminal };
+      builder.select = jest.fn(() => builder);
+      builder.eq = jest.fn(() => builder);
+      builder.order = jest.fn(() => builder);
+      builder.limit = jest.fn(() => builder);
+      return builder;
+    };
+    const client = {
+      from: jest.fn((table: string) => {
+        if (table === "events") {
+          return chain({
+            maybeSingle: () =>
+              single({
+                event_id: "event-1",
+                event_name: "Paid Event",
+                require_participant_approval: true,
+                participant_capacity: null,
+                paid: true,
+              }),
+          });
+        }
+        if (table === "participant_approval_requests") {
+          return chain({
+            maybeSingle: () => single({ id: "request-1", status: "withdrawn" }),
+            update: (values: unknown) => {
+              update(values);
+              return { eq: jest.fn(async () => ({ error: updateError })) };
+            },
+          });
+        }
+        return chain({ maybeSingle: () => single(null) });
+      }),
+    } as unknown as ServiceSupabaseClient;
+
+    return { client, update };
+  };
+
+  const join = (client: ServiceSupabaseClient) =>
+    joinParticipantEvent(client, {
+      eventId: "event-1",
+      userId: "alice",
+      channel: "web",
+    });
+
+  it("sends the request back for review rather than locking the user out", async () => {
+    const { client, update } = buildClient();
+
+    await expect(join(client)).resolves.toMatchObject({
+      status: "approval_requested",
+      requestId: "request-1",
+      requestStatus: "pending",
+    });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "pending",
+        reviewed_by: null,
+        reviewed_at: null,
+        rejection_reason: null,
+      }),
+    );
+  });
+
+  it("reports a failure when the request cannot be reopened", async () => {
+    const { client } = buildClient({ message: "boom" });
+
+    await expect(join(client)).resolves.toMatchObject({
+      status: "error",
+      httpStatus: 500,
+    });
   });
 });

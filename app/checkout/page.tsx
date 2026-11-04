@@ -48,7 +48,7 @@ function CheckoutContent() {
       <div role="alert" className='text-center mt-2.5'>
         <h1 className="text-2xl font-bold">Checkout unavailable</h1>
         <p className="mt-2">
-          We could not start checkout. The event may be full or this ticket may no longer be available. You have not been charged.
+          We could not start checkout. The event may be full or this ticket may no longer be available. You have not been charged. If you were approved for this event, please contact the organizers.
         </p>
       </div>
     )

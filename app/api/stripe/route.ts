@@ -8,6 +8,7 @@ import {
   STRIPE_REFUNDED_EVENT_TYPES,
   STRIPE_SUCCESSFUL_EVENT_TYPES,
 } from "@/lib/config/constants";
+import { releaseParticipantSeatReservation } from "@/lib/events/participant-access";
 import Stripe from "stripe";
 
 export async function POST(req: Request) {
@@ -178,6 +179,11 @@ async function handleEvent(event: Stripe.Event) {
     if (!userEventPayment) {
       throw new Error("Failed to update user event payment");
     }
+
+    await releaseParticipantSeatReservation(supabase, {
+      eventId: userEventPayment.event_id,
+      userId: userEventPayment.user_id,
+    });
 
     const { data: userEventRoles } = await supabase
       .from("user_event_roles")

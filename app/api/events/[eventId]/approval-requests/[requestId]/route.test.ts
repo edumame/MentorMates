@@ -3,6 +3,8 @@
 import type { NextRequest } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { releaseParticipantSeatReservation } from "@/lib/events/participant-access";
+import { createSeatStore } from "@/lib/events/__fixtures__/seat-store";
 import { PATCH } from "./route";
 
 jest.mock("next/server", () => {
@@ -60,10 +62,14 @@ function query(result: QueryResult, onUpdate?: () => void) {
 
 describe("PATCH approval request capacity", () => {
   const params = Promise.resolve({ eventId: "event-1", requestId: "request-1" });
-  const approve = () =>
+  const approve = (eventId?: string) =>
     PATCH(
       { json: async () => ({ status: "approved" }) } as unknown as NextRequest,
-      { params },
+      {
+        params: eventId
+          ? Promise.resolve({ eventId, requestId: "request-1" })
+          : params,
+      },
     );
 
   const mockEvent = ({
@@ -118,14 +124,20 @@ describe("PATCH approval request capacity", () => {
     });
 
     (createSupabaseServiceClient as jest.Mock).mockReturnValue({
-      from: jest.fn((table: string) =>
-        query({
+      from: jest.fn((table: string) => {
+        if (table === "events") {
+          return query({
+            data: { participant_capacity: capacity, paid },
+            error: null,
+          });
+        }
+        return query({
           data: (table === "user_event_roles" ? roles : approved).map(
-            (user_id) => ({ user_id }),
+            (user_id) => ({ user_id, role: "participant" }),
           ),
           error: null,
-        }),
-      ),
+        });
+      }),
     });
 
     return { onUpdate };
@@ -188,6 +200,32 @@ describe("PATCH approval request capacity", () => {
     const response = await approve();
 
     expect(response.status).toBe(200);
+  });
+
+  it("approves the next user once the approved holder has left", async () => {
+    const { onUpdate } = mockEvent({
+      paid: true,
+      capacity: 1,
+      roles: [],
+      approved: [],
+    });
+    const store = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      requests: { alice: "approved" },
+    });
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue(store.client);
+
+    expect((await approve(store.eventId)).status).toBe(409);
+    expect(onUpdate).not.toHaveBeenCalled();
+
+    await releaseParticipantSeatReservation(store.client, {
+      eventId: store.eventId,
+      userId: "alice",
+    });
+
+    expect((await approve(store.eventId)).status).toBe(200);
+    expect(onUpdate).toHaveBeenCalled();
   });
 
   it("still refuses a free event at capacity", async () => {

@@ -96,21 +96,18 @@ export function EventPageClientWrapper({
         return;
       }
 
-      const userId = session.user.id;
+      // Server route, because leaving also has to free a paid seat reservation
+      const response = await fetch(`/api/events/${eventId}/registration`, {
+        method: "DELETE",
+      });
 
-      const { error: deleteError } = await supabase
-        .from("user_event_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("event_id", eventId);
-
-      if (deleteError) {
+      if (!response.ok) {
         toast({
           title: "Error",
           description: "Failed to cancel registration. Please try again.",
           variant: "destructive",
         });
-        console.error("Error removing user role:", deleteError.message);
+        console.error("Error removing user role:", response.status);
         return;
       }
 

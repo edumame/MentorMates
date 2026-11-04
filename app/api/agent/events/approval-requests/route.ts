@@ -5,6 +5,8 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
+import { EventRole } from "@/lib/types";
 import { z } from "zod";
 
 // GET: List pending/all approval requests
@@ -118,6 +120,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: `Request is already ${approvalReq.status}` },
         { status: 400 }
+      );
+    }
+
+    if (
+      action === "approve" &&
+      approvalReq.requested_role === EventRole.Participant &&
+      !(await isParticipantSeatAvailable(supabase, {
+        eventId: auth.eventId,
+        userId: approvalReq.user_id,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Event is at full capacity. Cannot approve more participants." },
+        { status: 409 }
       );
     }
 

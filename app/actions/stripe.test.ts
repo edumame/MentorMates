@@ -5,6 +5,8 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { stripe } from "@/lib/stripe/stripe";
 import { EventRole } from "@/lib/types";
+import { releaseParticipantSeatReservation } from "@/lib/events/participant-access";
+import { createSeatStore } from "@/lib/events/__fixtures__/seat-store";
 
 jest.mock("next/headers", () => ({
   headers: jest.fn(async () => new Map([["origin", "https://example.test"]])),
@@ -85,7 +87,7 @@ describe("fetchClientSecret capacity check", () => {
           error: eventError,
         },
         user_event_roles: {
-          data: roles.map((user_id) => ({ user_id })),
+          data: roles.map((user_id) => ({ user_id, role: "participant" })),
           error: null,
         },
         participant_approval_requests: {
@@ -145,6 +147,28 @@ describe("fetchClientSecret capacity check", () => {
 
     await expect(fetchClientSecret(checkoutOptions)).resolves.toBe("secret_1");
     expect(createSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("sells the seat again once the approved holder has left", async () => {
+    const store = createSeatStore({
+      participantCapacity: 1,
+      paid: true,
+      requests: { alice: "approved" },
+    });
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue(store.client);
+
+    await expect(
+      fetchClientSecret({ ...checkoutOptions, eventId: store.eventId }),
+    ).rejects.toThrow("Event is full. No seats available.");
+
+    await releaseParticipantSeatReservation(store.client, {
+      eventId: store.eventId,
+      userId: "alice",
+    });
+
+    await expect(
+      fetchClientSecret({ ...checkoutOptions, eventId: store.eventId }),
+    ).resolves.toBe("secret_1");
   });
 
   it("allows checkout when the event has no capacity limit", async () => {

@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { countReservedParticipantSeats } from "@/lib/events/participant-access";
+import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
 import { EventRole } from "@/lib/types";
 
 interface CheckoutOptions {
@@ -18,29 +18,12 @@ interface CheckoutOptions {
 // The last check before money is taken: nothing refunds a charge automatically
 // if the post-payment join then finds the event full.
 async function assertParticipantSeatAvailable(eventId: string, userId: string) {
-  const serviceSupabase = createSupabaseServiceClient();
+  const seatAvailable = await isParticipantSeatAvailable(
+    createSupabaseServiceClient(),
+    { eventId, userId },
+  );
 
-  const { data: event, error } = await serviceSupabase
-    .from("events")
-    .select("participant_capacity, paid")
-    .eq("event_id", eventId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error("Failed to verify event capacity");
-  }
-
-  if (event?.participant_capacity == null) {
-    return;
-  }
-
-  const reservedSeats = await countReservedParticipantSeats(serviceSupabase, {
-    eventId,
-    paid: Boolean(event.paid),
-    excludeUserId: userId,
-  });
-
-  if (reservedSeats >= event.participant_capacity) {
+  if (!seatAvailable) {
     throw new Error("Event is full. No seats available.");
   }
 }
