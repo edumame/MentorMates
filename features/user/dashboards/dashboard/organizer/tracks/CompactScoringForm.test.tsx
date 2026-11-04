@@ -186,6 +186,7 @@ describe("CompactScoringForm", () => {
         onSave={onSave}
         isArchived={false}
         eventId="event-1"
+        onTrackDeleted={jest.fn()}
       />
     );
 
@@ -239,6 +240,7 @@ describe("CompactScoringForm", () => {
         onSave={jest.fn()}
         isArchived={false}
         eventId="event-1"
+        onTrackDeleted={jest.fn()}
       />
     );
 
