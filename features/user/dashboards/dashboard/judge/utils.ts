@@ -16,6 +16,42 @@ export function isProjectFullyScored(
   return project.track_ids.every((trackId) => scoredTrackIds.has(trackId));
 }
 
+export type ScoreValuesByProject = Map<
+  string,
+  Map<string, Record<string, number>>
+>;
+
+export function setTrackScores(
+  scoreValues: ScoreValuesByProject,
+  projectId: string,
+  trackId: string,
+  scores: Record<string, number>
+): ScoreValuesByProject {
+  const updated = new Map(scoreValues);
+  const projectScores = new Map(updated.get(projectId) ?? []);
+  projectScores.set(trackId, scores);
+  updated.set(projectId, projectScores);
+  return updated;
+}
+
+export function removeTrackScores(
+  scoreValues: ScoreValuesByProject,
+  projectId: string,
+  trackId: string
+): ScoreValuesByProject {
+  const updated = new Map(scoreValues);
+  const projectScores = new Map(updated.get(projectId) ?? []);
+  projectScores.delete(trackId);
+
+  if (projectScores.size === 0) {
+    updated.delete(projectId);
+  } else {
+    updated.set(projectId, projectScores);
+  }
+
+  return updated;
+}
+
 export function getNextProjectId(
   projects: Array<{ id: string }>,
   currentProjectId: string | null,
