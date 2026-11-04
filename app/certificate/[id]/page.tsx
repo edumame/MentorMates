@@ -12,6 +12,7 @@ import { Prize, Project } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { buildShareCaption } from "@/features/projects/components/displays/ProjectShareSection";
+import { fetchProjectPublicFirst } from "@/features/projects/utils/projects";
 
 interface CertificateEvent {
   event_name: string;
@@ -36,22 +37,7 @@ export default function CertificatePage() {
     const load = async () => {
       setIsLoading(true);
       try {
-        // Public endpoint first so certificates work logged-out; fall back to
-        // the authenticated endpoint for private-event team members/organizers.
-        let p: Project | null = null;
-        for (const url of [
-          `/api/projects?public=true&projectId=${projectId}`,
-          `/api/projects?projectId=${projectId}`,
-        ]) {
-          const response = await fetch(url);
-          const payload = (await response.json().catch(() => ({}))) as {
-            project?: Project;
-          };
-          if (response.ok && payload.project) {
-            p = payload.project;
-            break;
-          }
-        }
+        const p = await fetchProjectPublicFirst(projectId);
         setProject(p);
 
         if (p?.event_id) {

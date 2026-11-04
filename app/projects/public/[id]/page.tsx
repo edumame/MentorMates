@@ -48,6 +48,7 @@ import {
   ProjectCoverHero,
 } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { ProjectShareSection } from "@/features/projects/components/displays/ProjectShareSection";
+import { fetchProjectPublicFirst } from "@/features/projects/utils/projects";
 
 interface EventDetails {
   event_id: string;
@@ -108,20 +109,11 @@ export default function PublicProjectPage() {
       setIsLoading(true);
       setFetchComplete(false);
 
-      const response = await fetch(`/api/projects?projectId=${projectId}`);
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        project?: Project;
-      };
-
-      if (!response.ok || !payload.project) {
-        setProject(null);
-      } else {
-        // Do not need to check event visibility here; "public" does not mean public to the world, it means public to the event
-        // Event access check is controlled via RLS; if the event is public, the project is public
-
-        setProject(payload.project);
-      }
+      // Differs from app/projects/[id]/page.tsx on purpose: this route must also
+      // work logged-out, so it tries the public endpoint first.
+      // Do not need to check event visibility here; "public" does not mean public to the world, it means public to the event
+      // Event access check is controlled via RLS; if the event is public, the project is public
+      setProject(await fetchProjectPublicFirst(projectId));
 
       setIsLoading(false);
       setFetchComplete(true);

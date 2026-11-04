@@ -4,6 +4,32 @@ import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
 
 // TODO: This file is a mess and needs to be refactored to backend api logic.
+
+/**
+ * Loads a project for pages that must work logged-out. Tries the public endpoint
+ * first, then the authenticated one for viewers the public endpoint cannot serve
+ * (judges, organizers and team members of non-public events, unsubmitted projects).
+ * @returns The project, or null if neither endpoint returns it
+ */
+export async function fetchProjectPublicFirst(
+  projectId: string
+): Promise<Project | null> {
+  for (const url of [
+    `/api/projects?public=true&projectId=${projectId}`,
+    `/api/projects?projectId=${projectId}`,
+  ]) {
+    const response = await fetch(url);
+    const payload = (await response.json().catch(() => ({}))) as {
+      project?: Project;
+    };
+    if (response.ok && payload.project) {
+      return payload.project;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Fetches a project by its ID
  * @param projectId The ID of the project to fetch
