@@ -155,10 +155,9 @@ export function buildSubmissionFormValues(
   );
 }
 
-export function findMissingRequiredSubmissionField(
-  fields: EffectiveSubmissionField[],
-  values: Record<string, SubmissionValue>
-): EffectiveSubmissionField | undefined {
+export function findMissingRequiredSubmissionField<
+  T extends Pick<EffectiveSubmissionField, "key" | "field_type" | "required">,
+>(fields: T[], values: Record<string, SubmissionValue>): T | undefined {
   return fields.find((field) => {
     if (!field.required) return false;
     const value = normalizeSubmissionValue(field, values[field.key]);
@@ -199,7 +198,7 @@ export function hasSubmissionFieldMismatch(
 
 export function buildSubmissionValuesFromProject(
   project: Partial<Project>,
-  fields: EffectiveSubmissionField[]
+  fields: Array<Pick<EffectiveSubmissionField, "id" | "key" | "field_type">>
 ): Record<string, SubmissionValue> {
   const answerMap = buildSubmissionAnswerMapByFieldId(project.submission_answers);
   const values: Record<string, SubmissionValue> = {};

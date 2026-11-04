@@ -530,4 +530,265 @@ describe("saveProjectSubmission", () => {
     });
     expect(projectsTable.update).not.toHaveBeenCalled();
   });
+
+  describe("submitting without a submission answers payload", () => {
+    const requiredFieldId = "55555555-5555-4555-8555-555555555555";
+    const projectUrlFieldId = "66666666-6666-4666-8666-666666666666";
+    const otherEventId = "77777777-7777-4777-8777-777777777777";
+    const requiredField = {
+      id: requiredFieldId,
+      event_id: eventId,
+      key: "team_story",
+      label: "Team story",
+      field_type: "short_text",
+      required: true,
+      is_active: true,
+    };
+    const requiredProjectUrlField = {
+      id: projectUrlFieldId,
+      event_id: eventId,
+      key: "project_url",
+      label: "Project URL",
+      field_type: "url",
+      required: true,
+      is_active: true,
+    };
+
+    function buildSupabase({
+      fields = [requiredField],
+      existingProject = {},
+    }: {
+      fields?: Array<Record<string, unknown>>;
+      existingProject?: Record<string, unknown>;
+    } = {}) {
+      const resolving = (data: unknown) => ({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({ data, error: null }),
+      });
+      const row = {
+        id: projectId,
+        event_id: eventId,
+        contextus_project_id: "ctx-1",
+        project_name: "Saved name",
+        project_description: "Saved description",
+        project_url: null,
+        video_url: null,
+        additional_materials_url: null,
+        cover_image_url: null,
+        ...existingProject,
+      };
+      const projectsTable = {
+        select: jest.fn(() => resolving(row)),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        }),
+        insert: jest.fn(() => ({
+          select: jest.fn(() => resolving({ id: projectId })),
+        })),
+      };
+      const answersTable = {
+        delete: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        }),
+        insert: jest.fn().mockResolvedValue({ error: null }),
+      };
+      const tables: Record<string, unknown> = {
+        events: resolving({
+          event_id: eventId,
+          event_name: "Demo Day",
+          submission_time_start: null,
+          submission_time_cutoff: null,
+        }),
+        event_submission_fields: resolving(fields),
+        projects: projectsTable,
+        project_submission_answers: answersTable,
+      };
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (!(table in tables)) throw new Error(`Unexpected table ${table}`);
+          return tables[table];
+        }),
+      };
+
+      return { supabase, projectsTable, answersTable };
+    }
+
+    function mockPersistedAnswers(
+      answers: Array<{ event_submission_field_id: string; answer: unknown }>,
+    ) {
+      (fetchSubmissionAnswersByProjectIds as jest.Mock).mockResolvedValue(
+        new Map([[projectId, answers]]),
+      );
+    }
+
+    it("rejects submission when a required field has no saved answer", async () => {
+      const { supabase, projectsTable, answersTable } = buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true },
+      });
+
+      expect(result).toMatchObject({
+        status: 400,
+        code: "required_field_missing",
+        error: '"Team story" is required',
+      });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+      expect(answersTable.delete).not.toHaveBeenCalled();
+    });
+
+    it("submits using saved answers and leaves them and the legacy columns alone", async () => {
+      const { supabase, projectsTable, answersTable } = buildSupabase();
+      mockPersistedAnswers([
+        { event_submission_field_id: requiredFieldId, answer: "We met here" },
+      ]);
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(answersTable.delete).not.toHaveBeenCalled();
+      expect(answersTable.insert).not.toHaveBeenCalled();
+
+      const update = projectsTable.update.mock.calls[0][0];
+      expect(update).toMatchObject({ submitted: true });
+      for (const column of [
+        "project_url",
+        "video_url",
+        "cover_image_url",
+        "additional_materials_url",
+      ]) {
+        expect(update).not.toHaveProperty(column);
+      }
+    });
+
+    it("accepts a required built-in field saved only in its legacy column, as the form does", async () => {
+      const { supabase, projectsTable } = buildSupabase({
+        fields: [requiredProjectUrlField],
+        existingProject: { project_url: "https://example.com/demo" },
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update.mock.calls[0][0]).not.toHaveProperty(
+        "project_url",
+      );
+    });
+
+    it("does not touch answers on an update that omits them and is not a submit", async () => {
+      const { supabase, projectsTable, answersTable } = buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { isPrivate: true },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(answersTable.delete).not.toHaveBeenCalled();
+      expect(projectsTable.update.mock.calls[0][0]).toEqual({ private: true });
+    });
+
+    it("lets a draft save with a required field blank", async () => {
+      const { supabase, answersTable } = buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submissionAnswers: [] },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(answersTable.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it("checks the request's answers, not saved ones, when the request carries answers", async () => {
+      const { supabase, projectsTable, answersTable } = buildSupabase();
+      mockPersistedAnswers([
+        { event_submission_field_id: requiredFieldId, answer: "Stale answer" },
+      ]);
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true, submissionAnswers: [] },
+      });
+
+      expect(result).toMatchObject({
+        status: 400,
+        code: "required_field_missing",
+      });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+      expect(answersTable.delete).not.toHaveBeenCalled();
+    });
+
+    it("still clears answers from the previous event when the project moves event", async () => {
+      const { supabase, projectsTable, answersTable } = buildSupabase({
+        existingProject: { event_id: otherEventId },
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(answersTable.delete).toHaveBeenCalledTimes(1);
+      expect(projectsTable.update.mock.calls[0][0]).toMatchObject({
+        event_id: eventId,
+        project_url: null,
+      });
+    });
+
+    it("rejects a created project that defaults to submitted without required answers", async () => {
+      const { supabase, projectsTable } = buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "create",
+        defaultSubmitted: true,
+        input: {
+          eventId,
+          projectName: "New",
+          projectDescription: "New project",
+        },
+      });
+
+      expect(result).toMatchObject({
+        status: 400,
+        code: "required_field_missing",
+      });
+      expect(projectsTable.insert).not.toHaveBeenCalled();
+    });
+
+    it("creates a draft without required answers", async () => {
+      const { supabase, projectsTable } = buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "create",
+        input: {
+          eventId,
+          projectName: "New",
+          projectDescription: "New project",
+          submitted: false,
+        },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.insert).toHaveBeenCalledTimes(1);
+    });
+  });
 });
