@@ -14,6 +14,12 @@ Do not run an undifferentiated `supabase db push` that applies both migrations b
 
 The restrictive protection is not active until the restrictive migration in step 4 is actually installed. If a target cannot be inspected or these stages cannot be separated, keep deployment pending. No application fallback should restore broad full-row reads. Roll back application changes only to a version compatible with the additive projection; do not restore public SELECT as a rollback shortcut.
 
+## Interim read policy
+
+[202611030002_restrict_meeting_agent_reads.sql](../../supabase/migrations/202611030002_restrict_meeting_agent_reads.sql) closes anonymous meeting reads before this rollout, using the policy `Owners, teammates and event staff can read meetings`. That policy allows full-row teammate and judge reads, so it must not remain once this boundary is active. Step 4 drops it. [202611030003_remove_interim_meeting_read_policy.sql](../../supabase/migrations/202611030003_remove_interim_meeting_read_policy.sql) drops it for databases migrated in filename order, where the interim migration runs after step 4, and does nothing if `meetings_read_authorized` doesn't exist yet.
+
+Judges lose full-row meeting reads under this boundary unless they are also event organizers. Confirm the agent scores on the organizer scores page before activating it.
+
 ## Real database tests
 
 From the repository root, with Docker and Python 3 installed:

@@ -12,7 +12,8 @@ BEGIN
  WHERE schemaname='public' AND tablename='meetings' AND policyname NOT IN (
    'Enable delete for users based on user_id','Enable insert for authenticated users only',
    'Enable insert for users based on user_id','Enable read access for all users',
-   'Users can update own meetings','meetings_read_authorized','meetings_insert_owner',
+   'Users can update own meetings','Owners, teammates and event staff can read meetings',
+   'meetings_read_authorized','meetings_insert_owner',
    'meetings_update_owner','meetings_delete_owner');
  IF unexpected IS NOT NULL THEN RAISE EXCEPTION 'Unexpected meetings policies: %',unexpected; END IF;
 END $$;
@@ -22,6 +23,7 @@ DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public.mee
 DROP POLICY IF EXISTS "Enable insert for users based on user_id" ON public.meetings;
 DROP POLICY IF EXISTS "Users can update own meetings" ON public.meetings;
 DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON public.meetings;
+DROP POLICY IF EXISTS "Owners, teammates and event staff can read meetings" ON public.meetings;
 DROP POLICY IF EXISTS meetings_read_authorized ON public.meetings;
 DROP POLICY IF EXISTS meetings_insert_owner ON public.meetings;
 DROP POLICY IF EXISTS meetings_update_owner ON public.meetings;

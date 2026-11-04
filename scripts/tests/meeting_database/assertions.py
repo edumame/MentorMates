@@ -171,6 +171,31 @@ def run_assertions(container: str, repo: pathlib.Path):
       END IF;
     END $$;""")
     sql('DROP POLICY unexpected_test_policy ON public.meetings;')
+    # The interim read policy must not outlive this boundary, in either migration order.
+    interim = '"Owners, teammates and event staff can read meetings"'
+    add_interim = f'CREATE POLICY {interim} ON public.meetings FOR SELECT TO authenticated USING (true);'
+    cleanup = (repo/'supabase/migrations/202611030003_remove_interim_meeting_read_policy.sql').read_text()
+    def assert_interim(present):
+        operator = '' if present else 'NOT'
+        sql(f"""DO $$ BEGIN
+          IF {operator} EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='meetings'
+             AND policyname='Owners, teammates and event staff can read meetings') THEN NULL;
+          ELSE RAISE EXCEPTION 'interim policy state was not {"kept" if present else "removed"}'; END IF;
+        END $$;""")
+    sql(add_interim)
+    sql((repo/'supabase/migrations/202610200003_restrict_meetings.sql').read_text())
+    assert_interim(False)
+    sql(add_interim)
+    sql(cleanup)
+    assert_interim(False)
+    sql(cleanup) # repeat-safe
+    # Without the stricter policy, cleanup must not remove the only read policy.
+    sql(add_interim)
+    sql('DROP POLICY meetings_read_authorized ON public.meetings;')
+    sql(cleanup)
+    assert_interim(True)
+    sql((repo/'supabase/migrations/202610200003_restrict_meetings.sql').read_text())
+    assert_interim(False)
     # Denied DELETE and UPDATE are row-filtering, not necessarily SQL errors.
     as_user(7,f"DO $$ BEGIN DELETE FROM public.meetings WHERE id={meeting}; IF FOUND THEN RAISE EXCEPTION 'outsider deleted meeting'; END IF; END $$;")
     as_user(3,f"DO $$ BEGIN UPDATE public.meetings SET name='event owner edit' WHERE id={meeting}; IF FOUND THEN RAISE EXCEPTION 'event owner should not edit another owner metadata'; END IF; END $$;")
