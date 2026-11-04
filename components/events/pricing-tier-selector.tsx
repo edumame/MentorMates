@@ -122,7 +122,7 @@ export function PricingTierSelector({
 
       <Button
         variant="default"
-        onClick={onContinue}
+        onClick={() => onContinue()}
         disabled={!selectedTierId || isLoading}
         className="w-full rounded-full"
       >
