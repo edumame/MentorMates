@@ -7,6 +7,7 @@ import type {
   MentorAvailability,
   MentorAvailabilityWithBookings,
   MentorProfileLite,
+  UserProfileLite,
 } from "@/lib/types/mentor-booking";
 import { BookingStatus } from "@/lib/types/mentor-booking";
 
@@ -109,10 +110,25 @@ export async function GET(
           }),
     ]);
 
-    const participantIds = bookingRes.data?.map((b) => b.participant_id) ?? [];
+    // The service client bypasses RLS, so apply the "View mentor bookings" rule
+    // here: bookers are visible only to the slot's mentor and event staff.
+    const canSeeAllBookers =
+      role === EventRole.Organizer || role === EventRole.Admin;
+    const visibleSlotIds = new Set(
+      availability
+        .filter((s) => canSeeAllBookers || s.mentor_id === user.id)
+        .map((s) => s.id)
+    );
+    const visibleBookings = (bookingRes.data ?? []).filter((b) =>
+      visibleSlotIds.has(b.availability_id)
+    );
+
+    const participantIds = Array.from(
+      new Set(visibleBookings.map((b) => b.participant_id))
+    );
     const { data: participantData, error: participantError } = await service
       .from("user_profiles")
-      .select("display_name, email")
+      .select("uid, display_name, email")
       .in("uid", participantIds);
 
     if (participantError) {
@@ -143,12 +159,27 @@ export async function GET(
       mentorById.set(m.uid, m);
     }
 
+    const participantById = new Map<string, UserProfileLite>();
+    for (const { uid, display_name, email } of participantData ?? []) {
+      participantById.set(uid, { display_name, email });
+    }
+
+    const participantsBySlot = new Map<string, UserProfileLite[]>();
+    for (const b of visibleBookings) {
+      const participant = participantById.get(b.participant_id);
+      if (!participant) continue;
+      participantsBySlot.set(b.availability_id, [
+        ...(participantsBySlot.get(b.availability_id) ?? []),
+        participant,
+      ]);
+    }
+
     const result: MentorAvailabilityWithBookings[] = availability.map((s) => ({
       ...s,
       booking_count: countsBySlot.get(s.id) ?? 0,
       viewer_booking_id: viewerBookingBySlot.get(s.id) ?? null,
       mentor: mentorById.get(s.mentor_id) ?? null,
-      participants: participantData ?? [],
+      participants: participantsBySlot.get(s.id) ?? [],
     }));
 
     return NextResponse.json({ availability: result });
