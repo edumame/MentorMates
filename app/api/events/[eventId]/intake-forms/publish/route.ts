@@ -6,6 +6,7 @@ import {
   type IntakeFormContext,
   type IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { getBlankOptionError } from "@/features/intake-forms/fieldOptions";
 import {
   getAuthContext,
   getOrCreateTemplateId,
@@ -63,6 +64,14 @@ export async function POST(
       .order("version_number", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // With no schema in the request, the stored version is what goes live.
+    const blankOptionError = getBlankOptionError(
+      schema ?? latestVersion?.schema_json
+    );
+    if (blankOptionError) {
+      return NextResponse.json({ error: blankOptionError }, { status: 400 });
+    }
 
     let targetVersionId: string;
 

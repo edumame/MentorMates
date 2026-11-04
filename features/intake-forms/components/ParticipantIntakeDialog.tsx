@@ -37,6 +37,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+import {
+  getSelectableOptions,
+  isSelectFieldWithoutOptions,
+} from "@/features/intake-forms/fieldOptions";
 import type {
   IntakeFormAnswers,
   IntakeFormField,
@@ -98,6 +102,9 @@ function renderWithLinks(text: string) {
 
 function validateRequired(field: IntakeFormField, value: unknown): boolean {
   if (!field.required) return true;
+
+  // Nothing can be picked, so requiring an answer would trap the participant.
+  if (isSelectFieldWithoutOptions(field)) return true;
 
   if (field.type === "checkbox") {
     return value === true;
@@ -195,7 +202,7 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
           <div className="space-y-5 py-2">
             {visibleFields.map((field) => {
               const value = answers[field.key];
-              const options = field.options ?? [];
+              const options = getSelectableOptions(field);
               const hasError = submitAttempted && invalidFieldKeys.has(field.key);
 
               return (
