@@ -346,7 +346,6 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async () => {
     // Clear previous validation errors
-    setIsSaving(true);
     setValidationErrors({});
 
     // Prepare data for validation
@@ -380,6 +379,7 @@ export default function ProfilePage() {
       return;
     }
 
+    setIsSaving(true);
     try {
       // Use the PATCH API endpoint for profile updates
       const response = await fetch(`/api/users/${userId}`, {
