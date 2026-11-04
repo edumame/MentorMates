@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:unit": "jest",
+    "test:model-api:db": "node scripts/test-model-api-db.mjs",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "test:e2e:mobile": "playwright test --project=\"Mobile Chrome\"",
@@ -108,6 +109,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.9.1",

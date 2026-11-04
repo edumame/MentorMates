@@ -3,10 +3,10 @@ import { createHash, randomBytes } from "crypto";
 /**
  * Generate a new API key. Returns the raw key (show once) and hash (store in DB).
  */
-export function generateApiKey(): { raw: string; hash: string; prefix: string } {
-  const raw = `mm_sk_${randomBytes(32).toString("hex")}`;
+export function generateApiKey(keyPrefix = "mm_sk_"): { raw: string; hash: string; prefix: string } {
+  const raw = `${keyPrefix}${randomBytes(32).toString("hex")}`;
   const hash = hashApiKey(raw);
-  const prefix = raw.slice(0, 14); // "mm_sk_" + 8 chars
+  const prefix = raw.slice(0, keyPrefix.length + 8);
   return { raw, hash, prefix };
 }
 

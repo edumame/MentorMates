@@ -147,6 +147,7 @@ const data = [
   { name: "Projects", href: "/projects", icon: ProjectIcon },
   { name: "Feedback", href: "/feedback", icon: FeedbackIcon },
   { name: "API", href: "/keys", icon: AgentsIcon },
+  { name: "Model API", href: "/developers", icon: AgentsIcon },
 ];
 
 const bottomLinksBase = [
