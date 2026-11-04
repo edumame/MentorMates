@@ -83,6 +83,11 @@ jest.mock("@/components/utils/UserSearchWithInvite", () => ({
       >
         remove pat
       </button>
+      <button
+        onClick={() => onTagsChange([], { added: [], removed: ["sam@x.com"] })}
+      >
+        remove sam
+      </button>
     </>
   ),
 }));
@@ -114,6 +119,33 @@ async function renderWithDraft() {
     expect(bodiesFor("/api/projects", "POST")).toHaveLength(1),
   );
 }
+
+async function click(name: string) {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name }));
+  });
+}
+
+async function editDescription(value: string) {
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("description"), {
+      target: { value },
+    });
+  });
+}
+
+const patches = () => bodiesFor("/api/projects/p1", "PATCH");
+
+async function waitForPatch(matches: (body: Record<string, unknown>) => boolean) {
+  await waitFor(() => expect(patches().some(matches)).toBe(true), {
+    timeout: 3000,
+  });
+}
+
+const removes =
+  (email: string) =>
+  (body: Record<string, unknown>) =>
+    (body.removeTeammates as string[]).includes(email);
 
 async function publish() {
   await act(async () => {
@@ -161,23 +193,112 @@ describe("NewProjectSubmissionFormSinglePage team writes", () => {
     expect(submitted.addTeammates).toEqual(["pat@x.com"]);
   });
 
-  it("sends a teammate the lead removed, so the removal still reaches the server", async () => {
-    await renderWithDraft();
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "add pat" }));
+  describe("removals", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "add sam" }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "remove pat" }));
+    afterEach(() => {
+      jest.useRealTimers();
     });
 
-    await publish();
+    it("sends a teammate the lead removed in the save that follows", async () => {
+      await renderWithDraft();
+      await click("add pat");
+      await click("add sam");
+      await click("remove pat");
 
-    const [submitted] = bodiesFor("/api/projects/submit", "POST");
-    expect(submitted.addTeammates).toEqual(["sam@x.com"]);
-    expect(submitted.removeTeammates).toEqual(["pat@x.com"]);
+      await waitForPatch(removes("pat@x.com"));
+
+      const saved = patches().find(removes("pat@x.com"));
+      expect(saved.addTeammates).toEqual(["sam@x.com"]);
+      expect(saved.removeTeammates).toEqual(["pat@x.com"]);
+    });
+
+    it("applies a removal once, so it cannot delete someone who joins later", async () => {
+      await renderWithDraft();
+      await click("add pat");
+      await click("remove pat");
+      await waitForPatch(removes("pat@x.com"));
+      const savesWithRemoval = patches().filter(removes("pat@x.com")).length;
+
+      await editDescription("Edited after the removal was saved");
+      await waitForPatch(
+        (body) => body.project_description === "Edited after the removal was saved",
+      );
+      await editDescription("Edited again before publishing");
+      await publish();
+
+      expect(patches().filter(removes("pat@x.com"))).toHaveLength(savesWithRemoval);
+      expect(savesWithRemoval).toBe(1);
+      const [submitted] = bodiesFor("/api/projects/submit", "POST");
+      expect(submitted).not.toHaveProperty("removeTeammates");
+    });
+
+    it("saves a removal before publishing and does not repeat it in the submit", async () => {
+      await renderWithDraft();
+      await click("add pat");
+      await click("remove pat");
+
+      await publish();
+
+      expect(patches().filter(removes("pat@x.com"))).toHaveLength(1);
+      const [submitted] = bodiesFor("/api/projects/submit", "POST");
+      expect(submitted).not.toHaveProperty("removeTeammates");
+    });
+
+    it("keeps a removal made while an earlier save was in flight", async () => {
+      await renderWithDraft();
+      await click("add pat");
+      await click("add sam");
+
+      const mockFetch = fetch as jest.Mock;
+      const respond = mockFetch.getMockImplementation()!;
+      let finishSave!: () => void;
+      mockFetch.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === "/api/projects/p1" && removes("pat@x.com")(JSON.parse(String(init?.body)))) {
+          await new Promise<void>((resolve) => {
+            finishSave = resolve;
+          });
+        }
+        return respond(url, init);
+      });
+
+      await click("remove pat");
+      await waitForPatch(removes("pat@x.com"));
+      await click("remove sam");
+      await act(async () => {
+        finishSave();
+      });
+
+      await waitForPatch(removes("sam@x.com"));
+      const saved = patches().find(removes("sam@x.com"));
+      expect(saved.removeTeammates).toEqual(["sam@x.com"]);
+    });
+
+    it("keeps a removal until a save carrying it succeeds", async () => {
+      await renderWithDraft();
+      await click("add pat");
+
+      const mockFetch = fetch as jest.Mock;
+      const respond = mockFetch.getMockImplementation()!;
+      mockFetch.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === "/api/projects/p1" && removes("pat@x.com")(JSON.parse(String(init?.body)))) {
+          mockFetch.mockImplementation(respond);
+          return { ok: false, status: 500, json: async () => ({ error: "Failed" }) };
+        }
+        return respond(url, init);
+      });
+
+      await click("remove pat");
+      await waitForPatch(removes("pat@x.com"));
+      await editDescription("Edited after the failed save");
+
+      await waitForPatch(
+        (body) =>
+          body.project_description === "Edited after the failed save" &&
+          removes("pat@x.com")(body),
+      );
+    });
   });
 
   it("stops removing a teammate the lead adds back", async () => {
@@ -196,6 +317,6 @@ describe("NewProjectSubmissionFormSinglePage team writes", () => {
 
     const [submitted] = bodiesFor("/api/projects/submit", "POST");
     expect(submitted.addTeammates).toEqual(["pat@x.com"]);
-    expect(submitted.removeTeammates).toEqual([]);
+    expect(patches().at(-1).removeTeammates).toEqual([]);
   });
 });

@@ -68,7 +68,6 @@ type PublishPayload = {
   leadEmail: string;
   projectDescription: string;
   addTeammates: string[];
-  removeTeammates: string[];
   projectUrl: string;
   coverImageUrl: string;
   additionalMaterialsUrl: string;
@@ -535,6 +534,15 @@ export function NewProjectSubmissionFormSinglePage({
       removeTeammates: removedTeammates,
       private: isPrivate,
     },
+    // A removal applies once. Sent again, it would delete someone who joined
+    // by invite after it was saved. The hook calls the onSaved from the render
+    // that built the saved payload, so `removedTeammates` here is what that
+    // request carried, and a removal made while it was in flight is kept.
+    onSaved: () => {
+      setRemovedTeammates((pending) =>
+        pending.filter((email) => !removedTeammates.includes(email))
+      );
+    },
   });
 
   const handleCoverImageUpload = async (
@@ -715,8 +723,9 @@ export function NewProjectSubmissionFormSinglePage({
         leadName: formData.leadName,
         leadEmail: formData.leadEmail,
         projectDescription: formData.projectDescription,
+        // No removeTeammates: flushSave above already saved them, and adds are
+        // safe to repeat but removals are not.
         addTeammates: validTeammates,
-        removeTeammates: removedTeammates,
         projectUrl: formData.projectUrl,
         coverImageUrl: formData.coverImageUrl,
         additionalMaterialsUrl: formData.additionalMaterialsUrl,
