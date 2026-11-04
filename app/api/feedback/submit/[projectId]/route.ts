@@ -6,12 +6,22 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null as unknown as OpenAI;
 
+function optionalText(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function optionalTextArray(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : null;
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
 
-  const body = await request.json();
+  const body: unknown = await request.json().catch(() => null);
   const { projectId } = await params;
 
 
@@ -22,22 +32,32 @@ export async function POST(
     );
   }
 
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
+  }
+
+  const input = body as Record<string, unknown>;
+  const feedbackText = input.feedback_text;
+
+  if (typeof feedbackText !== "string" || !feedbackText.trim()) {
+    return NextResponse.json(
+      { error: "Feedback text is required" },
+      { status: 400 }
+    );
+  }
+
   const supabase = await createSupabaseClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Allow anonymous feedback submission, but attach user info if available
-  if (user) {
-    body.mentor_id = user.id;
-    body.mentor_name = user.user_metadata?.full_name || null;
-    body.mentor_email = user.email || null;
-  }
-
-  const { error: projectError } = await supabase
+  const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id")
+    .select("id, event_id")
     .eq("id", projectId)
     .single();
 
@@ -54,7 +74,7 @@ export async function POST(
     try {
       const moderation = await openai.moderations.create({
         model: "omni-moderation-latest",
-        input: body.feedback_text,
+        input: feedbackText,
       });
 
       if (moderation.results[0].flagged) {
@@ -72,12 +92,24 @@ export async function POST(
     }
   }
 
-  // Ensure event_id is null if empty string (not all projects are tied to events)
-  if (body.event_id === "" || body.event_id === undefined) {
-    body.event_id = null;
-  }
-
-  const { error } = await supabase.from("feedback").insert([body]);
+  // Allow anonymous feedback submission. The sender comes only from the
+  // session and the project only from the URL; the body is never trusted for
+  // either, so only the feedback content below is read from it.
+  const { error } = await supabase.from("feedback").insert([
+    {
+      project_id: projectId,
+      event_id: project.event_id,
+      mentor_id: user?.id ?? null,
+      mentor_name: user?.user_metadata?.full_name || null,
+      mentor_email: user?.email || null,
+      feedback_text: feedbackText,
+      original_feedback_text: optionalText(input.original_feedback_text),
+      modifier_field: optionalTextArray(input.modifier_field),
+      specific_ai_suggestion: optionalText(input.specific_ai_suggestion),
+      positive_ai_suggestion: optionalText(input.positive_ai_suggestion),
+      actionable_ai_suggestion: optionalText(input.actionable_ai_suggestion),
+    },
+  ]);
 
   if (error) {
     console.error("Feedback submission error:", error);
