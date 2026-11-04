@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { EVENT_LISTING_COLUMNS } from "@/lib/events/listing-columns";
 import { randomUUID } from "crypto";
 import { Resend } from "resend";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
@@ -70,7 +71,7 @@ export async function GET() {
       .map((role) => role.event_id);
 
     // Build query for events based on visibility and user role
-    let query = supabase.from("events").select("*");
+    let query = supabase.from("events").select(EVENT_LISTING_COLUMNS);
 
     if (isAdmin) {
       // Admins can see all events (public, private, draft, demo, test)
