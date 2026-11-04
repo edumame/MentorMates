@@ -20,7 +20,6 @@ import type {
   WizardPrize,
   WizardStepProps,
 } from "@/lib/types/wizard";
-import { slugify } from "@/lib/types/wizard";
 
 // ── Default criteria for new tracks ─────────────────────────────────────
 
@@ -96,17 +95,10 @@ export function TrackEditor({ event, setEvent }: WizardStepProps) {
   };
 
   const updateTrack = (clientId: string, changes: Partial<WizardTrack>) => {
+    // client_id must stay stable: it is the React key and the expanded-track
+    // id, so changing it while typing remounts the card and drops focus.
     update(
-      tracks.map((t) => {
-        if (t.client_id !== clientId) return t;
-        const updated = { ...t, ...changes };
-        // Auto-update client_id when name changes
-        if (changes.name !== undefined) {
-          const idx = tracks.findIndex((tr) => tr.client_id === clientId);
-          updated.client_id = `track-${idx}-${slugify(changes.name || "track")}`;
-        }
-        return updated;
-      })
+      tracks.map((t) => (t.client_id === clientId ? { ...t, ...changes } : t))
     );
   };
 
