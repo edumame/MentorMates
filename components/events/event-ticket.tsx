@@ -84,6 +84,39 @@ export function EventTicket({ eventId }: EventTicketProps) {
     fetchUserAndTickets();
   }, [fetchMyTickets, toast]);
 
+  const sendInvitationEmail = async (ticketId: string, recipient: string) => {
+    // Get event and user info for email
+    const { data: eventData } = await supabase
+      .from("events")
+      .select("event_name")
+      .eq("event_id", eventId)
+      .single();
+
+    const email = getClaimTicketEmailTemplate(
+      eventData?.event_name || "Event",
+      ticketId,
+      user?.user_metadata?.display_name || user?.email || "Someone"
+    );
+
+    // Send claim ticket email
+    const response = await fetch("/api/email_notification", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: recipient,
+        from: NOTIFICATIONS_EMAIL_FROM,
+        subject: email.subject,
+        html: email.html,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to send invitation email");
+    }
+  };
+
   const assignTicket = async (ticketId: string) => {
     const ticketEmail = ticketEmails[ticketId]?.trim();
 
@@ -110,63 +143,87 @@ export function EventTicket({ eventId }: EventTicketProps) {
     setAssigning(ticketId);
 
     try {
+      const assignedAt = new Date().toISOString();
+
       // Update ticket with email assignment
       const { error: updateError } = await supabase
         .from("event_tickets")
         .update({
           assigned_to_email: ticketEmail,
           ticket_status: "assigned",
-          assigned_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          assigned_at: assignedAt,
+          updated_at: assignedAt,
         })
         .eq("id", ticketId);
 
       if (updateError) throw updateError;
 
-      // Get event and user info for email
-      const { data: eventData } = await supabase
-        .from("events")
-        .select("event_name")
-        .eq("event_id", eventId)
-        .single();
-
-      const email = getClaimTicketEmailTemplate(
-        eventData?.event_name || "Event",
-        ticketId,
-        user?.user_metadata?.display_name || user?.email || "Someone"
+      // The assignment is saved from here on, so nothing below may report it
+      // as failed or leave the list showing the ticket as available.
+      setTickets((prev) =>
+        prev.map((ticket) =>
+          ticket.id === ticketId
+            ? {
+                ...ticket,
+                assigned_to_email: ticketEmail,
+                ticket_status: "assigned",
+                assigned_at: assignedAt,
+              }
+            : ticket
+        )
       );
-
-      // Send claim ticket email
-      const response = await fetch("/api/email_notification", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: ticketEmail,
-          from: NOTIFICATIONS_EMAIL_FROM,
-          subject: email.subject,
-          html: email.html,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send invitation email");
-      }
-
-      const updatedTickets = await fetchMyTickets();
-      setTickets(updatedTickets);
-
       // Clear the email input for this specific ticket
       setTicketEmails((prev) => ({ ...prev, [ticketId]: "" }));
-      toast({
-        title: "Success",
-        description: `Ticket assigned to ${ticketEmail}. An invitation email has been sent.`,
-      });
+
+      let emailSent = true;
+      try {
+        await sendInvitationEmail(ticketId, ticketEmail);
+      } catch {
+        emailSent = false;
+      }
+
+      try {
+        setTickets(await fetchMyTickets());
+      } catch {
+        // The list already reflects the saved assignment.
+      }
+
+      if (emailSent) {
+        toast({
+          title: "Success",
+          description: `Ticket assigned to ${ticketEmail}. An invitation email has been sent.`,
+        });
+      } else {
+        toast({
+          title: "Invitation not sent",
+          description: `Ticket assigned to ${ticketEmail}, but the invitation email could not be sent. Use Resend Invitation to try again.`,
+          variant: "destructive",
+        });
+      }
     } catch {
       toast({
         title: "Error",
         description: "Failed to assign ticket. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAssigning(null);
+    }
+  };
+
+  const resendInvitation = async (ticketId: string, recipient: string) => {
+    setAssigning(ticketId);
+
+    try {
+      await sendInvitationEmail(ticketId, recipient);
+      toast({
+        title: "Success",
+        description: `Invitation resent to ${recipient}.`,
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: `The invitation email to ${recipient} could not be sent. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -375,6 +432,35 @@ export function EventTicket({ eventId }: EventTicketProps) {
                         </span>
                       )}
                     </div>
+
+                    {ticket.ticket_status === "assigned" &&
+                      ticket.assigned_to_email &&
+                      !ticket.assigned_to_user_id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3"
+                          onClick={() =>
+                            resendInvitation(
+                              ticket.id,
+                              ticket.assigned_to_email as string
+                            )
+                          }
+                          disabled={assigning === ticket.id}
+                        >
+                          {assigning === ticket.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-900" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4 mr-2" />
+                              Resend Invitation
+                            </>
+                          )}
+                        </Button>
+                      )}
                   </div>
                 ))}
               </div>
