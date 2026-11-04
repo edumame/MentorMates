@@ -9,8 +9,10 @@
 --   * switching an already approved event to public (the organizer visibility
 --     dropdown offers this)
 --
--- service_role and database owners are not guarded: server routes that use the
--- service role (public-submit, the agent API) set these columns themselves.
+-- service_role and database owners are not guarded, so a server route that uses
+-- the service role must apply these rules itself. public-submit hard-codes the
+-- columns. The agent API hard-codes approval_status and featured, but takes
+-- visibility from the client and checks it in app/api/agent/events/route.ts.
 CREATE OR REPLACE FUNCTION public.enforce_event_moderation_columns()
 RETURNS trigger
 LANGUAGE plpgsql

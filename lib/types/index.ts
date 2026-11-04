@@ -24,6 +24,12 @@ export enum EventVisibility {
   Archived = "archived",
 }
 
+// The only visibilities a non-admin may give a new event.
+export const NON_ADMIN_CREATE_VISIBILITIES: readonly EventVisibility[] = [
+  EventVisibility.Draft,
+  EventVisibility.Private,
+];
+
 export enum ApprovalStatus {
   NotSubmitted = "not_submitted",
   Submitted = "submitted",

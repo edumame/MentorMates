@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { GET, PATCH } from "./route";
+import { GET, PATCH, POST } from "./route";
 import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { NextResponse } from "next/server";
@@ -250,11 +250,106 @@ describe("PATCH /api/agent/events (expanded field set)", () => {
     expect(q.update).toHaveBeenCalledWith(expect.objectContaining({ slug: "new-slug" }));
   });
 
-  it("accepts visibility enum", async () => {
-    const q = mockUpdateChain();
-    const res = await patchWith({ visibility: "public" });
-    expect(res.status).toBe(200);
-    expect(q.update).toHaveBeenCalledWith(expect.objectContaining({ visibility: "public" }));
+  it.each(["draft", "private", "demo", "test"])(
+    "accepts visibility %s without checking approval",
+    async (visibility) => {
+      const q = mockUpdateChain();
+      const res = await patchWith({ visibility });
+      expect(res.status).toBe(200);
+      expect(q.update).toHaveBeenCalledWith(expect.objectContaining({ visibility }));
+      expect(q.single).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  describe("visibility: public", () => {
+    function mockEventState(current: {
+      visibility: string;
+      approval_status: string;
+    }) {
+      const q = mockUpdateChain();
+      q.single.mockResolvedValueOnce({ data: current, error: null });
+      return q;
+    }
+
+    it.each(["not_submitted", "submitted", "rejected"])(
+      "denies a non-admin when the event is %s",
+      async (approval_status) => {
+        const q = mockEventState({ visibility: "private", approval_status });
+        const res = await patchWith({ visibility: "public" });
+        expect(res.status).toBe(403);
+        expect(q.update).not.toHaveBeenCalled();
+      }
+    );
+
+    it("denies a non-admin even when other fields are valid", async () => {
+      const q = mockEventState({
+        visibility: "draft",
+        approval_status: "not_submitted",
+      });
+      const res = await patchWith({ event_name: "Name", visibility: "public" });
+      expect(res.status).toBe(403);
+      expect(q.update).not.toHaveBeenCalled();
+    });
+
+    it("reads the state of the event the key is scoped to", async () => {
+      const q = mockEventState({
+        visibility: "private",
+        approval_status: "approved",
+      });
+      await patchWith({ visibility: "public" });
+      expect(q.select).toHaveBeenCalledWith("visibility, approval_status");
+      expect(q.eq).toHaveBeenCalledWith("event_id", "event-1");
+    });
+
+    it("allows a non-admin when the event is already approved", async () => {
+      const q = mockEventState({
+        visibility: "private",
+        approval_status: "approved",
+      });
+      const res = await patchWith({ visibility: "public" });
+      expect(res.status).toBe(200);
+      expect(q.update).toHaveBeenCalledWith({ visibility: "public" });
+    });
+
+    it("allows a non-admin to resend public on an already public event", async () => {
+      const q = mockEventState({
+        visibility: "public",
+        approval_status: "submitted",
+      });
+      const res = await patchWith({ event_name: "Name", visibility: "public" });
+      expect(res.status).toBe(200);
+      expect(q.update).toHaveBeenCalled();
+    });
+
+    it("allows an admin on an unapproved event without reading its state", async () => {
+      (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({
+        eventId: "event-1",
+        isAdmin: true,
+      });
+      const q = mockUpdateChain();
+      const res = await patchWith({ visibility: "public" });
+      expect(res.status).toBe(200);
+      expect(q.update).toHaveBeenCalledWith({ visibility: "public" });
+      expect(q.single).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not update when the event state cannot be read", async () => {
+      const q = mockUpdateChain();
+      q.single.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+      const res = await patchWith({ visibility: "public" });
+      expect(res.status).toBe(500);
+      expect(q.update).not.toHaveBeenCalled();
+    });
+
+    it("does not update when the admin lookup fails", async () => {
+      const consoleError = jest.spyOn(console, "error").mockImplementation();
+      (authorizeAgentEventAccess as jest.Mock).mockRejectedValue(new Error("boom"));
+      const q = mockUpdateChain();
+      const res = await patchWith({ visibility: "public" });
+      expect(res.status).toBe(500);
+      expect(q.update).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
   });
 
   it("rejects invalid visibility enum", async () => {
@@ -525,5 +620,143 @@ describe("PATCH /api/agent/events (expanded field set)", () => {
     });
     const res = await patchWith({ event_name: "New Name" });
     expect(res.status).toBe(500);
+  });
+});
+
+describe("POST /api/agent/events visibility", () => {
+  const validEvent = {
+    event_name: "Spam Event",
+    event_date: "2026-12-01",
+    location: "Somewhere",
+  };
+
+  function mockCreateClient(adminResult: { data: unknown; error: unknown }) {
+    const eventsQuery = {
+      insert: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { event_id: "event-1", event_name: validEvent.event_name },
+        error: null,
+      }),
+    };
+    const rolesQuery = { upsert: jest.fn().mockResolvedValue({ error: null }) };
+    const rpc = jest.fn().mockResolvedValue(adminResult);
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+      rpc,
+      from: jest.fn((table: string) =>
+        table === "events" ? eventsQuery : rolesQuery
+      ),
+    });
+    return { eventsQuery, rolesQuery, rpc };
+  }
+
+  function postWith(body: Record<string, unknown>) {
+    return POST({
+      json: async () => body,
+      nextUrl: new URL("https://mentormates.ai/api/agent/events"),
+    } as never);
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authenticateAgentRequest as jest.Mock).mockResolvedValue({
+      userId: "user-1",
+      eventId: "",
+      scopes: ["event:write"],
+      keyId: "key-1",
+    });
+    (requireScope as jest.Mock).mockReturnValue(null);
+  });
+
+  it.each(["public", "demo", "test"])(
+    "denies a non-admin creating a %s event",
+    async (visibility) => {
+      const { eventsQuery, rolesQuery, rpc } = mockCreateClient({
+        data: false,
+        error: null,
+      });
+      const res = await postWith({ ...validEvent, visibility });
+      expect(res.status).toBe(403);
+      expect(rpc).toHaveBeenCalledWith("is_admin_user", { user_id: "user-1" });
+      expect(eventsQuery.insert).not.toHaveBeenCalled();
+      expect(rolesQuery.upsert).not.toHaveBeenCalled();
+    }
+  );
+
+  it("treats a failed admin lookup as non-admin", async () => {
+    const consoleError = jest.spyOn(console, "error").mockImplementation();
+    const { eventsQuery } = mockCreateClient({
+      data: true,
+      error: { message: "boom" },
+    });
+    const res = await postWith({ ...validEvent, visibility: "public" });
+    expect(res.status).toBe(403);
+    expect(eventsQuery.insert).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("does not insert when the admin lookup throws", async () => {
+    const consoleError = jest.spyOn(console, "error").mockImplementation();
+    const { eventsQuery, rpc } = mockCreateClient({ data: false, error: null });
+    rpc.mockRejectedValue(new Error("boom"));
+    const res = await postWith({ ...validEvent, visibility: "public" });
+    expect(res.status).toBe(500);
+    expect(eventsQuery.insert).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it.each(["draft", "private"])(
+    "lets a non-admin create a %s event without an admin lookup",
+    async (visibility) => {
+      const { eventsQuery, rpc } = mockCreateClient({ data: false, error: null });
+      const res = await postWith({ ...validEvent, visibility });
+      expect(res.status).toBe(201);
+      expect(rpc).not.toHaveBeenCalled();
+      expect(eventsQuery.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ visibility })
+      );
+    }
+  );
+
+  it("defaults to draft when visibility is omitted", async () => {
+    const { eventsQuery, rpc } = mockCreateClient({ data: false, error: null });
+    const res = await postWith(validEvent);
+    expect(res.status).toBe(201);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(eventsQuery.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: "draft" })
+    );
+  });
+
+  it.each(["public", "demo", "test"])(
+    "lets an admin create a %s event, still unapproved and unfeatured",
+    async (visibility) => {
+      const { eventsQuery } = mockCreateClient({ data: true, error: null });
+      const res = await postWith({ ...validEvent, visibility });
+      expect(res.status).toBe(201);
+      expect(eventsQuery.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visibility,
+          approval_status: "not_submitted",
+          featured: false,
+        })
+      );
+    }
+  );
+
+  it("ignores client-sent approval_status and featured", async () => {
+    const { eventsQuery } = mockCreateClient({ data: false, error: null });
+    const res = await postWith({
+      ...validEvent,
+      approval_status: "approved",
+      featured: true,
+    });
+    expect(res.status).toBe(201);
+    expect(eventsQuery.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approval_status: "not_submitted",
+        featured: false,
+      })
+    );
   });
 });

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
+import {
+  ApprovalStatus,
+  EventRole,
+  EventVisibility,
+  NON_ADMIN_CREATE_VISIBILITIES,
+} from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
@@ -183,11 +188,6 @@ const eventSchema = z.object({
   event_type: z.array(z.string()).optional(),
 });
 
-const NON_ADMIN_VISIBILITIES: EventVisibility[] = [
-  EventVisibility.Draft,
-  EventVisibility.Private,
-];
-
 const payloadSchema = z.object({
   event: eventSchema,
   participantInviteEmails: z.array(z.string().email()).optional(),
@@ -235,7 +235,7 @@ export async function POST(req: Request) {
     });
     const requestedVisibility = event.visibility ?? EventVisibility.Draft;
     const visibility =
-      isAdmin || NON_ADMIN_VISIBILITIES.includes(requestedVisibility)
+      isAdmin || NON_ADMIN_CREATE_VISIBILITIES.includes(requestedVisibility)
         ? requestedVisibility
         : EventVisibility.Draft;
 
