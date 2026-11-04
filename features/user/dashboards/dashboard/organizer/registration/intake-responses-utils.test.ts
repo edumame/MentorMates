@@ -68,8 +68,27 @@ describe("intake-responses-utils", () => {
         key: "company",
         showIf: { fieldKey: "role", equals: "professional" },
       };
-      expect(isFieldVisible(visibleField, answers)).toBe(true);
-      expect(isFieldVisible(hiddenField, answers)).toBe(false);
+      const sourceField: IntakeFormField = {
+        ...visibleField,
+        id: "3",
+        key: "role",
+        showIf: null,
+      };
+      const fields = [sourceField, visibleField, hiddenField];
+      expect(isFieldVisible(visibleField, answers, fields)).toBe(true);
+      expect(isFieldVisible(hiddenField, answers, fields)).toBe(false);
+    });
+
+    it("shows a field whose showIf source is not in the schema", () => {
+      const field: IntakeFormField = {
+        id: "1",
+        key: "school",
+        type: "short_text",
+        label: "School",
+        required: true,
+        showIf: { fieldKey: "old_key", equals: "student" },
+      };
+      expect(isFieldVisible(field, { old_key: "professional" }, [field])).toBe(true);
     });
   });
 

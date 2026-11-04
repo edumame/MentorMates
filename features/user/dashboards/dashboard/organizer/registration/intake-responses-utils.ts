@@ -16,11 +16,15 @@ export function mapAnswersByFieldKey(
 
 export function isFieldVisible(
   field: IntakeFormField,
-  answersByKey: Record<string, unknown>
+  answersByKey: Record<string, unknown>,
+  schemaFields: IntakeFormField[]
 ): boolean {
   if (!field.showIf) return true;
-  const sourceValue = answersByKey[field.showIf.fieldKey];
-  return String(sourceValue ?? "") === field.showIf.equals;
+  const { fieldKey, equals } = field.showIf;
+  // A rule pointing at a question that no longer exists can never be satisfied.
+  // Show the field instead of silently hiding it, even when it is required.
+  if (!schemaFields.some((item) => item.key === fieldKey)) return true;
+  return String(answersByKey[fieldKey] ?? "") === equals;
 }
 
 export function getFieldLabel(
