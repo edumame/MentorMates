@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
+import type { User } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 const requestSchema = z.object({ meetingId: z.string().max(36).uuid() });
 
-/** Match meetings.getOne: standalone meetings are owner-only. */
-export async function authorizeMeetingRequest(request: Request) {
+async function getSessionUser() {
   const sessionClient = await createSupabaseClient();
   const { data: { user }, error: authError } = await sessionClient.auth.getUser();
   if (authError || !user) {
     return { response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
   }
+  return { sessionClient, user };
+}
+
+/** Authorize a request whose JSON body carries the meetingId. */
+export async function authorizeMeetingRequest(request: Request) {
+  const session = await getSessionUser();
+  if (session.response) return session;
 
   // Bound actual bytes, not just Content-Length, before parsing a tiny ID payload.
   let body: unknown;
@@ -37,6 +44,22 @@ export async function authorizeMeetingRequest(request: Request) {
   } finally {
     reader?.releaseLock();
   }
+  return authorizeMeeting(session.sessionClient, session.user, body);
+}
+
+/** Authorize a request that carries the meetingId outside its body, such as a GET. */
+export async function authorizeMeetingId(meetingId: string | null) {
+  const session = await getSessionUser();
+  if (session.response) return session;
+  return authorizeMeeting(session.sessionClient, session.user, { meetingId });
+}
+
+/** Match meetings.getOne: standalone meetings are owner-only. */
+async function authorizeMeeting(
+  sessionClient: Awaited<ReturnType<typeof createSupabaseClient>>,
+  user: User,
+  body: unknown
+) {
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
     return { response: NextResponse.json({ error: "A valid meetingId UUID is required" }, { status: 400 }) };

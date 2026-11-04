@@ -1,4 +1,5 @@
-import express, { Request, Response } from "express";
+import { createHash, timingSafeEqual } from "crypto";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import { StreamClient } from "@stream-io/node-sdk";
@@ -74,6 +75,29 @@ app.use(
     credentials: true,
   })
 );
+
+const sha256 = (value: string) => createHash("sha256").update(value).digest();
+
+// The worker URL is public and CORS does not bind non-browser clients, so every
+// session and caption route requires the secret shared with the Next.js server.
+// With no secret configured the routes fail closed instead of opening up.
+function requireWorkerSecret(req: Request, res: Response, next: NextFunction) {
+  const expected = process.env.SCREEN_VISION_WORKER_SECRET;
+  if (!expected) {
+    console.error("SCREEN_VISION_WORKER_SECRET is not set; refusing request");
+    return res.status(503).json({ error: "worker secret not configured" });
+  }
+
+  // Hashing gives both sides equal length, which timingSafeEqual requires.
+  const provided = req.get("x-worker-secret") ?? "";
+  if (!timingSafeEqual(sha256(provided), sha256(expected))) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  next();
+}
+
+// Registered before the body parser so unauthenticated bodies are never read.
+app.use(["/session", "/captions"], requireWorkerSecret);
 
 app.use(express.json({ limit: "2mb" }));
 
@@ -486,6 +510,8 @@ app.get("/captions/stream", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  // Send headers now: the Next.js proxy waits for them, and the first caption may be far off.
+  res.flushHeaders();
 
   // Track last sent caption to avoid duplicates
   let lastSentText = "";
@@ -515,7 +541,7 @@ app.get("/captions/stream", (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+export const server = app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`worker listening on ${PORT}`);
 });

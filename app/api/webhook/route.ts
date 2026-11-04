@@ -13,6 +13,7 @@ import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 import { streamVideo } from "@/lib/stream-video";
 import { inngest } from "@/lib/inngest/client";
 import { streamChat } from "@/lib/stream-chat";
+import { screenVisionWorkerHeaders } from "@/lib/screen-vision-worker";
 
 const openaiClient = new OpenAI();
 
@@ -412,7 +413,7 @@ export async function POST(req: NextRequest) {
         `${workerUrl.replace(/\/$/, "")}/session/start`,
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: screenVisionWorkerHeaders(),
           body: JSON.stringify({
             meetingId,
             callId,
@@ -452,7 +453,7 @@ export async function POST(req: NextRequest) {
       if (workerUrl2) {
         await fetch(`${workerUrl2.replace(/\/$/, "")}/session/stop`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: screenVisionWorkerHeaders(),
           body: JSON.stringify({ meetingId }),
         });
       }
@@ -481,7 +482,7 @@ export async function POST(req: NextRequest) {
       if (workerUrl3) {
         await fetch(`${workerUrl3.replace(/\/$/, "")}/session/stop`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: screenVisionWorkerHeaders(),
           body: JSON.stringify({ meetingId }),
         });
       }
@@ -530,7 +531,7 @@ export async function POST(req: NextRequest) {
         if (workerUrl) {
           await fetch(`${workerUrl.replace(/\/$/, "")}/session/pause`, {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: screenVisionWorkerHeaders(),
             body: JSON.stringify({ meetingId }),
           });
         }
@@ -543,7 +544,7 @@ export async function POST(req: NextRequest) {
         if (workerUrl) {
           await fetch(`${workerUrl.replace(/\/$/, "")}/session/resume`, {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: screenVisionWorkerHeaders(),
             body: JSON.stringify({ meetingId }),
           });
         }

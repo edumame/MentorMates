@@ -8,6 +8,7 @@ Environment variables
 - `OPENAI_API_KEY` - OpenAI API key used by Stream realtime
 - `STREAM_VIDEO_API_KEY` - Stream Video API key
 - `STREAM_VIDEO_SECRET_KEY` - Stream Video secret key
+- `SCREEN_VISION_WORKER_SECRET` - shared secret, same value as the Next.js app. Required: without it `/session/*` and `/captions/stream` answer 503
 - `PORT` - port to listen on (default 8080)
 
 Run locally
@@ -33,7 +34,7 @@ Docker
 - For "Environment", choose **Docker**.
 - Set the **Dockerfile Path** to `worker/Dockerfile` (or the path to the worker Dockerfile in this repo).
 - Set the **Build Context** to the repository root or `worker` if needed.
-- Add the required environment variables in Render: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `STREAM_VIDEO_API_KEY`, `STREAM_VIDEO_SECRET_KEY`, and any others you use.
+- Add the required environment variables in Render: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `STREAM_VIDEO_API_KEY`, `STREAM_VIDEO_SECRET_KEY`, `SCREEN_VISION_WORKER_SECRET`, and any others you use.
 - Create the service — Render will build using the Dockerfile and run your container. Render will provide the `PORT` environment variable which the app will use.
 
 Notes
@@ -43,12 +44,16 @@ Notes
 Docker
 ```bash
 docker build -t screen-vision-worker worker
-docker run -e SUPABASE_URL=... -e SUPABASE_SERVICE_ROLE_KEY=... -e OPENAI_API_KEY=... -e STREAM_VIDEO_API_KEY=... -e STREAM_VIDEO_SECRET_KEY=... -p 8080:8080 screen-vision-worker
+docker run -e SUPABASE_URL=... -e SUPABASE_SERVICE_ROLE_KEY=... -e OPENAI_API_KEY=... -e STREAM_VIDEO_API_KEY=... -e STREAM_VIDEO_SECRET_KEY=... -e SCREEN_VISION_WORKER_SECRET=... -p 8080:8080 screen-vision-worker
 ```
 
 Endpoints
+
+Everything except `/health` requires the `x-worker-secret` header. Only the Next.js server holds the secret; browsers reach captions through `GET /api/voice-agent/captions`.
+
 - `GET /health` -> { ok: true }
 - `POST /session/start` body: `{ meetingId, callId, agentUserId, instructions, voice? }`
 - `POST /session/stop` body: `{ meetingId }`
 - `POST /session/pause` body: `{ meetingId }`
 - `POST /session/resume` body: `{ meetingId }`
+- `GET /captions/stream?meetingId=...` -> server-sent caption events
