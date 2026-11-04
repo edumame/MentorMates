@@ -4,6 +4,7 @@ import {
   buildSubmissionAnswersPayload,
   hasSubmissionFieldMismatch,
   hasConfiguredSubmissionFields,
+  keepSubmissionConfig,
 } from "./effectiveSubmission";
 import type {
   EventSubmissionField,
@@ -345,5 +346,43 @@ describe("effective submission helpers", () => {
         metadata: null,
       },
     ]);
+  });
+
+  describe("keepSubmissionConfig", () => {
+    const hydrated = {
+      id: "project-1",
+      event_id: "event-1",
+      has_submission_field_config: true,
+      submission_fields: configuredFields,
+      submission_answers: [],
+    } as unknown as Project;
+
+    it("carries the config over a raw row from the same event", () => {
+      const raw = { id: "project-1", event_id: "event-1" } as Project;
+
+      expect(keepSubmissionConfig(raw, hydrated)).toEqual({
+        ...raw,
+        has_submission_field_config: true,
+        submission_fields: configuredFields,
+        submission_answers: [],
+      });
+    });
+
+    it("leaves a hydrated project alone", () => {
+      const next = {
+        ...hydrated,
+        has_submission_field_config: false,
+        submission_fields: [],
+      } as Project;
+
+      expect(keepSubmissionConfig(next, hydrated)).toBe(next);
+    });
+
+    it("does not carry config across events or without a previous project", () => {
+      const raw = { id: "project-1", event_id: "event-2" } as Project;
+
+      expect(keepSubmissionConfig(raw, hydrated)).toBe(raw);
+      expect(keepSubmissionConfig(raw, null)).toBe(raw);
+    });
   });
 });

@@ -534,6 +534,9 @@ export async function saveProjectSubmission(
     (input.extraVideoUrls?.length || 0) > 0 ||
     (input.extraMaterialsUrls?.length || 0) > 0;
 
+  // Only a request that carries an answers list replaces the stored submission.
+  // Submit, event moves and other partial writes must leave it untouched.
+  const replacesSubmissionAnswers = Array.isArray(input.submissionAnswers);
   const parsedAnswers = Array.isArray(input.submissionAnswers)
     ? input.submissionAnswers
         .map((item) => submissionAnswerInputSchema.safeParse(item))
@@ -674,7 +677,15 @@ export async function saveProjectSubmission(
       project_description: _ignoredProjectDescription,
       ...legacySubmissionFieldReset
     } = buildNullLegacyProjectPayload();
-    Object.assign(updateData, legacySubmissionFieldReset);
+    if (mode === "create" || replacesSubmissionAnswers) {
+      Object.assign(updateData, legacySubmissionFieldReset);
+    } else {
+      // Answers own these values on configured events, so a partial update
+      // neither clears the stored columns nor writes new ones.
+      for (const column of Object.keys(legacySubmissionFieldReset)) {
+        delete updateData[column as keyof typeof updateData];
+      }
+    }
   } else if (mode === "create" || hasArtifactsPayload) {
     updateData.project_url = legacyFields.project_url;
     updateData.video_url = legacyFields.video_url;
@@ -783,7 +794,7 @@ export async function saveProjectSubmission(
     }
   }
 
-  if (input.submissionAnswers !== undefined || hasConfiguredSubmissionFields) {
+  if (replacesSubmissionAnswers) {
     const { error: deleteAnswersError } = await supabase
       .from("project_submission_answers")
       .delete()
