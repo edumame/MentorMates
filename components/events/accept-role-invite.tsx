@@ -25,6 +25,7 @@ interface AcceptRoleInviteProps {
   eventBlurb: string | null;
   eventSlug: string | null;
   invitedEmail?: string;
+  inviteToken?: string;
   eventNotFound?: boolean;
   role: EventRole.Participant | EventRole.Judge | EventRole.Organizer;
 }
@@ -136,6 +137,7 @@ export function AcceptRoleInvite({
   eventBlurb,
   eventSlug,
   invitedEmail,
+  inviteToken,
   eventNotFound = false,
   role,
 }: AcceptRoleInviteProps) {
@@ -225,20 +227,17 @@ export function AcceptRoleInvite({
         return;
       }
 
-      const { error } = await supabase.from("user_event_roles").upsert(
-        {
-          user_id: user.id,
-          event_id: eventId,
-          role,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,event_id" }
-      );
+      const response = await fetch(`/api/events/${eventId}/accept-invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: inviteToken }),
+      });
 
-      if (error) {
+      if (!response.ok) {
+        const { error } = await response.json().catch(() => ({ error: null }));
         toast({
           title: "Error",
-          description: `Failed to accept ${role} invitation`,
+          description: error || `Failed to accept ${role} invitation`,
           variant: "destructive",
         });
         return;

@@ -282,7 +282,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: creatorRoleError } = await supabase
+    // RLS only lets users self-assign the participant role.
+    const { error: creatorRoleError } = await serviceSupabase
       .from("user_event_roles")
       .upsert(
         {

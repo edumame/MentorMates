@@ -8,6 +8,10 @@ import {
   sendOrganizerInviteEmails,
 } from "./invite-emails";
 
+jest.mock("@/lib/utils/jwt", () => ({
+  generateEventRoleInviteToken: jest.fn().mockResolvedValue("signed-token"),
+}));
+
 describe("event invite emails", () => {
   it("normalizes and deduplicates invite email lists", () => {
     expect(
@@ -58,7 +62,8 @@ describe("event invite emails", () => {
             "https://mentormates.ai/",
             "hack-night",
             "participant",
-            "participant@email.com"
+            "participant@email.com",
+            "signed-token"
           )
         ),
       })
@@ -73,7 +78,8 @@ describe("event invite emails", () => {
             "https://mentormates.ai/",
             "hack-night",
             "judge",
-            "judge@email.com"
+            "judge@email.com",
+            "signed-token"
           )
         ),
       })
@@ -180,7 +186,8 @@ describe("event invite emails", () => {
           getOrganizerInviteAcceptanceUrl(
             "https://mentormates.ai",
             "hack-night",
-            "new@email.com"
+            "new@email.com",
+            "signed-token"
           )
         ),
       })

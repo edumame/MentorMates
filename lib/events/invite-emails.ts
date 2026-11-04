@@ -1,3 +1,4 @@
+import { generateEventRoleInviteToken } from "@/lib/utils/jwt";
 import { EventVisibility } from "@/lib/types";
 import {
   getEventRoleInvitationEmailTemplate,
@@ -39,24 +40,26 @@ export function getEventInviteAcceptanceUrl(
   appOrigin: string,
   eventSlugOrId: string,
   role: EventInviteRole,
-  email: string
+  email: string,
+  token: string
 ): string {
   const route = role === "participant" ? "accept-participant" : "accept-judge";
   const origin = appOrigin.replace(/\/$/, "");
   return `${origin}/events/${eventSlugOrId}/${route}?email=${encodeURIComponent(
     email
-  )}`;
+  )}&token=${encodeURIComponent(token)}`;
 }
 
 export function getOrganizerInviteAcceptanceUrl(
   appOrigin: string,
   eventSlugOrId: string,
-  email: string
+  email: string,
+  token: string
 ): string {
   const origin = appOrigin.replace(/\/$/, "");
   return `${origin}/events/${eventSlugOrId}/accept-organizer?email=${encodeURIComponent(
     email
-  )}`;
+  )}&token=${encodeURIComponent(token)}`;
 }
 
 export async function sendEventInviteEmails({
@@ -123,11 +126,17 @@ export async function sendEventInviteEmails({
     await Promise.all(
       emails.map(async (email) => {
         try {
+          const token = await generateEventRoleInviteToken({
+            email,
+            eventId,
+            role,
+          });
           const actionUrl = getEventInviteAcceptanceUrl(
             appOrigin,
             eventSlugOrId,
             role,
-            email
+            email,
+            token
           );
           const template = getEventRoleInvitationEmailTemplate({
             eventName,
@@ -208,7 +217,16 @@ export async function sendOrganizerInviteEmails({
   const sendOrganizerEmail = async (email: string, isNewUser: boolean) => {
     try {
       const acceptUrl = isNewUser
-        ? getOrganizerInviteAcceptanceUrl(appOrigin, eventSlugOrId, email)
+        ? getOrganizerInviteAcceptanceUrl(
+            appOrigin,
+            eventSlugOrId,
+            email,
+            await generateEventRoleInviteToken({
+              email,
+              eventId,
+              role: "organizer",
+            })
+          )
         : undefined;
 
       const template = getOrganizerInvitationEmailTemplate(

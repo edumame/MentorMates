@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { canAccessRole } from "@/features/user/roles/roles";
 import type { Database, Json } from "@/lib/database.types";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
@@ -138,15 +139,26 @@ export async function POST(
     }
 
     // 5) Ensure the current user is an organizer of the new event
-    await supabase.from("user_event_roles").upsert(
-      {
-        user_id: user.id,
-        event_id: createdEvent.event_id,
-        role: EventRole.Organizer,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,event_id" }
-    );
+    // RLS only lets users self-assign the participant role.
+    const { error: creatorRoleError } = await createSupabaseServiceClient()
+      .from("user_event_roles")
+      .upsert(
+        {
+          user_id: user.id,
+          event_id: createdEvent.event_id,
+          role: EventRole.Organizer,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,event_id" }
+      );
+
+    if (creatorRoleError) {
+      console.error("Error assigning creator as organizer:", creatorRoleError);
+      return NextResponse.json(
+        { error: "Event created but assigning creator role failed" },
+        { status: 500 }
+      );
+    }
 
     // 6) Duplicate tracks (and prizes linked to tracks)
     const { data: sourceTracks, error: sourceTracksError } = await supabase

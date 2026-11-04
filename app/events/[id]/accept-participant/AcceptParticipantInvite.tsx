@@ -9,6 +9,7 @@ interface AcceptParticipantInviteProps {
   eventBlurb: string | null;
   eventSlug: string | null;
   invitedEmail?: string;
+  inviteToken?: string;
   eventNotFound?: boolean;
 }
 

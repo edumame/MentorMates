@@ -237,7 +237,8 @@ export async function POST(req: Request) {
     }
 
     // Automatically assign the creator as an organizer
-    const { error: roleError } = await supabase.from("user_event_roles").upsert(
+    // RLS only lets users self-assign the participant role.
+    const { error: roleError } = await serviceSupabase.from("user_event_roles").upsert(
       {
         user_id: user.id,
         event_id: createdEvent.event_id,
