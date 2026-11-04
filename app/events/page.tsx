@@ -4,6 +4,7 @@ import { createSupabaseClient } from "../utils/supabase/server";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { isEventManagerRole } from "@/lib/events/navigation";
+import { EVENT_LISTING_COLUMNS } from "@/lib/events/listing-columns";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function EventsPage() {
 
       const isAdmin = isAdminGlobal;
       
-      let query = supabase.from("events").select("*");
+      let query = supabase.from("events").select(EVENT_LISTING_COLUMNS);
 
       if (isAdmin) {
         // Admins can see all events regardless of approval status
@@ -81,7 +82,7 @@ export default async function EventsPage() {
       // Fetch only public events
       const { data: events, error } = await supabase
         .from("events")
-        .select("*")
+        .select(EVENT_LISTING_COLUMNS)
         .in("visibility", [EventVisibility.Public])
         .eq("approval_status", ApprovalStatus.Approved)
         .order("event_date", { ascending: false });

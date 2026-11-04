@@ -47,3 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test scraper quota in disposable PostgreSQL
         run: python3 scripts/test_scraper_quota.py
+
+  events-anon-columns:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test events anon column grants in disposable PostgreSQL
+        run: python3 scripts/test_events_anon_columns.py

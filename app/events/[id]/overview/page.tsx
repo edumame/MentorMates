@@ -36,7 +36,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
     event_schedule,
     event_prizes,
     event_resources,
-    paywall_content,
     participant_capacity,
     cover_image_url,
     slug,
@@ -134,6 +133,17 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
     hasJoined = !!userEventRole;
     userRole = (userEventRole?.role as EventRole) || null;
+
+    // EventPageContent is a client component, so everything on `event` is
+    // serialized to the browser. Only load paid content for joined users.
+    if (hasJoined) {
+      const { data: paywallData } = await supabase
+        .from("events")
+        .select("paywall_content")
+        .eq("event_id", eventData.event_id)
+        .maybeSingle();
+      typedEvent.paywall_content = paywallData?.paywall_content ?? undefined;
+    }
 
     // Fetch the user's projects for this event so they can always find them
     const userEmail = user.email || "";
