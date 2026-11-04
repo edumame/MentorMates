@@ -63,57 +63,31 @@ export async function DELETE(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Manual cleanup for related tables that do NOT have ON DELETE CASCADE
-    // Order chosen to respect FKs observed in schema
-    // user_event_payments are not deleted
-    // 1) Delete event_tickets (FK -> user_event_payments, user_profiles) by event_id
-    await supabase.from("event_tickets").delete().eq("event_id", eventId);
-
-    // 2) Delete prize winners and prizes via event_tracks join
-    const { data: trackIds } = await supabase
-      .from("event_tracks")
-      .select("track_id")
-      .eq("event_id", eventId);
-    if (trackIds && trackIds.length > 0) {
-      const ids = trackIds.map((t) => t.track_id);
-      // Fetch prize IDs for those tracks
-      const { data: prizesForTracks } = await supabase
-        .from("prizes")
-        .select("id")
-        .in("track_id", ids);
-
-      const prizeIds = (prizesForTracks || []).map((p) => p.id);
-
-      if (prizeIds.length > 0) {
-        // Remove prize winners first (no cascade on prize_winners -> prizes)
-        await supabase.from("prize_winners").delete().in("prize_id", prizeIds);
-      }
-
-      // Now remove the prizes themselves
-      await supabase.from("prizes").delete().in("track_id", ids);
-      // project_scores and project_tracks FKs already cascade on track_id
-    }
-
-    // 4) Delete event_tracks for this event (prizes are already removed)
-    await supabase.from("event_tracks").delete().eq("event_id", eventId);
-
-    // 5) platform_engagement, feedback reference events without cascade
-    await supabase.from("platform_engagement").delete().eq("event_id", eventId);
-    await supabase.from("feedback").delete().eq("event_id", eventId);
-
-    // 6) role_passwords, user_event_roles have ON DELETE CASCADE; but clear anyway for safety
-    await supabase.from("role_passwords").delete().eq("event_id", eventId);
-    await supabase.from("user_event_roles").delete().eq("event_id", eventId);
-
-    // Finally, delete the event
-    const { error: deleteEventError } = await supabase
-      .from("events")
-      .delete()
-      .eq("event_id", eventId);
+    // One transaction: related rows and the event go together or not at all
+    const { error: deleteEventError } = await supabase.rpc(
+      "delete_event_with_related",
+      { p_event_id: eventId }
+    );
 
     if (deleteEventError) {
+      // 23503: rows this user may not remove (RLS) still reference the event
+      if (deleteEventError.code === "23503") {
+        return NextResponse.json(
+          {
+            error:
+              "This event still has related records that you can't remove, such as other users' feedback. Nothing was deleted.",
+          },
+          { status: 409 }
+        );
+      }
+      // 42501: RLS matched no event row, for example an event-level admin
+      // who is neither the owner nor an organizer
+      if (deleteEventError.code === "42501") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      console.error("Error deleting event:", deleteEventError);
       return NextResponse.json(
-        { error: deleteEventError.message || "Failed to delete event" },
+        { error: "Failed to delete event" },
         { status: 500 }
       );
     }
