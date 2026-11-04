@@ -37,7 +37,7 @@ import { ApiKeysTab } from "./api-keys/ApiKeysTab";
 import { IntakeResponsesTab } from "./registration";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
-import { ContentTab } from "./details/ContentTab";
+import { ContentTab, EVENT_LESSON_COLUMNS } from "./details/ContentTab";
 import { ScheduleTab } from "./details/ScheduleTab";
 import { ResourcesTab } from "./details/ResourcesTab";
 import { RulesTab } from "./details/RulesTab";
@@ -179,7 +179,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         // Fetch event_lessons separately
         const { data: lessonsData, error: lessonsError } = await supabase
           .from("event_lessons")
-          .select("title,cover_image_url,url,description,duration_minutes")
+          .select(EVENT_LESSON_COLUMNS)
           .eq("event_id", eventId);
 
         if (lessonsError) {
