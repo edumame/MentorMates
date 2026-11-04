@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { EventRole } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-import { CreateEventModal } from "@/components/events/create-event-modal";
 import { EventsList } from "@/components/events/events-list";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
@@ -101,7 +100,9 @@ export function EventsPageClient({
     isAuthenticated: clientIsAuthenticated,
     isLoading: isAuthLoading,
   } = useAuth();
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const router = useRouter();
+  // Creating an event is one chat at /events/new (link, text, or a description).
+  const openCreate = () => router.push("/events/new");
   const searchParams = useSearchParams();
   const onboardingRole = searchParams.get("role");
   const isAuthenticated = isAuthLoading
@@ -354,7 +355,7 @@ export function EventsPageClient({
                     "h-9",
                     onboardingRole === "organizer" && "animate-bounce"
                   )}
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={openCreate}
                 >
                   Create an event
                 </Button>
@@ -405,7 +406,7 @@ export function EventsPageClient({
               searchTerm={searchTerm}
               hasFilters={hasActiveFilters}
               isAuthenticated={isAuthenticated}
-              onCreate={() => setShowCreateModal(true)}
+              onCreate={openCreate}
               onClearFilters={clearFilters}
             />
           ) : (
@@ -509,12 +510,6 @@ export function EventsPageClient({
         </aside>
       </div>
 
-      {isAuthenticated && (
-        <CreateEventModal
-          open={showCreateModal}
-          onOpenChange={setShowCreateModal}
-        />
-      )}
     </div>
   );
 }

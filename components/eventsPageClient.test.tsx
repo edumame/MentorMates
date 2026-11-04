@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { EventsPageClient } from "./eventsPageClient";
 
 const mockUseAuth = jest.fn();
@@ -8,8 +8,11 @@ jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+const mockPush = jest.fn();
+
 jest.mock("next/navigation", () => ({
   useSearchParams: () => mockUseSearchParams(),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock("@/components/events/events-list", () => ({
@@ -18,10 +21,6 @@ jest.mock("@/components/events/events-list", () => ({
   ),
 }));
 
-jest.mock("@/components/events/create-event-modal", () => ({
-  CreateEventModal: ({ open }: { open: boolean }) =>
-    open ? <div>Create event modal</div> : null,
-}));
 
 describe("EventsPageClient", () => {
   beforeEach(() => {
@@ -96,5 +95,22 @@ describe("EventsPageClient", () => {
     expect(stickyHeader).toBeTruthy();
     expect(stickyHeader?.className).toContain("pt-[24px]");
     expect(stickyHeader?.className).not.toContain("-mt-[24px]");
+  });
+
+  it("opens the creation chat from the create action", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+
+    render(
+      <EventsPageClient
+        eventsList={[]}
+        initialIsAuthenticated={true}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Create an event" })[0]);
+    expect(mockPush).toHaveBeenCalledWith("/events/new");
   });
 });

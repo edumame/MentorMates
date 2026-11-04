@@ -9,6 +9,12 @@ import { listManagedAgentEvents } from "@/lib/agent/event-access";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { randomUUID } from "crypto";
+import {
+  buildEventInsert,
+  eventCreateFieldsSchema,
+  eventSlugSchema,
+  isSlugTakenError,
+} from "@/lib/events/create-event";
 
 const DEFAULT_EVENT_LIST_LIMIT = 20;
 const MAX_EVENT_LIST_LIMIT = 100;
@@ -150,10 +156,6 @@ const resourceShape = z
   .object({ name: z.string(), link: z.string().url() })
   .strict();
 
-// URL-safe slug: alphanumeric + hyphen/underscore only. Blocks path traversal,
-// whitespace, and special characters.
-const slugPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
-
 // Organizer-writable fields. Admin-only fields (approval_status, rejection_reason,
 // featured) and immutable fields (event_id, owner_id, created_at) are intentionally
 // excluded and rejected via .strict(). `archived` visibility is excluded: archive
@@ -166,15 +168,10 @@ const updateEventSchema = z
     event_blurb: z.string().max(500).optional(),
     event_date: z.string().optional(),
     location: z.string().max(500).optional(),
-    slug: z
-      .string()
-      .min(1)
-      .max(100)
-      .regex(slugPattern, {
-        message:
-          "Slug must start with a letter/digit and contain only letters, digits, hyphens, or underscores",
-      })
-      .optional(),
+    organizer_affiliation: z.string().max(500).nullable().optional(),
+    // URL-safe slug (shared with create): blocks path traversal, whitespace,
+    // and special characters.
+    slug: eventSlugSchema.optional(),
     cover_image_url: z.string().url().nullable().optional(),
     // temporal
     submission_time_start: z.string().nullable().optional(),
@@ -253,48 +250,19 @@ export async function PATCH(request: NextRequest) {
 
 // --- POST: Create a new event ---
 
-const createEventSchema = z.object({
-  event_name: z.string().min(3).max(200),
-  event_date: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
-    message: "Invalid event_date — expected ISO date string (e.g. 2026-04-15)",
-  }),
-  location: z.string().min(1).max(500),
-  event_description: z.string().max(5000).optional(),
-  event_blurb: z.string().max(500).optional(),
+// Shared fields (and their limits) come from lib/events/create-event so this
+// route and POST /api/events validate a create the same way.
+const createEventSchema = eventCreateFieldsSchema.extend({
   visibility: z
     .enum(["draft", "private", "public", "demo", "test"])
     .optional()
     .default("draft"),
-  slug: z.string().min(1).max(100).optional(),
-  submission_time_start: z.string().nullable().optional(),
-  submission_time_cutoff: z.string().nullable().optional(),
-  participant_capacity: z.number().int().positive().nullable().optional(),
-  require_participant_approval: z.boolean().optional().default(false),
-  event_type: z.array(z.string()).optional().default([]),
-  paid: z.boolean().optional().default(false),
-  event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
   event_prizes: z
     .array(
       z.object({
         track: z.string(),
         prize: z.string(),
         description: z.string().optional(),
-      })
-    )
-    .optional(),
-  faq: z
-    .array(
-      z.object({
-        question: z.string(),
-        answer: z.string(),
-      })
-    )
-    .optional(),
-  rules: z
-    .array(
-      z.object({
-        title: z.string(),
-        items: z.array(z.string()),
       })
     )
     .optional(),
@@ -331,28 +299,13 @@ export async function POST(request: NextRequest) {
     const event = parsed.data;
     const supabase = createSupabaseServiceClient();
 
-    // Build the insert payload
+    // Shared fields map the same way as POST /api/events.
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
-      event_name: event.event_name,
-      event_date: event.event_date,
-      location: event.location,
-      rules: ((event.rules ?? []) as unknown as Json),
+      ...buildEventInsert(event, auth.userId),
       visibility:
         event.visibility as Database["public"]["Enums"]["event_visibility"],
-      slug: event.slug ?? null,
-      event_description: event.event_description ?? null,
-      event_blurb: event.event_blurb ?? null,
-      submission_time_start: event.submission_time_start ?? null,
-      submission_time_cutoff: event.submission_time_cutoff ?? null,
-      participant_capacity: event.participant_capacity ?? null,
-      paid: event.paid ?? false,
       event_schedule: (event.event_schedule as Json) ?? null,
       event_prizes: (event.event_prizes as Json) ?? null,
-      faq: (event.faq as Json) ?? null,
-      owner_id: auth.userId,
-      approval_status: "not_submitted",
-      featured: false,
-      event_type: event.event_type ?? [],
     };
 
     const { data: createdEvent, error: insertError } = await supabase
@@ -363,6 +316,12 @@ export async function POST(request: NextRequest) {
 
     if (insertError || !createdEvent) {
       console.error("Error creating event:", insertError);
+      if (isSlugTakenError(insertError)) {
+        return NextResponse.json(
+          { error: "Event slug already exists. Please try a different slug." },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
         { error: "Failed to create event" },
         { status: 500 }

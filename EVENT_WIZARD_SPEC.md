@@ -1,5 +1,7 @@
 # Event Creation Wizard — Spec-Driven Development Plan
 
+> **Superseded (Nov 2026).** `/events/new` is now one chat, with no forms: `components/events/create-chat/` (UI), `app/api/events/chat-draft/route.ts` (one chat turn), `lib/events/chat-draft.ts` (the draft), and `lib/events/create-event.ts` (the create schema shared by `POST /api/events` and `POST /api/agent/events`). The wizard below was removed; what it collected after the basics is edited on the event dashboard. Kept for history.
+
 > **Goal:** Replace the monolithic tab-based `/events/new` form (~4600 lines, 50+ useState hooks) with a clean 4-step wizard ported from the Event Scraper prototype. Add general "Import from Website" support using TinyFish.
 
 ---
