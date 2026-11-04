@@ -44,6 +44,7 @@ import {
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import {
   buildDraftArtifactsPayload,
+  getInitialAdditionalMaterialUrls,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
 import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
@@ -127,17 +128,20 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [isPrivate, setIsPrivate] = useState(Boolean(initialProject.is_private));
 
   // Form state
+  const initialMaterialUrls = getInitialAdditionalMaterialUrls(initialProject);
   const [formData, setFormData] = useState({
     project_name: initialProject.project_name || "",
     project_description: initialProject.project_description || "",
     project_url: initialProject.project_url || "",
     video_url: initialProject.video_url || "",
     cover_image_url: initialProject.cover_image_url || "",
-    additional_materials_url: initialProject.additional_materials_url || "",
+    additional_materials_url: initialMaterialUrls[0] || "",
   });
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
-  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
+  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>(
+    initialMaterialUrls.slice(1)
+  );
   const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
     initialProject.has_submission_field_config
       ? initialProject.submission_fields || []
