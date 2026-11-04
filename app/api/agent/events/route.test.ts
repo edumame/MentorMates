@@ -122,6 +122,137 @@ describe("GET /api/agent/events", () => {
     });
     expect(authorizeAgentEventAccess).not.toHaveBeenCalled();
   });
+
+  describe("with a bound event", () => {
+    function mockEventOverview(
+      roleResult: (role: string | undefined) => {
+        count: number | null;
+        error: { message: string } | null;
+      },
+    ) {
+      const eventQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { event_id: "event-1", event_name: "Big Event" },
+          error: null,
+        }),
+      };
+      const countQuery = (result: { count: number; error: null }) => {
+        const query = {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          then: (resolve: (value: typeof result) => unknown) =>
+            Promise.resolve(result).then(resolve),
+        };
+        return query;
+      };
+      // Mirrors PostgREST: a row request is capped at 1000, a head count is not.
+      const rolesQuery = () => {
+        let role: string | undefined;
+        let head = false;
+        const query = {
+          select(_columns: string, options?: { head?: boolean }) {
+            head = options?.head === true;
+            return this;
+          },
+          eq(column: string, value: string) {
+            if (column === "role") role = value;
+            return this;
+          },
+          then: (resolve: (value: unknown) => unknown) =>
+            Promise.resolve(
+              head
+                ? { ...roleResult(role), data: null }
+                : {
+                    data: Array.from({ length: 1000 }, () => ({
+                      role: "participant",
+                    })),
+                    error: null,
+                  },
+            ).then(resolve),
+        };
+        return query;
+      };
+
+      (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn((table: string) => {
+          if (table === "events") return eventQuery;
+          if (table === "user_event_roles") return rolesQuery();
+          if (table === "projects") {
+            return countQuery({ count: 7, error: null });
+          }
+          if (table === "participant_approval_requests") {
+            return countQuery({ count: 2, error: null });
+          }
+          throw new Error(`Unexpected table: ${table}`);
+        }),
+      });
+    }
+
+    const request = {
+      nextUrl: new URL(
+        "https://mentormates.ai/api/agent/events?event_id=event-1",
+      ),
+    } as never;
+
+    beforeEach(() => {
+      (authenticateAgentRequest as jest.Mock).mockResolvedValue({
+        userId: "user-1",
+        eventId: "event-1",
+        scopes: ["event:read"],
+        keyId: "key-1",
+      });
+      (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({});
+    });
+
+    it("reports exact role counts above the row cap", async () => {
+      const exactCounts: Record<string, number> = {
+        participant: 1500,
+        mentor: 40,
+        judge: 25,
+        organizer: 5,
+      };
+      mockEventOverview((role) => ({
+        // No role filter is the total, which also includes admins.
+        count: role ? exactCounts[role] : 1573,
+        error: null,
+      }));
+
+      const response = await GET(request);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.counts).toEqual({
+        participants: 1500,
+        mentors: 40,
+        judges: 25,
+        organizers: 5,
+        total: 1573,
+      });
+      expect(body.projects_count).toBe(7);
+      expect(body.pending_approvals).toBe(2);
+    });
+
+    it("returns an error instead of partial counts when a role count fails", async () => {
+      mockEventOverview((role) =>
+        role === "judge"
+          ? { count: null, error: { message: "boom" } }
+          : { count: 1, error: null },
+      );
+      const consoleError = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(500);
+      await expect(response.json()).resolves.toEqual({
+        error: "Failed to fetch role counts",
+      });
+      consoleError.mockRestore();
+    });
+  });
 });
 
 describe("PATCH /api/agent/events (expanded field set)", () => {
