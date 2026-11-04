@@ -26,6 +26,17 @@ it("shows public children while session lookup is pending", () => {
   expect(push).not.toHaveBeenCalled();
 });
 
+it("shows the emailed /ticket page to signed-out visitors without redirecting", async () => {
+  (usePathname as jest.Mock).mockReturnValue("/ticket");
+  (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null }, error: null });
+  render(<AuthProvider>Your Event Ticket</AuthProvider>);
+  expect(screen.getByText("Your Event Ticket")).toBeInTheDocument();
+  await waitFor(() => expect(supabase.auth.getSession).toHaveBeenCalled());
+  await act(async () => {});
+  expect(screen.getByText("Your Event Ticket")).toBeInTheDocument();
+  expect(push).not.toHaveBeenCalled();
+});
+
 it.each(["signed out", "error", "rejection"])("hides protected children through %s redirect", async (result) => {
   (supabase.auth.getSession as jest.Mock).mockImplementation(() => result === "rejection"
     ? Promise.reject(new Error("offline"))
