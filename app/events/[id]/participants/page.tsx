@@ -1,5 +1,4 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { UUID } from "crypto";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
@@ -9,6 +8,7 @@ import {
 } from "@/components/events/participants-content";
 import { headers } from "next/headers";
 import { EventRole } from "@/lib/types";
+import { fetchAllEventUsers } from "@/lib/events/fetch-all-event-users";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -98,32 +98,25 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       const rolesParam = canViewMultipleRoles
         ? ALL_ROLES
         : EventRole.Participant;
-      const response = await fetch(
-        `${baseUrl}/api/events/${eventData.event_id}/users?roles=${rolesParam}&limit=500`,
-        {
-          cache: "no-store",
-          headers: {
-            cookie: requestHeaders.get("cookie") || "",
+      try {
+        const users = await fetchAllEventUsers({
+          eventId: eventData.event_id,
+          roles: rolesParam,
+          baseUrl,
+          init: {
+            cache: "no-store",
+            headers: {
+              cookie: requestHeaders.get("cookie") || "",
+            },
           },
-        }
-      );
-
-      if (response.ok) {
-        const payload = await response.json();
-        participantsList = (payload.users || []).map(
-          (u: {
-            user_id: UUID;
-            uid: UUID;
-            display_name: string | null;
-            role: EventRole;
-          }) => ({
-            uid: u.uid || u.user_id,
-            display_name: u.display_name,
-            role: u.role,
-          })
-        );
-      } else {
-        console.error("Error fetching participants via API route");
+        });
+        participantsList = users.map((u) => ({
+          uid: u.uid || u.user_id,
+          display_name: u.display_name,
+          role: u.role,
+        }));
+      } catch (error) {
+        console.error("Error fetching participants via API route:", error);
       }
     }
   }
