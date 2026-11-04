@@ -92,4 +92,17 @@ describe("MentorAvailabilityManager", () => {
 
     expect(screen.getByDisplayValue("2026-05-02T09:00")).toBeInTheDocument();
   });
+
+  it("lets Max bookings be cleared and retyped", async () => {
+    const user = userEvent.setup();
+
+    render(<MentorAvailabilityManager eventId="event-1" />);
+
+    const maxBookings = await screen.findByLabelText("Max bookings");
+    await user.clear(maxBookings);
+    expect(maxBookings).toHaveValue(null);
+
+    await user.keyboard("12");
+    expect(maxBookings).toHaveValue(12);
+  });
 });

@@ -281,6 +281,58 @@ describe("score exports", () => {
     ]);
   });
 
+  it("treats a criterion weight of 0 as zero, not as the default of 1", () => {
+    const zeroWeightConfig: EventScoringConfig = {
+      ...scoringConfig,
+      tracks: {
+        main: {
+          name: "Main Track",
+          criteria: scoringConfig.tracks.main.criteria.map((criterion) =>
+            criterion.id === "feasible"
+              ? { ...criterion, weight: 0 }
+              : criterion
+          ),
+        },
+      },
+    };
+
+    const byRound = buildTrackScoresByRound(
+      [
+        {
+          project_id: "p2",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          scores: { impact: 10, feasible: 9 },
+          projects: {
+            project_name: "Beta",
+            lead_name: "Bob",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+      ],
+      zeroWeightConfig
+    );
+
+    expect(
+      buildScoreExportRows({
+        roundNumber: 1,
+        scores: byRound[1].main,
+        numericCriteria: zeroWeightConfig.tracks.main.criteria,
+        choiceCriteria: [],
+      })
+    ).toEqual([
+      expect.objectContaining({
+        "Total Average": "20.00",
+        "Impact (×2)": "10.00",
+        "Feasibility (×0)": "9.00",
+      }),
+    ]);
+  });
+
   it("adds a round column to exported leaderboard rows", () => {
     const byRound = buildTrackScoresByRound(
       [

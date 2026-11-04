@@ -157,7 +157,7 @@ function addProjectScore(
 
     if (Number.isNaN(numeric)) return;
 
-    totalScore += numeric * (criterion.weight || 1);
+    totalScore += numeric * (criterion.weight ?? 1);
 
     if (!projectScore.criterionScores[criterionId]) {
       projectScore.criterionScores[criterionId] = {
@@ -307,7 +307,7 @@ export function buildScoreExportRows(params: {
     numericCriteria.forEach((criterion) => {
       const criterionScore = score.criterionScores[criterion.id];
       const columnName =
-        criterion.weight && criterion.weight !== 1
+        criterion.weight != null && criterion.weight !== 1
           ? `${criterion.name} (×${criterion.weight})`
           : criterion.name;
       row[columnName] = criterionScore
@@ -374,7 +374,7 @@ export function buildRawScoreExportRows(params: {
           return;
         }
 
-        totalScore += numeric * (criterion.weight || 1);
+        totalScore += numeric * (criterion.weight ?? 1);
         hasNumericScore = true;
       });
     } else if (score.scores) {
