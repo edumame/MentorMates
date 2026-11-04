@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
-import { EventRole } from "@/lib/types";
+import { EventRole, type EventScoringConfig, type EventTrack } from "@/lib/types";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 import {
   getProjectIdsForRound,
   rankProjectsForAdvancement,
   replaceAdvancements,
 } from "@/lib/judging/rounds";
+import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
 
 const bodySchema = z.object({
   fromRound: z.number().int().positive(),
@@ -97,11 +99,41 @@ export async function GET(
       .eq("round_number", toRound);
     if (advancedErr) throw advancedErr;
 
+    const { data: eventData, error: eventErr } = await supabase
+      .from("events")
+      .select(
+        `
+        scoring_config,
+        event_tracks (
+          track_id,
+          name,
+          scoring_criteria
+        )
+      `
+      )
+      .eq("event_id", eventId)
+      .maybeSingle();
+    if (eventErr) throw eventErr;
+
+    const eventSource = eventData as unknown as {
+      scoring_config: EventScoringConfig | null;
+      event_tracks: EventTrack[] | null;
+    } | null;
+    const scoringConfig = buildEventScoringConfig(eventSource);
+    const trackNames = new Map(
+      (eventSource?.event_tracks ?? []).map((track) => [
+        track.track_id,
+        track.name,
+      ])
+    );
+
     const { data: scoreRows, error: scoreErr } = await supabase
       .from("project_scores")
       .select(
         `
         project_id,
+        track_id,
+        judge_id,
         scores,
         projects:projects!inner (
           project_name,
@@ -117,6 +149,8 @@ export async function GET(
     const rankedProjects = rankProjectsForAdvancement(
       ((scoreRows ?? []) as Array<{
         project_id: string;
+        track_id: string | null;
+        judge_id: string;
         scores: Record<string, unknown> | null;
         projects:
           | {
@@ -133,7 +167,17 @@ export async function GET(
         const project = Array.isArray(row.projects) ? row.projects[0] : row.projects;
         return {
           project_id: row.project_id,
+          track_id: row.track_id,
+          judge_id: row.judge_id,
           scores: row.scores,
+          criteria: row.track_id
+            ? getTrackScoringConfigForRound({
+                scoringConfig,
+                trackId: row.track_id,
+                roundNumber: fromRound,
+                fallbackTrackName: trackNames.get(row.track_id),
+              })?.criteria
+            : null,
           project_name: project?.project_name ?? "",
           lead_name: project?.lead_name ?? "",
         };

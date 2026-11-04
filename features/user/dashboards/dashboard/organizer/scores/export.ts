@@ -1,4 +1,5 @@
 import type { EventScoringConfig, ScoringCriterion } from "@/lib/types";
+import { getNumericCriterionScore } from "@/lib/judging/rounds";
 import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
 
 export interface DashboardProjectScore {
@@ -150,12 +151,9 @@ function addProjectScore(
       return;
     }
 
-    const numeric =
-      typeof scoreValue === "number"
-        ? scoreValue
-        : parseFloat(String(scoreValue));
+    const numeric = getNumericCriterionScore(criterion, scoreValue);
 
-    if (Number.isNaN(numeric)) return;
+    if (numeric === null) return;
 
     totalScore += numeric * (criterion.weight || 1);
 
