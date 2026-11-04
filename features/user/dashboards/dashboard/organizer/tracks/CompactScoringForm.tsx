@@ -53,6 +53,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { withoutTrack } from "./classify-track-entries";
 
 // ── Templates ─────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ interface CompactScoringFormProps {
   isArchived: boolean;
   eventId: string;
   tracks?: EventTrack[];
+  onTrackDeleted: (trackId: string) => void;
 }
 
 // ── Main Component ────────────────────────────────────────────────────
@@ -126,6 +128,7 @@ export function CompactScoringForm({
   isArchived,
   eventId,
   tracks: savedTracks = [],
+  onTrackDeleted,
 }: CompactScoringFormProps) {
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
@@ -134,8 +137,24 @@ export function CompactScoringForm({
   // Sync external config changes (from AI sidebar) into the internal state.
   // Uses a ref to avoid re-syncing when the user edits the form locally.
   const lastExternalConfig = useRef(initialConfig);
+  const deletedTrackIds = useRef(new Set<string>());
   useEffect(() => {
+    // A delete also removes the track from the parent's config. The form has
+    // already dropped it, and syncing would discard unsaved edits to other tracks.
+    const previousConfig = lastExternalConfig.current;
+    const isOwnDelete =
+      deletedTrackIds.current.size > 0 &&
+      !!previousConfig &&
+      JSON.stringify(
+        [...deletedTrackIds.current].reduce(
+          (remaining, trackId) => withoutTrack(remaining, trackId),
+          previousConfig
+        )
+      ) === JSON.stringify(initialConfig);
+    deletedTrackIds.current.clear();
+
     if (
+      !isOwnDelete &&
       initialConfig &&
       initialConfig !== lastExternalConfig.current &&
       JSON.stringify(initialConfig) !== JSON.stringify(config)
@@ -363,32 +382,20 @@ export function CompactScoringForm({
   };
 
   const removeTrack = async (id: string) => {
-    const { error } = await supabase.from("event_tracks").delete().eq("track_id", id);
-    if (error) {
+    const { data: deletedRows, error } = await supabase
+      .from("event_tracks")
+      .delete()
+      .eq("track_id", id)
+      .select("track_id");
+    // A delete matching no rows is not an error, so check a saved track really
+    // went. A track that was never saved has no row to remove.
+    const savedRowRemains =
+      savedTracks.some((track) => track.track_id === id) && !deletedRows?.length;
+    if (error || savedRowRemains) {
       toast({ title: "Error", description: "Failed to delete track", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Track deleted" });
-      setConfig((prev) => {
-        const newTracks = { ...prev.tracks };
-        delete newTracks[id];
-        return {
-          ...prev,
-          tracks: newTracks,
-          rounds: (prev.rounds || []).map((round) => {
-            if (!round.tracks?.[id]) {
-              return round;
-            }
-
-            const nextTracks = { ...round.tracks };
-            delete nextTracks[id];
-
-            return {
-              ...round,
-              tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
-            };
-          }),
-        };
-      });
+      setConfig((prev) => withoutTrack(prev, id));
       setSelectedRubricScopeByTrack((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -399,6 +406,9 @@ export function CompactScoringForm({
         next.delete(id);
         return next;
       });
+      setSelectedTrackForBulkAssign((prev) => (prev === id ? "" : prev));
+      deletedTrackIds.current.add(id);
+      onTrackDeleted(id);
     }
   };
 

@@ -4,7 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { CompactScoringForm } from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
 import { JudgingSidebar } from "@/features/user/dashboards/dashboard/organizer/tracks/JudgingSidebar";
 import { buildEventTrackScoringCriteriaFromConfig } from "@/lib/judging/scoring-config";
-import { classifyTrackEntries } from "./classify-track-entries";
+import {
+  classifyTrackEntries,
+  withoutTrack,
+  withUuidTrackIds,
+} from "./classify-track-entries";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
@@ -64,9 +68,10 @@ export function TracksTab({
     fetchTracks();
   }, [eventId, toast, fetchTracks]);
 
-  const handleScoreUpdate = async (config: EventScoringConfig) => {
+  const handleScoreUpdate = async (submittedConfig: EventScoringConfig) => {
     try {
       setSaving(true);
+      const config = withUuidTrackIds(submittedConfig);
       setScoringConfig(config);
 
       const existingDbTrackIds = new Set(tracks.map((t) => t.track_id));
@@ -85,7 +90,7 @@ export function TracksTab({
         }),
       );
 
-      // Upsert existing tracks (real UUIDs already in DB)
+      // Upsert existing tracks (UUIDs already in DB)
       if (existing.length > 0) {
         const { error: upsertError } = await supabase
           .from("event_tracks")
@@ -93,7 +98,8 @@ export function TracksTab({
         if (upsertError) throw upsertError;
       }
 
-      // Insert new tracks — omit track_id so Postgres gen_random_uuid() fills it
+      // Insert, not upsert: new ids come from the client, so a collision must
+      // fail rather than overwrite a row.
       if (newTracks.length > 0) {
         const { error: insertError } = await supabase
           .from("event_tracks")
@@ -135,6 +141,21 @@ export function TracksTab({
     } finally {
       setSaving(false);
     }
+  };
+
+  // Everything that outlives the form must forget the track, or a remount and
+  // the next save would bring it back.
+  const handleTrackDeleted = (trackId: string) => {
+    const isOtherTrack = (track: EventTrack) => track.track_id !== trackId;
+    setTracks((prev) => prev.filter(isOtherTrack));
+    setEvent(
+      (prev) =>
+        prev && {
+          ...prev,
+          event_tracks: prev.event_tracks?.filter(isOtherTrack),
+        },
+    );
+    setScoringConfig((prev) => prev && withoutTrack(prev, trackId));
   };
 
   return (
@@ -226,6 +247,7 @@ export function TracksTab({
                 isArchived={isArchived}
                 eventId={eventId}
                 tracks={tracks}
+                onTrackDeleted={handleTrackDeleted}
               />
             </div>
           </div>
