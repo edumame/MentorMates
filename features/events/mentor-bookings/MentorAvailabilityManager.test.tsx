@@ -92,4 +92,39 @@ describe("MentorAvailabilityManager", () => {
 
     expect(screen.getByDisplayValue("2026-05-02T09:00")).toBeInTheDocument();
   });
+
+  it("shows a 'with' line only for slots that have bookers", async () => {
+    const slot = {
+      mentor_id: "mentor-1",
+      event_id: "event-1",
+      start_time: "2026-05-01T14:00:00.000Z",
+      end_time: "2026-05-01T14:30:00.000Z",
+      max_bookings: 1,
+      created_at: "2026-04-01T00:00:00.000Z",
+    };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        availability: [
+          {
+            ...slot,
+            id: "booked",
+            booking_count: 1,
+            participants: [
+              { display_name: "Alice", email: "alice@example.test" },
+            ],
+          },
+          { ...slot, id: "empty", booking_count: 0, participants: [] },
+        ],
+      }),
+    }) as jest.Mock;
+
+    render(<MentorAvailabilityManager eventId="event-1" />);
+
+    expect(
+      await screen.findByText("with alice@example.test")
+    ).toBeInTheDocument();
+    expect(screen.getByText("0 / 1 booked")).toBeInTheDocument();
+    expect(screen.getAllByText(/^with\b/)).toHaveLength(1);
+  });
 });

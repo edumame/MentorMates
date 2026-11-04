@@ -335,9 +335,11 @@ export function MentorAvailabilityManager({
                     {slot.booking_count} / {slot.max_bookings} booked
                   </div>
 
-                  <div className="text-muted-foreground">
-                    with {slot.participants.map((p) => p.email).join(", ")}
-                  </div>
+                  {slot.participants.length > 0 && (
+                    <div className="text-muted-foreground">
+                      with {slot.participants.map((p) => p.email).join(", ")}
+                    </div>
+                  )}
                 </div>
 
                 <Button
