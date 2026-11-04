@@ -53,6 +53,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { removeTrackFromConfig } from "./track-draft";
 
 // ── Templates ─────────────────────────────────────────────────────────
 
@@ -109,8 +110,11 @@ function cloneTrackScoringConfig(track: TrackScoringConfig): TrackScoringConfig 
 // ── Props ─────────────────────────────────────────────────────────────
 
 interface CompactScoringFormProps {
-  initialConfig?: EventScoringConfig | null;
+  /** The draft is owned by TracksTab so the judging sidebar reads and writes the same config. */
+  config: EventScoringConfig;
+  onConfigChange: React.Dispatch<React.SetStateAction<EventScoringConfig>>;
   onSave: (config: EventScoringConfig) => void;
+  onTrackDeleted?: (trackId: string) => void;
   isSubmitting?: boolean;
   isArchived: boolean;
   eventId: string;
@@ -120,47 +124,36 @@ interface CompactScoringFormProps {
 // ── Main Component ────────────────────────────────────────────────────
 
 export function CompactScoringForm({
-  initialConfig,
+  config,
+  onConfigChange: setConfig,
   onSave,
+  onTrackDeleted,
   isSubmitting = false,
   isArchived,
   eventId,
   tracks: savedTracks = [],
 }: CompactScoringFormProps) {
-  const [config, setConfig] = useState<EventScoringConfig>(
-    initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
-  );
-
-  // Sync external config changes (from AI sidebar) into the internal state.
-  // Uses a ref to avoid re-syncing when the user edits the form locally.
-  const lastExternalConfig = useRef(initialConfig);
-  useEffect(() => {
-    if (
-      initialConfig &&
-      initialConfig !== lastExternalConfig.current &&
-      JSON.stringify(initialConfig) !== JSON.stringify(config)
-    ) {
-      setConfig(initialConfig);
-      // Auto-expand new tracks that weren't there before
-      const newTrackIds = Object.keys(initialConfig.tracks).filter(
-        (id) => !config.tracks[id]
-      );
-      if (newTrackIds.length > 0) {
-        setExpandedTracks((prev) => {
-          const next = new Set(prev);
-          newTrackIds.forEach((id) => next.add(id));
-          return next;
-        });
-      }
-    }
-    lastExternalConfig.current = initialConfig;
-  }, [initialConfig]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const [expandedTracks, setExpandedTracks] = useState<Set<string>>(() => {
     // Auto-expand the first track or all tracks if ≤ 2
-    const ids = Object.keys(initialConfig?.tracks || {});
+    const ids = Object.keys(config.tracks);
     return new Set(ids.length <= 2 ? ids : ids.slice(0, 1));
   });
+
+  // Auto-expand tracks added from outside the form (AI sidebar)
+  const knownTrackIds = useRef(new Set(Object.keys(config.tracks)));
+  useEffect(() => {
+    const trackIds = Object.keys(config.tracks);
+    const newTrackIds = trackIds.filter((id) => !knownTrackIds.current.has(id));
+    knownTrackIds.current = new Set(trackIds);
+    if (newTrackIds.length > 0) {
+      setExpandedTracks((prev) => {
+        const next = new Set(prev);
+        newTrackIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  }, [config.tracks]);
+
   const [editingCritId, setEditingCritId] = useState<string | null>(null);
   const [isAssigningProjects, setIsAssigningProjects] = useState(false);
   const [selectedTrackForBulkAssign, setSelectedTrackForBulkAssign] = useState("");
@@ -368,27 +361,8 @@ export function CompactScoringForm({
       toast({ title: "Error", description: "Failed to delete track", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Track deleted" });
-      setConfig((prev) => {
-        const newTracks = { ...prev.tracks };
-        delete newTracks[id];
-        return {
-          ...prev,
-          tracks: newTracks,
-          rounds: (prev.rounds || []).map((round) => {
-            if (!round.tracks?.[id]) {
-              return round;
-            }
-
-            const nextTracks = { ...round.tracks };
-            delete nextTracks[id];
-
-            return {
-              ...round,
-              tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
-            };
-          }),
-        };
-      });
+      setConfig((prev) => removeTrackFromConfig(prev, id));
+      onTrackDeleted?.(id);
       setSelectedRubricScopeByTrack((prev) => {
         const next = { ...prev };
         delete next[id];

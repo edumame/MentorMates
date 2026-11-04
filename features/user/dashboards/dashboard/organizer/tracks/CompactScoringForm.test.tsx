@@ -139,6 +139,26 @@ jest.mock("@/components/ui/select", () => {
   };
 });
 
+function ControlledForm({
+  initialConfig,
+  ...props
+}: { initialConfig: EventScoringConfig } & Pick<
+  React.ComponentProps<typeof CompactScoringForm>,
+  "onSave"
+>) {
+  const [config, setConfig] = React.useState(initialConfig);
+
+  return (
+    <CompactScoringForm
+      config={config}
+      onConfigChange={setConfig}
+      isArchived={false}
+      eventId="event-1"
+      {...props}
+    />
+  );
+}
+
 describe("CompactScoringForm", () => {
   const multiRoundConfig: EventScoringConfig = {
     tracks: {
@@ -181,12 +201,7 @@ describe("CompactScoringForm", () => {
     const onSave = jest.fn();
 
     render(
-      <CompactScoringForm
-        initialConfig={multiRoundConfig}
-        onSave={onSave}
-        isArchived={false}
-        eventId="event-1"
-      />
+      <ControlledForm initialConfig={multiRoundConfig} onSave={onSave} />
     );
 
     fireEvent.change(screen.getByRole("combobox"), {
@@ -231,14 +246,12 @@ describe("CompactScoringForm", () => {
 
   it("hides the round selector when the event does not have multiple rounds", () => {
     render(
-      <CompactScoringForm
+      <ControlledForm
         initialConfig={{
           ...multiRoundConfig,
           rounds: [{ round_number: 1, name: "Only Round" }],
         }}
         onSave={jest.fn()}
-        isArchived={false}
-        eventId="event-1"
       />
     );
 
