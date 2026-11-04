@@ -488,6 +488,106 @@ describe("saveProjectSubmission", () => {
     expect(projectsTable.insert).not.toHaveBeenCalled();
   });
 
+  describe("project lead on update", () => {
+    const buildUpdateSupabase = (contextusProjectId: string | null) => {
+      const existingProjectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            id: projectId,
+            event_id: null,
+            contextus_project_id: contextusProjectId,
+            project_name: "Existing Name",
+            project_description: "Existing Description",
+          },
+          error: null,
+        }),
+      };
+      const updatedProjectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            id: projectId,
+            project_name: "Existing Name",
+            lead_name: "Real Lead",
+            lead_email: "lead@example.com",
+            project_description: "Existing Description",
+            teammates: ["teammate@example.com"],
+            project_url: null,
+            video_url: null,
+            additional_materials_url: null,
+            cover_image_url: null,
+            event_id: null,
+            contextus_project_id: contextusProjectId,
+            private: false,
+            created_at: "2026-04-16T12:00:00.000Z",
+            submitted: true,
+            submitted_at: "2026-04-16T12:00:00.000Z",
+            project_tracks: [],
+          },
+          error: null,
+        }),
+      };
+      const projectsTable = {
+        select: jest
+          .fn()
+          .mockReturnValueOnce(existingProjectQuery)
+          .mockReturnValueOnce(updatedProjectQuery),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        }),
+      };
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (table === "projects") return projectsTable;
+          throw new Error(`Unexpected table ${table}`);
+        }),
+      };
+
+      return { supabase, projectsTable };
+    };
+
+    it("does not write lead_email, even when the input carries one", async () => {
+      const { supabase, projectsTable } = buildUpdateSupabase("ctx-1");
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { leadEmail: "teammate@example.com", submitted: true },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledTimes(1);
+      expect(projectsTable.update.mock.calls[0][0]).toMatchObject({
+        submitted: true,
+      });
+      expect(projectsTable.update.mock.calls[0][0]).not.toHaveProperty(
+        "lead_email",
+      );
+    });
+
+    it("reports the stored lead to Contextus, not the input lead", async () => {
+      const { supabase } = buildUpdateSupabase(null);
+      (createContextusProject as jest.Mock).mockResolvedValue("ctx-new");
+
+      await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { leadEmail: "teammate@example.com", submitted: true },
+      });
+
+      expect(createContextusProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            team_lead_email: "lead@example.com",
+          }),
+        }),
+      );
+    });
+  });
+
   it("rejects update when input clears the locked project_name", async () => {
     const existingProjectQuery = {
       eq: jest.fn().mockReturnThis(),
