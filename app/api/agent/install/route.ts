@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       setup_commands: {
         env_export: `export MENTORMATES_API_KEY="${raw}"`,
         event_export: `export MENTORMATES_EVENT_ID="${event_id}"`,
-        skill_save: `mkdir -p .claude && curl -s "${baseUrl}/api/agent/skill" > .claude/commands/mentormates.md`,
+        skill_save: `mkdir -p .claude/commands && curl -s "${baseUrl}/api/agent/skill" > .claude/commands/mentormates.md`,
       },
     });
   } catch (error) {
