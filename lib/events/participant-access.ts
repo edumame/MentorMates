@@ -37,6 +37,50 @@ function failure(
   };
 }
 
+/**
+ * A paid payment row or an assigned ticket both grant entry: bundle ticket
+ * claimants hold a ticket but have no payment row of their own.
+ */
+export async function hasPaidEventAccess(
+  supabase: ServiceSupabaseClient,
+  eventId: string,
+  userId: string,
+): Promise<{ allowed: boolean; failed: boolean }> {
+  const { data: payment, error: paymentError } = await supabase
+    .from("user_event_payments")
+    .select("payment_status")
+    .eq("user_id", userId)
+    .eq("event_id", eventId)
+    .eq("payment_status", "paid")
+    .maybeSingle()
+    .overrideTypes<{
+      payment_status: Database["public"]["Tables"]["user_event_payments"]["Row"]["payment_status"];
+    } | null>();
+
+  if (paymentError) {
+    return { allowed: false, failed: true };
+  }
+
+  if (payment) {
+    return { allowed: true, failed: false };
+  }
+
+  const { data: ticket, error: ticketError } = await supabase
+    .from("event_tickets")
+    .select("id")
+    .eq("assigned_to_user_id", userId)
+    .eq("event_id", eventId)
+    .limit(1)
+    .maybeSingle()
+    .overrideTypes<{ id: string } | null>();
+
+  if (ticketError) {
+    return { allowed: false, failed: true };
+  }
+
+  return { allowed: Boolean(ticket), failed: false };
+}
+
 export async function joinParticipantEvent(
   supabase: ServiceSupabaseClient,
   options: JoinParticipantEventOptions,
@@ -176,33 +220,7 @@ export async function joinParticipantEvent(
       });
     }
 
-    if (existingRequest?.status === "approved") {
-      if (event.paid && channel === "web") {
-        const { data: payment, error: paymentError } = await supabase
-          .from("user_event_payments")
-          .select("payment_status")
-          .eq("user_id", userId)
-          .eq("event_id", eventId)
-          .eq("payment_status", "paid")
-          .maybeSingle()
-          .overrideTypes<{
-            payment_status: Database["public"]["Tables"]["user_event_payments"]["Row"]["payment_status"];
-          } | null>();
-
-        if (paymentError) {
-          return failure(500, { error: "Failed to verify payment status" });
-        }
-
-        if (!payment) {
-          return failure(402, {
-            error:
-              "Payment required. Your request has been approved, but payment is still needed.",
-            requires_approval: false,
-            request_status: "approved_pending_payment",
-          });
-        }
-      }
-    } else if (!existingRequest) {
+    if (!existingRequest) {
       const { data: newRequest, error: requestError } = await supabase
         .from("participant_approval_requests")
         .insert({
@@ -227,13 +245,36 @@ export async function joinParticipantEvent(
         message:
           "Your request has been submitted and is pending organizer approval",
       };
-    } else {
+    } else if (existingRequest.status !== "approved") {
       return failure(403, {
         error:
           "Your previous request was not approved. Please contact the organizers.",
         requires_approval: false,
         request_status: existingRequest.status,
       });
+    }
+  }
+
+  // Checked after approval so approval events still review before charging.
+  if (event.paid) {
+    const access = await hasPaidEventAccess(supabase, eventId, userId);
+
+    if (access.failed) {
+      return failure(500, { error: "Failed to verify payment status" });
+    }
+
+    if (!access.allowed) {
+      return failure(
+        402,
+        event.require_participant_approval
+          ? {
+              error:
+                "Payment required. Your request has been approved, but payment is still needed.",
+              requires_approval: false,
+              request_status: "approved_pending_payment",
+            }
+          : { error: "Payment required to join this event." },
+      );
     }
   }
 

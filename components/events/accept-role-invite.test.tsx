@@ -5,6 +5,7 @@ import { EventRole } from "@/lib/types";
 import { RedirectProvider } from "@/features/user/authentication/redirect/RedirectProvider";
 import { RETURN_URL_STORAGE_KEY } from "@/features/user/authentication/redirect/redirect-url";
 import { supabase } from "@/lib/supabase";
+import { toast } from "@/lib/hooks/use-toast";
 
 const push = jest.fn();
 
@@ -16,6 +17,10 @@ jest.mock("@/lib/supabase", () => ({
       }),
     },
   },
+}));
+
+jest.mock("@/lib/hooks/use-toast", () => ({
+  toast: jest.fn(),
 }));
 
 jest.mock("next/navigation", () => ({
@@ -103,5 +108,151 @@ describe("AcceptRoleInvite", () => {
     );
     expect(push).toHaveBeenCalledWith("/login");
     await waitFor(() => expect(mockGetSession).toHaveBeenCalled());
+  });
+
+  describe("accepting while signed in", () => {
+    const upsert = jest.fn().mockResolvedValue({ error: null });
+    const fetchMock = jest.fn();
+    const originalFetch = global.fetch;
+    const supabaseWithFrom = supabase as unknown as { from?: jest.Mock };
+
+    const mockResponse = (status: number, body: Record<string, unknown>) =>
+      fetchMock.mockResolvedValue({
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => body,
+      });
+
+    const acceptInvite = async (
+      role: EventRole.Participant | EventRole.Judge,
+      buttonName: string
+    ) => {
+      renderInvite(
+        <AcceptRoleInvite
+          role={role}
+          eventId="event-1"
+          eventName="Hack Night"
+          eventBlurb={null}
+          eventSlug="hack-night"
+        />
+      );
+
+      fireEvent.click(await screen.findByRole("button", { name: buttonName }));
+    };
+
+    const acceptParticipantInvite = () =>
+      acceptInvite(EventRole.Participant, "Accept Participant Invitation");
+
+    beforeEach(() => {
+      upsert.mockClear();
+      fetchMock.mockReset();
+      jest.mocked(toast).mockClear();
+      global.fetch = fetchMock as unknown as typeof fetch;
+      mockGetSession.mockResolvedValue({
+        data: {
+          session: { user: { id: "user-1", email: "person@example.com" } },
+        },
+      } as unknown as Awaited<ReturnType<typeof supabase.auth.getSession>>);
+
+      const query: Record<string, jest.Mock> = {
+        select: jest.fn(() => query),
+        eq: jest.fn(() => query),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+        upsert,
+      };
+      supabaseWithFrom.from = jest.fn(() => query);
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      delete supabaseWithFrom.from;
+      mockGetSession.mockResolvedValue({
+        data: { session: null },
+      } as unknown as Awaited<ReturnType<typeof supabase.auth.getSession>>);
+    });
+
+    it("joins participants through /api/roles/verify, not a browser upsert", async () => {
+      mockResponse(200, { success: true, requires_approval: false });
+
+      await acceptParticipantInvite();
+
+      expect(
+        await screen.findByRole("heading", { name: "You're In!" })
+      ).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/roles/verify",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            eventId: "event-1",
+            role: EventRole.Participant,
+            userId: "user-1",
+          }),
+        })
+      );
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [402, "Payment required to join this event."],
+      [412, "Please complete the registration questionnaire."],
+      [400, "Password required for this role"],
+    ])(
+      "sends the user to the event page to finish joining on %i",
+      async (status, error) => {
+        mockResponse(status, { error });
+
+        await acceptParticipantInvite();
+
+        await waitFor(() =>
+          expect(push).toHaveBeenCalledWith("/events/hack-night/overview")
+        );
+        expect(toast).toHaveBeenCalledWith(
+          expect.objectContaining({ description: error })
+        );
+        expect(
+          screen.queryByRole("heading", { name: "You're In!" })
+        ).not.toBeInTheDocument();
+        expect(upsert).not.toHaveBeenCalled();
+      }
+    );
+
+    it("does not claim success when the join needs organizer approval", async () => {
+      mockResponse(200, { success: true, requires_approval: true });
+
+      await acceptParticipantInvite();
+
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith("/events/hack-night/overview")
+      );
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Request Submitted" })
+      );
+      expect(
+        screen.queryByRole("heading", { name: "You're In!" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the error and stays put on other failures", async () => {
+      mockResponse(409, { error: "Event is full. No seats available." });
+
+      await acceptParticipantInvite();
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            description: "Event is full. No seats available.",
+          })
+        )
+      );
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it("leaves judge invites on their existing path", async () => {
+      await acceptInvite(EventRole.Judge, "Accept Judge Invitation");
+
+      await waitFor(() => expect(upsert).toHaveBeenCalled());
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 });

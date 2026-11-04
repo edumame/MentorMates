@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { EventRole } from "@/lib/types";
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { joinParticipantEvent } from "@/lib/events/participant-access";
+import {
+  hasPaidEventAccess,
+  joinParticipantEvent,
+} from "@/lib/events/participant-access";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
@@ -34,9 +37,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { error: eventError } = await supabase
+    const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("event_id")
+      .select("event_id, paid")
       .eq("event_id", eventId)
       .maybeSingle();
 
@@ -101,6 +104,25 @@ export async function POST(request: Request) {
         request_status: joinResult.requestStatus,
         message: joinResult.message,
       });
+    }
+
+    // Mentors pay on paid events, matching the pricing step in JoinEventButton.
+    if (role === EventRole.Mentor && event?.paid) {
+      const access = await hasPaidEventAccess(supabase, eventId, userId);
+
+      if (access.failed) {
+        return NextResponse.json(
+          { error: "Failed to verify payment status" },
+          { status: 500 }
+        );
+      }
+
+      if (!access.allowed) {
+        return NextResponse.json(
+          { error: "Payment required to join this event." },
+          { status: 402 }
+        );
+      }
     }
 
     // Now we can proceed with role assignment
