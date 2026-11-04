@@ -1,6 +1,6 @@
 import type { Project } from '@/lib/types';
+import { buildArtifactsUpdate } from '@/features/projects/client-actions/client-project-artifacts';
 import { normalizeSubmissionValue } from '@/features/projects/utils/effectiveSubmission';
-import { buildArtifactsFromLegacy } from '@/features/projects/utils/submission';
 
 export function buildMaterialsUpdate(project: Project, url: string) {
   if (project.has_submission_field_config) {
@@ -18,15 +18,7 @@ export function buildMaterialsUpdate(project: Project, url: string) {
       ],
     };
   }
-  const artifacts = project.artifacts || buildArtifactsFromLegacy(project);
-  const remaining = artifacts.filter((item) => item.kind !== 'additional_material' || item.url !== project.additional_materials_url);
-  return {
-    additional_materials_url: url,
-    artifacts: [
-      ...remaining,
-      ...(url ? [{ kind: 'additional_material', label: 'Additional Material', url, sort_order: 0, is_primary: true }] : []),
-    ],
-  };
+  return { additional_materials_url: url, artifacts: buildArtifactsUpdate(project, 'additional_material', url) };
 }
 
 export async function patchProject(projectId: string, body: unknown, fallbackError: string): Promise<Project> {

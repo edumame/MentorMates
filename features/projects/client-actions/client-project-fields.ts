@@ -1,11 +1,11 @@
-import type { Project, ProjectArtifact } from '@/lib/types';
+import type { Project } from '@/lib/types';
 import { patchProject } from '@/features/projects/client-actions/client-materials';
+import { buildArtifactsUpdate } from '@/features/projects/client-actions/client-project-artifacts';
 import {
   buildSubmissionAnswersPayload,
   buildSubmissionValuesFromProject,
   hasSubmissionFieldMismatch,
 } from '@/features/projects/utils/effectiveSubmission';
-import { buildArtifactsFromLegacy, type ProjectArtifactKind } from '@/features/projects/utils/submission';
 
 export type InlineProjectField = 'project_name' | 'project_description' | 'project_url' | 'video_url' | 'cover_image';
 
@@ -16,35 +16,6 @@ const FIELD_LABELS: Record<InlineProjectField, string> = {
   video_url: 'video URL',
   cover_image: 'cover image',
 };
-
-function withPrimaryUrl(artifacts: ProjectArtifact[], kind: ProjectArtifactKind, url: string): ProjectArtifact[] {
-  const sameKind = artifacts.filter((item) => item.kind === kind);
-  const primary = sameKind.find((item) => item.is_primary) ?? sameKind[0];
-  const others = artifacts.filter((item) => item !== primary && (item.kind !== kind || item.url !== url));
-  if (!url) return others;
-  const [legacy] = buildArtifactsFromLegacy({
-    project_url: kind === 'project_link' ? url : null,
-    video_url: kind === 'video_link' ? url : null,
-    additional_materials_url: kind === 'additional_material' ? url : null,
-  });
-  return [...others, primary ? { ...primary, url, is_primary: true } : legacy];
-}
-
-// A PATCH with artifacts replaces every row and rederives all URL columns from
-// them, so rows left stale by older column-only writes must follow the columns.
-function buildArtifactsUpdate(project: Project, kind: ProjectArtifactKind, url: string) {
-  const columns: Array<[ProjectArtifactKind, string | null | undefined]> = [
-    ['project_link', project.project_url],
-    ['video_link', project.video_url],
-    ['additional_material', project.additional_materials_url],
-  ];
-  const artifacts = columns.reduce(
-    (current, [columnKind, columnUrl]) =>
-      columnKind !== kind && columnUrl ? withPrimaryUrl(current, columnKind, columnUrl) : current,
-    project.artifacts || [],
-  );
-  return withPrimaryUrl(artifacts, kind, url);
-}
 
 function buildConfiguredUpdate(project: Project, key: InlineProjectField, value: string) {
   const fields = project.submission_fields || [];
