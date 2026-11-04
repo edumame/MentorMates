@@ -108,14 +108,19 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
           return false;
         }
 
+        // Local vote state may be stale after a rejection, for example when
+        // another card's vote took the last slot. refresh() clears the error,
+        // so it has to finish before the rejection message is set.
         if (res.status === 403) {
           const data = await res.json();
+          await refresh();
           setError(data.error || "You cannot vote in this event");
           return false;
         }
 
         if (!res.ok) {
           const data = await res.json();
+          await refresh();
           setError(data.error || "Failed to cast vote");
           return false;
         }
@@ -126,7 +131,7 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
           ...prev,
           [projectId]: (prev[projectId] || 0) + 1,
         }));
-        setRemainingVotes((prev) => prev - 1);
+        setRemainingVotes((prev) => Math.max(0, prev - 1));
         setError(null);
 
         return true;
