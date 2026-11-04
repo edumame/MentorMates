@@ -8,7 +8,11 @@ import {
   STRIPE_REFUNDED_EVENT_TYPES,
   STRIPE_SUCCESSFUL_EVENT_TYPES,
 } from "@/lib/config/constants";
+import type { Database } from "@/lib/database.types";
 import Stripe from "stripe";
+
+type FulfilledCheckoutPayment =
+  Database["public"]["Functions"]["fulfill_checkout_session"]["Returns"][number];
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -46,48 +50,6 @@ export async function POST(req: Request) {
   return NextResponse.json({ received: true }, { status: 200 });
 }
 
-async function assignTicket(userEventPayment: {
-  event_id: string;
-  id: string;
-  user_id: string;
-}) {
-  const supabase = await createSupabaseServiceClient();
-  // Check if the user has already been assigned a ticket
-
-  const { data: userAssignedTickets } = await supabase
-    .from("event_tickets")
-    .select("id")
-    .eq("event_id", userEventPayment.event_id)
-    .eq("assigned_to_user_id", userEventPayment.user_id)
-    .single();
-
-  if (userAssignedTickets) {
-    return;
-  }
-
-  //  get the first available ticket sorted by ID
-  const { data: ticket } = await supabase
-    .from("event_tickets")
-    .select("id")
-    .eq("event_id", userEventPayment.event_id)
-    .eq("payment_id", userEventPayment.id)
-    .order("id", { ascending: true })
-    .limit(1)
-    .single();
-
-  if (ticket) {
-    await supabase
-      .from("event_tickets")
-      .update({
-        assigned_to_user_id: userEventPayment.user_id,
-        ticket_status: "assigned",
-      })
-      .eq("id", ticket.id);
-  } else {
-    throw new Error("No tickets found");
-  }
-}
-
 async function handleEvent(event: Stripe.Event) {
   const supabase = await createSupabaseServiceClient();
   if (
@@ -105,52 +67,20 @@ async function handleEvent(event: Stripe.Event) {
   const stripePaymentIntentId = event.data.object as { payment_intent: string };
 
   if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
+    // Stripe delivers at least once, so this must be safe to repeat. The function
+    // marks the payment paid, issues its tickets and assigns the buyer's in one
+    // transaction, so there is no later step for a killed delivery to skip.
     const { data: userEventPayment } = await supabase
-      .from("user_event_payments")
-      .update({
-        payment_status: "paid",
-        amount_paid: stripeAmountTotal.amount_total,
-        stripe_payment_intent_id: stripePaymentIntentId.payment_intent,
+      .rpc("fulfill_checkout_session", {
+        p_stripe_customer_id: stripeCustomerId.customer,
+        p_stripe_session_id: stripeCheckoutSessionId.id,
+        p_amount_paid: stripeAmountTotal.amount_total,
+        p_stripe_payment_intent_id: stripePaymentIntentId.payment_intent,
       })
-      .eq("stripe_customer_id", stripeCustomerId.customer)
-      .eq("stripe_session_id", stripeCheckoutSessionId.id)
-      .select("id, event_id, user_id, pricing_id")
-      .single();
+      .maybeSingle<FulfilledCheckoutPayment>();
 
     if (!userEventPayment) {
       throw new Error("Failed to update user event payment");
-    }
-
-    const { data: pricingData } = await supabase
-      .from("pricing_tiers")
-      .select("*")
-      .eq("id", userEventPayment.pricing_id)
-      .single();
-
-    if (!pricingData) {
-      throw new Error("Failed to get pricing data");
-    }
-
-    const { data: tickets } = await supabase
-      .from("event_tickets")
-      .insert(
-        Array.from({ length: pricingData.bundle_size }, () => ({
-          event_id: userEventPayment.event_id,
-          payment_id: userEventPayment.id,
-          purchased_by_user_id: userEventPayment.user_id,
-          ticket_status: "unassigned",
-        }))
-      )
-      .select("id");
-
-    if (!tickets) {
-      throw new Error("Failed to create tickets");
-    }
-
-    try {
-      await assignTicket(userEventPayment);
-    } catch (error) {
-      console.error("Failed to assign ticket: ", error);
     }
   } else if (STRIPE_FAILED_EVENT_TYPES.includes(event.type)) {
     const { data: userEventPayment } = await supabase
