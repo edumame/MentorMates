@@ -3,12 +3,29 @@
 import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
+import { EventRole } from "@/lib/types";
 
 interface CheckoutOptions {
   eventId?: string | null;
   eventSlug?: string | null;
   eventName?: string | null;
   pricingTierId?: string | null; // Required: id from pricing_tiers table
+  role?: EventRole | null; // Role being purchased; treated as participant if absent
+}
+
+// The last check before money is taken: nothing refunds a charge automatically
+// if the post-payment join then finds the event full.
+async function assertParticipantSeatAvailable(eventId: string, userId: string) {
+  const seatAvailable = await isParticipantSeatAvailable(
+    createSupabaseServiceClient(),
+    { eventId, userId },
+  );
+
+  if (!seatAvailable) {
+    throw new Error("Event is full. No seats available.");
+  }
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -96,6 +113,14 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     }
   } else {
     throw new Error("No pricing tier selected. Please select a pricing tier to continue.");
+  }
+
+  // participant_capacity limits participants only; mentors also pay on paid events.
+  if (
+    options?.eventId &&
+    (options.role ?? EventRole.Participant) === EventRole.Participant
+  ) {
+    await assertParticipantSeatAvailable(options.eventId, user.id);
   }
 
   // Create Checkout Sessions from body params.

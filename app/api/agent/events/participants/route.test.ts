@@ -4,6 +4,8 @@ import { PATCH } from "./route";
 import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
+import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
+import { createSeatStore } from "@/lib/events/__fixtures__/seat-store";
 
 jest.mock("next/server", () => {
   class MockNextResponse {
@@ -146,5 +148,80 @@ describe("PATCH /api/agent/events/participants", () => {
       error: "Only admins can modify organizer-level roles",
     });
     expect(deleteQuery.delete).not.toHaveBeenCalled();
+  });
+
+  describe("seat reservations", () => {
+    const alice = "33333333-3333-4333-8333-333333333333";
+    const bob = "44444444-4444-4444-8444-444444444444";
+
+    const patch = (body: Record<string, unknown>) =>
+      PATCH({ json: async () => ({ user_id: alice, ...body }) } as never);
+
+    const useStore = (failingTables?: string[]) => {
+      const store = createSeatStore({
+        participantCapacity: 1,
+        paid: true,
+        roles: { [alice]: EventRole.Participant },
+        requests: { [alice]: "approved" },
+        failingTables,
+      });
+      (createSupabaseServiceClient as jest.Mock).mockReturnValue(store.client);
+      (authenticateAgentRequest as jest.Mock).mockResolvedValue({
+        userId: "11111111-1111-4111-8111-111111111111",
+        eventId: store.eventId,
+        scopes: ["participants:write"],
+        keyId: "key-1",
+      });
+      (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({
+        eventId: store.eventId,
+        isAdmin: false,
+        isOwner: false,
+        userRole: EventRole.Organizer,
+      });
+      return store;
+    };
+
+    it("frees the seat when a paid participant is removed", async () => {
+      const store = useStore();
+
+      const response = await patch({ action: "remove" });
+
+      expect(response.status).toBe(200);
+      expect(store.roleOf(alice)).toBeUndefined();
+      expect(store.requestStatusOf(alice)).toBe("withdrawn");
+      await expect(
+        isParticipantSeatAvailable(store.client, {
+          eventId: store.eventId,
+          userId: bob,
+        }),
+      ).resolves.toBe(true);
+    });
+
+    it("frees the seat when a paid participant moves to another role", async () => {
+      const store = useStore();
+
+      const response = await patch({
+        action: "change_role",
+        role: EventRole.Mentor,
+      });
+
+      expect(response.status).toBe(200);
+      await expect(
+        isParticipantSeatAvailable(store.client, {
+          eventId: store.eventId,
+          userId: bob,
+        }),
+      ).resolves.toBe(true);
+    });
+
+    it("keeps the role when the reservation cannot be released", async () => {
+      jest.spyOn(console, "error").mockImplementation(() => {});
+      const store = useStore(["participant_approval_requests"]);
+
+      const response = await patch({ action: "remove" });
+
+      expect(response.status).toBe(500);
+      expect(store.roleOf(alice)).toBe(EventRole.Participant);
+    });
   });
 });

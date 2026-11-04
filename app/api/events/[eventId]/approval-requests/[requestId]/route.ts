@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, ParticipantRequestStatus } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
 
 const updateRequestSchema = z.object({
   status: z.enum([
@@ -177,26 +178,13 @@ export async function PATCH(
 
     // If approving, check capacity first
     if (status === ParticipantRequestStatus.Approved) {
-      const { data: event } = await supabase
-        .from("events")
-        .select("participant_capacity")
-        .eq("event_id", eventId)
-        .single();
+      if (approvalRequest.requested_role === EventRole.Participant) {
+        const seatAvailable = await isParticipantSeatAvailable(
+          createSupabaseServiceClient(),
+          { eventId, userId: approvalRequest.user_id }
+        );
 
-      if (
-        event?.participant_capacity &&
-        approvalRequest.requested_role === "participant"
-      ) {
-        const { count: participantCount } = await supabase
-          .from("user_event_roles")
-          .select("*", { count: "exact", head: true })
-          .eq("event_id", eventId)
-          .eq("role", "participant");
-
-        if (
-          participantCount &&
-          participantCount >= event.participant_capacity
-        ) {
+        if (!seatAvailable) {
           return NextResponse.json(
             { error: "Event is at full capacity. Cannot approve more participants." },
             { status: 409 }

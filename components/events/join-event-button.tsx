@@ -389,6 +389,7 @@ export function JoinEventButton({
           eventSlug: event?.slug || eventId,
           eventName: event?.event_name || eventName,
           pricingTierId,
+          role,
         });
 
         router.push(`/checkout?${searchParams.toString()}`);
@@ -840,6 +841,26 @@ export function JoinEventButton({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+    );
+  }
+
+  // Approval no longer guarantees a seat once the event has filled up
+  if (
+    pendingRequestStatus === ParticipantRequestStatus.Approved &&
+    event?.paid &&
+    !userTicket &&
+    isFull
+  ) {
+    return (
+      <Button
+        variant="secondary"
+        size="lg"
+        className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+        disabled
+      >
+        <Ticket className="h-6 w-6 flex-shrink-0" />
+        <span className="truncate">Event Full</span>
+      </Button>
     );
   }
 
