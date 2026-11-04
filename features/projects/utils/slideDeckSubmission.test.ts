@@ -51,6 +51,11 @@ describe('required slide deck submission', () => {
     expect(buildSubmissionAnswersPayload([custom], values)[0].answer).toBe(url);
   });
 
+  it('uses the first non-blank legacy row for a single-file field', () => {
+    const values = buildSubmissionFormValues([deck], () => ['', ` ${url} `]);
+    expect(values.additional_materials).toBe(url);
+  });
+
   it('preserves multiple decks for multi-file fields', () => {
     const field = { ...deck, field_type: 'multi_file' as const };
     const values = buildSubmissionFormValues([field], () => [url, 'https://example.com/appendix.pdf']);

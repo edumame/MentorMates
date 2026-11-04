@@ -119,7 +119,7 @@ export function normalizeSubmissionValue(
   }
 
   if (Array.isArray(rawValue)) {
-    return rawValue[0]?.trim() ?? "";
+    return rawValue.find((item) => item?.trim())?.trim() ?? "";
   }
 
   return typeof rawValue === "string" ? rawValue : "";
@@ -146,12 +146,22 @@ function getLegacyProjectValue(project: Partial<Project>, key: BuiltInFieldKey):
 
 // Form state may retain legacy URL arrays even when an event uses a single-file
 // field. Use the configured type consistently for rendering, validation and saves.
+// multi_url arrays stay raw because each item is an editable row, so a blank row
+// must survive until validation and payload building normalize it.
 export function buildSubmissionFormValues(
   fields: EffectiveSubmissionField[],
   getValue: (field: EffectiveSubmissionField) => SubmissionValue
 ): Record<string, SubmissionValue> {
   return Object.fromEntries(
-    fields.map((field) => [field.key, normalizeSubmissionValue(field, getValue(field))])
+    fields.map((field) => {
+      const value = getValue(field);
+      return [
+        field.key,
+        field.field_type === "multi_url" && Array.isArray(value)
+          ? value
+          : normalizeSubmissionValue(field, value),
+      ];
+    })
   );
 }
 

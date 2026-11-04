@@ -35,6 +35,7 @@ import {
   buildSubmissionFormValues,
   findMissingRequiredSubmissionField,
   buildSubmissionAnswersPayload,
+  normalizeSubmissionValue,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
 import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
@@ -294,10 +295,7 @@ export function NewProjectSubmissionFormSinglePage({
         case "cover_image":
           return formData.coverImageUrl;
         case "additional_materials":
-          return [
-            formData.additionalMaterialsUrl,
-            ...extraMaterialsUrls,
-          ].filter((value) => value.trim().length > 0);
+          return [formData.additionalMaterialsUrl, ...extraMaterialsUrls];
         default:
           return submissionAnswers[field.id] ?? "";
       }
@@ -1123,7 +1121,10 @@ export function NewProjectSubmissionFormSinglePage({
                         targetField &&
                         isMultiValueSubmissionFieldType(targetField.field_type)
                       ) {
-                        const currentValue = submissionFieldValues[fieldKey];
+                        const currentValue = normalizeSubmissionValue(
+                          targetField,
+                          submissionFieldValues[fieldKey]
+                        );
                         handleSubmissionFieldChange(fieldKey, [
                           ...(Array.isArray(currentValue) ? currentValue : []),
                           ...uploadedUrls,
