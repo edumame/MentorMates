@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import AdminPage from "./page";
 
 const push = jest.fn();
@@ -93,12 +94,15 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 describe("AdminPage", () => {
+  let eventOverrides: Record<string, unknown> = {};
+
   beforeEach(() => {
     jest.clearAllMocks();
+    eventOverrides = {};
 
     const eventsBuilder = {
       select: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({
+      order: jest.fn().mockImplementation(async () => ({
         data: [
           {
             event_id: "event-1",
@@ -117,10 +121,11 @@ describe("AdminPage", () => {
             approval_status: "approved",
             rejection_reason: null,
             created_at: "2026-03-01T12:00:00.000Z",
+            ...eventOverrides,
           },
         ],
         error: null,
-      }),
+      })),
     };
 
     const organizersBuilder = {
@@ -183,5 +188,102 @@ describe("AdminPage", () => {
 
     expect(screen.getByText("Alice Organizer")).toBeInTheDocument();
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
+  });
+
+  describe.each([
+    ["Featured tab", "Featured"],
+    ["Approval tab", "Approval Queue"],
+  ])("editing an existing rejection reason on the %s", (_label, tabName) => {
+    const originalFetch = global.fetch;
+    let fetchMock: jest.Mock;
+
+    const openRejectionReason = async () => {
+      eventOverrides = {
+        approval_status: "rejected",
+        rejection_reason: "old",
+      };
+
+      render(<AdminPage />);
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Event Management Dashboard")
+        ).toBeInTheDocument()
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(tabName) }));
+      fireEvent.click(screen.getByRole("button", { name: "Expand" }));
+
+      return screen.getByPlaceholderText(
+        "Enter the reason for rejection..."
+      ) as HTMLTextAreaElement;
+    };
+
+    beforeEach(() => {
+      fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+      global.fetch = fetchMock;
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it("keeps the field usable and saves nothing while typing", async () => {
+      // A save that never settles would leave the field locked if typing saved.
+      fetchMock.mockReturnValue(new Promise(() => {}));
+      const user = userEvent.setup();
+      const textarea = await openRejectionReason();
+
+      await user.type(textarea, " abc");
+
+      expect(textarea).toBeEnabled();
+      expect(textarea).toHaveFocus();
+      expect(textarea).toHaveValue("old abc");
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(toast).not.toHaveBeenCalled();
+    });
+
+    it("saves the full reason once when Apply Rejection is clicked", async () => {
+      const user = userEvent.setup();
+      const textarea = await openRejectionReason();
+
+      await user.type(textarea, " abc");
+      await user.click(screen.getByRole("button", { name: "Apply Rejection" }));
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "Success" })
+        )
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/events/event-1",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({
+            approval_status: "rejected",
+            rejection_reason: "old abc",
+          }),
+        })
+      );
+      expect(textarea).toHaveValue("old abc");
+    });
+
+    it("does not allow applying a cleared reason", async () => {
+      const user = userEvent.setup();
+      const textarea = await openRejectionReason();
+
+      await user.clear(textarea);
+
+      expect(textarea).toHaveValue("");
+      expect(
+        screen.getByRole("button", { name: "Apply Rejection" })
+      ).toBeDisabled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 });
