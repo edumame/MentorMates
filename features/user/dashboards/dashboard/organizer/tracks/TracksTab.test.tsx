@@ -28,12 +28,33 @@ const UUID_RE =
 let dbRows: Row[] = [];
 let dbIdCounter = 0;
 let denyDeletes = false;
+let failTrackReads = false;
+let failIdLookups = false;
+let insertFailure: { code: string; message: string } | null = null;
 const insertSpy = jest.fn();
 const deleteSpy = jest.fn();
 
+const rowsFor = (eventId: string) =>
+  dbRows.filter((row) => row.event_id === eventId).map((row) => ({ ...row }));
+
 const eventTracksTable = () => ({
   select: () => ({
-    eq: async () => ({ data: dbRows.map((row) => ({ ...row })), error: null }),
+    eq: (_column: string, eventId: string) => {
+      const result = failTrackReads
+        ? { data: null, error: { message: "read failed" } }
+        : { data: rowsFor(eventId), error: null };
+      return Object.assign(Promise.resolve(result), {
+        in: async (_inColumn: string, ids: string[]) =>
+          failIdLookups
+            ? { data: null, error: { message: "lookup failed" } }
+            : {
+                data: rowsFor(eventId).filter((row) =>
+                  ids.includes(row.track_id)
+                ),
+                error: null,
+              },
+      });
+    },
   }),
   upsert: async (rows: Row[]) => {
     rows.forEach((row) => {
@@ -48,11 +69,12 @@ const eventTracksTable = () => ({
   },
   insert: async (rows: Array<Omit<Row, "track_id"> & { track_id?: string }>) => {
     insertSpy(rows);
+    if (insertFailure) return { error: insertFailure };
     if (rows.some((row) => row.track_id && !UUID_RE.test(row.track_id))) {
       return { error: { message: "invalid input syntax for type uuid" } };
     }
     if (dbRows.some((r) => rows.some((row) => row.track_id === r.track_id))) {
-      return { error: { message: "duplicate key value" } };
+      return { error: { code: "23505", message: "duplicate key value" } };
     }
     rows.forEach((row) => {
       dbIdCounter += 1;
@@ -61,21 +83,28 @@ const eventTracksTable = () => ({
     });
     return { error: null };
   },
-  delete: () => ({
-    eq: (_column: string, id: string) => {
-      deleteSpy(id);
-      const removed = denyDeletes
-        ? []
-        : dbRows.filter((row) => row.track_id === id);
-      dbRows = dbRows.filter((row) => !removed.includes(row));
-      const result = { data: removed, error: null };
-      return {
-        select: async () => result,
-        then: (resolve: (value: { error: null }) => void) =>
-          resolve({ error: null }),
-      };
-    },
-  }),
+  delete: () => {
+    const filters: Record<string, string> = {};
+    const query = {
+      eq: (column: string, value: string) => {
+        filters[column] = value;
+        return query;
+      },
+      select: async () => {
+        deleteSpy(filters.track_id);
+        const removed = denyDeletes
+          ? []
+          : dbRows.filter(
+              (row) =>
+                row.track_id === filters.track_id &&
+                (!filters.event_id || row.event_id === filters.event_id)
+            );
+        dbRows = dbRows.filter((row) => !removed.includes(row));
+        return { data: removed, error: null };
+      },
+    };
+    return query;
+  },
 });
 
 jest.mock("@/lib/supabase", () => ({
@@ -130,18 +159,32 @@ const emptyConfig: EventScoringConfig = {
   defaultWeight: 1,
 };
 
-function Harness() {
+const tabToast = jest.fn();
+
+function Harness({
+  initialConfig = emptyConfig,
+}: {
+  initialConfig?: EventScoringConfig;
+}) {
   const [event, setEvent] = useState<EventDetails | null>({
     id: "event-1",
   } as unknown as EventDetails);
   const [scoringConfig, setScoringConfig] =
-    useState<EventScoringConfig | null>(emptyConfig);
+    useState<EventScoringConfig | null>(initialConfig);
   const [saving, setSaving] = useState(false);
 
   return (
     <>
       <output data-testid="event-tracks">
         {(event?.event_tracks ?? []).map((track) => track.name).join(",")}
+      </output>
+      <output data-testid="parent-config-ids">
+        {JSON.stringify({
+          tracks: Object.keys(scoringConfig?.tracks ?? {}),
+          rounds: (scoringConfig?.rounds ?? []).flatMap((round) =>
+            Object.keys(round.tracks ?? {})
+          ),
+        })}
       </output>
       <output data-testid="parent-config-tracks">
         {Object.values(scoringConfig?.tracks ?? {})
@@ -156,15 +199,15 @@ function Harness() {
         setScoringConfig={setScoringConfig}
         saving={saving}
         setSaving={setSaving}
-        toast={jest.fn()}
+        toast={tabToast}
         isArchived={false}
       />
     </>
   );
 }
 
-const renderTab = async () => {
-  render(<Harness />);
+const renderTab = async (initialConfig?: EventScoringConfig) => {
+  render(<Harness initialConfig={initialConfig} />);
   await act(async () => {});
 };
 
@@ -211,6 +254,9 @@ describe("TracksTab track persistence", () => {
     dbRows = [];
     dbIdCounter = 0;
     denyDeletes = false;
+    failTrackReads = false;
+    failIdLookups = false;
+    insertFailure = null;
   });
 
   it("updates a newly added track on a later save instead of inserting it again", async () => {
@@ -391,5 +437,149 @@ describe("TracksTab track persistence", () => {
     expect(dbRows[0].scoring_criteria.rounds).toEqual(
       expect.objectContaining({ "2": expect.anything() })
     );
+  });
+});
+
+// A duplicated event with no track rows of its own falls back to scoring_config,
+// which still holds the source event's track ids.
+describe("TracksTab config keys that collide with stored rows", () => {
+  const SOURCE_TRACK_ID = "a1b2c3d4-e5f6-4890-abcd-ef1234567890";
+  const sourceRow: Row = {
+    track_id: SOURCE_TRACK_ID,
+    event_id: "source-event",
+    name: "Source Track",
+    scoring_criteria: {},
+  };
+  const inheritedConfig: EventScoringConfig = {
+    ...emptyConfig,
+    tracks: { [SOURCE_TRACK_ID]: { name: "Source Track", criteria: [] } },
+    rounds: [
+      {
+        round_number: 2,
+        name: "Finals",
+        tracks: { [SOURCE_TRACK_ID]: { name: "Source Track", criteria: [] } },
+      },
+    ],
+  };
+
+  const thisEventRows = () => dbRows.filter((r) => r.event_id === "event-1");
+  const parentConfigIds = () =>
+    JSON.parse(screen.getByTestId("parent-config-ids").textContent ?? "{}");
+  const expectSaveFailed = () =>
+    expect(tabToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Failed to save scoring configuration",
+      })
+    );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    dbRows = [{ ...sourceRow }];
+    dbIdCounter = 0;
+    denyDeletes = false;
+    failTrackReads = false;
+    failIdLookups = false;
+    insertFailure = null;
+  });
+
+  it("saves under a fresh id, leaves the other event's row alone, and stays stable", async () => {
+    await renderTab(inheritedConfig);
+
+    await save();
+
+    expect(dbRows).toContainEqual(sourceRow);
+    expect(thisEventRows()).toHaveLength(1);
+    const [row] = thisEventRows();
+    expect(row.track_id).toMatch(UUID_RE);
+    expect(row.track_id).not.toBe(SOURCE_TRACK_ID);
+    expect(row.scoring_criteria.rounds).toEqual(
+      expect.objectContaining({ "2": expect.anything() })
+    );
+    expect(parentConfigIds()).toEqual({
+      tracks: [row.track_id],
+      rounds: [row.track_id],
+    });
+    expect(tabToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Scoring configuration saved successfully",
+      })
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("e.g., Best Overall"), {
+      target: { value: "Renamed" },
+    });
+    await save();
+
+    expect(dbRows).toContainEqual(sourceRow);
+    expect(thisEventRows()).toEqual([
+      expect.objectContaining({ track_id: row.track_id, name: "Renamed" }),
+    ]);
+    // The colliding attempt and its retry; the later save updates the row.
+    expect(insertSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("saves a genuinely new track in the same batch as a colliding one", async () => {
+    await renderTab(inheritedConfig);
+    addNamedTrackAt(1, "Brand New");
+
+    await save();
+    await save();
+
+    expect(dbRows).toContainEqual(sourceRow);
+    expect(thisEventRows().map((row) => row.name).sort()).toEqual([
+      "Brand New",
+      "Source Track",
+    ]);
+  });
+
+  it("updates this event's own row instead of duplicating it when the track list is stale", async () => {
+    const ownRow = { ...sourceRow, event_id: "event-1" };
+    dbRows = [ownRow];
+    failTrackReads = true;
+    await renderTab({
+      ...inheritedConfig,
+      tracks: { [ownRow.track_id]: { name: "Edited", criteria: [] } },
+    });
+    failTrackReads = false;
+
+    await save();
+
+    expect(dbRows).toEqual([
+      expect.objectContaining({ track_id: ownRow.track_id, name: "Edited" }),
+    ]);
+    expect(parentConfigIds().tracks).toEqual([ownRow.track_id]);
+  });
+
+  it("reports a failure and writes nothing when the collision lookup fails", async () => {
+    failIdLookups = true;
+    await renderTab(inheritedConfig);
+
+    await save();
+
+    expect(dbRows).toEqual([sourceRow]);
+    expect(parentConfigIds().tracks).toEqual([SOURCE_TRACK_ID]);
+    expectSaveFailed();
+  });
+
+  it("does not retry an insert that failed for another reason", async () => {
+    insertFailure = { code: "42501", message: "permission denied" };
+    await renderTab();
+    addNamedTrack("Best Overall");
+
+    await save();
+
+    expect(insertSpy).toHaveBeenCalledTimes(1);
+    expectSaveFailed();
+  });
+
+  it("does not delete the other event's row when the inherited track is removed", async () => {
+    await renderTab(inheritedConfig);
+
+    await clickDeleteTrack();
+
+    expect(dbRows).toEqual([sourceRow]);
+    expect(screen.queryByDisplayValue("Source Track")).not.toBeInTheDocument();
+    await save();
+    expect(dbRows).toEqual([sourceRow]);
   });
 });

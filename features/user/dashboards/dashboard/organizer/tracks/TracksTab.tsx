@@ -6,6 +6,7 @@ import { JudgingSidebar } from "@/features/user/dashboards/dashboard/organizer/t
 import { buildEventTrackScoringCriteriaFromConfig } from "@/lib/judging/scoring-config";
 import {
   classifyTrackEntries,
+  withFreshTrackIds,
   withoutTrack,
   withUuidTrackIds,
 } from "./classify-track-entries";
@@ -13,6 +14,8 @@ import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
 import { JudgePreviewDeck } from "./JudgePreviewDeck";
+
+const POSTGRES_UNIQUE_VIOLATION = "23505";
 
 interface TracksTabProps {
   eventId: string;
@@ -68,44 +71,85 @@ export function TracksTab({
     fetchTracks();
   }, [eventId, toast, fetchTracks]);
 
+  // Returns the insert's error so the caller can recover from an id collision.
+  const writeTracks = async (
+    config: EventScoringConfig,
+    savedTrackIds: Set<string>,
+  ) => {
+    const { existing, newTracks } = classifyTrackEntries(
+      Object.keys(config.tracks),
+      savedTrackIds,
+      eventId,
+      (trackId) => ({
+        name: config.tracks[trackId].name,
+        description: config.tracks[trackId].name,
+        scoring_criteria: buildEventTrackScoringCriteriaFromConfig({
+          trackId,
+          trackConfig: config.tracks[trackId],
+          rounds: config.rounds,
+        }),
+      }),
+    );
+
+    // Upsert existing tracks (UUIDs already in DB)
+    if (existing.length > 0) {
+      const { error: upsertError } = await supabase
+        .from("event_tracks")
+        .upsert(existing, { onConflict: "track_id", ignoreDuplicates: false });
+      if (upsertError) throw upsertError;
+    }
+
+    // Insert, not upsert: new ids come from the client, so a collision must
+    // fail rather than overwrite a row.
+    if (newTracks.length === 0) return null;
+    const { error: insertError } = await supabase
+      .from("event_tracks")
+      .insert(newTracks);
+    return insertError;
+  };
+
+  // A collision has two causes. `tracks` can be stale, so the row is this
+  // event's and needs an update; re-keying it would duplicate the track. Or the
+  // id is another event's, which RLS may hide, so anything not found here gets
+  // a fresh id. The insert is atomic, so none of these ids has a row of ours.
+  const resolveTrackIdCollision = async (
+    config: EventScoringConfig,
+    savedTrackIds: Set<string>,
+  ) => {
+    const unsavedTrackIds = Object.keys(config.tracks).filter(
+      (trackId) => !savedTrackIds.has(trackId),
+    );
+    const { data: ownRows, error } = await supabase
+      .from("event_tracks")
+      .select("track_id")
+      .eq("event_id", eventId)
+      .in("track_id", unsavedTrackIds);
+    if (error) throw error;
+
+    const ownTrackIds = new Set((ownRows ?? []).map((row) => row.track_id));
+    return {
+      config: withFreshTrackIds(
+        config,
+        unsavedTrackIds.filter((trackId) => !ownTrackIds.has(trackId)),
+      ),
+      savedTrackIds: new Set([...savedTrackIds, ...ownTrackIds]),
+    };
+  };
+
   const handleScoreUpdate = async (submittedConfig: EventScoringConfig) => {
     try {
       setSaving(true);
       const config = withUuidTrackIds(submittedConfig);
       setScoringConfig(config);
 
-      const existingDbTrackIds = new Set(tracks.map((t) => t.track_id));
-      const { existing, newTracks } = classifyTrackEntries(
-        Object.keys(config.tracks),
-        existingDbTrackIds,
-        eventId,
-        (trackId) => ({
-          name: config.tracks[trackId].name,
-          description: config.tracks[trackId].name,
-          scoring_criteria: buildEventTrackScoringCriteriaFromConfig({
-            trackId,
-            trackConfig: config.tracks[trackId],
-            rounds: config.rounds,
-          }),
-        }),
-      );
-
-      // Upsert existing tracks (UUIDs already in DB)
-      if (existing.length > 0) {
-        const { error: upsertError } = await supabase
-          .from("event_tracks")
-          .upsert(existing, { onConflict: "track_id", ignoreDuplicates: false });
-        if (upsertError) throw upsertError;
+      const savedTrackIds = new Set(tracks.map((t) => t.track_id));
+      let insertError = await writeTracks(config, savedTrackIds);
+      if (insertError?.code === POSTGRES_UNIQUE_VIOLATION) {
+        const resolved = await resolveTrackIdCollision(config, savedTrackIds);
+        setScoringConfig(resolved.config);
+        insertError = await writeTracks(resolved.config, resolved.savedTrackIds);
       }
-
-      // Insert, not upsert: new ids come from the client, so a collision must
-      // fail rather than overwrite a row.
-      if (newTracks.length > 0) {
-        const { error: insertError } = await supabase
-          .from("event_tracks")
-          .insert(newTracks);
-        if (insertError) throw insertError;
-      }
+      if (insertError) throw insertError;
 
       const { data: refreshedTracks } = await supabase
         .from("event_tracks")

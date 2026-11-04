@@ -386,6 +386,8 @@ export function CompactScoringForm({
       .from("event_tracks")
       .delete()
       .eq("track_id", id)
+      // A config key can be another event's track id; never delete that row.
+      .eq("event_id", eventId)
       .select("track_id");
     // A delete matching no rows is not an error, so check a saved track really
     // went. A track that was never saved has no row to remove.

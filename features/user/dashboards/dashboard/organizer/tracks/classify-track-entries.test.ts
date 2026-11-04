@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   classifyTrackEntries,
+  withFreshTrackIds,
   withoutTrack,
   withUuidTrackIds,
 } from "./classify-track-entries";
@@ -174,5 +175,34 @@ describe("withoutTrack", () => {
     const noRounds = { ...config, rounds: undefined };
 
     expect(withoutTrack(noRounds, REAL_UUID_A).rounds).toEqual([]);
+  });
+});
+
+describe("withFreshTrackIds", () => {
+  const track = (name: string) => ({ name, criteria: [] });
+  const config: EventScoringConfig = {
+    tracks: { [REAL_UUID_A]: track("A"), [REAL_UUID_B]: track("B") },
+    defaultMin: 0,
+    defaultMax: 10,
+    defaultWeight: 1,
+    rounds: [
+      { round_number: 1, name: "Round 1" },
+      { round_number: 2, name: "Finals", tracks: { [REAL_UUID_A]: track("A finals") } },
+    ],
+  };
+
+  it("re-keys only the listed tracks, in tracks and round overrides", () => {
+    const result = withFreshTrackIds(config, [REAL_UUID_A]);
+
+    const [newId, keptId] = Object.keys(result.tracks);
+    expect(newId).not.toBe(REAL_UUID_A);
+    expect(keptId).toBe(REAL_UUID_B);
+    expect(result.tracks[newId].name).toBe("A");
+    expect(result.rounds?.[0].tracks).toBeUndefined();
+    expect(Object.keys(result.rounds?.[1].tracks ?? {})).toEqual([newId]);
+  });
+
+  it("returns the same config when there is nothing to re-key", () => {
+    expect(withFreshTrackIds(config, [])).toBe(config);
   });
 });

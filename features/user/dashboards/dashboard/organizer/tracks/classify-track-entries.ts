@@ -8,20 +8,18 @@ import type { EventScoringConfig } from "@/lib/types";
  * and the in-memory config stay on the same id and later saves and deletes hit
  * that row. A key that is not a UUID cannot be stored, so it omits track_id;
  * call withUuidTrackIds first to give such tracks a stable id.
+ *
+ * A UUID key missing from this event's rows is not always a client id: a
+ * duplicated event's scoring_config keeps the source event's track ids. The
+ * insert then hits the primary key, and the caller must re-key those tracks.
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * Replace track keys that are not UUIDs (AI imports use ids like "track-1234")
- * with generated UUIDs, in both the tracks and the per-round overrides.
- */
-export function withUuidTrackIds(config: EventScoringConfig): EventScoringConfig {
-  const replacements = new Map(
-    Object.keys(config.tracks)
-      .filter((trackId) => !UUID_RE.test(trackId))
-      .map((trackId) => [trackId, crypto.randomUUID()]),
-  );
+function withReplacedTrackIds(
+  config: EventScoringConfig,
+  replacements: Map<string, string>,
+): EventScoringConfig {
   if (replacements.size === 0) return config;
 
   const rekey = <T,>(tracks: Record<string, T>): Record<string, T> =>
@@ -39,6 +37,28 @@ export function withUuidTrackIds(config: EventScoringConfig): EventScoringConfig
       round.tracks ? { ...round, tracks: rekey(round.tracks) } : round,
     ),
   };
+}
+
+/** Give the listed tracks generated UUIDs, including in per-round overrides. */
+export function withFreshTrackIds(
+  config: EventScoringConfig,
+  trackIds: string[],
+): EventScoringConfig {
+  return withReplacedTrackIds(
+    config,
+    new Map(trackIds.map((trackId) => [trackId, crypto.randomUUID()])),
+  );
+}
+
+/**
+ * Replace track keys that are not UUIDs (AI imports use ids like "track-1234")
+ * with generated UUIDs, in both the tracks and the per-round overrides.
+ */
+export function withUuidTrackIds(config: EventScoringConfig): EventScoringConfig {
+  return withFreshTrackIds(
+    config,
+    Object.keys(config.tracks).filter((trackId) => !UUID_RE.test(trackId)),
+  );
 }
 
 /** Remove a track from the config, including its per-round overrides. */
