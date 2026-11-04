@@ -30,7 +30,7 @@ it("keeps landing visible until login, syncs the profile once, and restores land
   expect(screen.queryByRole("heading", { name: "Landing" })).not.toBeInTheDocument();
   await waitFor(() => expect(posthog.identify).toHaveBeenCalledWith("member", { email: "member@example.com", display_name: "Member" }));
   expect(supabase.from).toHaveBeenCalledWith("user_profiles");
-  expect(upsert).toHaveBeenCalledWith({ uid: "member", email: "member@example.com", display_name: "Member" }, { onConflict: "email" });
+  expect(upsert).toHaveBeenCalledWith({ uid: "member", email: "member@example.com", display_name: "Member" }, { onConflict: "email", ignoreDuplicates: true });
 
   (useAuth as jest.Mock).mockReturnValue({ session: { ...session }, isLoading: false });
   rerender(<HomePageClient><h1>Landing</h1></HomePageClient>);
@@ -40,6 +40,23 @@ it("keeps landing visible until login, syncs the profile once, and restores land
   expect(screen.getByRole("heading", { name: "Landing" })).toBeInTheDocument();
 });
 
+it("only seeds a missing profile, so auth metadata cannot overwrite a saved display name", async () => {
+  const select = jest.fn().mockResolvedValue({ error: null });
+  const upsert = jest.fn().mockReturnValue({ select });
+  (supabase.from as jest.Mock).mockReturnValue({ upsert });
+  (posthog.identify as jest.Mock).mockClear();
+  (useAuth as jest.Mock).mockReturnValue({
+    session: { user: { id: "google", email: "jane@example.com", user_metadata: { full_name: "Jane Doe" } } },
+    isLoading: false,
+  });
+
+  render(<HomePageClient><h1>Landing</h1></HomePageClient>);
+
+  await waitFor(() => expect(posthog.identify).toHaveBeenCalledTimes(1));
+  expect(upsert).toHaveBeenCalledTimes(1);
+  // ignoreDuplicates makes this INSERT ... ON CONFLICT DO NOTHING instead of a merge.
+  expect(upsert.mock.calls[0][1]).toMatchObject({ ignoreDuplicates: true });
+});
 
 it("hydrates server landing HTML with a cached client session without recoverable errors", async () => {
   const select = jest.fn().mockResolvedValue({ error: null });

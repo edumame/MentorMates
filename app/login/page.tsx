@@ -237,6 +237,7 @@ function LoginContent({
 
   const syncUserProfile = async (user: User) => {
     if (!user) return null;
+    // Seed a missing row only: never reset an existing display_name or created_at.
     const { error } = await supabase.from("user_profiles").upsert(
       {
         uid: user.id,
@@ -244,7 +245,7 @@ function LoginContent({
         display_name: user.email?.split("@")[0],
         created_at: new Date().toISOString(),
       },
-      { onConflict: "uid" }
+      { onConflict: "uid", ignoreDuplicates: true }
     );
     return error ?? null;
   };
