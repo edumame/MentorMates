@@ -7,7 +7,8 @@ import {
   getEventUpdateNotificationEmail,
 } from "@/lib/email_templates/event-notifications";
 import { EMAIL_TYPES, NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
-import type { EventDetails } from "@/lib/types";
+import { EventRole, type EventDetails } from "@/lib/types";
+import { canAccessRole } from "@/features/user/roles/roles";
 import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY
@@ -18,7 +19,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
-  const { eventId, emailType, eventName } = await request.json();
+  const { eventId, emailType } = await request.json();
   if (!eventId || !emailType) {
     return NextResponse.json(
       { error: "Event ID and email type are required" },
@@ -39,10 +40,51 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // This route sends from the MentorMates domain to an address resolved with
+  // the service client, so a session alone must not be enough to use it.
+  if (user.id !== userId) {
+    const { data: roleRow } = await supabase
+      .from("user_event_roles")
+      .select("role")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+      user_id: user.id,
+    });
+
+    const isOrganizer =
+      roleRow && canAccessRole(roleRow.role as EventRole, EventRole.Organizer);
+    if (!isOrganizer && !isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  const { data: targetRow } = await serviceSupabase
+    .from("user_event_roles")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!targetRow) {
     return NextResponse.json(
-      { error: "Failed to fetch user data" },
-      { status: 500 }
+      { error: "User not found for this event" },
+      { status: 404 }
     );
+  }
+
+  const { data: eventData } = await serviceSupabase
+    .from("events")
+    .select("*")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (!eventData) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
   const { data: userEmail, error: emailError } = await serviceSupabase
@@ -65,7 +107,12 @@ export async function POST(
     );
   }
 
-  const emailToSend = await getUserEmail({ userId, eventId, emailType, eventName, supabase });
+  const emailToSend = await getUserEmail({
+    userId,
+    eventId,
+    emailType,
+    eventData: eventData as unknown as EventDetails,
+  });
 
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
@@ -89,29 +136,14 @@ const getUserEmail = async ({
   userId,
   eventId,
   emailType,
-  eventName,
-  supabase,
+  eventData,
 }: {
   userId: string;
   eventId: string;
   emailType: EMAIL_TYPES;
-  eventName?: string;
-  supabase: Awaited<ReturnType<typeof createSupabaseClient>>;
+  eventData: EventDetails;
 }) => {
-  // For templates that need event details, fetch them
-  let eventData: EventDetails | null = null;
-  if (emailType !== EMAIL_TYPES.CHECKIN_QR_CODE) {
-    const { data, error } = await supabase
-      .from("events")
-      .select("*")
-      .eq("event_id", eventId)
-      .single();
-    if (!error && data) {
-      eventData = data as EventDetails;
-    }
-  }
-
-  const resolvedEventName = eventName || eventData?.event_name || "Event";
+  const resolvedEventName = eventData.event_name || "Event";
 
   switch (emailType) {
     case EMAIL_TYPES.CHECKIN_QR_CODE:
@@ -120,13 +152,13 @@ const getUserEmail = async ({
       return getEventUpdateNotificationEmail(
         resolvedEventName,
         eventId,
-        (eventData as EventDetails) || ({} as EventDetails)
+        eventData
       );
     case EMAIL_TYPES.EVENT_SCHEDULE_UPDATE:
       return getEventScheduleUpdateNotificationEmail(
         resolvedEventName,
         eventId,
-        (eventData as EventDetails) || ({} as EventDetails)
+        eventData
       );
     default:
       // Fallback to a simple check-in email if unknown type
