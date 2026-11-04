@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, EventVisibility } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { z } from "zod";
@@ -63,59 +64,26 @@ export async function DELETE(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Manual cleanup for related tables that do NOT have ON DELETE CASCADE
-    // Order chosen to respect FKs observed in schema
-    // user_event_payments are not deleted
-    // 1) Delete event_tickets (FK -> user_event_payments, user_profiles) by event_id
-    await supabase.from("event_tickets").delete().eq("event_id", eventId);
-
-    // 2) Delete prize winners and prizes via event_tracks join
-    const { data: trackIds } = await supabase
-      .from("event_tracks")
-      .select("track_id")
-      .eq("event_id", eventId);
-    if (trackIds && trackIds.length > 0) {
-      const ids = trackIds.map((t) => t.track_id);
-      // Fetch prize IDs for those tracks
-      const { data: prizesForTracks } = await supabase
-        .from("prizes")
-        .select("id")
-        .in("track_id", ids);
-
-      const prizeIds = (prizesForTracks || []).map((p) => p.id);
-
-      if (prizeIds.length > 0) {
-        // Remove prize winners first (no cascade on prize_winners -> prizes)
-        await supabase.from("prize_winners").delete().in("prize_id", prizeIds);
-      }
-
-      // Now remove the prizes themselves
-      await supabase.from("prizes").delete().in("track_id", ids);
-      // project_scores and project_tracks FKs already cascade on track_id
-    }
-
-    // 4) Delete event_tracks for this event (prizes are already removed)
-    await supabase.from("event_tracks").delete().eq("event_id", eventId);
-
-    // 5) platform_engagement, feedback reference events without cascade
-    await supabase.from("platform_engagement").delete().eq("event_id", eventId);
-    await supabase.from("feedback").delete().eq("event_id", eventId);
-
-    // 6) role_passwords, user_event_roles have ON DELETE CASCADE; but clear anyway for safety
-    await supabase.from("role_passwords").delete().eq("event_id", eventId);
-    await supabase.from("user_event_roles").delete().eq("event_id", eventId);
-
-    // Finally, delete the event
-    const { error: deleteEventError } = await supabase
-      .from("events")
-      .delete()
-      .eq("event_id", eventId);
+    // Permission is verified above. The delete runs as one transaction with the
+    // service role: under the caller's RLS, removing their own role row would
+    // revoke the permission the events delete depends on, and rows owned by
+    // other users (tickets, feedback) would be skipped.
+    const serviceClient = createSupabaseServiceClient();
+    const { data: deleted, error: deleteEventError } = await serviceClient.rpc(
+      "delete_event_and_related",
+      { p_event_id: eventId }
+    );
 
     if (deleteEventError) {
+      console.error("Error deleting event:", deleteEventError);
       return NextResponse.json(
-        { error: deleteEventError.message || "Failed to delete event" },
+        { error: "Failed to delete event" },
         { status: 500 }
       );
+    }
+
+    if (!deleted) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });
