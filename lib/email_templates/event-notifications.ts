@@ -1,5 +1,6 @@
 import { EventDetails } from "../types";
 import { ScheduleDay, ScheduleEvent } from "../types";
+import { escapeHtml } from "./welcome-profile";
 
 export interface EmailTemplate {
   subject: string;
@@ -11,6 +12,8 @@ export function getEventUpdateNotificationEmail(
   eventId: string,
   eventInformation: EventDetails
 ): EmailTemplate {
+  const safeEventName = escapeHtml(eventName);
+
   return {
     subject: `New Event Update for "${eventName}" - MentorMates`,
     html: `
@@ -18,7 +21,7 @@ export function getEventUpdateNotificationEmail(
           <h1 style="color: #2563eb; margin-bottom: 24px;">New Event Update</h1>
           
           <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
-              The event "${eventName}" has been updated.
+              The event "${safeEventName}" has been updated.
           </p>
           
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
@@ -26,7 +29,7 @@ export function getEventUpdateNotificationEmail(
               Please Check the Event Page for the Latest Update:
             </p>
             <p style="font-size: 16px; line-height: 1.5; color: #374151;">
-              <a href="https://mentormates.ai/events/${eventInformation.slug || eventId}/overview">${eventName}</a>
+              <a href="https://mentormates.ai/events/${eventInformation.slug || eventId}/overview">${safeEventName}</a>
             </p>
           </div>
           
@@ -48,6 +51,8 @@ export function getEventScheduleUpdateNotificationEmail(
   eventId: string,
   eventInformation: EventDetails
 ): EmailTemplate {
+  const safeEventName = escapeHtml(eventName);
+
   return {
     subject: `New Event Schedule Update for "${eventName}" - MentorMates`,
     html: `
@@ -55,7 +60,7 @@ export function getEventScheduleUpdateNotificationEmail(
           <h1 style="color: #2563eb; margin-bottom: 24px;">New Event Schedule Update</h1>
           
           <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
-              The schedule for the event "${eventName}" has been updated.
+              The schedule for the event "${safeEventName}" has been updated.
           </p>
           
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
@@ -69,7 +74,7 @@ export function getEventScheduleUpdateNotificationEmail(
               Please Check the Event Page for the Latest Updates:
             </p>
             <p style="font-size: 16px; line-height: 1.5; color: #374151;">
-              <a href="https://mentormates.ai/events/${eventInformation.slug || eventId}/overview">${eventName}</a>
+              <a href="https://mentormates.ai/events/${eventInformation.slug || eventId}/overview">${safeEventName}</a>
             </p>
           </div>
           
@@ -131,15 +136,16 @@ export const getCheckinQRCodeEmail = async (
 ): Promise<EmailTemplate> => {
   const origin = process.env.NEXT_PUBLIC_APP_URL;
 
-  const link = `${origin}/ticket?evt=${eventId}&usr=${userId}`;
+  const link = `${origin}/ticket?evt=${encodeURIComponent(eventId)}&usr=${encodeURIComponent(userId)}`;
+  const safeEventName = escapeHtml(eventName);
 
   return {
     subject: `Check-In QR Code for "${eventName}" - MentorMates`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb; margin-bottom: 24px;">Ticket for "${eventName}"</h1>
+        <h1 style="color: #2563eb; margin-bottom: 24px;">Ticket for "${safeEventName}"</h1>
         <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
-          Get your ticket for the event "${eventName}:".
+          Get your ticket for the event "${safeEventName}:".
         </p>
         <a href="${link}" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; text-align: center; margin: 0 auto 16px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);">
           Get your ticket
