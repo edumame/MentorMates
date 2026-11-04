@@ -30,6 +30,9 @@ const UserSearchWithInvite = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [filteredTags, setFilteredTags] = useState<string[]>([]);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
+  // Invited emails shown as chips. They are not team members until the invitee
+  // accepts, so they must never reach onTagsChange.
+  const [pendingInvites, setPendingInvites] = useState<string[]>([]);
 
   useEffect(() => {
     if (tagInput) {
@@ -57,20 +60,29 @@ const UserSearchWithInvite = ({
     setFilteredTags(filtered.slice(0, 5));
   };
 
+  const withoutPendingInvites = (tags: string[]): string[] =>
+    tags.filter((tag) => !pendingInvites.includes(tag));
+
   const addTag = (tag: string): void => {
     if (!selectedTags.includes(tag)) {
       const newSelectedTags = [...selectedTags, tag];
       setSelectedTags(newSelectedTags);
       setTagInput("");
       setFilteredTags([]);
-      onTagsChange(newSelectedTags);
+      onTagsChange(withoutPendingInvites(newSelectedTags));
     }
   };
 
   const removeTag = (tagToRemove: string): void => {
     const newSelectedTags = selectedTags.filter((tag) => tag !== tagToRemove);
     setSelectedTags(newSelectedTags);
-    onTagsChange(newSelectedTags);
+
+    if (pendingInvites.includes(tagToRemove)) {
+      setPendingInvites(pendingInvites.filter((tag) => tag !== tagToRemove));
+      return;
+    }
+
+    onTagsChange(withoutPendingInvites(newSelectedTags));
   };
 
   const sendInvitation = async (email: string): Promise<void> => {
@@ -109,10 +121,10 @@ const UserSearchWithInvite = ({
         description: `An invitation has been sent to ${email}. They will receive an email to join the project.`,
       });
 
-      // Add the invited email to selected tags so it shows up in the UI
-      const newSelectedTags = [...selectedTags, email.trim()];
-      setSelectedTags(newSelectedTags);
-      onTagsChange(newSelectedTags);
+      // Show the invited email in the UI; it joins the team only on acceptance
+      const invitedEmail = email.trim();
+      setSelectedTags((tags) => [...tags, invitedEmail]);
+      setPendingInvites((invites) => [...invites, invitedEmail]);
 
       setTagInput("");
       setFilteredTags([]);

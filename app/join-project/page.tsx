@@ -195,12 +195,6 @@ function JoinProjectContent() {
         return;
       }
 
-      // Check if user is already a teammate
-      if (project.teammates?.includes(userEmail)) {
-        setError("You are already a member of this project");
-        return;
-      }
-
       // If project is part of an event, ensure user is registered for the event
       if (project.event_id) {
         const { data: userRole } = await supabase
@@ -219,13 +213,21 @@ function JoinProjectContent() {
         }
       }
 
-      const response = await fetch("/api/projects/join", {
-        method: "PUT",
-        body: JSON.stringify({ projectId }),
-      });
+      // An existing teammate has nothing left to do; calling the join API would
+      // list them twice
+      const isTeammate = project.teammates?.some(
+        (teammate) => teammate.toLowerCase() === userEmail
+      );
 
-      if (!response.ok) {
-        throw new Error("Failed to join project.");
+      if (!isTeammate) {
+        const response = await fetch("/api/projects/join", {
+          method: "PUT",
+          body: JSON.stringify({ projectId }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to join project.");
+        }
       }
 
       setSuccess(true);
