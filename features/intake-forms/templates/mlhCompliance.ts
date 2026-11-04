@@ -17,6 +17,10 @@ const LEVEL_OF_STUDY_OPTIONS = [
   "Prefer not to answer",
 ];
 
+// Catch-all for non-students and unlisted schools. Kept out of mlhSchools.ts,
+// which is generated verbatim from MLH's verified list.
+const SCHOOL_FALLBACK_OPTION = "Other / Not listed";
+
 // Age dropdown — MLH requires age selection rather than date of birth
 const AGE_OPTIONS = [
   "Under 18",
@@ -327,10 +331,11 @@ export function createMLHComplianceTemplate(): IntakeFormSchema {
       }),
       makeField("Email", "email", { placeholder: "name@example.com" }),
       makeField("School", "single_select", {
-        options: SCHOOL_OPTIONS,
+        options: [...SCHOOL_OPTIONS, SCHOOL_FALLBACK_OPTION],
         searchable: true,
-        description:
-          "Search and select your school from the MLH verified schools list.",
+        popularOptions: [SCHOOL_FALLBACK_OPTION],
+        fallbackOption: SCHOOL_FALLBACK_OPTION,
+        description: `Search and select your school from the MLH verified schools list. If you are not a student or can't find your school, choose "${SCHOOL_FALLBACK_OPTION}".`,
       }),
       makeField("Level of Study", "single_select", {
         options: LEVEL_OF_STUDY_OPTIONS,

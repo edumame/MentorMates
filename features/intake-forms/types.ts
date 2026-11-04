@@ -45,6 +45,8 @@ export type IntakeFormField = {
   options?: string[];
   searchable?: boolean;
   popularOptions?: string[];
+  // Searchable fields only: stays selectable whatever the search text matches.
+  fallbackOption?: string;
   validation?: IntakeFormFieldValidation;
   showIf?: {
     fieldKey: string;
