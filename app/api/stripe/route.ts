@@ -103,17 +103,36 @@ async function handleEvent(event: Stripe.Event) {
   const stripeCheckoutSessionId = event.data.object as { id: string };
   const stripeAmountTotal = event.data.object as { amount_total: number };
   const stripePaymentIntentId = event.data.object as { payment_intent: string };
+  const stripeMetadata = event.data.object as { metadata?: Stripe.Metadata | null };
 
   if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
-    const { data: userEventPayment } = await supabase
-      .from("user_event_payments")
-      .update({
-        payment_status: "paid",
-        amount_paid: stripeAmountTotal.amount_total,
-        stripe_payment_intent_id: stripePaymentIntentId.payment_intent,
-      })
+    const { user_id, event_id, pricing_tier_id } = stripeMetadata.metadata ?? {};
+    const paymentUpdate = {
+      payment_status: "paid" as const,
+      amount_paid: stripeAmountTotal.amount_total,
+      stripe_payment_intent_id: stripePaymentIntentId.payment_intent,
+    };
+
+    // A newer checkout may have overwritten this session's id on the row while
+    // this session stayed payable, so resolve by user and event. Recording the
+    // session and its tier also stops the abandoned newer session's expiry from
+    // cancelling this payment. Sessions without metadata can only match by id.
+    const { data: userEventPayment } = await (user_id && event_id && pricing_tier_id
+      ? supabase
+          .from("user_event_payments")
+          .update({
+            ...paymentUpdate,
+            stripe_session_id: stripeCheckoutSessionId.id,
+            pricing_id: pricing_tier_id,
+          })
+          .eq("user_id", user_id)
+          .eq("event_id", event_id)
+      : supabase
+          .from("user_event_payments")
+          .update(paymentUpdate)
+          .eq("stripe_session_id", stripeCheckoutSessionId.id)
+    )
       .eq("stripe_customer_id", stripeCustomerId.customer)
-      .eq("stripe_session_id", stripeCheckoutSessionId.id)
       .select("id, event_id, user_id, pricing_id")
       .single();
 

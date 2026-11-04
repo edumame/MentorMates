@@ -107,6 +107,14 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     return_url: `${origin}/return?session_id={CHECKOUT_SESSION_ID}${options?.eventSlug ? `&eventSlug=${options.eventSlug}` : ""}`,
     // automatic_tax: { enabled: true },
     allow_promotion_codes: true,
+    // user_event_payments keeps one row per user and event, so a later checkout
+    // overwrites this session's id while this session stays payable. The webhook
+    // uses this metadata to find the row and the tier that was actually bought.
+    metadata: {
+      user_id: user.id,
+      event_id: options?.eventId ?? null,
+      pricing_tier_id: options?.pricingTierId ?? null,
+    },
   });
 
   // greedily create a user event payment record for the user in the processing state
