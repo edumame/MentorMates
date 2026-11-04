@@ -1,7 +1,7 @@
 import { sendWelcomeProfileEmail } from "@/lib/email/send-welcome-profile";
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "../../utils/supabase/server";
-import { hasPersistedOnboardingState } from "@/features/user/onboarding/metadata";
+import { getPostAuthRedirectPath } from "@/features/user/onboarding/metadata";
 import { getSafeRedirectPath } from "@/features/user/authentication/redirect/redirect-url";
 import {
   buildSignupConsentMetadata,
@@ -104,17 +104,10 @@ export async function GET(request: Request) {
   );
 
   // If onboarding metadata is missing or empty, redirect to onboarding flow
-  const needsOnboarding = !hasPersistedOnboardingState(
-    existingProfile?.onboarding_metadata as Record<string, unknown> | null | undefined
+  const redirectPath = getPostAuthRedirectPath(
+    existingProfile?.onboarding_metadata as Record<string, unknown> | null | undefined,
+    returnUrl
   );
 
-  if (needsOnboarding) {
-    const onboardingUrl = new URL("/onboarding", cleanBaseUrl);
-    if (returnUrl && returnUrl !== "/") {
-      onboardingUrl.searchParams.set("returnUrl", returnUrl);
-    }
-    return NextResponse.redirect(onboardingUrl);
-  }
-
-  return NextResponse.redirect(new URL(returnUrl ?? "/", cleanBaseUrl));
+  return NextResponse.redirect(new URL(redirectPath, cleanBaseUrl));
 }
