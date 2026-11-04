@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
+import { useToast } from "@/lib/hooks/use-toast";
 
 interface FeedbackItem {
   id: string;
@@ -45,6 +46,7 @@ function formatDisplayDate(d: string) {
 }
 
 export default function FeedbackPage() {
+  const { toast } = useToast();
   const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(4);
@@ -108,10 +110,15 @@ export default function FeedbackPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAll: true }),
       });
-      if (res.ok)
-        setFeedbackList((prev) => prev.map((it) => ({ ...it, isRead: true })));
+      if (!res.ok) throw new Error("Failed to mark all as read");
+      setFeedbackList((prev) => prev.map((it) => ({ ...it, isRead: true })));
     } catch (e) {
       console.error("Error marking all as read:", e);
+      toast({
+        title: "Error",
+        description: "Failed to mark all feedback as read.",
+        variant: "destructive",
+      });
     }
   };
 

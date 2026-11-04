@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchUserProjectIds } from "@/lib/projects/user-project-ids";
 
 export async function GET(request: Request) {
   const supabase = await createSupabaseClient();
@@ -20,14 +21,10 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
 
   try {
-    // Get user's email to find their projects
-    const userEmail = user.email;
-
-    // Get user's projects to find feedback for them (using lead_email and teammates)
-    const { data: userProjects, error: projectsError } = await supabase
-      .from("projects")
-      .select("id")
-      .or(`lead_email.eq.${userEmail},teammates.cs.{"${userEmail}"}`);
+    const { projectIds, error: projectsError } = await fetchUserProjectIds(
+      supabase,
+      user.email,
+    );
 
     if (projectsError) {
       console.error("Error fetching user projects:", projectsError);
@@ -36,8 +33,6 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
-
-    const projectIds = userProjects?.map((p) => p.id) || [];
 
     if (projectIds.length === 0) {
       return NextResponse.json({
