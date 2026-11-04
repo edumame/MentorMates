@@ -3,6 +3,10 @@
  * DB) and "new" (client-generated ID that must NOT be sent as track_id).
  *
  * New tracks omit track_id so the database DEFAULT (gen_random_uuid()) fills it.
+ *
+ * Only new tracks get a description (defaulted to the name). Existing entries
+ * omit it because they are upserted, and the scoring config does not carry the
+ * description, so sending one would overwrite the organizer's text.
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -11,7 +15,7 @@ export interface TrackEntry {
   track_id?: string;
   event_id: string;
   name: string;
-  description: string;
+  description?: string;
   scoring_criteria: unknown;
 }
 
@@ -19,7 +23,7 @@ export function classifyTrackEntries(
   configTrackIds: string[],
   existingDbTrackIds: Set<string>,
   eventId: string,
-  buildEntry: (trackId: string) => { name: string; description: string; scoring_criteria: unknown },
+  buildEntry: (trackId: string) => { name: string; scoring_criteria: unknown },
 ): { existing: TrackEntry[]; newTracks: TrackEntry[] } {
   const existing: TrackEntry[] = [];
   const newTracks: TrackEntry[] = [];
@@ -30,7 +34,7 @@ export function classifyTrackEntries(
       existing.push({ ...entry, track_id: trackId });
     } else {
       // New track — no track_id, let DB generate
-      newTracks.push(entry);
+      newTracks.push({ ...entry, description: entry.name });
     }
   }
 

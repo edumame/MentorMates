@@ -76,7 +76,6 @@ export function TracksTab({
         eventId,
         (trackId) => ({
           name: config.tracks[trackId].name,
-          description: config.tracks[trackId].name,
           scoring_criteria: buildEventTrackScoringCriteriaFromConfig({
             trackId,
             trackConfig: config.tracks[trackId],

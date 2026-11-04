@@ -8,7 +8,6 @@ const SLUG_ID = "track-0-my-track";
 const EVENT_ID = "evt-test-123";
 const buildEntry = (trackId: string) => ({
   name: `Track ${trackId.slice(0, 8)}`,
-  description: `Track ${trackId.slice(0, 8)}`,
   scoring_criteria: { name: "test", criteria: [] },
 });
 
@@ -71,6 +70,26 @@ describe("classifyTrackEntries", () => {
     expect(result.existing.map((e) => e.track_id)).toEqual([REAL_UUID_A, REAL_UUID_B]);
     expect(result.newTracks).toHaveLength(1);
     expect(result.newTracks[0]).not.toHaveProperty("track_id");
+  });
+
+  it("omits description from existing entries so upserts preserve it", () => {
+    const result = classifyTrackEntries(
+      [REAL_UUID_A],
+      new Set([REAL_UUID_A]),
+      EVENT_ID,
+      buildEntry,
+    );
+    expect(result.existing[0]).not.toHaveProperty("description");
+  });
+
+  it("defaults the description of new entries to the track name", () => {
+    const result = classifyTrackEntries(
+      [TIMESTAMP_ID],
+      new Set(),
+      EVENT_ID,
+      buildEntry,
+    );
+    expect(result.newTracks[0].description).toBe(result.newTracks[0].name);
   });
 
   it("always sets event_id on every entry", () => {
