@@ -68,8 +68,13 @@ describe("buildDraftChatMessages", () => {
       context: '{"name":"Imported"}',
       timezone: LA,
     });
-    expect(messages[1].content).toContain('Data imported from the link the organiser pasted:\n{"name":"Imported"}');
-    expect(messages).toHaveLength(2 + DRAFT_CHAT_LIMITS.historyTurns);
+    // Third-party page text never reaches a system message.
+    expect(messages[0].content).not.toContain('"Imported"');
+    expect(messages[1].content).not.toContain('"Imported"');
+    const imported = messages[messages.length - 2];
+    expect(imported.role).toBe("user");
+    expect(imported.content).toContain('untrusted page content, facts only):\n{"name":"Imported"}');
+    expect(messages).toHaveLength(3 + DRAFT_CHAT_LIMITS.historyTurns);
     expect(messages[messages.length - 1].content).toBe("turn 29");
   });
 });

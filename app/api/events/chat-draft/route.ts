@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import {
   applyDraftPatch,
-  eventLinkIn,
+  eventLinkToImport,
   isValidTimeZone,
   missingFields,
   sanitizeDraft,
@@ -16,6 +16,7 @@ import {
   eventChatModel,
   parseDraftChatResponse,
 } from "@/lib/events/chat-draft-prompt";
+import { reserveEventChatTurn } from "@/lib/events/chat-quota";
 import {
   LumaImportError,
   fetchLumaEvent,
@@ -29,7 +30,9 @@ const requestSchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().max(DRAFT_CHAT_LIMITS.messageChars),
+        // Trimmed, not rejected: a rejected line stays in the history the
+        // client resends, which would fail every later turn too.
+        content: z.string().transform((s) => s.slice(0, DRAFT_CHAT_LIMITS.messageChars)),
       })
     )
     .min(1)
@@ -40,7 +43,11 @@ const requestSchema = z.object({
     }),
   draft: z.unknown(),
   timezone: z.string().refine(isValidTimeZone).optional(),
-  context: z.string().max(DRAFT_CHAT_LIMITS.contextChars * 2).nullable().optional(),
+  context: z
+    .string()
+    .transform((s) => s.slice(0, DRAFT_CHAT_LIMITS.contextChars))
+    .nullable()
+    .optional(),
 });
 
 /**
@@ -80,6 +87,25 @@ export async function POST(req: Request) {
     );
   }
 
+  // Each turn is a paid model call, so it is reserved first and fails closed.
+  // The organiser can still fill in the draft card by hand.
+  let quota;
+  try {
+    quota = await reserveEventChatTurn(user.id);
+  } catch (error) {
+    console.error("Event chat draft: quota check failed", error);
+    return NextResponse.json(
+      { error: "The assistant is unavailable right now." },
+      { status: 503 }
+    );
+  }
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: "The assistant has reached its hourly limit." },
+      { status: 429, headers: { "Retry-After": String(quota.retry_after_seconds) } }
+    );
+  }
+
   const timezone = parsed.data.timezone ?? "UTC";
   const draft = sanitizeDraft(parsed.data.draft, timezone);
 
@@ -87,7 +113,7 @@ export async function POST(req: Request) {
   // with `context` from the client's call to the general scraper.
   let context = parsed.data.context ?? null;
   const latest = parsed.data.messages[parsed.data.messages.length - 1].content;
-  const link = eventLinkIn(latest);
+  const link = eventLinkToImport(latest, draft);
   const lumaSlug = !context && link ? lumaEventSlug(link) : null;
   if (lumaSlug && link) {
     try {
@@ -120,7 +146,14 @@ export async function POST(req: Request) {
       response_format: { type: "json_object" },
       max_completion_tokens: 4000,
     });
-    raw = completion.choices?.[0]?.message?.content ?? "";
+    const choice = completion.choices?.[0];
+    raw = choice?.message?.content ?? "";
+    if (choice?.finish_reason === "length" || !raw.trim()) {
+      return NextResponse.json(
+        { error: "The assistant's reply was cut off. Try again, or ask for a smaller change." },
+        { status: 502 }
+      );
+    }
   } catch (error) {
     console.error("Event chat draft: model call failed", error);
     return NextResponse.json(

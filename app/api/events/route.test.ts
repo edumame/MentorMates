@@ -139,4 +139,14 @@ describe("POST /api/events", () => {
     });
     expect((await POST(request(chatPayload()))).status).toBe(401);
   });
+
+  it("ignores moderation fields sent by the client", async () => {
+    const { inserted } = supabaseWith();
+    const payload = chatPayload();
+    const res = await POST(
+      request({ ...payload, event: { ...payload.event, featured: true, approval_status: "approved" } })
+    );
+    expect(res.status).toBe(201);
+    expect(inserted[0]).toMatchObject({ featured: false, approval_status: "not_submitted" });
+  });
 });

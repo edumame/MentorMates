@@ -4,6 +4,7 @@ import {
   draftToCreatePayload,
   emptyDraft,
   eventLinkIn,
+  eventLinkToImport,
   formatDraftWhen,
   isValidWallTime,
   missingFields,
@@ -213,6 +214,22 @@ describe("what is missing", () => {
     expect(withNextQuestion("Where is it?", d)).toBe("Where is it?");
     expect(withNextQuestion("All set.", buildNextDraft())).toBe("All set.");
     expect(withNextQuestion("", d)).toBe("When is it? A date, start time and end time is perfect.");
+  });
+});
+
+describe("eventLinkToImport", () => {
+  const started = { ...emptyDraft("UTC"), event_name: "Demo Day" };
+
+  it("imports a link with words around it before a draft has started", () => {
+    expect(eventLinkToImport("here it is: https://lu.ma/abc123", emptyDraft("UTC"))).toBe("https://lu.ma/abc123");
+  });
+
+  it("imports a bare link on a started draft", () => {
+    expect(eventLinkToImport(" https://lu.ma/abc123 ", started)).toBe("https://lu.ma/abc123");
+  });
+
+  it("treats a sentence with a link on a started draft as an edit", () => {
+    expect(eventLinkToImport("add https://example.com/apply to the description", started)).toBeNull();
   });
 });
 

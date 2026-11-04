@@ -443,6 +443,17 @@ export function eventLinkIn(message: string): string | null {
   }
 }
 
+/**
+ * The link to import for this message, if any. Once a draft has started, only
+ * a bare link is an import: "add https://x.co/apply to the description" is an
+ * edit for the model, not a page to read.
+ */
+export function eventLinkToImport(message: string, draft: EventDraft): string | null {
+  const link = eventLinkIn(message);
+  if (!link) return null;
+  return isDraftStarted(draft) && /\s/.test(message.trim()) ? null : link;
+}
+
 // ---------------------------------------------------------------------------
 // Create
 // ---------------------------------------------------------------------------

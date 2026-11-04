@@ -3,9 +3,15 @@
 import { POST } from "./route";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { emptyDraft } from "@/lib/events/chat-draft";
+import { DRAFT_CHAT_LIMITS } from "@/lib/events/chat-draft-prompt";
+import { reserveEventChatTurn } from "@/lib/events/chat-quota";
 
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
+}));
+
+jest.mock("@/lib/events/chat-quota", () => ({
+  reserveEventChatTurn: jest.fn(),
 }));
 
 const mockCreate = jest.fn();
@@ -44,6 +50,7 @@ describe("POST /api/events/chat-draft", () => {
     jest.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-key";
     signedIn();
+    (reserveEventChatTurn as jest.Mock).mockResolvedValue({ allowed: true, retry_after_seconds: 0 });
   });
 
   afterAll(() => {
@@ -171,9 +178,11 @@ describe("POST /api/events/chat-draft", () => {
     ).json();
 
     expect(global.fetch).toHaveBeenCalledWith("https://api.lu.ma/url?url=buildnext", expect.anything());
-    const state = mockCreate.mock.calls[0][0].messages[1].content as string;
-    expect(state).toContain('"start_local":"2026-11-06T15:30"');
-    expect(state).toContain('"require_approval":true');
+    const sent = mockCreate.mock.calls[0][0].messages;
+    const imported = sent[sent.length - 2];
+    expect(imported.role).toBe("user");
+    expect(imported.content).toContain('"start_local":"2026-11-06T15:30"');
+    expect(imported.content).toContain('"require_approval":true');
     expect(body.imported).toBe(true);
   });
 
@@ -190,5 +199,79 @@ describe("POST /api/events/chat-draft", () => {
     expect(body.reply).toBe("Luma couldn't find that event. Paste the event text here and I'll draft it from that.");
     expect(body.imported).toBe(false);
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("reserves a turn for the verified user before calling the model", async () => {
+    modelSays("Hi.", {});
+    await POST(request({ messages: [{ role: "user", content: "hi" }], draft: {} }));
+    expect(reserveEventChatTurn).toHaveBeenCalledWith("user-1");
+  });
+
+  it("returns 429 with Retry-After at the limit, without calling the model", async () => {
+    (reserveEventChatTurn as jest.Mock).mockResolvedValue({ allowed: false, retry_after_seconds: 120 });
+    const res = await POST(request({ messages: [{ role: "user", content: "hi" }], draft: {} }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("120");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the quota check fails", async () => {
+    const log = jest.spyOn(console, "error").mockImplementation(() => {});
+    (reserveEventChatTurn as jest.Mock).mockRejectedValue(new Error("db"));
+    const res = await POST(request({ messages: [{ role: "user", content: "hi" }], draft: {} }));
+    expect(res.status).toBe(503);
+    expect(mockCreate).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("trims an oversized message instead of rejecting the turn", async () => {
+    modelSays("Drafted.", {});
+    const res = await POST(
+      request({ messages: [{ role: "user", content: "x".repeat(DRAFT_CHAT_LIMITS.messageChars + 5000) }], draft: {} })
+    );
+    expect(res.status).toBe(200);
+    const sent = mockCreate.mock.calls[0][0].messages;
+    expect(sent[sent.length - 1].content).toHaveLength(DRAFT_CHAT_LIMITS.messageChars);
+  });
+
+  it("trims oversized imported data instead of rejecting the turn", async () => {
+    modelSays("Drafted.", {});
+    const res = await POST(
+      request({
+        messages: [{ role: "user", content: "https://example.com/event" }],
+        draft: {},
+        context: "x".repeat(DRAFT_CHAT_LIMITS.contextChars * 3),
+      })
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("does not import a link inside a follow-up edit", async () => {
+    const fetchSpy = jest.fn();
+    global.fetch = fetchSpy;
+    modelSays("Added it.", {});
+    const res = await POST(
+      request({
+        messages: [{ role: "user", content: "add https://lu.ma/abc123 to the description" }],
+        draft: { ...emptyDraft(LA), event_name: "Demo Day" },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect((await res.json()).imported).toBe(false);
+  });
+
+  it("reports a cut-off reply instead of showing it", async () => {
+    mockCreate.mockResolvedValueOnce({
+      choices: [{ finish_reason: "length", message: { content: '{"reply":"Draf' } }],
+    });
+    const res = await POST(request({ messages: [{ role: "user", content: "hi" }], draft: {} }));
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toMatch(/cut off/);
+  });
+
+  it("reports an empty reply", async () => {
+    mockCreate.mockResolvedValueOnce({ choices: [{ message: { content: "" } }] });
+    expect((await POST(request({ messages: [{ role: "user", content: "hi" }], draft: {} }))).status).toBe(502);
   });
 });

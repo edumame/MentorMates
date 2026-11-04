@@ -11,7 +11,7 @@ import {
   browserTimeZone,
   draftToCreatePayload,
   emptyDraft,
-  eventLinkIn,
+  eventLinkToImport,
   isDraftStarted,
   type DraftPatch,
   type EventDraft,
@@ -89,6 +89,8 @@ export function EventCreationChat() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
+  /** Shows the empty card, so an event can be created without the assistant. */
+  const [manual, setManual] = useState(false);
   const inFlight = useRef(false);
   const listEnd = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
@@ -164,7 +166,7 @@ export function EventCreationChat() {
     setLines(history);
 
     try {
-      const link = eventLinkIn(message);
+      const link = eventLinkToImport(message, draft);
       let context: string | null = null;
       if (link && !lumaEventSlug(link)) {
         context = await importWithScraper(link);
@@ -191,9 +193,12 @@ export function EventCreationChat() {
         return;
       }
       if (!res.ok) {
+        const unavailable = res.status === 429 || res.status >= 500;
+        if (unavailable) setManual(true);
+        const why = typeof data.error === "string" ? data.error : "Something went wrong. Try again.";
         say({
           role: "assistant",
-          content: typeof data.error === "string" ? data.error : "Something went wrong. Try again.",
+          content: unavailable ? `${why} You can fill in the draft by hand.` : why,
           tone: "error",
         });
         return;
@@ -201,7 +206,8 @@ export function EventCreationChat() {
       if (data.draft && typeof data.draft === "object") setDraft(data.draft as EventDraft);
       say({ role: "assistant", content: typeof data.reply === "string" ? data.reply : "" });
     } catch {
-      say({ role: "assistant", content: "I couldn't reach the server. Check your connection and try again.", tone: "error" });
+      setManual(true);
+      say({ role: "assistant", content: "I couldn't reach the server. Check your connection and try again, or fill in the draft by hand.", tone: "error" });
     } finally {
       status(null);
       inFlight.current = false;
@@ -216,7 +222,7 @@ export function EventCreationChat() {
   };
 
   const create = async () => {
-    if (creating) return;
+    if (creating || inFlight.current) return;
     setCreateError(null);
     let payload;
     try {
@@ -260,13 +266,19 @@ export function EventCreationChat() {
     clearSaved();
     setLines([]);
     setDraft(emptyDraft());
+    setManual(false);
     setCreateError(null);
     composer.current?.focus();
   };
 
   const started = isDraftStarted(draft);
+  const showCard = started || manual;
+  // Locked during a turn: the reply replaces the whole draft, so an edit made
+  // meanwhile would be lost.
   const card = (
-    <EventDraftCard draft={draft} onPatch={onPatch} onCreate={create} creating={creating} error={createError} />
+    <fieldset disabled={busy} className="contents">
+      <EventDraftCard draft={draft} onPatch={onPatch} onCreate={create} creating={creating} error={createError} />
+    </fieldset>
   );
 
   return (
@@ -276,7 +288,7 @@ export function EventCreationChat() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between gap-3 pb-2 pt-4 lg:pt-6">
             <h1 className="text-[15px] font-semibold text-black">Create an event</h1>
-            {lines.length > 0 || started ? (
+            {lines.length > 0 || showCard ? (
               <button
                 type="button"
                 onClick={startOver}
@@ -317,7 +329,7 @@ export function EventCreationChat() {
               )}
             </ol>
             {/* On a phone the draft sits inline, under the latest reply. */}
-            {started ? <div className="mt-4 lg:hidden">{card}</div> : null}
+            {showCard ? <div className="mt-4 lg:hidden">{card}</div> : null}
             <div ref={listEnd} />
           </div>
 
@@ -355,6 +367,14 @@ export function EventCreationChat() {
             </div>
             <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
               Enter to send, Shift+Enter for a new line.{" "}
+              {showCard ? null : (
+                <>
+                  <button type="button" onClick={() => setManual(true)} className="hover:text-black hover:underline">
+                    Fill it in by hand
+                  </button>
+                  {" · "}
+                </>
+              )}
               <Link href="/events/submit" className="hover:text-black hover:underline">
                 Hosting elsewhere? List an external event
               </Link>
@@ -364,7 +384,7 @@ export function EventCreationChat() {
 
         {/* Desktop: the draft beside the chat. */}
         <aside className="hidden w-[380px] shrink-0 overflow-y-auto pb-6 pt-14 lg:block">
-          {started ? (
+          {showCard ? (
             card
           ) : (
             <div className="rounded-[12px] border border-dashed border-[rgba(0,0,0,0.12)] p-4 text-[13px] text-muted-foreground">

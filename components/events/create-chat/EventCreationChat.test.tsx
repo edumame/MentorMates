@@ -252,7 +252,7 @@ describe("EventCreationChat", () => {
       .mockResolvedValueOnce(json({ reply: "Drafted it.", draft: buildNext() }));
     render(<EventCreationChat />);
     await type("hello");
-    expect(await screen.findByText("The assistant is not configured on this server.")).toBeInTheDocument();
+    expect(await screen.findByText(/The assistant is not configured on this server\./)).toBeInTheDocument();
     await type("BUILD NEXT");
     // The error note is not sent back as conversation.
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).messages).toEqual([
@@ -272,5 +272,46 @@ describe("EventCreationChat", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
     await waitFor(() => expect(screen.queryByText("Earlier reply.")).not.toBeInTheDocument());
     expect(screen.queryByRole("region", { name: "Event draft" })).not.toBeInTheDocument();
+  });
+
+  it("can build an event by hand, with no assistant call", async () => {
+    render(<EventCreationChat />);
+    expect(screen.queryByRole("region", { name: "Event draft" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fill it in by hand" }));
+    expect(card()).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([429, 503])("offers the card by hand when the assistant returns %i", async (status) => {
+    fetchMock.mockResolvedValueOnce(json({ error: "The assistant is unavailable right now." }, status));
+    render(<EventCreationChat />);
+    await type("A hackathon at Stanford");
+    expect(await screen.findByText(/fill in the draft by hand/)).toBeInTheDocument();
+    expect(card()).toBeInTheDocument();
+  });
+
+  it("locks the card during a turn so edits can't be overwritten", async () => {
+    window.sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ lines: [], draft: buildNext() }));
+    let reply: (value: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => (reply = resolve)));
+    render(<EventCreationChat />);
+    const create = within(card()).getByRole("button", { name: "Create event" });
+    expect(create).toBeEnabled();
+
+    await type("make it 4pm");
+    expect(create).toBeDisabled();
+    expect(within(card()).getByRole("button", { name: "Edit location" })).toBeDisabled();
+
+    await act(async () => reply(json({ reply: "Done.", draft: buildNext() })));
+    expect(within(card()).getByRole("button", { name: "Create event" })).toBeEnabled();
+  });
+
+  it("sends a sentence with a link on a started draft to the chat, not the scraper", async () => {
+    window.sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ lines: [], draft: buildNext() }));
+    fetchMock.mockResolvedValueOnce(json({ reply: "Added it.", draft: buildNext() }));
+    render(<EventCreationChat />);
+    await type("add https://example.com/apply to the description");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/events/chat-draft");
   });
 });
