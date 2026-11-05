@@ -164,6 +164,8 @@ function normalizeAutoConversations(value: unknown): RoleAutoConversations {
   return out;
 }
 
+const EVENT_AGENTS_ONLY_MESSAGE = "To add an agent, open the Agents tab of an event you manage.";
+
 export function AgentsTab({ eventId }: AgentsTabProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -203,6 +205,18 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const agentsQuery = useQuery(
     trpc.agents.getMany.queryOptions({ pageSize: 100 })
   );
+
+  // Without an event, a new agent would be global, which only platform admins may create.
+  const isAdminQuery = useQuery({
+    queryKey: ["agents-tab-is-admin", effectiveUserId],
+    enabled: !eventId && Boolean(effectiveUserId),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("is_admin_user", { user_id: effectiveUserId });
+      if (error) throw error;
+      return Boolean(data);
+    },
+  });
+  const canAddAgent = Boolean(eventId) || isAdminQuery.data === true;
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -915,13 +929,18 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             onChange={(e) => setSearch(e.target.value)}
             inputClassName="text-sm sm:text-sm"
           />
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="h-10 w-full shrink-0 sm:w-auto"
-          >
-            Add agent
-          </Button>
+          {canAddAgent && (
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="h-10 w-full shrink-0 sm:w-auto"
+            >
+              Add agent
+            </Button>
+          )}
         </div>
+        {!canAddAgent && (
+          <p className="text-sm text-muted-foreground">{EVENT_AGENTS_ONLY_MESSAGE}</p>
+        )}
       </div>
 
       {eventId && (
@@ -1409,9 +1428,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                 ? "Sign in to view and manage agents."
                 : search.trim().length > 0
                   ? "Try a different search or clear filters."
-                  : "Create an agent to start assigning AI personas to your events."}
+                  : canAddAgent
+                    ? "Create an agent to start assigning AI personas to your events."
+                    : EVENT_AGENTS_ONLY_MESSAGE}
             </p>
-            {session?.user?.id && search.trim().length === 0 && (
+            {canAddAgent && session?.user?.id && search.trim().length === 0 && (
               <div className="mt-4 flex justify-center">
                 <Button
                   size="sm"
