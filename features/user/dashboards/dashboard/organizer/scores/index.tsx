@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
@@ -126,6 +126,10 @@ export function ScoresTab({
   >([]);
   const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  // Lets a saved advancement selection reload scores without re-running the
+  // fetch effect: that would re-create the realtime channels under the same
+  // topics while the old ones are still leaving.
+  const refetchScoresRef = useRef<() => void>(() => {});
 
   // Link tracks to main track feature
   const [linkTracksEnabled, setLinkTracksEnabled] = useState(false);
@@ -670,6 +674,7 @@ export function ScoresTab({
     }
 
     fetchData();
+    refetchScoresRef.current = fetchData;
 
     // Subscribe to real-time score updates
     const judgeScoresSubscription = supabase
@@ -749,6 +754,7 @@ export function ScoresTab({
               eventId={eventId}
               scoringConfig={scoringConfig}
               onSaved={(next) => onScoringConfigSaved?.(next)}
+              onAdvancementsSaved={() => refetchScoresRef.current()}
             />
 
             <Card className="w-full min-w-0 border shadow-none">

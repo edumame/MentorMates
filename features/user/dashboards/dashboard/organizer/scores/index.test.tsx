@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Papa from "papaparse";
 import type { EventScoringConfig } from "@/lib/types";
 import { ScoresTab } from "./index";
@@ -6,6 +6,8 @@ import { ScoresTab } from "./index";
 type Row = Record<string, unknown>;
 
 let tables: Record<string, Row[]>;
+let saveAdvancements: () => void;
+const mockChannel = jest.fn();
 
 // Minimal PostgREST stand-in: applies .eq filters to the rows in `tables`.
 function queryFor(table: string) {
@@ -33,18 +35,28 @@ function queryFor(table: string) {
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     from: (table: string) => queryFor(table),
-    channel: () => ({
-      on() {
-        return this;
-      },
-      subscribe() {
-        return { unsubscribe: jest.fn() };
-      },
-    }),
+    channel: (topic: string) => {
+      mockChannel(topic);
+      return {
+        on() {
+          return this;
+        },
+        subscribe() {
+          return { unsubscribe: jest.fn() };
+        },
+      };
+    },
   },
 }));
 jest.mock("@/components/events/rounds-editor", () => ({
-  RoundsEditor: () => null,
+  RoundsEditor: ({
+    onAdvancementsSaved,
+  }: {
+    onAdvancementsSaved?: () => void;
+  }) => {
+    saveAdvancements = () => onAdvancementsSaved?.();
+    return null;
+  },
 }));
 jest.mock("@/components/voting/voting-results-panel", () => ({
   VotingResultsPanel: () => null,
@@ -147,10 +159,20 @@ function seed() {
   };
 }
 
+function exportAll() {
+  (Papa.unparse as jest.Mock).mockClear();
+  for (const button of screen.getAllByRole("button", { name: /export/i })) {
+    fireEvent.click(button);
+  }
+  return (Papa.unparse as jest.Mock).mock.calls.map(([rows]) =>
+    JSON.stringify(rows)
+  );
+}
+
 describe("ScoresTab round eligibility", () => {
   beforeEach(() => {
     seed();
-    (Papa.unparse as jest.Mock).mockClear();
+    mockChannel.mockClear();
     global.fetch = jest.fn(async () => ({
       ok: true,
       json: async () => ({ profiles: [] }),
@@ -175,13 +197,7 @@ describe("ScoresTab round eligibility", () => {
     render(<ScoresTab eventId={EVENT_ID} scoringConfig={scoringConfig} />);
     await screen.findByText("Advanced");
 
-    for (const button of screen.getAllByRole("button", { name: /export/i })) {
-      fireEvent.click(button);
-    }
-
-    const exported = (Papa.unparse as jest.Mock).mock.calls.map(
-      ([rows]) => JSON.stringify(rows)
-    );
+    const exported = exportAll();
     const eliminatedFiles = exported.filter((rows) =>
       rows.includes("Eliminated")
     );
@@ -189,5 +205,78 @@ describe("ScoresTab round eligibility", () => {
     // Round 1 ran before the cut, so its scores stay in the round 1 files
     // (one ranked, one raw) and nowhere else.
     expect(eliminatedFiles).toHaveLength(2);
+  });
+
+  it("drops a project from the table and exports when a re-pick removes it", async () => {
+    tables.project_round_advancements.push({
+      event_id: EVENT_ID,
+      project_id: "eliminated",
+      round_number: 2,
+    });
+    render(<ScoresTab eventId={EVENT_ID} scoringConfig={scoringConfig} />);
+    expect(await screen.findByText("Eliminated")).toBeInTheDocument();
+    // Ranked and raw files for both rounds.
+    expect(
+      exportAll().filter((rows) => rows.includes("Eliminated"))
+    ).toHaveLength(4);
+
+    tables.project_round_advancements =
+      tables.project_round_advancements.filter(
+        (row) => row.project_id !== "eliminated"
+      );
+    await act(async () => saveAdvancements());
+
+    await waitFor(() =>
+      expect(screen.queryByText("Eliminated")).not.toBeInTheDocument()
+    );
+    expect(screen.getByText("Advanced")).toBeInTheDocument();
+    // Only the round 1 files still carry it.
+    expect(
+      exportAll().filter((rows) => rows.includes("Eliminated"))
+    ).toHaveLength(2);
+  });
+
+  it("restores a project to the table and exports when a re-pick adds it back", async () => {
+    render(<ScoresTab eventId={EVENT_ID} scoringConfig={scoringConfig} />);
+    await screen.findByText("Advanced");
+    expect(screen.queryByText("Eliminated")).not.toBeInTheDocument();
+
+    tables.project_round_advancements.push({
+      event_id: EVENT_ID,
+      project_id: "eliminated",
+      round_number: 2,
+    });
+    await act(async () => saveAdvancements());
+
+    expect(await screen.findByText("Eliminated")).toBeInTheDocument();
+    expect(
+      exportAll().filter((rows) => rows.includes("Eliminated"))
+    ).toHaveLength(4);
+  });
+
+  it("empties the round 2 table when a re-pick removes every project", async () => {
+    render(<ScoresTab eventId={EVENT_ID} scoringConfig={scoringConfig} />);
+    await screen.findByText("Advanced");
+
+    tables.project_round_advancements = [];
+    await act(async () => saveAdvancements());
+
+    await waitFor(() =>
+      expect(screen.queryByText("Advanced")).not.toBeInTheDocument()
+    );
+  });
+
+  it("keeps the realtime channels when a re-pick reloads scores", async () => {
+    render(<ScoresTab eventId={EVENT_ID} scoringConfig={scoringConfig} />);
+    await screen.findByText("Advanced");
+    const channelsOpened = mockChannel.mock.calls.length;
+
+    tables.project_round_advancements = [];
+    await act(async () => saveAdvancements());
+    await waitFor(() =>
+      expect(screen.queryByText("Advanced")).not.toBeInTheDocument()
+    );
+
+    expect(mockChannel).toHaveBeenCalledTimes(channelsOpened);
   });
 });
