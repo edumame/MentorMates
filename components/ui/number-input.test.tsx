@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NumberInput, type NumberInputProps } from "./number-input";
 
@@ -122,6 +122,116 @@ describe("NumberInput", () => {
     rerender(<NumberInput value={9} onValueChange={jest.fn()} />);
 
     expect(screen.getByRole("spinbutton")).toHaveValue(9);
+  });
+
+  describe("when the parent changes value during an edit", () => {
+    function ResettableHarness({ min, max }: { min?: number; max?: number }) {
+      const [value, setValue] = useState(1);
+      latest = value;
+      return (
+        <>
+          <NumberInput
+            min={min}
+            max={max}
+            value={value}
+            onValueChange={(next) => {
+              onValueChange(next);
+              setValue(next);
+            }}
+          />
+          <button type="button" onClick={() => setValue(1)}>
+            reset to 1
+          </button>
+          <button type="button" onClick={() => setValue(5)}>
+            set to 5
+          </button>
+        </>
+      );
+    }
+
+    // fireEvent leaves focus in the input, like submitting a form with Enter.
+    function setupResettable(props?: { min?: number; max?: number }) {
+      const user = userEvent.setup();
+      render(<ResettableHarness {...props} />);
+      return {
+        user,
+        input: screen.getByRole("spinbutton"),
+        reset: () =>
+          fireEvent.click(screen.getByRole("button", { name: "reset to 1" })),
+        setToFive: () =>
+          fireEvent.click(screen.getByRole("button", { name: "set to 5" })),
+      };
+    }
+
+    it("shows the parent's value instead of the draft", async () => {
+      const { user, input, reset } = setupResettable();
+
+      await user.clear(input);
+      await user.keyboard("5");
+      expect(latest).toBe(5);
+
+      reset();
+
+      expect(input).toHaveFocus();
+      expect(input).toHaveValue(1);
+    });
+
+    it("does not write the old draft back on blur", async () => {
+      const { user, input, reset } = setupResettable();
+
+      await user.clear(input);
+      await user.keyboard("5");
+      reset();
+      onValueChange.mockClear();
+
+      await user.tab();
+
+      expect(input).toHaveValue(1);
+      expect(latest).toBe(1);
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+
+    it("drops a draft that was never emitted", async () => {
+      const { user, input, setToFive } = setupResettable({ max: 5 });
+
+      await user.clear(input);
+      await user.keyboard("9");
+      expect(input).toHaveValue(9);
+      expect(latest).toBe(1);
+
+      setToFive();
+
+      expect(input).toHaveValue(5);
+    });
+
+    it("does not bring a dropped draft back when value returns", async () => {
+      const { user, input, reset, setToFive } = setupResettable({ max: 50 });
+
+      await user.clear(input);
+      await user.keyboard("5");
+      await user.keyboard("9");
+      expect(input).toHaveValue(59);
+      expect(latest).toBe(5);
+
+      reset();
+      setToFive();
+
+      expect(input).toHaveValue(5);
+    });
+
+    it("keeps editing normally after a reset", async () => {
+      const { user, input, reset } = setupResettable();
+
+      await user.clear(input);
+      await user.keyboard("5");
+      reset();
+
+      await user.clear(input);
+      await user.keyboard("12");
+
+      expect(input).toHaveValue(12);
+      expect(latest).toBe(12);
+    });
   });
 
   it("still calls a caller-supplied onBlur", async () => {

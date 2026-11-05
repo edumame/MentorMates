@@ -105,4 +105,68 @@ describe("MentorAvailabilityManager", () => {
     await user.keyboard("12");
     expect(maxBookings).toHaveValue(12);
   });
+
+  describe("submitting with Enter from Max bookings", () => {
+    function postedMaxBookings() {
+      return (global.fetch as jest.Mock).mock.calls
+        .filter(([, init]) => init?.method === "POST")
+        .map(([, init]) => JSON.parse(init.body).max_bookings);
+    }
+
+    async function renderForm() {
+      const user = userEvent.setup();
+
+      render(<MentorAvailabilityManager eventId="event-1" />);
+
+      await screen.findByDisplayValue(
+        toLocalInputValue("2026-05-01T13:30:00.000Z")
+      );
+      return { user, maxBookings: screen.getByLabelText("Max bookings") };
+    }
+
+    it("resets the field to 1 and then sends what is displayed", async () => {
+      const { user, maxBookings } = await renderForm();
+
+      await user.clear(maxBookings);
+      await user.keyboard("5{Enter}");
+
+      await waitFor(() => expect(postedMaxBookings()).toEqual([5]));
+      await waitFor(() => expect(maxBookings).toHaveValue(1));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Add slot" })).toBeEnabled()
+      );
+      expect(maxBookings).toHaveFocus();
+
+      await user.keyboard("{Enter}");
+
+      await waitFor(() => expect(postedMaxBookings()).toEqual([5, 1]));
+    });
+
+    it("keeps the reset when the field is blurred afterwards", async () => {
+      const { user, maxBookings } = await renderForm();
+
+      await user.clear(maxBookings);
+      await user.keyboard("5{Enter}");
+      await waitFor(() => expect(maxBookings).toHaveValue(1));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Add slot" })).toBeEnabled()
+      );
+
+      await user.tab();
+      expect(maxBookings).toHaveValue(1);
+
+      await user.click(screen.getByRole("button", { name: "Add slot" }));
+
+      await waitFor(() => expect(postedMaxBookings()).toEqual([5, 1]));
+    });
+
+    it("does not submit an empty field", async () => {
+      const { user, maxBookings } = await renderForm();
+
+      await user.clear(maxBookings);
+      await user.keyboard("{Enter}");
+
+      expect(postedMaxBookings()).toEqual([]);
+    });
+  });
 });

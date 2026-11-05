@@ -300,6 +300,7 @@ export function MentorAvailabilityManager({
               max={50}
               value={maxBookings}
               onValueChange={setMaxBookings}
+              required
             />
           </div>
 

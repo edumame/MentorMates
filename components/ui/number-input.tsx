@@ -24,6 +24,10 @@ export interface NumberInputProps
  * In-range values reach `onValueChange` as they are typed. Everything else
  * waits for blur: out-of-range values clamp to min/max, and an empty field
  * goes back to the last valid value.
+ *
+ * The parent still owns `value`: if it changes to anything other than what
+ * this field last emitted (a form reset, say), the draft is dropped. Parents
+ * must therefore store emitted values as given, in the same update.
  */
 export function NumberInput({
   value,
@@ -35,7 +39,16 @@ export function NumberInput({
   onBlur,
   ...props
 }: NumberInputProps) {
-  const [draft, setDraft] = React.useState<string | null>(null);
+  // `expected` is the `value` this text belongs to: the number just emitted,
+  // or the current value when the text was not emitted.
+  const [draft, setDraft] = React.useState<{
+    text: string;
+    expected: number;
+  } | null>(null);
+
+  if (draft !== null && draft.expected !== value) {
+    setDraft(null);
+  }
 
   const parse = (raw: string): number | null => {
     if (raw.trim() === "") return null;
@@ -48,16 +61,19 @@ export function NumberInput({
     Math.min(max ?? Infinity, Math.max(min ?? -Infinity, parsed));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDraft(e.target.value);
-    const parsed = parse(e.target.value);
+    const text = e.target.value;
+    const parsed = parse(text);
     if (parsed !== null && parsed === clamp(parsed)) {
+      setDraft({ text, expected: parsed });
       onValueChange(parsed);
+    } else {
+      setDraft({ text, expected: value });
     }
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     if (draft !== null) {
-      const parsed = parse(draft);
+      const parsed = parse(draft.text);
       if (parsed !== null && clamp(parsed) !== value) {
         onValueChange(clamp(parsed));
       }
@@ -74,7 +90,7 @@ export function NumberInput({
       type="number"
       min={min}
       max={max}
-      value={draft ?? value}
+      value={draft?.text ?? value}
       onChange={handleChange}
       onBlur={handleBlur}
     />
