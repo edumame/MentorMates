@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { parseEventDateLocal } from "@/lib/utils/date";
 
 export type DatePickerProps = {
   value?: string;
@@ -26,13 +27,9 @@ export function DatePicker({
   disabled = false,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
-    value ? new Date(value) : undefined
-  );
+  const selectedDate = parseEventDateLocal(value) ?? undefined;
 
   const handleSelect = (date: Date) => {
-    setSelectedDate(date);
-
     // Format as datetime-local string
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
