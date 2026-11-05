@@ -307,8 +307,10 @@ export function PricingTab({
 
       // Update existing tiers
       for (const tier of existingTiers) {
+        // current_quantity is owned by the payments trigger; saving the loaded
+        // value would overwrite sales made since this page was opened.
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { _markedForDeletion, ...tierData } = tier;
+        const { _markedForDeletion, current_quantity, ...tierData } = tier;
         const { error: updateError } = await supabase
           .from("pricing_tiers")
           .update({
