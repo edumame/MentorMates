@@ -14,6 +14,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/lib/hooks/use-toast";
 import { createClient } from "@/app/utils/supabase/client";
@@ -292,15 +293,14 @@ export function MentorAvailabilityManager({
 
           <div className="max-w-xs space-y-1">
             <Label htmlFor="max">Max bookings</Label>
-            <Input
+            <NumberInput
               id="max"
-              type="number"
+              integer
               min={1}
               max={50}
               value={maxBookings}
-              onChange={(event) =>
-                setMaxBookings(Math.max(1, Number(event.target.value) || 1))
-              }
+              onValueChange={setMaxBookings}
+              required
             />
           </div>
 

@@ -11,6 +11,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
@@ -356,14 +357,12 @@ export function ContentTab({
                 </div>
                 <div className="space-y-2">
                   <label className="text-[16px] font-normal text-black">Duration (minutes)</label>
-                  <Input
-                    type="number"
+                  <NumberInput
+                    integer
                     min={1}
                     value={Number(lesson.duration_minutes) || 0}
                     disabled={isArchived}
-                    onChange={(e) =>
-                      updateLesson(index, { duration_minutes: Math.max(1, parseInt(e.target.value || "0", 10)) })
-                    }
+                    onValueChange={(duration_minutes) => updateLesson(index, { duration_minutes })}
                     className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]"
                   />
                 </div>

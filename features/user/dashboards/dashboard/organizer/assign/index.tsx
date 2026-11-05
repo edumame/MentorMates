@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -666,15 +666,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="judges-per-project">Judges per Project</Label>
-                <Input
+                <NumberInput
                   id="judges-per-project"
-                  type="number"
-                  min="0"
-                  max="10"
+                  integer
+                  min={1}
+                  max={10}
                   value={judgesPerProject}
-                  onChange={(e) =>
-                    setJudgesPerProject(parseInt(e.target.value) || 1)
-                  }
+                  onValueChange={setJudgesPerProject}
                 />
               </div>
               <AlertDialog>
@@ -707,15 +705,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="mentors-per-project">Mentors per Project</Label>
-                <Input
+                <NumberInput
                   id="mentors-per-project"
-                  type="number"
-                  min="0"
-                  max="10"
+                  integer
+                  min={1}
+                  max={10}
                   value={mentorsPerProject}
-                  onChange={(e) =>
-                    setMentorsPerProject(parseInt(e.target.value) || 1)
-                  }
+                  onValueChange={setMentorsPerProject}
                 />
               </div>
               <AlertDialog>

@@ -989,7 +989,7 @@ export function ScoresTab({
                                             <div className="break-words flex items-center justify-end">
                                               <span>
                                                 {c.name}
-                                                {c.weight && c.weight !== 1 && (
+                                                {c.weight != null && c.weight !== 1 && (
                                                   <span className="text-xs text-muted-foreground ml-1">
                                                     (×{c.weight})
                                                   </span>

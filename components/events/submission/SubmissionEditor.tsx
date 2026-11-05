@@ -11,6 +11,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { NumberInput } from "@/components/ui/number-input";
 import type { SubmissionField, ChatMessage } from "./types";
 import {
   createSubmissionTemplateFields,
@@ -744,19 +745,13 @@ function FieldEditor({
             {field.multiple && field.type === "file" && (
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-gray-500">Max files:</label>
-                <input
-                  type="number"
+                <NumberInput
+                  unstyled
+                  integer
                   min={2}
                   max={20}
                   value={field.maxFiles ?? 5}
-                  onChange={(e) =>
-                    onUpdate({
-                      maxFiles: Math.max(
-                        2,
-                        parseInt(e.target.value, 10) || 5
-                      ),
-                    })
-                  }
+                  onValueChange={(maxFiles) => onUpdate({ maxFiles })}
                   {...{ [FIELD_EDITOR_STEP]: "" }}
                   className="w-16 h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-center outline-none focus:border-[#4B89EF]"
                 />
