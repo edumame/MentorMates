@@ -183,8 +183,8 @@ function JoinProjectContent() {
         }
       }
 
-      // If token is not provided or invalid, show warning
-      if (token && !tokenValid) {
+      // The server requires a valid invitation, so stop early without one.
+      if (!token || !tokenValid) {
         setError("Invalid or expired invitation link. Please request a new invitation.");
         return;
       }
@@ -221,11 +221,13 @@ function JoinProjectContent() {
 
       const response = await fetch("/api/projects/join", {
         method: "PUT",
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, token }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to join project.");
+        const { error: joinError } = await response.json().catch(() => ({ error: null }));
+        setError(joinError || "Failed to join project. Please try again.");
+        return;
       }
 
       setSuccess(true);
