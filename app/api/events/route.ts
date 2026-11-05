@@ -481,6 +481,9 @@ export async function POST(req: Request) {
       eventName: createdEvent.event_name,
       eventSlug: createdEvent.slug,
       inviterName,
+      visibility:
+        (createdEvent.visibility as EventVisibility | null) ??
+        EventVisibility.Draft,
       existingOrganizerEmails: existingOrganizerInviteEmails,
       newOrganizerEmails: newOrganizerInviteEmails,
       sendEmail,

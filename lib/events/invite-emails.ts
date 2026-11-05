@@ -14,6 +14,30 @@ export interface EventInviteSummary {
 export interface OrganizerInviteSummary {
   sent: number;
   failed: string[];
+  /** New organizers not emailed because they could not open the accept link. */
+  deferred: string[];
+}
+
+/**
+ * Whether someone with no role on the event can load it. The events SELECT
+ * policy hides every other visibility, and the /events/[id] layout then 404s
+ * before an accept page renders, so accept links only work for these.
+ */
+export function canInviteeOpenEvent(visibility: EventVisibility): boolean {
+  return (
+    visibility === EventVisibility.Public ||
+    visibility === EventVisibility.Private
+  );
+}
+
+/** 409 body for inviting someone with no account to an unopenable event. */
+export const NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR =
+  "This person doesn't have an account yet, and invite links only work once the event is published. Publish the event first, or ask them to sign up and invite them again.";
+
+export function getDeferredOrganizerInviteNotice(emails: string[]): string {
+  return `No invite was sent to ${emails.join(
+    ", "
+  )} because they don't have an account and the event isn't published. Invite them again from Access after publishing, or once they've signed up.`;
 }
 
 export function normalizeInviteEmails(emails: string[] | undefined): string[] {
@@ -168,6 +192,7 @@ export async function sendOrganizerInviteEmails({
   eventName,
   eventSlug,
   inviterName,
+  visibility,
   existingOrganizerEmails,
   newOrganizerEmails,
   sendEmail,
@@ -177,6 +202,7 @@ export async function sendOrganizerInviteEmails({
   eventName: string;
   eventSlug?: string | null;
   inviterName: string;
+  visibility: EventVisibility;
   existingOrganizerEmails?: string[];
   newOrganizerEmails?: string[];
   sendEmail?: (message: {
@@ -186,11 +212,14 @@ export async function sendOrganizerInviteEmails({
   }) => Promise<boolean>;
 }): Promise<OrganizerInviteSummary> {
   const normalizedExisting = normalizeInviteEmails(existingOrganizerEmails);
-  const normalizedNew = normalizeInviteEmails(newOrganizerEmails);
+  const allNew = normalizeInviteEmails(newOrganizerEmails);
+  const inviteesCanOpenEvent = canInviteeOpenEvent(visibility);
+  const normalizedNew = inviteesCanOpenEvent ? allNew : [];
 
   const summary: OrganizerInviteSummary = {
     sent: 0,
     failed: [],
+    deferred: inviteesCanOpenEvent ? [] : allNew,
   };
 
   if (normalizedExisting.length === 0 && normalizedNew.length === 0) {

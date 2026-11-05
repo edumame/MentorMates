@@ -1,11 +1,15 @@
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
-import { EventRole } from '@/lib/types';
+import { EventRole, EventVisibility } from '@/lib/types';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import {
+  canInviteeOpenEvent,
+  NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR,
+} from '@/lib/events/invite-emails';
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -62,7 +66,7 @@ export async function POST(request: Request) {
   // Fetch event details for the email
   const { data: eventData } = await supabase
     .from('events')
-    .select('event_name, slug')
+    .select('event_name, slug, visibility')
     .eq('event_id', eventId)
     .single();
 
@@ -133,6 +137,17 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, userExists: true });
+  }
+
+  // The accept link 404s for someone with no role until the event is published,
+  // and no invite is stored to send later, so refuse rather than email a dead link.
+  const visibility =
+    (eventData.visibility as EventVisibility | null) ?? EventVisibility.Draft;
+  if (!canInviteeOpenEvent(visibility)) {
+    return NextResponse.json(
+      { error: NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR },
+      { status: 409 }
+    );
   }
 
   // User doesn't exist - send magic link invite
