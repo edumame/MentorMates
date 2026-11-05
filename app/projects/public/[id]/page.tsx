@@ -34,6 +34,7 @@ import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 import { EventRole, EventTrack, EventVisibility, Project } from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { canScoreProjectInActiveRound } from "@/lib/judging/rounds";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
@@ -68,6 +69,7 @@ export default function PublicProjectPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchComplete, setFetchComplete] = useState(false);
   const [isJudge, setIsJudge] = useState(false);
+  const [canScore, setCanScore] = useState(false);
   const [judgeId, setJudgeId] = useState("");
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
@@ -228,6 +230,7 @@ export default function PublicProjectPage() {
       if (!project?.event_id) return;
 
       setIsCheckingJudgeStatus(true);
+      setCanScore(false);
       try {
         const {
           data: { session },
@@ -261,6 +264,20 @@ export default function PublicProjectPage() {
           EventRole.Judge,
         );
         setIsJudge(judgeStatus);
+
+        // Being a judge for the event is not enough to score this project. It
+        // must be in the active round and, for judges, assigned to them;
+        // organizers can score without an assignment. Refuse if the check fails.
+        if (judgeStatus && project?.id) {
+          setCanScore(
+            await canScoreProjectInActiveRound(supabase, {
+              eventId: project.event_id,
+              projectId: project.id,
+              userId: session.user.id,
+              requireAssignment: roleData?.role === EventRole.Judge,
+            }).catch(() => false),
+          );
+        }
 
         // Fetch project tracks if user is a judge
         if (judgeStatus && project?.id) {
@@ -636,7 +653,7 @@ export default function PublicProjectPage() {
                 >
                   Feedback
                 </TabsTrigger>
-                {isJudge && (
+                {canScore && (
                   <TabsTrigger
                     value="scoring"
                     className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
@@ -1095,7 +1112,7 @@ export default function PublicProjectPage() {
                 </TabsContent>
 
                 {/* Judge Scoring Tab - Single Column */}
-                {isJudge && (
+                {canScore && (
                   <TabsContent value="scoring" className="mt-0">
                     <Card className="border-purple-200 bg-purple-50">
                       <CardHeader>
