@@ -1,4 +1,4 @@
-import { EventRole, EventVisibility } from "@/lib/types";
+import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 
@@ -24,6 +24,23 @@ interface JoinParticipantEventOptions {
   eventId: string;
   userId: string;
   channel: "web" | "agent";
+}
+
+export const EVENT_UNAVAILABLE_MESSAGE = "This event is no longer available.";
+
+/**
+ * Approval gates the public listing, not whether an event can operate, so a
+ * rejected private event was only denied a listing and keeps working. Any
+ * other rejected event has been taken down and must refuse joins and checkouts.
+ */
+export function isEventTakenDown(event: {
+  visibility: string | null;
+  approval_status: string | null;
+}) {
+  return (
+    event.approval_status === ApprovalStatus.Rejected &&
+    event.visibility !== EventVisibility.Private
+  );
 }
 
 function failure(
@@ -67,6 +84,10 @@ export async function joinParticipantEvent(
 
   if (!event) {
     return failure(404, { error: "Event not found" });
+  }
+
+  if (isEventTakenDown(event)) {
+    return failure(403, { error: EVENT_UNAVAILABLE_MESSAGE });
   }
 
   if (channel === "agent" && event.paid) {

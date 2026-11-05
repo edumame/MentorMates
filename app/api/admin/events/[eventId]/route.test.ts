@@ -80,4 +80,113 @@ describe("PATCH /api/admin/events/[eventId]", () => {
       visibility: EventVisibility.Public,
     });
   });
+
+  describe("rejecting an event", () => {
+    const patchWithCurrentEvent = async (
+      currentEvent: Record<string, unknown> | null,
+      body: Record<string, unknown>,
+    ) => {
+      const currentEventBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: currentEvent,
+          error: currentEvent ? null : { message: "not found" },
+        }),
+      };
+      const updateEventBuilder = {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { event_id: "event-1" },
+          error: null,
+        }),
+      };
+
+      let eventsFromCalls = 0;
+      (createSupabaseClient as jest.Mock).mockResolvedValue({
+        auth: {
+          getUser: jest.fn().mockResolvedValue({
+            data: { user: { id: "admin-user-1" } },
+            error: null,
+          }),
+        },
+        rpc: jest.fn().mockResolvedValue({ data: true }),
+        from: jest.fn().mockImplementation((table: string) => {
+          if (table === "events") {
+            eventsFromCalls += 1;
+            return eventsFromCalls === 1 ? currentEventBuilder : updateEventBuilder;
+          }
+          if (table === "event_approval_logs") {
+            return { insert: jest.fn().mockResolvedValue({ error: null }) };
+          }
+          throw new Error(`Unexpected table: ${table}`);
+        }),
+      });
+
+      const response = await PATCH(
+        new NextRequest("http://localhost/api/admin/events/event-1", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({ eventId: "event-1" }) },
+      );
+
+      return { response, update: updateEventBuilder.update };
+    };
+
+    const rejection = { approval_status: "rejected", rejection_reason: "spam" };
+
+    it("takes a public event down by moving it to draft", async () => {
+      const { response, update } = await patchWithCurrentEvent(
+        { approval_status: "approved", visibility: EventVisibility.Public },
+        rejection,
+      );
+
+      expect(response.status).toBe(200);
+      expect(update).toHaveBeenCalledWith({
+        approval_status: "rejected",
+        rejection_reason: "spam",
+        visibility: EventVisibility.Draft,
+      });
+    });
+
+    it.each([
+      EventVisibility.Private,
+      EventVisibility.Draft,
+      EventVisibility.Archived,
+    ])("leaves a %s event's visibility unchanged", async (visibility) => {
+      const { response, update } = await patchWithCurrentEvent(
+        { approval_status: "submitted", visibility },
+        rejection,
+      );
+
+      expect(response.status).toBe(200);
+      expect(update).toHaveBeenCalledWith({
+        approval_status: "rejected",
+        rejection_reason: "spam",
+      });
+    });
+
+    it("does not record a rejection it cannot apply to the event's visibility", async () => {
+      const { response, update } = await patchWithCurrentEvent(null, rejection);
+
+      expect(response.status).toBe(500);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("does not change visibility for other approval statuses", async () => {
+      const { update } = await patchWithCurrentEvent(
+        { approval_status: "approved", visibility: EventVisibility.Public },
+        { approval_status: "submitted" },
+      );
+
+      expect(update).toHaveBeenCalledWith({
+        approval_status: "submitted",
+        rejection_reason: null,
+      });
+    });
+  });
 });
