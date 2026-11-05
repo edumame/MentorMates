@@ -40,7 +40,7 @@ interface DefaultScoringProps {
   scoringConfig?: EventScoringConfig | null;
   roundNumber?: number;
   finalistFeatureEnabled?: boolean;
-  onScoreSaved?: () => void;
+  onScoreSaved?: (scores: FormValues["scores"]) => void;
   onScoreDeleted?: () => void;
   hideProjectHeader?: boolean;
   className?: string;
@@ -235,7 +235,7 @@ export function DefaultScoring({
         if (insertError) throw insertError;
       }
       setHasExistingScore(true);
-      onScoreSaved?.();
+      onScoreSaved?.(values.scores);
 
       toast({
         title: "Score submitted",
