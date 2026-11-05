@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 
 // GET: Get detailed voting results (organizer only)
 export async function GET(
@@ -50,21 +51,25 @@ export async function GET(
     }
 
     // Get all votes with project details
-    const { data: votes, error: votesError } = await supabase
-      .from("project_votes")
-      .select(`
-        id,
-        project_id,
-        user_id,
-        created_at,
-        projects!inner (
+    const { data: votes, error: votesError } = await fetchAllRows((from, to) =>
+      supabase
+        .from("project_votes")
+        .select(`
           id,
-          project_name,
-          lead_name,
-          cover_image_url
-        )
-      `)
-      .eq("event_id", eventId);
+          project_id,
+          user_id,
+          created_at,
+          projects!inner (
+            id,
+            project_name,
+            lead_name,
+            cover_image_url
+          )
+        `)
+        .eq("event_id", eventId)
+        .order("id")
+        .range(from, to)
+    );
 
     if (votesError) {
       console.error("Error fetching votes:", votesError);
