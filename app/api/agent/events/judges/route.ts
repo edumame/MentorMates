@@ -4,6 +4,7 @@ import {
   authorizeAgentEventAccess,
   requireScope,
 } from "@/lib/agent/auth";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
 
@@ -52,13 +53,26 @@ export async function GET(request: NextRequest) {
     let scoreCounts: { judge_id: string }[] = [];
 
     if (judgeIds.length > 0) {
-      const { data: scores } = await supabase
-        .from("project_scores")
-        .select("judge_id")
-        .eq("event_id", auth.eventId)
-        .in("judge_id", judgeIds);
+      const { data: scores, error: scoresError } = await fetchAllRows(
+        (from, to) =>
+          supabase
+            .from("project_scores")
+            .select("judge_id")
+            .eq("event_id", auth.eventId)
+            .in("judge_id", judgeIds)
+            .order("id")
+            .range(from, to)
+      );
 
-      scoreCounts = scores || [];
+      if (scoresError) {
+        console.error("Error fetching judge scores:", scoresError);
+        return NextResponse.json(
+          { error: "Failed to fetch judge scores" },
+          { status: 500 }
+        );
+      }
+
+      scoreCounts = scores;
     }
 
     const judgesWithProgress = judges?.map((judge) => ({

@@ -6,6 +6,7 @@ import {
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { listManagedAgentEvents } from "@/lib/agent/event-access";
+import { EventRole } from "@/lib/types";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { randomUUID } from "crypto";
@@ -83,25 +84,45 @@ export async function GET(request: NextRequest) {
     }
 
     // Get participant/role counts
-    const { data: roleCounts } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("event_id", auth.eventId);
-
-    const counts = {
-      participants: 0,
-      mentors: 0,
-      judges: 0,
-      organizers: 0,
-      total: roleCounts?.length || 0,
+    const countRoleRows = (role?: EventRole) => {
+      const query = supabase
+        .from("user_event_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", auth.eventId);
+      return role ? query.eq("role", role) : query;
     };
 
-    roleCounts?.forEach((r) => {
-      if (r.role === "participant") counts.participants++;
-      else if (r.role === "mentor") counts.mentors++;
-      else if (r.role === "judge") counts.judges++;
-      else if (r.role === "organizer") counts.organizers++;
-    });
+    const [participants, mentors, judges, organizers, total] =
+      await Promise.all([
+        countRoleRows(EventRole.Participant),
+        countRoleRows(EventRole.Mentor),
+        countRoleRows(EventRole.Judge),
+        countRoleRows(EventRole.Organizer),
+        countRoleRows(),
+      ]);
+
+    const roleCountError =
+      participants.error ||
+      mentors.error ||
+      judges.error ||
+      organizers.error ||
+      total.error;
+
+    if (roleCountError) {
+      console.error("Error fetching role counts:", roleCountError);
+      return NextResponse.json(
+        { error: "Failed to fetch role counts" },
+        { status: 500 }
+      );
+    }
+
+    const counts = {
+      participants: participants.count || 0,
+      mentors: mentors.count || 0,
+      judges: judges.count || 0,
+      organizers: organizers.count || 0,
+      total: total.count || 0,
+    };
 
     // Get project count
     const { count: projectCount } = await supabase
