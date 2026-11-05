@@ -26,7 +26,8 @@ export default async function VotingPage({ params, searchParams }: PageProps) {
     cover_image_url,
     slug,
     paid,
-    owner_id
+    owner_id,
+    visibility
   `);
 
   if (isUUID) {
@@ -85,7 +86,11 @@ export default async function VotingPage({ params, searchParams }: PageProps) {
       {showResults ? (
         <VotingResultsPanel eventId={eventData.event_id} />
       ) : (
-        <VotingContent eventId={eventData.event_id} hasJoined={hasJoined} />
+        <VotingContent
+          eventId={eventData.event_id}
+          hasJoined={hasJoined}
+          isPublicEvent={eventData.visibility === "public"}
+        />
       )}
       
       {/* Show link to results for organizers */}

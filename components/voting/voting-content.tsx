@@ -13,14 +13,17 @@ import { EventSearchInput } from "@/components/ui/event-search-input";
 interface VotingContentProps {
   eventId: string;
   hasJoined: boolean;
+  isPublicEvent: boolean;
 }
 
 export function VotingContent({
   eventId,
   hasJoined,
+  isPublicEvent,
 }: VotingContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const {
@@ -38,9 +41,17 @@ export function VotingContent({
   useEffect(() => {
     const fetchProjects = async () => {
       setIsLoadingProjects(true);
+      setProjectsError(null);
       try {
+        // The public listing only serves events with "public" visibility, so
+        // members of other events need the authenticated listing. It is not a
+        // drop-in replacement: it omits prizes_won, so public events stay on the
+        // public listing even for members. submitted=true keeps organizers from
+        // seeing draft projects on the ballot.
         const response = await fetch(
-          `/api/projects?eventId=${eventId}&public=true`
+          hasJoined && !isPublicEvent
+            ? `/api/projects?eventId=${eventId}&submitted=true`
+            : `/api/projects?eventId=${eventId}&public=true`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
@@ -50,12 +61,17 @@ export function VotingContent({
       } catch (error) {
         console.error("Error fetching projects:", error);
         setProjects([]);
+        setProjectsError(
+          hasJoined
+            ? "Couldn’t load projects right now. Please try again."
+            : "Couldn’t load projects for this event. It may be private or unavailable."
+        );
       }
       setIsLoadingProjects(false);
     };
 
     fetchProjects();
-  }, [eventId]);
+  }, [eventId, hasJoined, isPublicEvent]);
 
   const filteredProjects = projects.filter(
     (project) =>
@@ -66,12 +82,15 @@ export function VotingContent({
       project.lead_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Sort projects: user's voted projects first, then by vote count
+  // Sort projects: user's voted projects first, then by vote count, then by
+  // name, because the authenticated listing has no defined order.
   const sortedProjects = [...filteredProjects].sort((a, b) => {
     const aVoted = hasVoted(a.id) ? 1 : 0;
     const bVoted = hasVoted(b.id) ? 1 : 0;
     if (aVoted !== bVoted) return bVoted - aVoted;
-    return getVoteCount(b.id) - getVoteCount(a.id);
+    const voteDifference = getVoteCount(b.id) - getVoteCount(a.id);
+    if (voteDifference !== 0) return voteDifference;
+    return (a.project_name ?? "").localeCompare(b.project_name ?? "");
   });
 
   const isLoading = isLoadingProjects || isLoadingVotes;
@@ -142,6 +161,11 @@ export function VotingContent({
         <div className="flex justify-center items-center h-64">
           <Loader className="h-12 w-12 animate-spin text-[#4B89EF]" />
         </div>
+      ) : projectsError ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{projectsError}</AlertDescription>
+        </Alert>
       ) : (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
