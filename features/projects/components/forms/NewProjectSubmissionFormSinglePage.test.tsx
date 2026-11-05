@@ -1,6 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NewProjectSubmissionFormSinglePage } from "./NewProjectSubmissionFormSinglePage";
 import { toast } from "@/lib/hooks/use-toast";
+import { createContextusProject } from "@/lib/integrations/contextus";
+import {
+  normalizeProjectWriteInput,
+  saveProjectSubmission,
+} from "@/lib/projects/submission-service";
+
+const HEALTH_TRACK = "11111111-1111-4111-8111-111111111111";
+const CLIMATE_TRACK = "22222222-2222-4222-8222-222222222222";
 
 const push = jest.fn();
 
@@ -10,6 +18,15 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/lib/hooks/use-toast", () => ({ toast: jest.fn() }));
 jest.mock("@/components/ui/toaster", () => ({ Toaster: () => null }));
 jest.mock("@/lib/hooks/use-admin", () => ({ useAdmin: () => false }));
+jest.mock("@/lib/integrations/contextus", () => ({
+  createContextusProject: jest.fn(),
+}));
+jest.mock("@/lib/projects/query", () => ({
+  fetchArtifactsByProjectIds: async () => new Map(),
+  fetchSubmissionAnswersByProjectIds: async () => new Map(),
+  fetchSubmissionFieldsByEventIds: async () => new Map(),
+  hydrateProjectsWithSubmissionData: (projects: unknown[]) => projects,
+}));
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     from: () => ({
@@ -29,8 +46,8 @@ jest.mock(
   () => ({
     useProjectSubmissionData: () => ({
       availableTracks: [
-        { id: "track-1", name: "Health" },
-        { id: "track-2", name: "Climate" },
+        { id: "11111111-1111-4111-8111-111111111111", name: "Health" },
+        { id: "22222222-2222-4222-8222-222222222222", name: "Climate" },
       ],
     }),
   })
@@ -87,11 +104,96 @@ jest.mock(
 
 type FetchInit = { method?: string; body?: string };
 
-const jsonResponse = (body: unknown) => ({
-  ok: true,
-  status: 200,
+const jsonResponse = (body: unknown, status = 200) => ({
+  ok: status < 400,
+  status,
   json: async () => body,
 });
+
+// The row the draft POST creates, plus its tracks. PATCH runs the real
+// submission service against this, so the tests see what the server accepts.
+let db: { project: Record<string, unknown>; trackIds: string[] };
+
+const resetDb = () => {
+  db = {
+    project: {
+      id: "project-1",
+      event_id: "event-1",
+      contextus_project_id: null,
+      project_name: null,
+      project_description: null,
+      submitted: false,
+    },
+    trackIds: [],
+  };
+};
+
+const query = (data: unknown) => {
+  const result = { data, error: null };
+  const chain = {
+    select: () => chain,
+    eq: () => chain,
+    in: () => chain,
+    order: () => chain,
+    single: () => chain,
+    overrideTypes: async () => result,
+  };
+  return chain;
+};
+
+const fakeSupabase = {
+  from: (table: string) => {
+    switch (table) {
+      case "events":
+        return query({ event_id: "event-1", event_name: "Demo Day" });
+      case "event_submission_fields":
+        return query([]);
+      case "event_tracks":
+        return query([{ track_id: HEALTH_TRACK }, { track_id: CLIMATE_TRACK }]);
+      case "projects":
+        return {
+          select: () => query(db.project),
+          update: (patch: Record<string, unknown>) => ({
+            eq: async () => {
+              Object.assign(db.project, patch);
+              return { error: null };
+            },
+          }),
+        };
+      case "project_tracks":
+        return {
+          delete: () => ({
+            eq: async () => {
+              db.trackIds = [];
+              return { error: null };
+            },
+          }),
+          insert: async (rows: Array<{ track_id: string }>) => {
+            db.trackIds = rows.map((row) => row.track_id);
+            return { error: null };
+          },
+        };
+      case "project_artifacts":
+        return {
+          delete: () => ({ eq: async () => ({ error: null }) }),
+          insert: async () => ({ error: null }),
+        };
+      default:
+        throw new Error(`Unexpected table ${table}`);
+    }
+  },
+};
+
+async function patchProject(body: string) {
+  const parsed = normalizeProjectWriteInput(JSON.parse(body));
+  if (!parsed.success) return jsonResponse({ error: "Invalid request" }, 400);
+  const { status, ...result } = await saveProjectSubmission(fakeSupabase as never, {
+    input: parsed.data,
+    mode: "update",
+    projectId: "project-1",
+  });
+  return jsonResponse(result, status);
+}
 
 function mockFetch(createDraft?: () => Promise<unknown>) {
   global.fetch = jest.fn((url: string, init?: FetchInit) => {
@@ -99,7 +201,7 @@ function mockFetch(createDraft?: () => Promise<unknown>) {
       return createDraft ? createDraft() : Promise.resolve(jsonResponse({ id: "project-1" }));
     }
     if (url === "/api/projects/project-1" && init?.method === "PATCH") {
-      return Promise.resolve(jsonResponse({ project: { id: "project-1" } }));
+      return patchProject(init.body as string);
     }
     return Promise.resolve(jsonResponse({ users: [], fields: [] }));
   }) as unknown as typeof fetch;
@@ -109,9 +211,6 @@ const callsTo = (url: string, method: string) =>
   (fetch as jest.Mock).mock.calls.filter(
     ([calledUrl, init]) => calledUrl === url && init?.method === method
   );
-
-const lastPatchBody = () =>
-  JSON.parse(callsTo("/api/projects/project-1", "PATCH").at(-1)[1].body);
 
 async function renderForm() {
   render(
@@ -134,12 +233,16 @@ const clickSaveAndExit = async () => {
   });
 };
 
+// Lets the latest PATCH settle so its outcome has reached the form.
+const latestFetch = () => (fetch as jest.Mock).mock.results.at(-1)?.value;
+
 const draftCreated = () =>
   waitFor(() => expect(callsTo("/api/projects", "POST")).toHaveLength(1));
 
 describe("NewProjectSubmissionFormSinglePage Save draft and exit", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetDb();
     mockFetch();
   });
 
@@ -158,7 +261,9 @@ describe("NewProjectSubmissionFormSinglePage Save draft and exit", () => {
     await clickSaveAndExit();
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/events/demo-event/overview"));
-    expect(lastPatchBody().track_ids).toEqual(["track-1", "track-2"]);
+    expect(db.trackIds).toEqual([HEALTH_TRACK, CLIMATE_TRACK]);
+    expect(db.project.project_name).toBe("Relief Map");
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it("saves a deselected track as removed", async () => {
@@ -176,7 +281,8 @@ describe("NewProjectSubmissionFormSinglePage Save draft and exit", () => {
     await clickSaveAndExit();
 
     await waitFor(() => expect(push).toHaveBeenCalled());
-    expect(lastPatchBody().track_ids).toEqual([]);
+    expect(callsTo("/api/projects/project-1", "PATCH")).toHaveLength(1);
+    expect(db.trackIds).toEqual([]);
   });
 
   it("creates a draft for a form where only tracks were picked", async () => {
@@ -190,21 +296,77 @@ describe("NewProjectSubmissionFormSinglePage Save draft and exit", () => {
     await clickSaveAndExit();
 
     await waitFor(() => expect(push).toHaveBeenCalled());
-    expect(lastPatchBody().track_ids).toEqual(["track-1"]);
+    expect(db.trackIds).toEqual([HEALTH_TRACK]);
+    expect(db.project.project_name).toBeNull();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("exits after a track is ticked and unticked on an otherwise blank form", async () => {
+    await renderForm();
+    fireEvent.click(screen.getByLabelText("Health"));
+    await draftCreated();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByLabelText("Health"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await clickSaveAndExit();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/events/demo-event/overview"));
+    expect(db.trackIds).toEqual([]);
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("stays on the page when the server refuses the save", async () => {
+    await renderForm();
+    fireEvent.click(screen.getByLabelText("Health"));
+    await draftCreated();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // A published project keeps its locked fields, so this save is rejected.
+    db.project.submitted = true;
+
+    await clickSaveAndExit();
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Draft not saved",
+          description: expect.stringContaining("locked fields"),
+        })
+      )
+    );
+    expect(push).not.toHaveBeenCalled();
   });
 
   it.each([
+    ["a track", () => fireEvent.click(screen.getByLabelText("Health"))],
     ["a video link", () =>
       fireEvent.change(screen.getByLabelText("video_url"), {
         target: { value: "https://example.com/demo" },
       })],
     ["a teammate", () =>
       fireEvent.click(screen.getByRole("button", { name: "Add teammate" }))],
-  ])("creates a draft for a form holding only %s", async (_label, enterInput) => {
+  ])("autosaves a draft holding only %s without an error", async (_label, enterInput) => {
     await renderForm();
     enterInput();
     await draftCreated();
-  });
+
+    await waitFor(
+      () => expect(callsTo("/api/projects/project-1", "PATCH")).toHaveLength(1),
+      { timeout: 3000 }
+    );
+    await act(async () => {
+      await latestFetch();
+    });
+
+    expect(toast).not.toHaveBeenCalled();
+    expect(createContextusProject).not.toHaveBeenCalled();
+  }, 10000);
 
   it("exits a blank form without creating a draft or showing an error", async () => {
     await renderForm();

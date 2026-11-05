@@ -499,6 +499,7 @@ describe("saveProjectSubmission", () => {
           contextus_project_id: null,
           project_name: "Existing Name",
           project_description: "Existing Description",
+          submitted: true,
         },
         error: null,
       }),
@@ -529,5 +530,207 @@ describe("saveProjectSubmission", () => {
       status: 400,
     });
     expect(projectsTable.update).not.toHaveBeenCalled();
+  });
+
+  describe("incomplete drafts", () => {
+    const trackId = "55555555-5555-4555-8555-555555555555";
+
+    const resolvedQuery = (result: { data: unknown; error: null }) => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue(result),
+      then: (resolve: (value: unknown) => void) => resolve(result),
+    });
+
+    function buildSupabase(existingProject: Record<string, unknown>) {
+      const row = {
+        id: projectId,
+        event_id: eventId,
+        contextus_project_id: null,
+        project_name: null,
+        project_description: null,
+        ...existingProject,
+      };
+      const projectsTable = {
+        select: jest.fn(() => resolvedQuery({ data: row, error: null })),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        }),
+      };
+      const projectTracksTable = {
+        delete: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        }),
+        insert: jest.fn().mockResolvedValue({ error: null }),
+      };
+      const tables: Record<string, unknown> = {
+        projects: projectsTable,
+        project_tracks: projectTracksTable,
+        project_submission_answers: {
+          delete: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ error: null }),
+          }),
+        },
+        events: resolvedQuery({
+          data: {
+            event_id: eventId,
+            event_name: "Demo Day",
+            submission_time_start: null,
+            submission_time_cutoff: null,
+          },
+          error: null,
+        }),
+        event_submission_fields: resolvedQuery({ data: [], error: null }),
+        event_tracks: resolvedQuery({
+          data: [{ track_id: trackId }],
+          error: null,
+        }),
+      };
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (!tables[table]) throw new Error(`Unexpected table ${table}`);
+          return tables[table];
+        }),
+      };
+      return { supabase, projectsTable, projectTracksTable };
+    }
+
+    it("writes tracks to a draft with no name or description", async () => {
+      const { supabase, projectTracksTable } = buildSupabase({ submitted: false });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { trackIds: [trackId] },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectTracksTable.delete).toHaveBeenCalled();
+      expect(projectTracksTable.insert).toHaveBeenCalledWith([
+        { project_id: projectId, track_id: trackId },
+      ]);
+    });
+
+    it("clears the tracks of a draft with no name or description", async () => {
+      const { supabase, projectTracksTable } = buildSupabase({ submitted: false });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { trackIds: [] },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectTracksTable.delete).toHaveBeenCalled();
+      expect(projectTracksTable.insert).not.toHaveBeenCalled();
+    });
+
+    it("saves a draft that has a name but no description", async () => {
+      const { supabase, projectsTable } = buildSupabase({ submitted: false });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { projectName: "Relief Map" },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ project_name: "Relief Map" }),
+      );
+    });
+
+    it("does not create a Contextus project for an incomplete draft", async () => {
+      const { supabase } = buildSupabase({ submitted: false });
+
+      await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { trackIds: [trackId] },
+      });
+
+      expect(createContextusProject).not.toHaveBeenCalled();
+    });
+
+    it("still creates a Contextus project for a draft with its locked fields", async () => {
+      const { supabase } = buildSupabase({
+        submitted: false,
+        project_name: "Relief Map",
+        project_description: "A description.",
+      });
+
+      await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { trackIds: [trackId] },
+      });
+
+      expect(createContextusProject).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects publishing a draft that is missing its locked fields", async () => {
+      const { supabase, projectsTable, projectTracksTable } = buildSupabase({
+        submitted: false,
+        project_name: "Relief Map",
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true, trackIds: [trackId] },
+      });
+
+      expect(result).toMatchObject({
+        error: expect.stringContaining("project_description"),
+        code: "locked_field_missing",
+        status: 400,
+      });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+      expect(projectTracksTable.insert).not.toHaveBeenCalled();
+    });
+
+    it("applies the default used by the submit route when publishing", async () => {
+      const { supabase, projectsTable } = buildSupabase({ submitted: false });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        defaultSubmitted: true,
+        input: {},
+      });
+
+      expect(result).toMatchObject({ code: "locked_field_missing", status: 400 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it.each([[true], [null]])(
+      "keeps the locked fields required when submitted is %s",
+      async (submitted) => {
+        const { supabase, projectsTable } = buildSupabase({ submitted });
+
+        const result = await saveProjectSubmission(supabase as never, {
+          mode: "update",
+          projectId,
+          input: { trackIds: [trackId] },
+        });
+
+        expect(result).toMatchObject({ code: "locked_field_missing", status: 400 });
+        expect(projectsTable.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it("keeps the locked fields required when creating a draft through the service", async () => {
+      const { supabase } = buildSupabase({});
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "create",
+        input: { leadName: "Lead", submitted: false },
+      });
+
+      expect(result).toMatchObject({ code: "locked_field_missing", status: 400 });
+    });
   });
 });
