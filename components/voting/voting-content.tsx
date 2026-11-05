@@ -13,11 +13,13 @@ import { EventSearchInput } from "@/components/ui/event-search-input";
 interface VotingContentProps {
   eventId: string;
   hasJoined: boolean;
+  isPublicEvent: boolean;
 }
 
 export function VotingContent({
   eventId,
   hasJoined,
+  isPublicEvent,
 }: VotingContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -42,10 +44,12 @@ export function VotingContent({
       setProjectsError(null);
       try {
         // The public listing only serves events with "public" visibility, so
-        // members load through the authenticated listing instead. submitted=true
-        // keeps organizers from seeing draft projects on the ballot.
+        // members of other events need the authenticated listing. It is not a
+        // drop-in replacement: it omits prizes_won, so public events stay on the
+        // public listing even for members. submitted=true keeps organizers from
+        // seeing draft projects on the ballot.
         const response = await fetch(
-          hasJoined
+          hasJoined && !isPublicEvent
             ? `/api/projects?eventId=${eventId}&submitted=true`
             : `/api/projects?eventId=${eventId}&public=true`
         );
@@ -67,7 +71,7 @@ export function VotingContent({
     };
 
     fetchProjects();
-  }, [eventId, hasJoined]);
+  }, [eventId, hasJoined, isPublicEvent]);
 
   const filteredProjects = projects.filter(
     (project) =>
@@ -78,12 +82,15 @@ export function VotingContent({
       project.lead_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Sort projects: user's voted projects first, then by vote count
+  // Sort projects: user's voted projects first, then by vote count, then by
+  // name, because the authenticated listing has no defined order.
   const sortedProjects = [...filteredProjects].sort((a, b) => {
     const aVoted = hasVoted(a.id) ? 1 : 0;
     const bVoted = hasVoted(b.id) ? 1 : 0;
     if (aVoted !== bVoted) return bVoted - aVoted;
-    return getVoteCount(b.id) - getVoteCount(a.id);
+    const voteDifference = getVoteCount(b.id) - getVoteCount(a.id);
+    if (voteDifference !== 0) return voteDifference;
+    return (a.project_name ?? "").localeCompare(b.project_name ?? "");
   });
 
   const isLoading = isLoadingProjects || isLoadingVotes;

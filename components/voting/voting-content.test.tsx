@@ -58,13 +58,13 @@ describe("VotingContent project loading", () => {
     global.fetch = originalFetch;
   });
 
-  it("shows submitted projects to members of a non-public event", async () => {
+  it("shows submitted projects to members of a non-public event through the authenticated listing", async () => {
     const fetchMock = mockProjectsApi({
       publicListing: notFound,
       memberListing: projectList,
     });
 
-    render(<VotingContent eventId={EVENT_ID} hasJoined />);
+    render(<VotingContent eventId={EVENT_ID} hasJoined isPublicEvent={false} />);
 
     // The card repeats the name over its placeholder cover image.
     expect(
@@ -78,13 +78,59 @@ describe("VotingContent project loading", () => {
     );
   });
 
+  it("keeps members of a public event on the public listing, with prizes", async () => {
+    const fetchMock = mockProjectsApi({
+      publicListing: jsonResponse(200, {
+        projects: [
+          {
+            id: "p1",
+            project_name: "Alpha",
+            prizes_won: [{ id: "prize-1" }],
+          },
+        ],
+      }),
+      // Mirrors the authenticated listing, which never sets prizes_won.
+      memberListing: projectList,
+    });
+
+    render(<VotingContent eventId={EVENT_ID} hasJoined isPublicEvent />);
+
+    expect(await screen.findByText("Winner")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/projects?eventId=${EVENT_ID}&public=true`
+    );
+  });
+
+  it("orders projects with equal votes by name, whatever order the listing returns", async () => {
+    mockProjectsApi({
+      publicListing: notFound,
+      memberListing: jsonResponse(200, {
+        projects: [
+          { id: "p2", project_name: "Zeta" },
+          { id: "p3", project_name: "Mu" },
+          { id: "p1", project_name: "Alpha" },
+        ],
+      }),
+    });
+
+    render(<VotingContent eventId={EVENT_ID} hasJoined isPublicEvent={false} />);
+
+    await screen.findAllByRole("heading", { name: "Alpha" });
+    const names = screen
+      .getAllByRole("heading", { name: /^(Alpha|Mu|Zeta)$/ })
+      .map((heading) => heading.textContent);
+    // The card repeats the name over its placeholder cover image.
+    expect([...new Set(names)]).toEqual(["Alpha", "Mu", "Zeta"]);
+  });
+
   it("keeps the public listing for visitors who have not joined", async () => {
     const fetchMock = mockProjectsApi({
       publicListing: projectList,
       memberListing: jsonResponse(401, { error: "Unauthorized" }),
     });
 
-    render(<VotingContent eventId={EVENT_ID} hasJoined={false} />);
+    render(<VotingContent eventId={EVENT_ID} hasJoined={false} isPublicEvent />);
 
     // The card repeats the name over its placeholder cover image.
     expect(
@@ -100,7 +146,7 @@ describe("VotingContent project loading", () => {
     const failure = jsonResponse(500, { error: "Failed to fetch projects" });
     mockProjectsApi({ publicListing: failure, memberListing: failure });
 
-    render(<VotingContent eventId={EVENT_ID} hasJoined />);
+    render(<VotingContent eventId={EVENT_ID} hasJoined isPublicEvent={false} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /couldn.t load projects/i
@@ -114,7 +160,7 @@ describe("VotingContent project loading", () => {
       memberListing: jsonResponse(401, { error: "Unauthorized" }),
     });
 
-    render(<VotingContent eventId={EVENT_ID} hasJoined={false} />);
+    render(<VotingContent eventId={EVENT_ID} hasJoined={false} isPublicEvent={false} />);
 
     expect(await screen.findByText(/private or unavailable/i)).toBeInTheDocument();
     expect(screen.queryByText(EMPTY_STATE)).not.toBeInTheDocument();
@@ -125,7 +171,7 @@ describe("VotingContent project loading", () => {
       .fn()
       .mockRejectedValue(new Error("network down")) as unknown as typeof fetch;
 
-    render(<VotingContent eventId={EVENT_ID} hasJoined />);
+    render(<VotingContent eventId={EVENT_ID} hasJoined isPublicEvent={false} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /couldn.t load projects/i
@@ -137,7 +183,7 @@ describe("VotingContent project loading", () => {
     const empty = jsonResponse(200, { projects: [] });
     mockProjectsApi({ publicListing: empty, memberListing: empty });
 
-    render(<VotingContent eventId={EVENT_ID} hasJoined />);
+    render(<VotingContent eventId={EVENT_ID} hasJoined isPublicEvent={false} />);
 
     await waitFor(() =>
       expect(screen.getByText(EMPTY_STATE)).toBeInTheDocument()
