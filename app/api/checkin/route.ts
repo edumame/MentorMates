@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseClient } from '@/app/utils/supabase/server'
 import { isValidUUID } from '@/app/utils/supabase/queries'
 import { canAccessRole } from '@/features/user/roles/roles'
+import { isValidCheckinQRSignature } from '@/lib/checkin/qr-signature'
 import { createSupabaseServiceClient } from '@/lib/supabase/service'
 import { EventRole } from '@/lib/types'
 
@@ -32,7 +33,11 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!isValidUUID(eventId) || !isValidUUID(userId)) {
+    if (
+      !isValidUUID(eventId) ||
+      !isValidUUID(userId) ||
+      !isValidCheckinQRSignature(eventId, userId, searchParams.get('sig'))
+    ) {
       return NextResponse.json(
         { error: 'Invalid check-in QR code' },
         { status: 400 }

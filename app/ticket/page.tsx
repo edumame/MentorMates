@@ -16,26 +16,30 @@ export default function Ticket() {
 
   const eventId = searchParams.get("evt");
   const userId = searchParams.get("usr");
+  const signature = searchParams.get("sig");
 
   useEffect(() => {
     const fetchQRCode = async () => {
-      if (!eventId || !userId) {
+      if (!eventId || !userId || !signature) {
         return;
       }
 
-      const qrCode = await getCheckinQRCode(eventId, userId);
+      const qrCode = await getCheckinQRCode(eventId, userId, signature);
       setQRCodeSrc(qrCode);
       setIsLoading(false);
     };
     fetchQRCode();
-  }, [eventId, userId]);
+  }, [eventId, userId, signature]);
 
-  if (!eventId || !userId) {
+  if (!eventId || !userId || !signature) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-blue-50">
         <div className="bg-white p-8 rounded-lg shadow-lg">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="text-gray-700">No event ID or user ID provided.</p>
+          <p className="text-gray-700">
+            This ticket link is incomplete or out of date. Ask the event
+            organizer to send your ticket again.
+          </p>
           <Button
             variant="outline"
             className="mt-4"
@@ -84,8 +88,16 @@ export default function Ticket() {
   );
 }
 
-async function getCheckinQRCode(eventId: string, userId: string) {
-  const checkInToken = `evt=${eventId}&usr=${userId}`;
+async function getCheckinQRCode(
+  eventId: string,
+  userId: string,
+  signature: string
+) {
+  const checkInToken = new URLSearchParams({
+    evt: eventId,
+    usr: userId,
+    sig: signature,
+  }).toString();
   const qrCode = await generateQRCode(checkInToken, 128);
   return qrCode;
 }

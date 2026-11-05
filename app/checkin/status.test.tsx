@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { CheckinStatus } from "./status";
 
-const TOKEN = "evt=event-1&usr=user-1";
+const TOKEN = "evt=event-1&usr=user-1&sig=signature";
 
 describe("CheckinStatus", () => {
   const originalFetch = global.fetch;

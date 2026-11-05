@@ -4,8 +4,11 @@
 
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { signCheckinQR } from "@/lib/checkin/qr-signature";
 import { EventRole } from "@/lib/types";
 import * as checkinRoute from "./route";
+
+jest.mock("server-only", () => ({}), { virtual: true });
 
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
@@ -24,7 +27,13 @@ const ATTENDEE_ID = "22222222-2222-4222-8222-222222222222";
 const STAFF_ID = "33333333-3333-4333-8333-333333333333";
 const FIRST_SCAN_AT = "2026-11-04T09:00:00.000Z";
 
-const scan = (query = `evt=${EVENT_ID}&usr=${ATTENDEE_ID}`) =>
+const OTHER_ID = "44444444-4444-4444-8444-444444444444";
+const SECRET = "test-checkin-secret";
+
+const signedQuery = (eventId = EVENT_ID, userId = ATTENDEE_ID) =>
+  `evt=${eventId}&usr=${userId}&sig=${signCheckinQR(eventId, userId)}`;
+
+const scan = (query = signedQuery()) =>
   checkinRoute.POST(
     new Request(`http://localhost/api/checkin?${query}`, { method: "POST" })
   );
@@ -63,9 +72,15 @@ function mockRecord(result: { data: unknown; error: unknown }) {
 
 describe("/api/checkin", () => {
   let recordCheckin: jest.Mock;
+  const originalSecret = process.env.CHECKIN_QR_SECRET;
+
+  afterAll(() => {
+    process.env.CHECKIN_QR_SECRET = originalSecret;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.CHECKIN_QR_SECRET = SECRET;
     recordCheckin = mockRecord({
       data: [{ outcome: "checked_in", recorded_at: FIRST_SCAN_AT }],
       error: null,
@@ -178,6 +193,99 @@ describe("/api/checkin", () => {
 
     expect(response.status).toBe(400);
     expect(recordCheckin).not.toHaveBeenCalled();
+  });
+
+  describe("forged QR codes", () => {
+    const flipLastCharacter = (value: string) =>
+      `${value.slice(0, -1)}${value.endsWith("0") ? "1" : "0"}`;
+
+    it.each<[string, () => string]>([
+      ["no signature", () => `evt=${EVENT_ID}&usr=${ATTENDEE_ID}`],
+      ["an empty signature", () => `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=`],
+      [
+        "a tampered signature",
+        () =>
+          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${flipLastCharacter(
+            signCheckinQR(EVENT_ID, ATTENDEE_ID)
+          )}`,
+      ],
+      [
+        "a truncated signature",
+        () =>
+          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${signCheckinQR(
+            EVENT_ID,
+            ATTENDEE_ID
+          ).slice(0, 32)}`,
+      ],
+      [
+        "a non-ASCII signature of the same length",
+        () =>
+          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${encodeURIComponent(
+            "é".repeat(64)
+          )}`,
+      ],
+      [
+        "another attendee's signature",
+        () =>
+          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${signCheckinQR(
+            EVENT_ID,
+            OTHER_ID
+          )}`,
+      ],
+      [
+        "the attendee's signature from another event",
+        () =>
+          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${signCheckinQR(
+            OTHER_ID,
+            ATTENDEE_ID
+          )}`,
+      ],
+      [
+        "the ids swapped under a valid signature",
+        () =>
+          `evt=${ATTENDEE_ID}&usr=${EVENT_ID}&sig=${signCheckinQR(
+            EVENT_ID,
+            ATTENDEE_ID
+          )}`,
+      ],
+    ])("rejects valid ids with %s", async (_label, buildQuery) => {
+      mockCaller({ role: EventRole.Organizer });
+
+      const response = await scan(buildQuery());
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: "Invalid check-in QR code",
+      });
+      expect(recordCheckin).not.toHaveBeenCalled();
+    });
+
+    it("rejects a signature made with a different secret", async () => {
+      mockCaller({ role: EventRole.Organizer });
+      process.env.CHECKIN_QR_SECRET = "attacker-guess";
+      const query = signedQuery();
+      process.env.CHECKIN_QR_SECRET = SECRET;
+
+      const response = await scan(query);
+
+      expect(response.status).toBe(400);
+      expect(recordCheckin).not.toHaveBeenCalled();
+    });
+
+    it("reports a server error, not a bad ticket, when the secret is unset", async () => {
+      const consoleError = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+      mockCaller({ role: EventRole.Organizer });
+      const query = signedQuery();
+      delete process.env.CHECKIN_QR_SECRET;
+
+      const response = await scan(query);
+
+      expect(response.status).toBe(500);
+      expect(recordCheckin).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
   });
 
   it.each([
