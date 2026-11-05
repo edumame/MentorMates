@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { useToast } from "@/lib/hooks/use-toast";
+import { validateCoverImageFile } from "@/lib/utils/file";
+import { attachEventCoverImage } from "@/lib/utils/event-cover";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import {
@@ -139,27 +141,24 @@ function NewEventPageInner() {
   }, [toast]);
 
   // ── Cover image upload ──────────────────────────────────────────────────
-  const uploadCoverImage = async (): Promise<string | undefined> => {
-    if (!event.cover_image_file) return event.cover_image_url || undefined;
-
+  // Runs after the event exists: storage only accepts uploads from users who
+  // already organize an event, and the creator becomes organizer on create.
+  // A failure here doesn't undo the event; the organizer can add the cover
+  // later from the event's settings.
+  const attachCoverImage = async (eventId: string) => {
     const file = event.cover_image_file;
-    if (!file.type.startsWith("image/")) {
-      throw new Error("Please upload an image file");
+    if (!file) return;
+    try {
+      await attachEventCoverImage(supabase, eventId, file);
+    } catch (error) {
+      console.error("Cover image upload failed", error);
+      toast({
+        title: "Cover image not uploaded",
+        description:
+          "Your event was created, but the cover image failed to upload. Add it from the event settings.",
+        variant: "destructive",
+      });
     }
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error("Image must be under 5MB");
-    }
-
-    const ext = file.name.split(".").pop();
-    const path = `event-covers/${Math.random().toString(36).substring(2)}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("event-materials")
-      .upload(path, file);
-    if (error) throw new Error(error.message);
-
-    const { data } = supabase.storage.from("event-materials").getPublicUrl(path);
-    return data.publicUrl;
   };
 
   // ── Get organizer emails (include current user) ─────────────────────────
@@ -205,15 +204,25 @@ function NewEventPageInner() {
       return null;
     }
 
+    const coverFileError = event.cover_image_file
+      ? validateCoverImageFile(event.cover_image_file)
+      : null;
+    if (coverFileError) {
+      toast({
+        title: "Cover image problem",
+        description: coverFileError,
+        variant: "destructive",
+      });
+      return null;
+    }
+
     setCreating(true);
     try {
-      const coverImageUrl = await uploadCoverImage();
       const organizerEmails = await getOrganizerEmails();
 
       // Build payload from wizard state
       const payload = buildApiPayload(event);
       payload.event.visibility = visibility;
-      if (coverImageUrl) payload.event.cover_image_url = coverImageUrl;
       if (approvalStatus)
         (payload.event as Record<string, unknown>).approval_status = approvalStatus;
       payload.organizerEmails = organizerEmails;
@@ -252,6 +261,7 @@ function NewEventPageInner() {
       }
 
       await saveSubmissionFields(data.event.event_id);
+      await attachCoverImage(data.event.event_id);
       return data.event;
     } catch {
       toast({

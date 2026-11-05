@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { uploadEventCoverImage } from "@/lib/utils/event-cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -151,23 +152,7 @@ export function BasicInfoTab({
 
       // Handle file upload if there's a new file selected
       if (selectedCoverImage) {
-        const fileExt = selectedCoverImage.name.split(".").pop();
-        const fileName = `${Math.random()
-          .toString(36)
-          .substring(2)}.${fileExt}`;
-        const filePath = `event-covers/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("event-materials")
-          .upload(filePath, selectedCoverImage);
-
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("event-materials").getPublicUrl(filePath);
-
-        coverImageUrl = publicUrl;
+        coverImageUrl = await uploadEventCoverImage(supabase, selectedCoverImage);
       }
 
       // Update event with new cover image URL if it changed
