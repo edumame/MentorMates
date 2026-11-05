@@ -186,8 +186,9 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           console.error("Error fetching lessons:", lessonsError);
         }
 
-        // Add lessons to event data
-        eventData.event_lessons = lessonsData || [];
+        // Add lessons to event data. On failure leave them undefined so a failed
+        // load is not mistaken for an event with no lessons; ContentTab retries.
+        eventData.event_lessons = lessonsError ? undefined : lessonsData || [];
         setEvent(eventData);
 
         setScoringConfig(buildEventScoringConfig(eventData));
