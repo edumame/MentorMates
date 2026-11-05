@@ -211,6 +211,7 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
     { data: registrationBindings, error: bindingError },
     { data: questionnaireSubmissions, error: questionnaireError },
     { data: participantRoles, error: participantError },
+    { data: rolePasswords, error: rolePasswordError },
   ] = await Promise.all([
     supabase
       .from("event_intake_form_bindings")
@@ -230,10 +231,22 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
       .select("event_id")
       .in("event_id", candidateEventIds)
       .eq("role", EventRole.Participant),
+    supabase
+      .from("role_passwords")
+      .select("event_id")
+      .in("event_id", candidateEventIds)
+      .eq("role", EventRole.Participant),
   ]);
 
-  if (bindingError || questionnaireError || participantError) {
-    throw bindingError || questionnaireError || participantError;
+  if (
+    bindingError ||
+    questionnaireError ||
+    participantError ||
+    rolePasswordError
+  ) {
+    throw (
+      bindingError || questionnaireError || participantError || rolePasswordError
+    );
   }
 
   const eventsRequiringQuestionnaire = new Set(
@@ -241,6 +254,9 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
   );
   const completedQuestionnaires = new Set(
     (questionnaireSubmissions || []).map((row) => row.event_id),
+  );
+  const passwordProtectedEvents = new Set(
+    (rolePasswords || []).map((row) => row.event_id),
   );
   const participantCounts = (participantRoles || []).reduce<
     Record<string, number>
@@ -250,6 +266,10 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
   }, {});
 
   return visibleCandidates.filter((event) => {
+    if (passwordProtectedEvents.has(event.event_id)) {
+      return false;
+    }
+
     if (
       eventsRequiringQuestionnaire.has(event.event_id) &&
       !completedQuestionnaires.has(event.event_id)

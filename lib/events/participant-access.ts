@@ -1,4 +1,4 @@
-import { EventRole, EventVisibility } from "@/lib/types";
+import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 
@@ -91,6 +91,39 @@ export async function joinParticipantEvent(
 
   if (existingRole) {
     return failure(409, { error: "You already have a role in this event" });
+  }
+
+  // The agent route uses the service client (no RLS) and skips the password
+  // check in /api/roles/verify, so it has to enforce both gates itself. The
+  // rule matches listJoinableParticipantAgentEvents.
+  if (channel === "agent") {
+    if (
+      event.visibility !== EventVisibility.Public ||
+      event.approval_status !== ApprovalStatus.Approved
+    ) {
+      return failure(403, {
+        error:
+          "Only public, approved events can be joined through the agent API.",
+      });
+    }
+
+    const { data: rolePassword, error: rolePasswordError } = await supabase
+      .from("role_passwords")
+      .select("event_id")
+      .eq("event_id", eventId)
+      .eq("role", EventRole.Participant)
+      .maybeSingle();
+
+    if (rolePasswordError) {
+      return failure(500, { error: "Failed to verify role password" });
+    }
+
+    if (rolePassword) {
+      return failure(403, {
+        error:
+          "Password-protected events cannot be joined through the agent API.",
+      });
+    }
   }
 
   if (event.participant_capacity != null) {
