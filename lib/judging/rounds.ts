@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   EventScoringConfig,
   RoundConfig,
+  ScoringCriterion,
 } from "@/lib/types";
 
 const DEFAULT_ROUND: RoundConfig = {
@@ -37,7 +38,11 @@ export function getActiveRound(
 
 export interface AdvancementScoreRow {
   project_id: string;
+  track_id: string | null;
+  judge_id: string;
   scores: Record<string, unknown> | null;
+  /** The rubric this row was scored against, for its track and round. */
+  criteria: ScoringCriterion[] | null | undefined;
   project_name?: string | null;
   lead_name?: string | null;
 }
@@ -89,10 +94,54 @@ export async function getProjectIdsForRound(
   return [];
 }
 
+/**
+ * The number an answer contributes to a total, or null if it contributes
+ * nothing: multiple-choice answers never count, even numeric-looking ones, and
+ * neither do blank numeric answers.
+ */
+export function getNumericCriterionScore(
+  criterion: ScoringCriterion,
+  value: unknown
+): number | null {
+  if (criterion.type === "multiplechoice") return null;
+
+  const numeric = typeof value === "number" ? value : parseFloat(String(value));
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function getWeightedRowTotal(
+  scores: Record<string, unknown>,
+  criteria: ScoringCriterion[]
+): number | null {
+  let total = 0;
+  let hasNumericScore = false;
+
+  for (const criterion of criteria) {
+    const numeric = getNumericCriterionScore(criterion, scores[criterion.id]);
+    if (numeric === null) continue;
+    total += numeric * (criterion.weight || 1);
+    hasNumericScore = true;
+  }
+
+  return hasNumericScore ? total : null;
+}
+
+/**
+ * Ranks projects with the scores table's number: within a track, the mean of
+ * each judge's weighted total. A project in several tracks gets the mean of its
+ * per-track values, so a track with more judges does not outweigh the others.
+ * Rows with no usable numeric answer are left out of the score and judge count.
+ */
 export function rankProjectsForAdvancement(
   rows: AdvancementScoreRow[]
 ): AdvancementCandidate[] {
-  const bucket = new Map<string, { total: number; count: number }>();
+  const bucket = new Map<
+    string,
+    {
+      tracks: Map<string | null, { total: number; count: number }>;
+      judgeIds: Set<string>;
+    }
+  >();
   const projectMeta = new Map<
     string,
     { projectName: string; leadName: string }
@@ -106,36 +155,39 @@ export function rankProjectsForAdvancement(
       });
     }
 
-    if (!row.scores) continue;
-    let sum = 0;
-    let n = 0;
-    for (const v of Object.values(row.scores)) {
-      const num = typeof v === "number" ? v : Number(v);
-      if (Number.isFinite(num)) {
-        sum += num;
-        n += 1;
-      }
+    if (!row.scores || !row.criteria) continue;
+    const rowTotal = getWeightedRowTotal(row.scores, row.criteria);
+    if (rowTotal === null) continue;
+
+    let project = bucket.get(row.project_id);
+    if (!project) {
+      project = { tracks: new Map(), judgeIds: new Set() };
+      bucket.set(row.project_id, project);
     }
-    if (n === 0) continue;
-    const avg = sum / n;
-    const existing = bucket.get(row.project_id);
-    if (existing) {
-      existing.total += avg;
-      existing.count += 1;
+    project.judgeIds.add(row.judge_id);
+
+    const track = project.tracks.get(row.track_id);
+    if (track) {
+      track.total += rowTotal;
+      track.count += 1;
     } else {
-      bucket.set(row.project_id, { total: avg, count: 1 });
+      project.tracks.set(row.track_id, { total: rowTotal, count: 1 });
     }
   }
 
   return Array.from(bucket.entries())
-    .map(([projectId, { total, count }]) => {
+    .map(([projectId, { tracks, judgeIds }]) => {
       const meta = projectMeta.get(projectId);
+      const trackMeans = Array.from(tracks.values()).map(
+        ({ total, count }) => total / count
+      );
       return {
         projectId,
         projectName: meta?.projectName ?? "",
         leadName: meta?.leadName ?? "",
-        score: total / count,
-        judgeCount: count,
+        score:
+          trackMeans.reduce((sum, mean) => sum + mean, 0) / trackMeans.length,
+        judgeCount: judgeIds.size,
       };
     })
     .sort((a, b) => {
