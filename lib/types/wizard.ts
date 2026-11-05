@@ -410,8 +410,11 @@ export function applyScrapedData(
     updated.event_date = scraped.event_date;
   if (typeof scraped.location === "string") updated.location = scraped.location;
   if (typeof scraped.slug === "string") updated.slug = scraped.slug;
-  if (typeof scraped.cover_image_url === "string")
+  if (typeof scraped.cover_image_url === "string") {
     updated.cover_image_url = scraped.cover_image_url;
+    // An imported URL replaces any picked file, matching CoverImageInput.
+    updated.cover_image_file = undefined;
+  }
   if (typeof scraped.event_blurb === "string")
     updated.event_blurb = scraped.event_blurb;
   if (typeof scraped.event_description === "string")

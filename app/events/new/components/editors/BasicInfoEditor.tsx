@@ -5,13 +5,13 @@ import {
   MapPin,
   Building2,
   Video,
-  ImageIcon,
   Calendar,
   Users,
 } from "lucide-react";
 import type { WizardEventData } from "@/lib/types/wizard";
 import { slugify } from "@/lib/types/wizard";
 import { Switch } from "@/components/ui/switch";
+import { CoverImageInput } from "./CoverImageInput";
 
 const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
 
@@ -253,21 +253,7 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
           </div>
 
           {/* Cover Image */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
-              Cover Image URL
-            </label>
-            <div className="relative">
-              <ImageIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="url"
-                value={event.cover_image_url}
-                onChange={(e) => update({ cover_image_url: e.target.value })}
-                placeholder="https://..."
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
-              />
-            </div>
-          </div>
+          <CoverImageInput event={event} update={update} />
 
           {/* Event Type (tags) */}
           <div className="space-y-1.5">
