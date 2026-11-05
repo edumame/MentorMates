@@ -5,6 +5,8 @@ const mockPush = jest.fn();
 const mockSignUp = jest.fn();
 const mockSignInWithOAuth = jest.fn();
 const mockSignInWithPassword = jest.fn();
+const mockFrom = jest.fn();
+const mockUpsert = jest.fn();
 let mockSearchParams = new URLSearchParams("mode=signup");
 
 jest.mock("next/navigation", () => ({
@@ -26,6 +28,7 @@ jest.mock("@/app/utils/supabase/client", () => ({
       signInWithOAuth: (...args: unknown[]) => mockSignInWithOAuth(...args),
       signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
     },
+    from: (...args: unknown[]) => mockFrom(...args),
   }),
 }));
 
@@ -51,6 +54,8 @@ beforeEach(() => {
   mockSignUp.mockResolvedValue({ error: null });
   mockSignInWithOAuth.mockResolvedValue({ error: null });
   mockSignInWithPassword.mockResolvedValue({ data: { user: null }, error: null });
+  mockUpsert.mockResolvedValue({ error: null });
+  mockFrom.mockReturnValue({ upsert: mockUpsert });
 });
 
 describe("sign-up consent", () => {
@@ -130,5 +135,23 @@ describe("sign-in", () => {
     await waitFor(() => expect(mockSignInWithOAuth).toHaveBeenCalledTimes(1));
     const redirectTo = new URL(mockSignInWithOAuth.mock.calls[0][0].options.redirectTo);
     expect(redirectTo.searchParams.has("acceptTerms")).toBe(false);
+  });
+
+  it("only seeds a missing profile, so password sign-in keeps the saved name and created_at", async () => {
+    mockSignInWithPassword.mockResolvedValue({
+      data: { user: { id: "member", email: "dev@local.test" } },
+      error: null,
+    });
+    render(<LoginPage />);
+    await screen.findByRole("heading", { name: "Sign In" });
+    fillCredentials();
+    fireEvent.submit(screen.getByPlaceholderText("Email").closest("form")!);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/"));
+    expect(mockFrom).toHaveBeenCalledWith("user_profiles");
+    expect(mockUpsert).toHaveBeenCalledTimes(1);
+    expect(mockUpsert.mock.calls[0][0]).toMatchObject({ uid: "member", display_name: "dev" });
+    // ignoreDuplicates makes this INSERT ... ON CONFLICT DO NOTHING instead of a merge.
+    expect(mockUpsert.mock.calls[0][1]).toEqual({ onConflict: "uid", ignoreDuplicates: true });
   });
 });

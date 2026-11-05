@@ -39,10 +39,12 @@ export function HomePageClient({ children }: { children: React.ReactNode }) {
           display_name: user.user_metadata.full_name,
         };
 
+        // Seed a missing row only: an existing profile owns its display_name.
         const { error } = await supabase
           .from("user_profiles")
           .upsert(profileData, {
             onConflict: "email",
+            ignoreDuplicates: true,
           })
           .select();
 
