@@ -544,11 +544,12 @@ export async function saveProjectSubmission(
   let existingProjectEventId: string | null | undefined = input.eventId;
   let existingProjectName: string | null = null;
   let existingProjectDescription: string | null = null;
+  let existingProjectSubmitted: boolean | null | undefined;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description",
+        "id, event_id, contextus_project_id, project_name, project_description, submitted",
       )
       .eq("id", projectId)
       .single()
@@ -560,6 +561,7 @@ export async function saveProjectSubmission(
           | "contextus_project_id"
           | "project_name"
           | "project_description"
+          | "submitted"
         >
       >();
     if (error || !existingProject) {
@@ -573,6 +575,7 @@ export async function saveProjectSubmission(
     existingProjectEventId = input.eventId ?? existingProject.event_id;
     existingProjectName = existingProject.project_name ?? null;
     existingProjectDescription = existingProject.project_description ?? null;
+    existingProjectSubmitted = existingProject.submitted;
   }
 
   const validation = await validateProjectEventContext(
@@ -660,7 +663,13 @@ export async function saveProjectSubmission(
     lockedFieldErrors.push("project_description");
   }
 
-  if (lockedFieldErrors.length > 0) {
+  // A draft starts with no name or description and autosaves whatever the user
+  // has entered so far, so the locked fields are only required to publish.
+  const isDraftSave =
+    mode === "update" && (submitted ?? existingProjectSubmitted) === false;
+  const isIncompleteDraft = isDraftSave && lockedFieldErrors.length > 0;
+
+  if (lockedFieldErrors.length > 0 && !isDraftSave) {
     return {
       error: `Project submission requires the locked fields: ${lockedFieldErrors.join(", ")}.`,
       code: "locked_field_missing" as const,
@@ -920,7 +929,8 @@ export async function saveProjectSubmission(
     eventId: existingProjectEventId ?? input.eventId,
     projectDescription: input.projectDescription,
     projectUrl: legacyFields.project_url,
-    submitted,
+    // Contextus has nothing to describe until the draft has its locked fields.
+    submitted: isIncompleteDraft ? false : submitted,
   });
 
   const [fieldMap, answerMap, artifactMap] = await Promise.all([

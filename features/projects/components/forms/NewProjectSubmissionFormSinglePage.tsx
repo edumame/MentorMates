@@ -448,15 +448,20 @@ export function NewProjectSubmissionFormSinglePage({
     submissionFieldValues.video_url,
   ]);
 
-  // Create a draft as soon as user starts typing (only once)
-  useEffect(() => {
-    const hasContent =
-      formData.projectName.trim() ||
-      formData.projectDescription.trim() ||
-      formData.projectUrl.trim();
+  // Anything the user entered that a draft must keep. The prefilled lead details
+  // and the privacy default don't count, so an untouched form stays blank.
+  const hasDraftContent =
+    Object.values(submissionFieldValues).some((value) =>
+      Array.isArray(value) ? value.length > 0 : value.trim().length > 0
+    ) ||
+    [...extraProjectUrls, ...extraVideoUrls].some((url) => url.trim().length > 0) ||
+    formData.teammates.length > 0 ||
+    selectedTrackIds.length > 0;
 
+  // Create a draft as soon as the user enters anything (only once)
+  useEffect(() => {
     // Skip if no content, already have a projectId, or already attempted to create a draft
-    if (!hasContent || projectId || draftCreationAttempted.current) return;
+    if (!hasDraftContent || projectId || draftCreationAttempted.current) return;
 
     const createDraft = async () => {
       // Mark that we've attempted to create a draft
@@ -492,9 +497,13 @@ export function NewProjectSubmissionFormSinglePage({
 
     createDraft();
   }, [
-    formData.projectName,
-    formData.projectDescription,
-    formData.projectUrl,
+    hasDraftContent,
+    // Every input is listed so that further edits retry a failed draft creation.
+    submissionFieldValues,
+    extraProjectUrls,
+    extraVideoUrls,
+    formData.teammates,
+    selectedTrackIds,
     projectId,
     eventId,
     formData.leadName,
@@ -527,6 +536,7 @@ export function NewProjectSubmissionFormSinglePage({
       lead_email: formData.leadEmail,
       teammates: validTeammates,
       private: isPrivate,
+      track_ids: selectedTrackIds,
     },
   });
 
@@ -628,7 +638,10 @@ export function NewProjectSubmissionFormSinglePage({
       toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before leaving." });
       return;
     }
-    if (!(await flushSave())) return;
+    // A blank form has no draft and nothing to save, so it can just exit. Input
+    // still waiting on its draft goes through flushSave, which keeps the user here.
+    const hasNothingToSave = !projectId && !hasDraftContent;
+    if (!hasNothingToSave && !(await flushSave())) return;
     router.push(eventDetails?.slug
       ? `/events/${eventDetails.slug}/overview`
       : eventId ? `/events/${eventId}/overview` : `/projects`);
