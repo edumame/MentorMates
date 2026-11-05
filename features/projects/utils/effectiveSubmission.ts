@@ -238,6 +238,36 @@ export function buildSubmissionValuesFromProject(
   return values;
 }
 
+// Forms keep a link field as a primary URL plus extra rows.
+export function splitUrlRows(value: SubmissionValue): {
+  primary: string;
+  extras: string[];
+} {
+  const [primary = "", ...extras] = Array.isArray(value) ? value : [value];
+  return { primary, extras };
+}
+
+// Configured events keep links only in submission answers, and the legacy project
+// columns hold a single string at most. Editing must start from every saved link,
+// because each save replaces the whole answer. Returns [] when the field is not a
+// configured multi-value field, so callers keep using the legacy column.
+export function getSavedUrlRows(
+  project: Partial<Project>,
+  key: "project_url" | "video_url" | "additional_materials"
+): string[] {
+  if (!project.has_submission_field_config) {
+    return [];
+  }
+
+  const field = project.submission_fields?.find((item) => item.key === key);
+  if (!field) {
+    return [];
+  }
+
+  const value = buildSubmissionValuesFromProject(project, [field])[key];
+  return Array.isArray(value) ? value : [];
+}
+
 export function buildSubmissionAnswersPayload(
   fields: EffectiveSubmissionField[],
   values: Record<string, SubmissionValue>
