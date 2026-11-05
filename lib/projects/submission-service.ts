@@ -1,6 +1,9 @@
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
-import type { ServiceSupabaseClient } from "@/lib/supabase/service";
+import {
+  createSupabaseServiceClient,
+  type ServiceSupabaseClient,
+} from "@/lib/supabase/service";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import {
   buildArtifactsFromLegacy,
@@ -310,6 +313,93 @@ function buildArtifactsFromInput(input: NormalizedProjectWriteInput) {
   return normalizeProjectArtifacts(fallbackArtifacts);
 }
 
+// Scores, assignments and advancements stay keyed to the event they were made
+// in, so moving a project away from them silently detaches it from that event's
+// judging. The caller may be a lead, who cannot read these tables under RLS, so
+// the lookups use the service client and a failed lookup blocks the move.
+const JUDGING_RECORD_TABLES = [
+  "project_scores",
+  "project_assignments",
+  "project_round_advancements",
+] as const;
+
+const EVENT_MOVE_CHECK_FAILED = {
+  error: "Failed to verify whether this project can change events",
+  status: 500 as const,
+};
+
+async function validateProjectCanLeaveEvent(project: {
+  id: string;
+  event_id: string;
+  submitted: boolean | null;
+}) {
+  const blocked = (reason: string) => ({
+    error: `This project can't move to another event because ${reason}. Contact an organizer of its current event.`,
+    code: "project_event_move_blocked" as const,
+    status: 409 as const,
+  });
+
+  try {
+    const serviceClient = createSupabaseServiceClient();
+
+    const { data: currentEvent, error: eventError } = await serviceClient
+      .from("events")
+      .select("submission_time_cutoff")
+      .eq("event_id", project.event_id)
+      .maybeSingle();
+
+    if (eventError) {
+      console.error("[submit] fetch current event failed", {
+        projectId: project.id,
+        error: eventError,
+      });
+      return EVENT_MOVE_CHECK_FAILED;
+    }
+
+    const judgingLookups = await Promise.all(
+      JUDGING_RECORD_TABLES.map((table) =>
+        serviceClient
+          .from(table)
+          .select("project_id")
+          .eq("project_id", project.id)
+          .limit(1),
+      ),
+    );
+
+    const failedLookup = judgingLookups.find((lookup) => lookup.error);
+    if (failedLookup) {
+      console.error("[submit] fetch judging records failed", {
+        projectId: project.id,
+        error: failedLookup.error,
+      });
+      return EVENT_MOVE_CHECK_FAILED;
+    }
+
+    if (judgingLookups.some((lookup) => (lookup.data?.length ?? 0) > 0)) {
+      return blocked("it already has judging records");
+    }
+
+    // A draft was never entered into the closed event, so it may still go to
+    // another one. Legacy rows with a null flag count as submitted.
+    const cutoff = currentEvent?.submission_time_cutoff;
+    if (
+      project.submitted !== false &&
+      cutoff &&
+      new Date() > new Date(cutoff)
+    ) {
+      return blocked("the submission deadline for its current event has passed");
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[submit] event move check failed", {
+      projectId: project.id,
+      error,
+    });
+    return EVENT_MOVE_CHECK_FAILED;
+  }
+}
+
 async function validateProjectEventContext(
   supabase: ServiceSupabaseClient,
   eventId: string | null | undefined,
@@ -548,7 +638,7 @@ export async function saveProjectSubmission(
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description",
+        "id, event_id, contextus_project_id, project_name, project_description, submitted",
       )
       .eq("id", projectId)
       .single()
@@ -560,6 +650,7 @@ export async function saveProjectSubmission(
           | "contextus_project_id"
           | "project_name"
           | "project_description"
+          | "submitted"
         >
       >();
     if (error || !existingProject) {
@@ -568,6 +659,19 @@ export async function saveProjectSubmission(
         error,
       });
       return { error: "Project not found", status: 404 as const };
+    }
+
+    const currentEventId = existingProject.event_id;
+    if (
+      currentEventId &&
+      input.eventId !== undefined &&
+      input.eventId !== currentEventId
+    ) {
+      const moveBlocked = await validateProjectCanLeaveEvent({
+        ...existingProject,
+        event_id: currentEventId,
+      });
+      if (moveBlocked) return moveBlocked;
     }
 
     existingProjectEventId = input.eventId ?? existingProject.event_id;
