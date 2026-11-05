@@ -1,21 +1,41 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseClient } from '@/app/utils/supabase/server'
+import { getAuthContext } from '@/app/api/events/[eventId]/intake-forms/_shared'
 
 export async function GET(request: Request) {
   try {
-    // Get token from query params
+    // `event` is the event being scanned for; `evt` and `usr` come from the QR
     const { searchParams } = new URL(request.url)
+    const scanningEventId = searchParams.get('event')
     const eventId = searchParams.get('evt')
     const userId = searchParams.get('usr')
 
-    if (!eventId || !userId) {
+    if (!scanningEventId || !eventId || !userId) {
       return NextResponse.json(
         { error: 'No event ID or user ID provided' },
         { status: 400 }
       )
     }
-    // Initialize Supabase client
-    const supabase = await createSupabaseClient()
+
+    const { supabase, user, isOrganizer, isAdmin } =
+      await getAuthContext(scanningEventId)
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!isOrganizer && !isAdmin) {
+      return NextResponse.json(
+        { error: 'Only organizers of this event can check in attendees' },
+        { status: 403 }
+      )
+    }
+
+    if (eventId !== scanningEventId) {
+      return NextResponse.json(
+        { error: 'This ticket is for a different event' },
+        { status: 403 }
+      )
+    }
 
     // Check if user is registered for the event
     const { data: userRole, error: roleError } = await supabase
