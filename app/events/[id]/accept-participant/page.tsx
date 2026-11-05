@@ -7,7 +7,7 @@ import {
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ email?: string; token?: string }>;
 }
 
 export default async function AcceptParticipantInvitePage({
@@ -15,7 +15,7 @@ export default async function AcceptParticipantInvitePage({
   searchParams,
 }: PageProps) {
   const { id } = await Promise.resolve(params);
-  const { email } = await Promise.resolve(searchParams);
+  const { email, token } = await Promise.resolve(searchParams);
 
   const eventData = await loadInviteAcceptanceEvent(id);
 
@@ -45,6 +45,7 @@ export default async function AcceptParticipantInvitePage({
       eventBlurb={eventData.event_blurb}
       eventSlug={eventData.slug}
       invitedEmail={email}
+      inviteToken={token}
       eventNotFound={false}
     />
   );

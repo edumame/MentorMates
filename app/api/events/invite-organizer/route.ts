@@ -6,6 +6,8 @@ import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { getOrganizerInviteAcceptanceUrl } from '@/lib/events/invite-emails';
+import { generateEventRoleInviteToken } from '@/lib/utils/jwt';
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -144,7 +146,17 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventData.slug || eventId}/accept-organizer?email=${encodeURIComponent(email.trim())}`;
+    const inviteEmail = email.trim().toLowerCase();
+    const acceptUrl = getOrganizerInviteAcceptanceUrl(
+      process.env.NEXT_PUBLIC_APP_URL ?? '',
+      eventData.slug || eventId,
+      inviteEmail,
+      await generateEventRoleInviteToken({
+        email: inviteEmail,
+        eventId,
+        role: 'organizer',
+      }),
+    );
 
     const emailTemplate = getOrganizerInvitationEmailTemplate(
       eventData.event_name,

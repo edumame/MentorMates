@@ -43,6 +43,7 @@ describe("POST /api/events/invite-judge", () => {
       ...originalEnv,
       NEXT_PUBLIC_APP_URL: "https://mentormates.ai",
       RESEND_API_KEY: "resend-key",
+      JWT_SECRET: "test-secret-with-enough-length-for-hs256",
     };
     mockCanAccessRole.mockReturnValue(true);
     mockResendSend.mockResolvedValue({ error: null });
@@ -145,7 +146,9 @@ describe("POST /api/events/invite-judge", () => {
       expect.objectContaining({
         to: "judge@email.com",
         subject: expect.stringContaining("judge"),
-        html: expect.stringContaining("/events/hack-night/accept-judge"),
+        html: expect.stringMatching(
+          /\/events\/hack-night\/accept-judge\?email=[^"&]+&token=[\w.-]+/
+        ),
       })
     );
   });

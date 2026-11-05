@@ -3,16 +3,30 @@ import { EventRole } from "@/lib/types";
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { joinParticipantEvent } from "@/lib/events/participant-access";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+
+// These roles can edit an event or its scores, so joining without a configured
+// role password is not allowed. Organizers invite people to them instead.
+const PASSWORD_REQUIRED_ROLES: EventRole[] = [EventRole.Judge, EventRole.Organizer];
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
 
   try {
     // Get request data
-    const { eventId, role, password, userId } = await request.json();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = user.id;
+    const { eventId, role, password } = await request.json();
 
     // Input validation
-    if (!eventId || !role || !userId) {
+    if (!eventId || !role) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -24,8 +38,7 @@ export async function POST(request: Request) {
       EventRole.Participant, 
       EventRole.Mentor, 
       EventRole.Judge, 
-      EventRole.Organizer, 
-      EventRole.Admin
+      EventRole.Organizer,
     ];
     if (!validRoles.includes(role)) {
       return NextResponse.json(
@@ -62,6 +75,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!rolePassword && PASSWORD_REQUIRED_ROLES.includes(role)) {
+      return NextResponse.json(
+        { error: "This role requires an invitation from an event organizer" },
+        { status: 403 }
+      );
+    }
+
     if (rolePassword) {
       if (!password) {
         return NextResponse.json(
@@ -82,9 +102,13 @@ export async function POST(request: Request) {
 
     // At this point, either:
     // 1. This role has a configured password and it was verified
-    // 2. No password is configured for this role
+    // 2. No password is configured and this role doesn't require one
+    // Every check above has passed, so writes use the service client: RLS only
+    // lets users self-assign the participant role.
+    const serviceSupabase = createSupabaseServiceClient();
+
     if (role === EventRole.Participant) {
-      const joinResult = await joinParticipantEvent(supabase, {
+      const joinResult = await joinParticipantEvent(serviceSupabase, {
         eventId,
         userId,
         channel: "web",
@@ -105,7 +129,7 @@ export async function POST(request: Request) {
 
     // Now we can proceed with role assignment
     // Assign role to user
-    const { error: roleError } = await supabase.from("user_event_roles").upsert(
+    const { error: roleError } = await serviceSupabase.from("user_event_roles").upsert(
       {
         user_id: userId,
         event_id: eventId,
