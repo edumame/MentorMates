@@ -1,11 +1,16 @@
 import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
-import { canUseInternalEventRoute } from "@/lib/events/navigation";
+import {
+  canUseInternalEventRoute,
+  EVENT_REQUEST_PATHNAME_HEADER,
+  isEventInviteAcceptancePath,
+} from "@/lib/events/navigation";
 
 // add authentication check for non private/public events
 
@@ -54,7 +59,11 @@ export default async function Layout({
 
   const externalUrl = event.external_url?.trim();
   const externalRedirectEnabled = event.external_redirect_enabled === true;
-  if (externalUrl && externalRedirectEnabled) {
+  const requestHeaders = await headers();
+  const isInviteAcceptance = isEventInviteAcceptancePath(
+    requestHeaders.get(EVENT_REQUEST_PATHNAME_HEADER)
+  );
+  if (externalUrl && externalRedirectEnabled && !isInviteAcceptance) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
