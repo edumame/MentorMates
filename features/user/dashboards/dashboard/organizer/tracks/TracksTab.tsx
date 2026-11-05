@@ -5,10 +5,18 @@ import { CompactScoringForm } from "@/features/user/dashboards/dashboard/organiz
 import { JudgingSidebar } from "@/features/user/dashboards/dashboard/organizer/tracks/JudgingSidebar";
 import { buildEventTrackScoringCriteriaFromConfig } from "@/lib/judging/scoring-config";
 import { classifyTrackEntries } from "./classify-track-entries";
+import { removeTrackFromConfig } from "./track-draft";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
 import { JudgePreviewDeck } from "./JudgePreviewDeck";
+
+const EMPTY_SCORING_CONFIG: EventScoringConfig = {
+  tracks: {},
+  defaultMin: 0,
+  defaultMax: 10,
+  defaultWeight: 1,
+};
 
 interface TracksTabProps {
   eventId: string;
@@ -41,6 +49,36 @@ export function TracksTab({
 }: TracksTabProps) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [tracks, setTracks] = useState<EventTrack[]>([]);
+
+  // Unsaved edits, shared by the form and the sidebar. Kept apart from
+  // scoringConfig because the scores tab reads that as the saved config.
+  // Null until the first edit, so the saved config shows once it has loaded.
+  const [editedConfig, setEditedConfig] = useState<EventScoringConfig | null>(
+    null
+  );
+  const savedConfig = scoringConfig ?? EMPTY_SCORING_CONFIG;
+  const draftConfig = editedConfig ?? savedConfig;
+
+  const updateDraftConfig = useCallback(
+    (update: React.SetStateAction<EventScoringConfig>) => {
+      setEditedConfig((prev) => {
+        const current = prev ?? savedConfig;
+        return typeof update === "function" ? update(current) : update;
+      });
+    },
+    [savedConfig]
+  );
+
+  // The row is already gone, so the saved state must stop listing it too.
+  const handleTrackDeleted = useCallback(
+    (trackId: string) => {
+      setTracks((prev) => prev.filter((track) => track.track_id !== trackId));
+      setScoringConfig((prev) =>
+        prev ? removeTrackFromConfig(prev, trackId) : prev
+      );
+    },
+    [setScoringConfig]
+  );
 
   const fetchTracks = useCallback(async () => {
     const { data, error } = await supabase
@@ -174,7 +212,7 @@ export function TracksTab({
 
       {mode === "preview" ? (
         <JudgePreviewDeck
-          scoringConfig={scoringConfig}
+          scoringConfig={draftConfig}
           onClose={() => setMode("edit")}
         />
       ) : (
@@ -220,9 +258,11 @@ export function TracksTab({
 
               {/* Compact scoring form */}
               <CompactScoringForm
-                initialConfig={scoringConfig}
+                config={draftConfig}
+                onConfigChange={updateDraftConfig}
                 isSubmitting={saving}
                 onSave={handleScoreUpdate}
+                onTrackDeleted={handleTrackDeleted}
                 isArchived={isArchived}
                 eventId={eventId}
                 tracks={tracks}
@@ -232,15 +272,8 @@ export function TracksTab({
 
           {/* Right: Judging sidebar (upload + AI chat) */}
           <JudgingSidebar
-            config={
-              scoringConfig || {
-                tracks: {},
-                defaultMin: 0,
-                defaultMax: 10,
-                defaultWeight: 1,
-              }
-            }
-            onConfigChange={(newConfig) => setScoringConfig(newConfig)}
+            config={draftConfig}
+            onConfigChange={updateDraftConfig}
             eventId={eventId}
           />
         </div>
