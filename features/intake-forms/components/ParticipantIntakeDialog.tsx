@@ -42,6 +42,7 @@ import type {
   IntakeFormField,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { isFieldVisible } from "@/features/user/dashboards/dashboard/organizer/registration/intake-responses-utils";
 
 // Trigger mode: dialog manages its own open state via DialogTrigger.
 // Controlled mode: caller controls open/close (for programmatic flows).
@@ -135,11 +136,9 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
   const [comboboxSearch, setComboboxSearch] = useState("");
 
   const visibleFields = useMemo(() => {
-    return schema.fields.filter((field) => {
-      if (!field.showIf) return true;
-      const currentValue = answers[field.showIf.fieldKey];
-      return String(currentValue ?? "") === field.showIf.equals;
-    });
+    return schema.fields.filter((field) =>
+      isFieldVisible(field, answers, schema.fields)
+    );
   }, [answers, schema.fields]);
 
   const invalidFieldKeys = useMemo(
