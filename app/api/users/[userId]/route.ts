@@ -89,7 +89,7 @@ export async function PATCH(
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
     if (bio !== undefined) updateData.bio = bio;
     if (links !== undefined) updateData.links = links;
-    const affiliationValue = affiliation ?? school;
+    const affiliationValue = affiliation !== undefined ? affiliation : school;
     if (affiliationValue !== undefined) updateData.affiliation = affiliationValue;
 
     // Handle phone number update separately in user_phone_numbers table
