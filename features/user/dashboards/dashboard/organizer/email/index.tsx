@@ -19,6 +19,7 @@ import { Mail, Send, Users, Eye, Loader2, LayoutTemplate } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { EmailTemplates } from "./templates";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import { fetchAllEventUsers } from "@/lib/events/fetch-all-event-users";
 
 interface Recipient {
   id: string;
@@ -47,27 +48,19 @@ export function EmailTab({ eventId }: EmailTabProps) {
   useEffect(() => {
     async function fetchRecipients() {
       try {
-        const response = await fetch(
-          `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer,admin&limit=500`
-        );
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Failed to load recipients");
+        const users = await fetchAllEventUsers({
+          eventId,
+          roles: "participant,mentor,judge,organizer,admin",
+        });
 
-        const recipientList: Recipient[] = (payload.users || [])
-          .filter((user: { email: string }) => Boolean(user.email))
-          .map(
-            (user: {
-              user_id: string;
-              role: EventRole;
-              email: string;
-              display_name: string;
-            }) => ({
-              id: user.user_id,
-              email: user.email,
-              display_name: user.display_name,
-              role: user.role as EventRole,
-            })
-          );
+        const recipientList: Recipient[] = users
+          .filter((user) => Boolean(user.email))
+          .map((user) => ({
+            id: user.user_id,
+            email: user.email,
+            display_name: user.display_name,
+            role: user.role,
+          }));
 
         setRecipients(recipientList);
       } catch (error) {

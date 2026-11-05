@@ -100,6 +100,9 @@ export async function GET(
       .eq("event_id", eventId)
       .in("role", requestedRoles)
       .order("created_at", { ascending: true })
+      // Bulk inserts share a created_at; without a unique tiebreaker, rows can
+      // repeat or go missing across offset pages.
+      .order("user_id", { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (error) {

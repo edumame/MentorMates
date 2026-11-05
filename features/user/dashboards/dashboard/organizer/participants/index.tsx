@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { EventRole, EventDetails } from "@/lib/types";
 import { buildEmailTeamMap, buildParticipantsCsv } from "./export";
+import { fetchAllEventUsers } from "@/lib/events/fetch-all-event-users";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -107,34 +108,20 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   useEffect(() => {
     async function fetchParticipants() {
       try {
-        const participantsResponse = await fetch(
-          `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer,admin&limit=500`
-        );
-        const participantsPayload = await participantsResponse.json();
-        if (!participantsResponse.ok) {
-          throw new Error(
-            participantsPayload.error || "Failed to fetch participants"
-          );
-        }
-        const data = (participantsPayload.users || []).map(
-          (user: {
-            user_id: string;
-            role: EventRole;
-            display_name: string;
-            email: string;
-            affiliation?: string;
-            team_name?: string;
-          }) => ({
-            user_id: user.user_id,
-            role: user.role,
-            profiles: {
-              display_name: user.display_name,
-              email: user.email,
-              affiliation: user.affiliation ?? "",
-              team_name: user.team_name ?? "",
-            },
-          })
-        ) as UserEventRoleWithProfile[];
+        const users = await fetchAllEventUsers({
+          eventId,
+          roles: "participant,mentor,judge,organizer,admin",
+        });
+        const data: UserEventRoleWithProfile[] = users.map((user) => ({
+          user_id: user.user_id,
+          role: user.role,
+          profiles: {
+            display_name: user.display_name,
+            email: user.email,
+            affiliation: user.affiliation ?? "",
+            team_name: user.team_name ?? "",
+          },
+        }));
 
         const { data: projectRows, error: projectError } = await supabase
           .from("projects")
