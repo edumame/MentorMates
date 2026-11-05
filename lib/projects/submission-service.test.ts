@@ -530,4 +530,183 @@ describe("saveProjectSubmission", () => {
     });
     expect(projectsTable.update).not.toHaveBeenCalled();
   });
+
+  describe("project tracks when the event changes", () => {
+    const newEventId = "55555555-5555-4555-8555-555555555555";
+    const newEventTrackId = "66666666-6666-4666-8666-666666666666";
+    const oldEventTrackId = "77777777-7777-4777-8777-777777777777";
+
+    function buildSupabase(validTrackIds: string[] = []) {
+      const existingProjectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            id: projectId,
+            event_id: eventId,
+            contextus_project_id: "ctx-1",
+            project_name: "Existing Name",
+            project_description: "Existing Description",
+          },
+          error: null,
+        }),
+      };
+      const updatedProjectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            id: projectId,
+            event_id: newEventId,
+            contextus_project_id: "ctx-1",
+            project_tracks: [],
+          },
+          error: null,
+        }),
+      };
+      const projectsTable = {
+        select: jest
+          .fn()
+          .mockReturnValueOnce(existingProjectQuery)
+          .mockReturnValueOnce(updatedProjectQuery),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        }),
+      };
+      const eventsQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            event_id: newEventId,
+            event_name: "Next Event",
+            submission_time_start: null,
+            submission_time_cutoff: null,
+          },
+          error: null,
+        }),
+      };
+      const submissionFieldsQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      const eventTracksQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: validTrackIds.map((track_id) => ({ track_id })),
+          error: null,
+        }),
+      };
+      const deleteTracksEq = jest.fn().mockResolvedValue({ error: null });
+      const projectTracksTable = {
+        delete: jest.fn().mockReturnValue({ eq: deleteTracksEq }),
+        insert: jest.fn().mockResolvedValue({ error: null }),
+      };
+      const tables: Record<string, unknown> = {
+        projects: projectsTable,
+        events: eventsQuery,
+        event_submission_fields: submissionFieldsQuery,
+        event_tracks: eventTracksQuery,
+        project_tracks: projectTracksTable,
+      };
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (!tables[table]) throw new Error(`Unexpected table ${table}`);
+          return tables[table];
+        }),
+      };
+
+      return { supabase, projectsTable, projectTracksTable, deleteTracksEq };
+    }
+
+    it("removes the old event's tracks when a project moves without trackIds", async () => {
+      const { supabase, projectsTable, projectTracksTable, deleteTracksEq } =
+        buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId: newEventId },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ event_id: newEventId }),
+      );
+      expect(projectTracksTable.delete).toHaveBeenCalledTimes(1);
+      expect(deleteTracksEq).toHaveBeenCalledWith("project_id", projectId);
+      expect(projectTracksTable.insert).not.toHaveBeenCalled();
+    });
+
+    it("reports an error when the old tracks cannot be removed", async () => {
+      const { supabase, deleteTracksEq } = buildSupabase();
+      deleteTracksEq.mockResolvedValue({ error: { message: "denied" } });
+      const consoleError = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId: newEventId },
+      });
+
+      expect(result).toMatchObject({
+        error: "Failed to update project tracks",
+        status: 500,
+      });
+      consoleError.mockRestore();
+    });
+
+    it("replaces the tracks with the new event's tracks when trackIds are sent", async () => {
+      const { supabase, projectTracksTable } = buildSupabase([newEventTrackId]);
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId: newEventId, trackIds: [newEventTrackId] },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectTracksTable.delete).toHaveBeenCalledTimes(1);
+      expect(projectTracksTable.insert).toHaveBeenCalledWith([
+        { project_id: projectId, track_id: newEventTrackId },
+      ]);
+    });
+
+    it("rejects a move that sends a track from the old event", async () => {
+      const { supabase, projectsTable, projectTracksTable } = buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId: newEventId, trackIds: [oldEventTrackId] },
+      });
+
+      expect(result).toMatchObject({ status: 400 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+      expect(projectTracksTable.delete).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["resends the current event", { eventId, isPrivate: true }],
+      ["does not send an event", { isPrivate: true }],
+    ])("keeps the tracks when an update %s", async (_label, input) => {
+      const { supabase, projectTracksTable } = buildSupabase();
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input,
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectTracksTable.delete).not.toHaveBeenCalled();
+    });
+  });
 });
