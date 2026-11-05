@@ -18,6 +18,20 @@ export type DatePickerProps = {
   disabled?: boolean;
 };
 
+/**
+ * `new Date("YYYY-MM-DD")` is UTC midnight, which is the previous day west of
+ * UTC. A date-only value names a calendar day, so read it as local time.
+ */
+function parseDateValue(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+  return new Date(value);
+}
+
 export function DatePicker({
   value,
   onChange,
@@ -27,8 +41,13 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
-    value ? new Date(value) : undefined
+    parseDateValue(value)
   );
+
+  // The parent can replace the value after mount, for example on a data import.
+  React.useEffect(() => {
+    setSelectedDate(parseDateValue(value));
+  }, [value]);
 
   const handleSelect = (date: Date) => {
     setSelectedDate(date);

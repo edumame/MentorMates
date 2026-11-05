@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -69,6 +70,21 @@ function renderTab() {
     />,
   );
   return { setEvent, toast };
+}
+
+/** Holds the event in real state, so the tab re-renders with the merged result. */
+function StatefulTab({ initial }: { initial: EventDetails }) {
+  const [current, setCurrent] = useState<EventDetails | null>(initial);
+  return (
+    <BasicInfoTab
+      event={current as EventDetails}
+      setEvent={setCurrent as never}
+      saving={false}
+      setSaving={jest.fn()}
+      toast={jest.fn() as never}
+      router={{ refresh: jest.fn(), push: jest.fn() } as never}
+    />
+  );
 }
 
 async function clickImport() {
@@ -203,4 +219,45 @@ it("does not claim success when the page yielded nothing usable", async () => {
   expect(toast).toHaveBeenCalledWith(
     expect.objectContaining({ title: "Import failed" }),
   );
+});
+
+describe("the Date field after an import", () => {
+  const dateInput = () =>
+    screen.getByPlaceholderText("mm/dd/yyyy") as HTMLInputElement;
+
+  it("replaces the old date, because the next save writes the imported one", async () => {
+    respondWith(200, { success: true, data: scraped, error: null });
+    render(<StatefulTab initial={{ ...event, event_date: "2026-01-15" }} />);
+    expect(dateInput().value).toBe("01/15/2026");
+
+    await clickImport();
+
+    await waitFor(() => expect(dateInput().value).toBe("06/15/2026"));
+  });
+
+  it("fills a field that had no date", async () => {
+    respondWith(200, { success: true, data: scraped, error: null });
+    render(<StatefulTab initial={{ ...event, event_date: "" }} />);
+    expect(dateInput().value).toBe("");
+
+    await clickImport();
+
+    await waitFor(() => expect(dateInput().value).toBe("06/15/2026"));
+  });
+
+  it("keeps the saved date when the page supplied none", async () => {
+    respondWith(200, {
+      success: true,
+      data: { ...scraped, event_date: null },
+      error: null,
+    });
+    render(<StatefulTab initial={{ ...event, event_date: "2026-01-15" }} />);
+
+    await clickImport();
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("New name")).toBeTruthy(),
+    );
+    expect(dateInput().value).toBe("01/15/2026");
+  });
 });
