@@ -377,6 +377,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       );
   }, [agentsQuery.data, eventId]);
 
+  // linkToEvents, unlinkFromEvents and the agent_events RLS policies are owner-only,
+  // which is narrower than can_edit. Caps only need access to the event.
+  const canChangeEventLinks =
+    Boolean(effectiveUserId) &&
+    normalizeText(applyAgent?.user_id) === effectiveUserId;
+
   const hasApplySelectionChanges = useMemo(() => {
     if (!applyDialogOpen) return false;
     const current = new Set(alreadyAppliedEventIds);
@@ -734,6 +740,14 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     let unlinkedCount = 0;
     let capUpdatedCount = 0;
     let failedCount = 0;
+    let capFailedCount = 0;
+    let failureReason: string | null = null;
+
+    const recordFailureReason = (error: unknown) => {
+      if (failureReason === null && error instanceof Error) {
+        failureReason = error.message;
+      }
+    };
 
     try {
       const currentSet = new Set(alreadyAppliedEventIds);
@@ -815,15 +829,23 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             eventIds: toRemove,
           });
           unlinkedCount = toRemove.length;
-
-          // Clean up session caps for unlinked events
-          for (const targetEventId of toRemove) {
-            await mergeAgentCapsForEvent(targetEventId, {
-              [applyAgent.id]: undefined,
-            });
-          }
-        } catch {
+        } catch (error) {
           failedCount += toRemove.length;
+          recordFailureReason(error);
+        }
+
+        // Clean up session caps for unlinked events
+        if (unlinkedCount > 0) {
+          for (const targetEventId of toRemove) {
+            try {
+              await mergeAgentCapsForEvent(targetEventId, {
+                [applyAgent.id]: undefined,
+              });
+            } catch (error) {
+              capFailedCount += 1;
+              recordFailureReason(error);
+            }
+          }
         }
       }
 
@@ -835,19 +857,27 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             eventIds: toAdd,
           });
           linkedCount = toAdd.length;
+        } catch (error) {
+          failedCount += toAdd.length;
+          recordFailureReason(error);
+        }
 
-          // Set session caps for newly linked events
+        // Set session caps for newly linked events
+        if (linkedCount > 0) {
           for (const targetEventId of toAdd) {
             const selectedCap = selectedCapsByEventId.get(targetEventId);
-            if (selectedCap !== null && selectedCap !== undefined) {
+            if (selectedCap === null || selectedCap === undefined) continue;
+
+            try {
               const updated = await mergeAgentCapsForEvent(targetEventId, {
                 [applyAgent.id]: selectedCap,
               });
               if (updated) capUpdatedCount += 1;
+            } catch (error) {
+              capFailedCount += 1;
+              recordFailureReason(error);
             }
           }
-        } catch {
-          failedCount += toAdd.length;
         }
       }
 
@@ -860,8 +890,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             [applyAgent.id]: selectedCap === null ? undefined : selectedCap,
           });
           if (updated) capUpdatedCount += 1;
-        } catch {
-          failedCount += 1;
+        } catch (error) {
+          capFailedCount += 1;
+          recordFailureReason(error);
         }
       }
 
@@ -872,16 +903,24 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         unlinkedCount > 0 ? `${unlinkedCount} unlinked` : null,
         capUpdatedCount > 0 ? `${capUpdatedCount} cap updates` : null,
         failedCount > 0 ? `${failedCount} failed` : null,
+        capFailedCount > 0 ? `${capFailedCount} cap updates failed` : null,
+        failureReason,
       ].filter(Boolean);
+      const description = parts.length > 0 ? parts.join(" | ") : "No changes made";
 
-      toast({
-        title: "Availability updated",
-        description: parts.length > 0 ? parts.join(" | ") : "No changes made",
-      });
-
-      if (failedCount === 0) {
-        closeApplyDialog();
+      // Only one toast shows at a time (TOAST_LIMIT), so this summary replaces any
+      // mutation onError toast and has to carry the failure itself.
+      if (failedCount > 0 || capFailedCount > 0) {
+        toast({
+          title: "Availability not fully updated",
+          description,
+          variant: "destructive",
+        });
+        return;
       }
+
+      toast({ title: "Availability updated", description });
+      closeApplyDialog();
     } finally {
       setIsApplying(false);
     }
@@ -1085,6 +1124,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
           <p className="text-xs text-gray-600">
             Cap is per user for this agent in that event. Leave blank to use the event default.
           </p>
+          {!canChangeEventLinks && (
+            <p className="text-xs text-gray-600">
+              Only the agent&apos;s creator can add or remove events. You can still change caps
+              for events this agent is already linked to.
+            </p>
+          )}
           {isLoadingEventCaps && (
             <p className="text-xs text-gray-500">Loading existing caps...</p>
           )}
@@ -1105,7 +1150,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={isSelected}
-                        disabled={isApplying}
+                        disabled={isApplying || !canChangeEventLinks}
                         onCheckedChange={(checked) =>
                           toggleTargetEvent(event.event_id, Boolean(checked))
                         }
