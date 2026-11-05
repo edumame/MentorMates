@@ -13,6 +13,7 @@ import {
   EventScoringConfig,
   EventVisibility,
 } from "@/lib/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
@@ -738,6 +739,17 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               </div>
             </div>
           </div>
+
+          {/* Gated on status: resubmitting leaves the old reason on the row. */}
+          {event.approval_status === ApprovalStatus.Rejected &&
+            event.rejection_reason?.trim() && (
+              <Alert variant="destructive" className="mb-6 flex-shrink-0">
+                <AlertTitle>Rejection reason</AlertTitle>
+                <AlertDescription className="whitespace-pre-wrap break-words">
+                  {event.rejection_reason}
+                </AlertDescription>
+              </Alert>
+            )}
 
           {/* Main Tabs */}
           <Tabs

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { OrganizerEditOverview } from "./organizer-edit-overview";
 const mockReplace = jest.fn();
 let mockSearchParams = new URLSearchParams();
+let mockEventOverrides: Record<string, unknown> = {};
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => "/events/sample/overview",
@@ -97,6 +98,7 @@ jest.mock("@/lib/supabase", () => ({
             event_tracks: [],
             visibility: "public",
             approval_status: "approved",
+            ...mockEventOverrides,
           },
         }),
         then: (resolve: (value: unknown) => void) =>
@@ -110,6 +112,7 @@ jest.mock("@/lib/supabase", () => ({
 beforeEach(() => {
   mockReplace.mockClear();
   localStorage.clear();
+  mockEventOverrides = {};
 });
 
 it.each(["forms", "intake-forms"])(
@@ -145,4 +148,39 @@ it("exposes Forms from the default People view and preserves unrelated URL param
     "/events/sample/overview?view=organizer&tab=forms",
     { scroll: false },
   );
+});
+
+describe("rejection reason", () => {
+  const reason = "Missing venue details";
+
+  beforeEach(() => {
+    mockSearchParams = new URLSearchParams({ view: "organizer" });
+  });
+
+  it("shows the admin's reason next to the Rejected status", async () => {
+    mockEventOverrides = {
+      approval_status: "rejected",
+      rejection_reason: reason,
+    };
+    render(<OrganizerEditOverview eventId="sample" />);
+    expect(await screen.findByText("REJECTED")).toBeVisible();
+    expect(screen.getByText(reason)).toBeVisible();
+  });
+
+  it("hides a stale reason once the event has been resubmitted", async () => {
+    mockEventOverrides = {
+      approval_status: "submitted",
+      rejection_reason: reason,
+    };
+    render(<OrganizerEditOverview eventId="sample" />);
+    expect(await screen.findByText("SUBMITTED")).toBeVisible();
+    expect(screen.queryByText(reason)).not.toBeInTheDocument();
+  });
+
+  it("renders no reason banner for a rejected event without a reason", async () => {
+    mockEventOverrides = { approval_status: "rejected", rejection_reason: null };
+    render(<OrganizerEditOverview eventId="sample" />);
+    expect(await screen.findByText("REJECTED")).toBeVisible();
+    expect(screen.queryByText(/rejection reason/i)).not.toBeInTheDocument();
+  });
 });

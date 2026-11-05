@@ -125,6 +125,7 @@ export type EventItem = {
   event_type?: string[];
   featured?: boolean; // Whether this event is featured on homepage
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
+  rejection_reason?: string | null; // Admin's reason, kept on the row after resubmission, so only meaningful while approval_status is rejected.
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
   external_url?: string | null; // Optional outside event URL
