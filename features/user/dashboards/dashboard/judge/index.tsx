@@ -152,6 +152,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     null
   );
   const [activeRound, setActiveRound] = useState(1);
+  const [queueReloadCount, setQueueReloadCount] = useState(0);
   const previousVisibleIdsRef = useRef<string[]>([]);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeEnabledRef = useRef(false);
@@ -649,7 +650,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     };
 
     fetchData();
-  }, [eventId]);
+  }, [eventId, queueReloadCount]);
 
   useEffect(() => {
     setOpenTracksByProject((prev) => {
@@ -1243,6 +1244,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                       onScoreDeleted={() =>
                                         markTrackAsUnscored(currentProject.id, trackId)
                                       }
+                                      onRoundChanged={() =>
+                                        setQueueReloadCount((count) => count + 1)
+                                      }
                                     />
                                   )}
                                 </AccordionContent>
@@ -1358,6 +1362,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                 }
                                 onScoreDeleted={() =>
                                   markTrackAsUnscored(currentProject.id, trackId)
+                                }
+                                onRoundChanged={() =>
+                                  setQueueReloadCount((count) => count + 1)
                                 }
                               />
                             )}
