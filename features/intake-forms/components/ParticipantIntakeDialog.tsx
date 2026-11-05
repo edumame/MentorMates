@@ -338,14 +338,19 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                                 </p>
                               )
                             ) : (() => {
-                              const filtered = options.filter((o) =>
-                                o.toLowerCase().includes(comboboxSearch.toLowerCase())
-                              );
+                              const filtered = options
+                                .filter((o) =>
+                                  o.toLowerCase().includes(comboboxSearch.toLowerCase())
+                                )
+                                .slice(0, 50);
+                              if (field.fallbackOption && !filtered.includes(field.fallbackOption)) {
+                                filtered.push(field.fallbackOption);
+                              }
                               return filtered.length === 0 ? (
                                 <CommandEmpty>No results found.</CommandEmpty>
                               ) : (
                                 <CommandGroup>
-                                  {filtered.slice(0, 50).map((option) => (
+                                  {filtered.map((option) => (
                                     <CommandItem
                                       key={option}
                                       value={option}
