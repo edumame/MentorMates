@@ -5,7 +5,11 @@ import type { Metadata } from "next";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
-import { canUseInternalEventRoute } from "@/lib/events/navigation";
+import {
+  canUseInternalEventRoute,
+  isPublicEventHiddenByReview,
+  isUnapprovedPublicEvent,
+} from "@/lib/events/navigation";
 
 // add authentication check for non private/public events
 
@@ -34,6 +38,8 @@ export default async function Layout({
     submission_time_start,
     submission_time_cutoff,
     visibility,
+    approval_status,
+    owner_id,
     external_url,
     external_redirect_enabled
   `);
@@ -53,8 +59,16 @@ export default async function Layout({
   }
 
   const externalUrl = event.external_url?.trim();
-  const externalRedirectEnabled = event.external_redirect_enabled === true;
-  if (externalUrl && externalRedirectEnabled) {
+  // Submitted URLs are unreviewed, so the redirect only goes live on approval.
+  const redirectUrl =
+    externalUrl &&
+    event.external_redirect_enabled === true &&
+    !isUnapprovedPublicEvent(event)
+      ? externalUrl
+      : null;
+  const hiddenByReview = isPublicEventHiddenByReview(event);
+
+  if (redirectUrl || hiddenByReview) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -78,8 +92,14 @@ export default async function Layout({
       });
     }
 
-    if (!canUseInternalEventPage) {
-      redirect(externalUrl);
+    // A signed-in submitter owns the event but has no organizer role.
+    const isOwner = Boolean(user && event.owner_id === user.id);
+    if (hiddenByReview && !canUseInternalEventPage && !isOwner) {
+      notFound();
+    }
+
+    if (redirectUrl && !canUseInternalEventPage) {
+      redirect(redirectUrl);
     }
   }
 
@@ -104,7 +124,9 @@ export async function generateMetadata({
 
   let query = supabase
     .from("events")
-    .select("event_name, slug, event_blurb, event_description, cover_image_url");
+    .select(
+      "event_name, slug, event_blurb, event_description, cover_image_url, visibility, approval_status"
+    );
 
   if (isUUID) {
     // If it's a UUID, check both slug and event_id
@@ -115,6 +137,11 @@ export async function generateMetadata({
   }
 
   const { data: event } = await query.single();
+
+  // The 404 for these events must not carry the unreviewed title or blurb.
+  if (event && isPublicEventHiddenByReview(event)) {
+    return { title: "Event" };
+  }
 
   const path = event?.slug ? `/events/${event.slug}` : `/events/${id}`;
   const description = event?.event_blurb || event?.event_description || undefined;
