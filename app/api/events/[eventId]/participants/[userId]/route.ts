@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { revokeParticipantApproval } from "@/lib/events/participant-access";
 import { EventRole } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";
@@ -146,6 +148,16 @@ export async function DELETE(
     const auth = await authorizeAndGetContext(request, { eventId, userId });
     if ("error" in auth) return auth.error;
     const { notify } = await request.json().catch(() => ({ notify: false }));
+
+    const { error: revokeError } = await revokeParticipantApproval(
+      createSupabaseServiceClient(),
+      { eventId: auth.eventId, userId: auth.userId, reviewerId: auth.user.id }
+    );
+
+    if (revokeError) {
+      console.error("Error revoking participant approval:", revokeError);
+      return NextResponse.json({ error: "Failed to remove user" }, { status: 500 });
+    }
 
     const { error: deleteError } = await auth.supabase
       .from("user_event_roles")
