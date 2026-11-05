@@ -62,7 +62,7 @@ export interface Coupon {
   stripe_coupon_id: string;
   name: string;
   percent_off?: number; // Percentage discount (1-100)
-  amount_off?: number; // Fixed amount discount in cents
+  amount_off?: number; // Fixed amount discount in the currency's smallest unit (Stripe amount_off)
   currency?: string; // Currency for amount_off (e.g., 'usd')
   duration: CouponDuration;
   duration_in_months?: number; // For 'repeating' duration
