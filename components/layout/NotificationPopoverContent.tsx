@@ -15,7 +15,7 @@ import { GraduationCap } from "lucide-react";
 interface ExtendedUserProfile extends UserProfile {
   onboarding_metadata: Record<string, unknown> | null;
   affiliation: string | null;
-  phone_number?: string | null;
+  phone_number: string | null;
   links?: Record<string, string> | null;
 }
 
@@ -31,12 +31,23 @@ export function useNotificationData() {
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("uid", session?.user?.id)
-        .single();
-      setUserProfile(data);
+      const userId = session?.user?.id;
+      // Phone numbers live in user_phone_numbers, not on the user_profiles row.
+      // Most recent first, matching the fallback in GET /api/users/:id/profile.
+      const [{ data: profile }, { data: phones }] = await Promise.all([
+        supabase.from("user_profiles").select("*").eq("uid", userId).single(),
+        supabase
+          .from("user_phone_numbers")
+          .select("phone_number")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1),
+      ]);
+      setUserProfile(
+        profile
+          ? { ...profile, phone_number: phones?.[0]?.phone_number ?? null }
+          : null
+      );
     };
     if (session) fetchUserProfile();
   }, [session]);

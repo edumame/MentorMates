@@ -6,7 +6,8 @@
 
 export interface ProfileCompletionFields {
   affiliation: string | null;
-  phone_number?: string | null;
+  /** Not a user_profiles column: callers must load it from user_phone_numbers. */
+  phone_number: string | null;
   links?: Record<string, string> | null;
 }
 
