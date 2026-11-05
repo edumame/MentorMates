@@ -334,6 +334,12 @@ export interface ProjectSubmissionAnswer {
 }
 
 // Project Types
+export interface TeamProfile {
+  display_name: string | null;
+  avatar_url: string | null;
+  affiliation: string | null;
+}
+
 export interface Project {
   id: string;
   project_name: string;
@@ -359,6 +365,8 @@ export interface Project {
   prizes_won?: Prize[];
   /** Advanced past round 1 via project_round_advancements (organizer-selected finalists). */
   is_finalist?: boolean;
+  /** Lowercased team email to public profile fields, for pages RLS hides profiles from. */
+  team_profiles?: Record<string, TeamProfile>;
   contextus_project_id?: string;
   submitted?: boolean;
 }

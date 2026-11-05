@@ -6,6 +6,7 @@ import {
   EventTrack,
   Prize,
   ProjectFromDatabase,
+  Project,
   ProjectSubmissionAnswer,
   ProjectWithPrizes,
 } from "@/lib/types";
@@ -14,6 +15,7 @@ import { createContextusProject } from "@/lib/integrations/contextus";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchTeamProfilesByEmails } from "@/lib/users/public-profiles";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
 
 type ArtifactRow = {
@@ -325,6 +327,12 @@ export async function GET(request: NextRequest) {
         (
           transformedProject as unknown as { is_finalist?: boolean }
         ).is_finalist = extras.is_finalist;
+        (
+          transformedProject as unknown as Project
+        ).team_profiles = await fetchTeamProfilesByEmails([
+          project.lead_email,
+          ...(project.teammates ?? []),
+        ]);
 
         return NextResponse.json({ project: transformedProject });
       }
@@ -692,6 +700,12 @@ export async function GET(request: NextRequest) {
       (
         transformedProject as unknown as { is_finalist?: boolean }
       ).is_finalist = await fetchIsFinalist(transformedProject.id);
+      (
+        transformedProject as unknown as Project
+      ).team_profiles = await fetchTeamProfilesByEmails([
+        project.lead_email,
+        ...(project.teammates ?? []),
+      ]);
 
       return NextResponse.json({ project: transformedProject });
     }

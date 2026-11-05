@@ -28,7 +28,6 @@ export default function CertificatePage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [event, setEvent] = useState<CertificateEvent | null>(null);
-  const [nameByEmail, setNameByEmail] = useState<Record<string, string>>({});
   const [viewerEmail, setViewerEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -69,26 +68,6 @@ export default function CertificatePage() {
           }
         }
 
-        const emails = Array.from(
-          new Set([p?.lead_email, ...(p?.teammates ?? [])]),
-        )
-          .filter(Boolean)
-          .map((e) => String(e).toLowerCase());
-        if (emails.length > 0) {
-          const { data: profiles } = await supabase
-            .from("user_profiles")
-            .select("email, display_name")
-            .in("email", emails);
-          const map: Record<string, string> = {};
-          for (const row of profiles ?? []) {
-            const email = row.email?.toLowerCase();
-            if (email && row.display_name?.trim()) {
-              map[email] = row.display_name.trim();
-            }
-          }
-          setNameByEmail(map);
-        }
-
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -114,23 +93,25 @@ export default function CertificatePage() {
 
   // Whose name goes on the certificate: ?p= param → signed-in teammate → project lead
   const subject = useMemo(() => {
+    const lead = project?.lead_email?.toLowerCase();
     const nameFor = (email: string) =>
-      nameByEmail[email] ?? email.split("@")[0];
+      project?.team_profiles?.[email]?.display_name ||
+      (email === lead && project?.lead_name?.trim()) ||
+      email.split("@")[0];
     if (personParam && teamEmails.includes(personParam)) {
       return { email: personParam, name: nameFor(personParam) };
     }
     if (viewerEmail && teamEmails.includes(viewerEmail)) {
       return { email: viewerEmail, name: nameFor(viewerEmail) };
     }
-    if (project?.lead_email) {
-      const lead = project.lead_email.toLowerCase();
+    if (project && lead) {
       return {
         email: lead,
         name: project.lead_name?.trim() || nameFor(lead),
       };
     }
     return null;
-  }, [personParam, viewerEmail, teamEmails, nameByEmail, project]);
+  }, [personParam, viewerEmail, teamEmails, project]);
 
   // Tier: winner (prize assigned) > finalist (advanced past round 1) > participant
   const isWinner = (project?.prizes_won?.length ?? 0) > 0;

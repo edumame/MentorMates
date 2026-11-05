@@ -69,6 +69,7 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import { buildTeamMembers } from "@/features/projects/utils/team-members";
 import {
   CoverImageWithFallback,
   ProjectCoverHero,
@@ -111,16 +112,6 @@ export default function ProjectPage() {
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
-  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
-    Record<
-      string,
-      {
-        displayName: string | null;
-        avatarUrl: string | null;
-        affiliation: string | null;
-      }
-    >
-  >({});
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
@@ -145,6 +136,8 @@ export default function ProjectPage() {
     });
     setProject((prev) => ({
       ...nextProject,
+      // Update handlers pass raw project rows, which have no API-only profiles.
+      team_profiles: nextProject.team_profiles ?? prev?.team_profiles,
       artifacts:
         nextProject.artifacts ||
         prev?.artifacts ||
@@ -832,55 +825,19 @@ export default function ProjectPage() {
     return initials || trimmed.slice(0, 2).toUpperCase();
   }, []);
 
-  // Load team profile info for team members (from user_profiles)
-  useEffect(() => {
-    if (!project) return;
+  // Team edits return raw project rows, so a new teammate's profile needs the API.
+  const refreshTeamProfiles = async () => {
+    try {
+      const response = await fetch(`/api/projects?projectId=${projectId}`);
+      const payload = (await response.json()) as { project?: Project };
+      const teamProfiles = payload.project?.team_profiles;
+      if (!response.ok || !teamProfiles) return;
 
-    const emails = Array.from(
-      new Set([project.lead_email, ...(project.teammates ?? [])])
-    )
-      .filter(Boolean)
-      .map((e) => String(e).toLowerCase());
-
-    if (emails.length === 0) return;
-
-    let alive = true;
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("user_profiles")
-          .select("email, affiliation, avatar_url, display_name")
-          .in("email", emails);
-
-        if (error || !alive) return;
-
-        const map: Record<
-          string,
-          {
-            displayName: string | null;
-            avatarUrl: string | null;
-            affiliation: string | null;
-          }
-        > = {};
-        for (const row of data ?? []) {
-          const email = row.email?.toLowerCase();
-          if (!email) continue;
-          map[email] = {
-            displayName: row.display_name?.trim() || null,
-            avatarUrl: row.avatar_url?.trim() || null,
-            affiliation: row.affiliation?.trim() || null,
-          };
-        }
-        setTeamProfileByEmail(map);
-      } catch {
-        // ignore
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [project?.lead_email, project?.teammates, project]);
+      setProject((prev) => prev && { ...prev, team_profiles: teamProfiles });
+    } catch {
+      // The teammate was added; they show their email until the next load.
+    }
+  };
 
   const handleAddTeammate = async (email: string) => {
     const emailToAdd = email.trim();
@@ -946,6 +903,7 @@ export default function ProjectPage() {
       }
 
       setProjectWithArtifacts(data as Project);
+      await refreshTeamProfiles();
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -1090,23 +1048,14 @@ export default function ProjectPage() {
   const isLead =
     session?.user?.email?.toLowerCase() === project.lead_email?.toLowerCase();
   const totalMembers = (project.teammates?.length || 0) + 1;
-  const teamMembers = [
-    {
-      email: project.lead_email,
-      displayName:
-        teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
-        project.lead_name,
-      role: "lead" as const,
-    },
-    ...(project.teammates ?? []).map((email) => ({
-      email,
-      displayName:
-        teamProfileByEmail[email.toLowerCase()]?.displayName ||
-        participants.find((p) => p.email.toLowerCase() === email.toLowerCase())
-          ?.display_name || email,
-      role: "member" as const,
-    })),
-  ];
+  const teamProfileByEmail = project.team_profiles ?? {};
+  const teamMembers = buildTeamMembers(
+    project,
+    // Only this route loads participants, for its add-teammate search.
+    (email) =>
+      participants.find((p) => p.email.toLowerCase() === email.toLowerCase())
+        ?.display_name
+  );
 
   const feedbackUrl = `${
     typeof window !== "undefined" ? window.location.origin : ""
@@ -1905,7 +1854,7 @@ export default function ProjectPage() {
                                   <div className="flex items-center gap-4 min-w-0">
                                     <Avatar className="h-14 w-14 shrink-0">
                                       <AvatarImage
-                                        src={profile?.avatarUrl ?? undefined}
+                                        src={profile?.avatar_url ?? undefined}
                                         alt={title}
                                       />
                                       <AvatarFallback>
@@ -2213,12 +2162,12 @@ export default function ProjectPage() {
                                   src={
                                     teamProfileByEmail[
                                       project.lead_email.toLowerCase()
-                                    ]?.avatarUrl ?? undefined
+                                    ]?.avatar_url ?? undefined
                                   }
                                   alt={
                                     teamProfileByEmail[
                                       project.lead_email.toLowerCase()
-                                    ]?.displayName ||
+                                    ]?.display_name ||
                                     project.lead_name ||
                                     project.lead_email
                                   }
@@ -2232,7 +2181,7 @@ export default function ProjectPage() {
                                   <p className="font-semibold text-base text-black">
                                     {teamProfileByEmail[
                                       project.lead_email.toLowerCase()
-                                    ]?.displayName || project.lead_name}
+                                    ]?.display_name || project.lead_name}
                                   </p>
                                   <Badge
                                     variant="secondary"
@@ -2272,25 +2221,25 @@ export default function ProjectPage() {
                                       src={
                                         teamProfileByEmail[
                                           teammate.toLowerCase()
-                                        ]?.avatarUrl ?? undefined
+                                        ]?.avatar_url ?? undefined
                                       }
                                       alt={
                                         teamProfileByEmail[
                                           teammate.toLowerCase()
-                                        ]?.displayName || teammate
+                                        ]?.display_name || teammate
                                       }
                                     />
                                     <AvatarFallback>
                                       {getInitials(
                                         teamProfileByEmail[teammate.toLowerCase()]
-                                          ?.displayName || teammate
+                                          ?.display_name || teammate
                                       )}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div className="space-y-0">
                                     <p className="font-semibold text-base text-black">
                                       {teamProfileByEmail[teammate.toLowerCase()]
-                                        ?.displayName || teammate}
+                                        ?.display_name || teammate}
                                     </p>
                                     {teamProfileByEmail[teammate.toLowerCase()]
                                       ?.affiliation ? (

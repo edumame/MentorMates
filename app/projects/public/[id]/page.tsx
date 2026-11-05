@@ -1,5 +1,6 @@
 "use client";
 import { projectBackTarget } from "@/features/projects/utils/back-navigation";
+import { buildTeamMembers } from "@/features/projects/utils/team-members";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -78,16 +79,6 @@ export default function PublicProjectPage() {
     useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
-  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
-    Record<
-      string,
-      {
-        displayName: string | null;
-        avatarUrl: string | null;
-        affiliation: string | null;
-      }
-    >
-  >({});
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -129,60 +120,6 @@ export default function PublicProjectPage() {
 
     fetchProject();
   }, [projectId]);
-
-  // Fetch team profile data (display name, avatar, affiliation) from user_profiles
-  useEffect(() => {
-    if (!project) return;
-    if (!project.lead_email && !(project.teammates?.length ?? 0)) return;
-
-    const emails = Array.from(
-      new Set([project.lead_email, ...(project.teammates ?? [])])
-    )
-      .filter(Boolean)
-      .map((e) => String(e).toLowerCase());
-
-    if (emails.length === 0) return;
-
-    let alive = true;
-
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("user_profiles")
-          .select("email, affiliation, avatar_url, display_name")
-          .in("email", emails);
-
-        if (error || !alive) return;
-
-        const map: Record<
-          string,
-          {
-            displayName: string | null;
-            avatarUrl: string | null;
-            affiliation: string | null;
-          }
-        > = {};
-
-        for (const row of data ?? []) {
-          const email = row.email?.toLowerCase();
-          if (!email) continue;
-          map[email] = {
-            displayName: row.display_name?.trim() || null,
-            avatarUrl: row.avatar_url?.trim() || null,
-            affiliation: row.affiliation?.trim() || null,
-          };
-        }
-
-        setTeamProfileByEmail(map);
-      } catch {
-        // ignore
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [project?.lead_email, project?.teammates, project]);
 
   // Fetch event details when project is loaded
   useEffect(() => {
@@ -345,23 +282,8 @@ export default function PublicProjectPage() {
   }
 
   const totalMembers = (project.teammates?.length || 0) + 1;
-  const teamMembers =
-    project &&
-    [
-      {
-        email: project.lead_email,
-        displayName:
-          teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
-          project.lead_name,
-        role: "lead" as const,
-      },
-      ...(project.teammates ?? []).map((email) => ({
-        email,
-        displayName:
-          teamProfileByEmail[email.toLowerCase()]?.displayName || email,
-        role: "member" as const,
-      })),
-    ];
+  const teamProfileByEmail = project.team_profiles ?? {};
+  const teamMembers = buildTeamMembers(project);
   const feedbackUrl = typeof window !== "undefined" ? window.location.href : "";
   const selectedTrack = projectTracks.find(
     (track) => track.track_id === selectedTrackId,
@@ -715,12 +637,12 @@ export default function PublicProjectPage() {
                                 src={
                                   teamProfileByEmail[
                                     project.lead_email.toLowerCase()
-                                  ]?.avatarUrl ?? undefined
+                                  ]?.avatar_url ?? undefined
                                 }
                                 alt={
                                   teamProfileByEmail[
                                     project.lead_email.toLowerCase()
-                                  ]?.displayName ||
+                                  ]?.display_name ||
                                   project.lead_name ||
                                   project.lead_email
                                 }
@@ -734,7 +656,7 @@ export default function PublicProjectPage() {
                                 <p className="font-semibold text-base text-black">
                                   {teamProfileByEmail[
                                     project.lead_email.toLowerCase()
-                                  ]?.displayName || project.lead_name}
+                                  ]?.display_name || project.lead_name}
                                 </p>
                                 <Badge
                                   variant="secondary"
@@ -774,26 +696,26 @@ export default function PublicProjectPage() {
                                     src={
                                       teamProfileByEmail[
                                         teammate.toLowerCase()
-                                      ]?.avatarUrl ?? undefined
+                                      ]?.avatar_url ?? undefined
                                     }
                                     alt={
                                       teamProfileByEmail[
                                         teammate.toLowerCase()
-                                      ]?.displayName || teammate
+                                      ]?.display_name || teammate
                                     }
                                   />
                                   <AvatarFallback>
                                     {getInitials(
                                       teamProfileByEmail[
                                         teammate.toLowerCase()
-                                      ]?.displayName || teammate
+                                      ]?.display_name || teammate
                                     )}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="space-y-0">
                                   <p className="font-semibold text-base text-black">
                                     {teamProfileByEmail[teammate.toLowerCase()]
-                                      ?.displayName || teammate}
+                                      ?.display_name || teammate}
                                   </p>
                                   {teamProfileByEmail[teammate.toLowerCase()]
                                     ?.affiliation ? (
@@ -987,7 +909,7 @@ export default function PublicProjectPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {teamMembers?.map((member) => {
+                        {teamMembers.map((member) => {
                           const emailKey = member.email.toLowerCase();
                           const profile = teamProfileByEmail[emailKey];
                           const title =
@@ -1006,7 +928,7 @@ export default function PublicProjectPage() {
                               <div className="flex items-center gap-4 min-w-0">
                                 <Avatar className="h-14 w-14 shrink-0">
                                   <AvatarImage
-                                    src={profile?.avatarUrl ?? undefined}
+                                    src={profile?.avatar_url ?? undefined}
                                     alt={title}
                                   />
                                   <AvatarFallback>
