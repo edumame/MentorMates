@@ -135,7 +135,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
     hasJoined = !!userEventRole;
     userRole = (userEventRole?.role as EventRole) || null;
 
-    // Fetch the user's projects for this event so they can always find them
+    // Fetch the projects the user leads or is a teammate on for this event so
+    // they can always find them
     const userEmail = user.email || "";
     const { data: projectsData } = await supabase
       .from("projects")
@@ -143,7 +144,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
         "id, project_name, project_description, cover_image_url, submitted, submitted_at, created_at, lead_email"
       )
       .eq("event_id", eventData.event_id)
-      .eq("lead_email", userEmail);
+      .or(`lead_email.eq."${userEmail}",teammates.cs.{"${userEmail}"}`);
 
     userProjects = (projectsData || []).map((p) => ({
       id: p.id,
