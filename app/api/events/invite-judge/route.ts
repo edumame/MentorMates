@@ -3,7 +3,11 @@ import { Resend } from "resend";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
-import { sendEventInviteEmails } from "@/lib/events/invite-emails";
+import {
+  canInviteeOpenEvent,
+  NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR,
+  sendEventInviteEmails,
+} from "@/lib/events/invite-emails";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, EventVisibility } from "@/lib/types";
 
@@ -110,6 +114,17 @@ export async function POST(request: Request) {
     }
   }
 
+  // The accept link 404s for someone with no role until the event is published,
+  // and no invite is stored to send later, so refuse rather than email a dead link.
+  const visibility =
+    (eventData.visibility as EventVisibility | null) ?? EventVisibility.Draft;
+  if (!existingUser && !canInviteeOpenEvent(visibility)) {
+    return NextResponse.json(
+      { error: NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR },
+      { status: 409 }
+    );
+  }
+
   const resend = getResend();
   if (!resend && !existingUser) {
     return NextResponse.json(
@@ -131,8 +146,7 @@ export async function POST(request: Request) {
     eventName: eventData.event_name,
     eventSlug: eventData.slug,
     inviterName,
-    visibility:
-      (eventData.visibility as EventVisibility | null) ?? EventVisibility.Draft,
+    visibility,
     judgeInviteEmails: [normalizedEmail],
     deferIfDraft: false,
     sendEmail: async ({ to, subject, html }) => {

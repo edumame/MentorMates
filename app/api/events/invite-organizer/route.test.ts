@@ -3,6 +3,7 @@
  */
 
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR } from "@/lib/events/invite-emails";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, EventVisibility } from "@/lib/types";
 import { POST } from "./route";
@@ -127,7 +128,7 @@ describe("POST /api/events/invite-organizer", () => {
 
       expect(response.status).toBe(409);
       await expect(response.json()).resolves.toEqual({
-        error: expect.stringContaining("Publish the event"),
+        error: NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR,
       });
       expect(mockResendSend).not.toHaveBeenCalled();
     }

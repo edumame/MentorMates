@@ -6,7 +6,10 @@ import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { canInviteeOpenEvent } from '@/lib/events/invite-emails';
+import {
+  canInviteeOpenEvent,
+  NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR,
+} from '@/lib/events/invite-emails';
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -142,10 +145,7 @@ export async function POST(request: Request) {
     (eventData.visibility as EventVisibility | null) ?? EventVisibility.Draft;
   if (!canInviteeOpenEvent(visibility)) {
     return NextResponse.json(
-      {
-        error:
-          "This person doesn't have an account yet, and invite links only work once the event is published. Publish the event first, or ask them to sign up and invite them again.",
-      },
+      { error: NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR },
       { status: 409 }
     );
   }

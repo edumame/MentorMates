@@ -30,6 +30,10 @@ export function canInviteeOpenEvent(visibility: EventVisibility): boolean {
   );
 }
 
+/** 409 body for inviting someone with no account to an unopenable event. */
+export const NEW_INVITEE_NEEDS_PUBLISHED_EVENT_ERROR =
+  "This person doesn't have an account yet, and invite links only work once the event is published. Publish the event first, or ask them to sign up and invite them again.";
+
 export function getDeferredOrganizerInviteNotice(emails: string[]): string {
   return `No invite was sent to ${emails.join(
     ", "
