@@ -36,6 +36,8 @@ export async function GET() {
           event_name, 
           slug, 
           event_blurb, 
+          event_description,
+          location,
           cover_image_url,
           event_date,
           visibility,
