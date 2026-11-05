@@ -89,6 +89,32 @@ export async function getProjectIdsForRound(
   return [];
 }
 
+/**
+ * project_scores rows outlive project_tracks membership, so keep only rows
+ * whose (project, track) pair is current: a track the project has left must
+ * not affect its advancement rank. Unlike the Scores tab's
+ * filterScoresToCurrentTracks, an unknown pair is dropped, because
+ * currentProjectTracks is the full membership of the projects being ranked.
+ */
+export function filterScoresToCurrentProjectTracks<
+  T extends { project_id: string; track_id: string },
+>(
+  scoreRows: T[],
+  currentProjectTracks: Array<{ project_id: string; track_id: string }>
+): T[] {
+  const trackIdsByProject = new Map<string, Set<string>>();
+  for (const { project_id, track_id } of currentProjectTracks) {
+    if (!trackIdsByProject.has(project_id)) {
+      trackIdsByProject.set(project_id, new Set());
+    }
+    trackIdsByProject.get(project_id)?.add(track_id);
+  }
+
+  return scoreRows.filter(
+    (row) => trackIdsByProject.get(row.project_id)?.has(row.track_id) ?? false
+  );
+}
+
 export function rankProjectsForAdvancement(
   rows: AdvancementScoreRow[]
 ): AdvancementCandidate[] {

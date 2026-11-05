@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import {
+  filterScoresToCurrentProjectTracks,
   getProjectIdsForRound,
   rankProjectsForAdvancement,
   replaceAdvancements,
@@ -102,6 +103,7 @@ export async function GET(
       .select(
         `
         project_id,
+        track_id,
         scores,
         projects:projects!inner (
           project_name,
@@ -114,22 +116,36 @@ export async function GET(
       .eq("round_number", fromRound);
     if (scoreErr) throw scoreErr;
 
+    let currentProjectTracks: Array<{ project_id: string; track_id: string }> = [];
+    if (eligibleProjectIds.length > 0) {
+      const { data, error: projectTracksErr } = await supabase
+        .from("project_tracks")
+        .select("project_id, track_id")
+        .in("project_id", eligibleProjectIds);
+      if (projectTracksErr) throw projectTracksErr;
+      currentProjectTracks = data ?? [];
+    }
+
     const rankedProjects = rankProjectsForAdvancement(
-      ((scoreRows ?? []) as Array<{
-        project_id: string;
-        scores: Record<string, unknown> | null;
-        projects:
-          | {
-              project_name?: string | null;
-              lead_name?: string | null;
-              event_id?: string | null;
-            }
-          | {
-              project_name?: string | null;
-              lead_name?: string | null;
-              event_id?: string | null;
-            }[];
-      }>).map((row) => {
+      filterScoresToCurrentProjectTracks(
+        (scoreRows ?? []) as Array<{
+          project_id: string;
+          track_id: string;
+          scores: Record<string, unknown> | null;
+          projects:
+            | {
+                project_name?: string | null;
+                lead_name?: string | null;
+                event_id?: string | null;
+              }
+            | {
+                project_name?: string | null;
+                lead_name?: string | null;
+                event_id?: string | null;
+              }[];
+        }>,
+        currentProjectTracks
+      ).map((row) => {
         const project = Array.isArray(row.projects) ? row.projects[0] : row.projects;
         return {
           project_id: row.project_id,
