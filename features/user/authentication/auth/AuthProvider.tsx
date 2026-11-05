@@ -33,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/previous-contributors",
       "/curriculum",
       "/claim-ticket",
+      // Emailed check-in link; the QR is built only from the query string, no session needed.
+      "/ticket",
       "/join-project",
       "/help",
       "/devpost-integration",
