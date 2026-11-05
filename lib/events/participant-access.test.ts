@@ -48,6 +48,84 @@ describe("joinParticipantEvent", () => {
     });
   });
 
+  describe("rejected events", () => {
+    const eventsOnlyClient = (visibility: string) => {
+      const upsert = jest.fn().mockResolvedValue({ error: null });
+      const emptyLookup = {
+        select: jest.fn(() => ({
+          eq: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          maybeSingle: jest.fn(() =>
+            maybeSingleResult({ data: null, error: null }),
+          ),
+        })),
+        upsert,
+      };
+      const supabase = {
+        from: jest.fn((table: string) =>
+          table === "events"
+            ? {
+                select: jest.fn(() => ({
+                  eq: jest.fn(() => ({
+                    maybeSingle: jest.fn(() =>
+                      maybeSingleResult({
+                        data: {
+                          event_id: "event-1",
+                          event_name: "Rejected Event",
+                          visibility,
+                          approval_status: "rejected",
+                          require_participant_approval: false,
+                          participant_capacity: null,
+                          paid: false,
+                        },
+                        error: null,
+                      }),
+                    ),
+                  })),
+                })),
+              }
+            : emptyLookup,
+        ),
+      } as unknown as ServiceSupabaseClient;
+
+      return { supabase, upsert };
+    };
+
+    it.each(["public", "draft", "archived"])(
+      "refuses to join a rejected %s event",
+      async (visibility) => {
+        const { supabase, upsert } = eventsOnlyClient(visibility);
+
+        const result = await joinParticipantEvent(supabase, {
+          eventId: "event-1",
+          userId: "user-1",
+          channel: "web",
+        });
+
+        expect(result).toEqual({
+          status: "error",
+          httpStatus: 403,
+          payload: { error: "This event is no longer available." },
+        });
+        expect(upsert).not.toHaveBeenCalled();
+      },
+    );
+
+    it("still joins a private event that was only denied a public listing", async () => {
+      const { supabase, upsert } = eventsOnlyClient("private");
+
+      const result = await joinParticipantEvent(supabase, {
+        eventId: "event-1",
+        userId: "user-1",
+        channel: "web",
+      });
+
+      expect(result).toMatchObject({ status: "joined" });
+      expect(upsert).toHaveBeenCalled();
+    });
+  });
+
   it("joins an unpaid public event without approval", async () => {
     const upsert = jest.fn().mockResolvedValue({ error: null });
     const supabase = {

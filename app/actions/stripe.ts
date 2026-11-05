@@ -3,6 +3,10 @@
 import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import {
+  EVENT_UNAVAILABLE_MESSAGE,
+  isEventTakenDown,
+} from "@/lib/events/participant-access";
 
 interface CheckoutOptions {
   eventId?: string | null;
@@ -56,6 +60,18 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   let lineItems;
 
   if (options?.pricingTierId) {
+    // pricing_tiers stay readable whatever the event's state, so check the event
+    // itself. RLS hides a taken-down draft from non-members, hence the null case.
+    const { data: event } = await supabase
+      .from("events")
+      .select("visibility, approval_status")
+      .eq("event_id", options.eventId)
+      .maybeSingle();
+
+    if (!event || isEventTakenDown(event)) {
+      throw new Error(EVENT_UNAVAILABLE_MESSAGE);
+    }
+
     // Query the pricing_tiers table for the specific tier
     const { data: pricingTierData } = await supabase
       .from("pricing_tiers")

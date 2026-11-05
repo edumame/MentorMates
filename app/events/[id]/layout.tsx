@@ -6,6 +6,7 @@ import { isValidUUID } from "@/app/utils/supabase/queries";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
 import { canUseInternalEventRoute } from "@/lib/events/navigation";
+import { ApprovalStatus } from "@/lib/types";
 
 // add authentication check for non private/public events
 
@@ -34,6 +35,7 @@ export default async function Layout({
     submission_time_start,
     submission_time_cutoff,
     visibility,
+    approval_status,
     external_url,
     external_redirect_enabled
   `);
@@ -53,7 +55,10 @@ export default async function Layout({
   }
 
   const externalUrl = event.external_url?.trim();
-  const externalRedirectEnabled = event.external_redirect_enabled === true;
+  // A rejected event must not keep forwarding visitors to its external link.
+  const externalRedirectEnabled =
+    event.external_redirect_enabled === true &&
+    event.approval_status !== ApprovalStatus.Rejected;
   if (externalUrl && externalRedirectEnabled) {
     const {
       data: { user },
