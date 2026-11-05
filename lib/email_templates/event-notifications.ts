@@ -1,3 +1,4 @@
+import { signCheckinQR } from "../checkin/qr-signature";
 import { EventDetails } from "../types";
 import { ScheduleDay, ScheduleEvent } from "../types";
 
@@ -131,7 +132,8 @@ export const getCheckinQRCodeEmail = async (
 ): Promise<EmailTemplate> => {
   const origin = process.env.NEXT_PUBLIC_APP_URL;
 
-  const link = `${origin}/ticket?evt=${eventId}&usr=${userId}`;
+  const signature = signCheckinQR(eventId, userId);
+  const link = `${origin}/ticket?evt=${eventId}&usr=${userId}&sig=${signature}`;
 
   return {
     subject: `Check-In QR Code for "${eventName}" - MentorMates`,

@@ -65,7 +65,13 @@ export async function POST(
     );
   }
 
-  const emailToSend = await getUserEmail({ userId, eventId, emailType, eventName, supabase });
+  let emailToSend: Awaited<ReturnType<typeof getUserEmail>>;
+  try {
+    emailToSend = await getUserEmail({ userId, eventId, emailType, eventName, supabase });
+  } catch (error) {
+    console.error("Failed to build email:", error);
+    return NextResponse.json({ error: "Failed to build email" }, { status: 500 });
+  }
 
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: "Email service not configured" }, { status: 500 });

@@ -25,7 +25,7 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
     }
 
     setIsLoading(true)
-    fetch(`/api/checkin?${token}`)
+    fetch(`/api/checkin?${token}`, { method: 'POST' })
       .then((res) => res.json())
       .then((data: CheckinResponse) => {
         setStatus(data)
@@ -64,6 +64,11 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
               <p className="font-bold">Check-in Failed</p>
               <p className="text-sm">{status.error}</p>
+              {status.timestamp && (
+                <p className="text-xs mt-2">
+                  Time: {new Date(status.timestamp).toLocaleString()}
+                </p>
+              )}
             </div>
           </div>
         ) : (
