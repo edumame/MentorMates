@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { fetchUserProjectIds } from "@/lib/projects/user-project-ids";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
@@ -18,24 +19,42 @@ export async function POST(request: Request) {
 
     if (markAll) {
       // Mark all feedback as read for user's projects
-      const { data: userProjects } = await supabase
-        .from("projects")
-        .select("id")
-        .or(`owner_id.eq.${user.id},team_members.cs.{"${user.id}"}`);
+      const { projectIds, error: projectsError } = await fetchUserProjectIds(
+        supabase,
+        user.email,
+      );
 
-      const projectIds = userProjects?.map((p) => p.id) || [];
+      if (projectsError) {
+        console.error("Error fetching user projects:", projectsError);
+        return NextResponse.json(
+          { error: "Failed to mark all as read" },
+          { status: 500 }
+        );
+      }
 
       if (projectIds.length === 0) {
         return NextResponse.json({ success: true });
       }
 
       // Get all feedback for these projects
-      const { data: feedbackItems } = await supabase
+      const { data: feedbackItems, error: feedbackError } = await supabase
         .from("feedback")
         .select("id")
         .in("project_id", projectIds);
 
+      if (feedbackError) {
+        console.error("Error fetching feedback:", feedbackError);
+        return NextResponse.json(
+          { error: "Failed to mark all as read" },
+          { status: 500 }
+        );
+      }
+
       const feedbackIds = feedbackItems?.map((f) => f.id) || [];
+
+      if (feedbackIds.length === 0) {
+        return NextResponse.json({ success: true });
+      }
 
       // Insert read status for all (using upsert to handle duplicates)
       const readStatusEntries = feedbackIds.map((id) => ({
