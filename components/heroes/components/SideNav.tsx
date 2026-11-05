@@ -211,8 +211,9 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
     clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
-    router.push("/");
-    window.location.reload();
+    // Full navigation, not push + reload: reload can fire before the push lands,
+    // and reloading a protected page signed out would redirect to login.
+    window.location.assign("/");
   };
 
   // Helper to determine if path is active

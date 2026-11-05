@@ -70,8 +70,9 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
     clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
-    router.push("/");
-    window.location.reload();
+    // Full navigation, not push + reload: reload can fire before the push lands,
+    // and reloading a protected page signed out would redirect to login.
+    window.location.assign("/");
   };
 
   return (

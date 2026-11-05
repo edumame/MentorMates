@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -10,6 +10,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const hadSessionRef = useRef(false);
 
   // Define public paths that don't require authentication using useMemo
   const PUBLIC_PATH_PATTERNS = useMemo(() => {
@@ -70,7 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const applySession = (authenticated: boolean) => {
       if (!active) return;
       setAuthenticatedPath(authenticated ? pathname : null);
-      if (!authenticated && !isPublicPath(pathname)) router.push("/");
+      // Losing a live session means the user signed out, so go home. Any other
+      // signed-out visit goes to login and keeps the destination. The auth event
+      // can't tell these apart: an expired session also arrives as SIGNED_OUT.
+      const signedOut = hadSessionRef.current;
+      hadSessionRef.current = authenticated;
+      if (!authenticated && !isPublicPath(pathname)) {
+        const destination = `${pathname}${window.location.search}`;
+        router.push(signedOut ? "/" : `/login?returnUrl=${encodeURIComponent(destination)}`);
+      }
     };
 
     const checkAuth = async () => {
