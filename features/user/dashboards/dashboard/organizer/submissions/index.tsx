@@ -312,6 +312,20 @@ export function SubmissionsTab({
     });
   };
 
+  // The realtime subscription filters on event_id, so DELETE events are not
+  // reliably delivered. Update local state directly after a successful delete.
+  const removeDeletedProjects = (projectIds: string[]) => {
+    const deletedIds = new Set(projectIds);
+
+    setProjects((current) =>
+      current.filter((project) => !deletedIds.has(project.id))
+    );
+    setSelectedProjects(
+      (current) =>
+        new Set(Array.from(current).filter((id) => !deletedIds.has(id)))
+    );
+  };
+
   const handleDeleteProject = async (projectId: string, projectName: string) => {
     setDeletingProjectId(projectId);
     try {
@@ -324,12 +338,12 @@ export function SubmissionsTab({
         throw new Error(data.error || "Failed to delete project");
       }
 
+      removeDeletedProjects([projectId]);
+
       toast({
         title: "Project deleted",
         description: `"${projectName}" has been deleted successfully.`,
       });
-
-      // The real-time subscription will handle updating the list
     } catch (error) {
       toast({
         title: "Error",
@@ -346,7 +360,7 @@ export function SubmissionsTab({
 
     setIsBulkDeleting(true);
     const projectIds = Array.from(selectedProjects);
-    let successCount = 0;
+    const deletedProjectIds: string[] = [];
     let errorCount = 0;
 
     for (const projectId of projectIds) {
@@ -356,7 +370,7 @@ export function SubmissionsTab({
         });
 
         if (response.ok) {
-          successCount++;
+          deletedProjectIds.push(projectId);
         } else {
           errorCount++;
         }
@@ -364,6 +378,9 @@ export function SubmissionsTab({
         errorCount++;
       }
     }
+
+    const successCount = deletedProjectIds.length;
+    removeDeletedProjects(deletedProjectIds);
 
     if (successCount > 0) {
       toast({
