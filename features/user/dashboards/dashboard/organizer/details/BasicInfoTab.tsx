@@ -253,7 +253,11 @@ export function BasicInfoTab({
       const result = await res.json();
 
       // Update local state
-      setEvent({ ...event, visibility: result.newVisibility });
+      setEvent({
+        ...event,
+        visibility: result.newVisibility,
+        approval_status: result.approvalStatus,
+      });
 
       toast({
         title: "Success",
