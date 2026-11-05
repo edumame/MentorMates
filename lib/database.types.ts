@@ -2444,6 +2444,20 @@ export type Database = {
     }
     Functions: {
       reserve_scraper_request: { Args: { p_user_id: string }; Returns: { allowed: boolean; retry_after_seconds: number }[] }
+      fulfill_checkout_session: {
+        Args: {
+          p_stripe_customer_id: string
+          p_stripe_session_id: string
+          p_amount_paid: number
+          p_stripe_payment_intent_id: string
+        }
+        Returns: {
+          id: string
+          event_id: string
+          user_id: string
+          tickets_issued: boolean
+        }[]
+      }
       increment_internal_invite_uses: {
         Args: { p_invite_id: string }
         Returns: undefined
