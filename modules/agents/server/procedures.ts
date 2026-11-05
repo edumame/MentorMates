@@ -314,6 +314,12 @@ export const agentsRouter = createTRPCRouter({
                     message: "You don't have permission to create agents for this event.",
                 });
             }
+        } else if (!(await getIsAdmin(supabase, ctx.auth.user.id))) {
+            // An agent with no event_id is global: every user can see and pick it.
+            throw new TRPCError({
+                code: "FORBIDDEN",
+                message: "Only platform admins can create global agents. Create the agent from an event's Agents tab.",
+            });
         }
 
         const payloadBase = { ...input, user_id: ctx.auth.user.id };
