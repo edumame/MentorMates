@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useTransition } from "react";
+import { useCallback, useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -106,6 +106,15 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
     null
+  );
+  // Refs don't trigger renders, so the button's disabled state needs real state.
+  const [basicInfoSaveReady, setBasicInfoSaveReady] = useState(false);
+  const registerBasicInfoSaveHandler = useCallback(
+    (fn: null | (() => Promise<void> | void)) => {
+      basicInfoSaveHandlerRef.current = fn;
+      setBasicInfoSaveReady(fn !== null);
+    },
+    []
   );
 
   const [participantCount, setParticipantCount] = useState<number>(0);
@@ -726,7 +735,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       archiving ||
                       deleting ||
                       event.visibility === EventVisibility.Archived ||
-                      !basicInfoSaveHandlerRef.current
+                      !basicInfoSaveReady
                     }
                     onClick={() => {
                       void basicInfoSaveHandlerRef.current?.();
@@ -938,9 +947,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                               setSaving={setSaving}
                               toast={toast}
                               router={router}
-                              registerSaveHandler={(fn) => {
-                                basicInfoSaveHandlerRef.current = fn;
-                              }}
+                              registerSaveHandler={registerBasicInfoSaveHandler}
                             />
                           )}
                         </TabsContent>
