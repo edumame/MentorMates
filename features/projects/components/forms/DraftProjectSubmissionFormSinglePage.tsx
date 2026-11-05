@@ -21,7 +21,7 @@ import {
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/lib/hooks/use-toast";
 import { EventSubmissionField, Project } from "@/lib/types";
-import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
+import { applyProjectTeamChangeClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import {
@@ -59,6 +59,10 @@ import {
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
 import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
+import {
+  diffTeamEmails,
+  type TeamChange,
+} from "@/features/projects/utils/teamChange";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
@@ -156,6 +160,12 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   // Team management
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
+  // The team list last saved from the search chips. Each chip change is diffed
+  // against it, so only what the user changed is written.
+  const savedChipTeamRef = useRef<string[]>(initialProject.teammates || []);
+  // Team writes read the stored list first, so overlapping writes would
+  // overwrite each other. Each one waits for the previous one to finish.
+  const teamWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   // Event selection
   const [availableEvents, setAvailableEvents] = useState<EventOption[]>([]);
@@ -683,6 +693,29 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   };
 
+  const queueTeamChange = (
+    getChange: () => TeamChange,
+    onSaved?: () => void
+  ): Promise<void> => {
+    const write = async () => {
+      const { data, error } = await applyProjectTeamChangeClient(
+        projectId,
+        getChange()
+      );
+
+      if (error || !data) {
+        throw new Error("Failed to update team members");
+      }
+
+      onSaved?.();
+      setProject(data);
+    };
+
+    const queuedWrite = teamWriteQueueRef.current.then(write);
+    teamWriteQueueRef.current = queuedWrite.catch(() => undefined);
+    return queuedWrite;
+  };
+
   const handleTeammatesChange = async (emails: string[]) => {
     if (!project) return;
 
@@ -692,11 +725,13 @@ export default function DraftProjectSubmissionFormSinglePage({
         (email) => email.toLowerCase() !== project.lead_email?.toLowerCase()
       );
 
-      const { data } = await updateProjectTeamClient(projectId, validEmails);
-
-      if (data) {
-        setProject(data);
-      }
+      // A failed write leaves the ref alone, so the next change retries it.
+      await queueTeamChange(
+        () => diffTeamEmails(savedChipTeamRef.current, validEmails),
+        () => {
+          savedChipTeamRef.current = validEmails;
+        }
+      );
     } catch {
       toast({
         title: "Error",
@@ -708,22 +743,11 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   const handleRemoveTeammate = async (teammateEmail: string) => {
     try {
-      const currentTeammates = project?.teammates || [];
-      const updatedTeammates = currentTeammates.filter(
-        (email) => email !== teammateEmail
-      );
-      const { data } = await updateProjectTeamClient(
-        projectId,
-        updatedTeammates
-      );
-
-      if (data) {
-        setProject(data);
-        toast({
-          title: "Team member removed",
-          description: `${teammateEmail} has been removed from the team`,
-        });
-      }
+      await queueTeamChange(() => ({ added: [], removed: [teammateEmail] }));
+      toast({
+        title: "Team member removed",
+        description: `${teammateEmail} has been removed from the team`,
+      });
     } catch {
       toast({
         title: "Error",
