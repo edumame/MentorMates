@@ -3,7 +3,17 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { getPopularVotePermission } from "@/features/voting/utils/voting-permissions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// The database enforces this same limit in enforce_project_vote_rules().
 const MAX_VOTES_PER_USER = 3;
+
+// SQLSTATEs raised by the enforce_project_vote_rules() trigger, whose messages
+// are written for voters. The checks in POST below only give earlier feedback:
+// the trigger is what holds under concurrent requests and direct table inserts.
+const VOTE_RULE_ERROR_STATUS: Record<string, number> = {
+  VT001: 403, // Voter is not eligible in this event
+  VT002: 400, // Project is not a submitted project in this event
+  VT003: 400, // Vote limit reached
+};
 
 async function getUserRoleForEvent(
   supabase: SupabaseClient,
@@ -153,7 +163,7 @@ export async function POST(
     // Check if project belongs to this event
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, event_id")
+      .select("id, event_id, submitted")
       .eq("id", projectId)
       .single();
 
@@ -163,6 +173,10 @@ export async function POST(
 
     if (project.event_id !== eventId) {
       return NextResponse.json({ error: "Project does not belong to this event" }, { status: 400 });
+    }
+
+    if (project.submitted !== true) {
+      return NextResponse.json({ error: "Only submitted projects can receive votes" }, { status: 400 });
     }
 
     // Check user's current vote count for this event
@@ -196,6 +210,10 @@ export async function POST(
     if (insertError) {
       if (insertError.message.includes("duplicate key") || insertError.code === "23505") {
         return NextResponse.json({ error: "You have already voted for this project" }, { status: 400 });
+      }
+      const ruleErrorStatus = VOTE_RULE_ERROR_STATUS[insertError.code];
+      if (ruleErrorStatus) {
+        return NextResponse.json({ error: insertError.message }, { status: ruleErrorStatus });
       }
       console.error("Error inserting vote:", insertError);
       return NextResponse.json({ error: "Failed to cast vote" }, { status: 500 });
