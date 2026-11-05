@@ -575,91 +575,96 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
       }
 
-      const userText =
-        text || "Please analyze the attached file(s) and answer the request.";
+      // The id stays marked while this attempt is in flight so a redelivery after
+      // a Stream timeout cannot post a second reply. It is cleared unless the
+      // attempt completes, so a failed message remains retryable.
+      let completed = false;
+      try {
+        const userText =
+          text || "Please analyze the attached file(s) and answer the request.";
 
-      const { data: existingUpcomingMeeting } = await supabase
-        .from("meetings")
-        .select("*")
-        .eq("id", channelId)
-        .eq("status", "upcoming")
-        .maybeSingle();
-
-      // Start a chat at the Chat with agent page
-      if (existingUpcomingMeeting) {
-        const { data: existingAgent, error: agentError } = await supabase
-            .from("agents")
-            .select("*")
-            .eq("id", existingUpcomingMeeting.agent_id)
-            .maybeSingle();
-
-        if (agentError || !existingAgent) {
-            return NextResponse.json({ error: "Agent not found from upcoming meeting" }, { status: 404 });
-        }
-
-        if (userId !== existingAgent.id) {
-          const channel = streamChat.channel("messaging", channelId);
-          await channel.watch();
-
-          const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
-          const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
-            .filter((msg) => !!msg?.text && msg.text.trim() !== "")
-            .map<ChatHistoryMessage>((message) => ({
-              role: message.user?.id === existingAgent.id ? "assistant" : "user",
-              content: message.text || "",
-            }));
-
-          const GPTResponseText = await createTextResponse({
-              systemInstructions: existingAgent.instructions || "",
-              previousMessages,
-              userText,
-              userAttachments,
-          });
-
-          if (!GPTResponseText) {
-              return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
-          }
-
-          streamChat.upsertUser({
-              id: existingAgent.id,
-              name: existingAgent.name,
-              image: existingAgent.avatar_url,
-          });
-
-          channel.sendMessage({
-              text: GPTResponseText,
-              user: {
-                  id: existingAgent.id,
-                  name: existingAgent.name,
-                  image: existingAgent.avatar_url,
-              },
-          });
-        }
-        // Start a chat at the Feedback page
-      } else { 
-        const { data: existingMeeting, error: meetingError2 } = await supabase
+        const { data: existingUpcomingMeeting } = await supabase
           .from("meetings")
           .select("*")
           .eq("id", channelId)
-          .eq("status", "completed")
+          .eq("status", "upcoming")
           .maybeSingle();
 
-        if (meetingError2 || !existingMeeting) {
-            return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
-        }
+        // Start a chat at the Chat with agent page
+        if (existingUpcomingMeeting) {
+          const { data: existingAgent, error: agentError } = await supabase
+              .from("agents")
+              .select("*")
+              .eq("id", existingUpcomingMeeting.agent_id)
+              .maybeSingle();
 
-        const { data: existingAgent, error: agentError2 } = await supabase
-            .from("agents")
+          if (agentError || !existingAgent) {
+              return NextResponse.json({ error: "Agent not found from upcoming meeting" }, { status: 404 });
+          }
+
+          if (userId !== existingAgent.id) {
+            const channel = streamChat.channel("messaging", channelId);
+            await channel.watch();
+
+            const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
+            const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
+              .filter((msg) => !!msg?.text && msg.text.trim() !== "")
+              .map<ChatHistoryMessage>((message) => ({
+                role: message.user?.id === existingAgent.id ? "assistant" : "user",
+                content: message.text || "",
+              }));
+
+            const GPTResponseText = await createTextResponse({
+                systemInstructions: existingAgent.instructions || "",
+                previousMessages,
+                userText,
+                userAttachments,
+            });
+
+            if (!GPTResponseText) {
+                return NextResponse.json({ error: "No response from GPT" }, { status: 502 });
+            }
+
+            await streamChat.upsertUser({
+                id: existingAgent.id,
+                name: existingAgent.name,
+                image: existingAgent.avatar_url,
+            });
+
+            await channel.sendMessage({
+                text: GPTResponseText,
+                user: {
+                    id: existingAgent.id,
+                    name: existingAgent.name,
+                    image: existingAgent.avatar_url,
+                },
+            });
+          }
+          // Start a chat at the Feedback page
+        } else { 
+          const { data: existingMeeting, error: meetingError2 } = await supabase
+            .from("meetings")
             .select("*")
-            .eq("id", existingMeeting.agent_id)
+            .eq("id", channelId)
+            .eq("status", "completed")
             .maybeSingle();
 
-        if (agentError2 || !existingAgent) {
-            return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-        }
+          if (meetingError2 || !existingMeeting) {
+              return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+          }
 
-        if (userId !== existingAgent.id) {
-          const instructions = `
+          const { data: existingAgent, error: agentError2 } = await supabase
+              .from("agents")
+              .select("*")
+              .eq("id", existingMeeting.agent_id)
+              .maybeSingle();
+
+          if (agentError2 || !existingAgent) {
+              return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+          }
+
+          if (userId !== existingAgent.id) {
+            const instructions = `
               You are an AI assistant helping the user revisit a recently completed meeting.
               Below is a summary of the meeting, generated from the transcript:
 
@@ -679,42 +684,52 @@ export async function POST(req: NextRequest) {
               Be concise, helpful, and focus on providing accurate information from the meeting and the ongoing conversation.
           `;
 
-          const channel = streamChat.channel("messaging", channelId);
-          await channel.watch();
+            const channel = streamChat.channel("messaging", channelId);
+            await channel.watch();
 
-          const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
-          const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
-            .filter((msg) => !!msg?.text && msg.text.trim() !== "")
-            .map<ChatHistoryMessage>((message) => ({
-              role: message.user?.id === existingAgent.id ? "assistant" : "user",
-              content: message.text || "",
-            }));
+            const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
+            const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
+              .filter((msg) => !!msg?.text && msg.text.trim() !== "")
+              .map<ChatHistoryMessage>((message) => ({
+                role: message.user?.id === existingAgent.id ? "assistant" : "user",
+                content: message.text || "",
+              }));
 
-          const GPTResponseText = await createTextResponse({
-              systemInstructions: instructions,
-              previousMessages,
-              userText,
-              userAttachments,
-          });
+            const GPTResponseText = await createTextResponse({
+                systemInstructions: instructions,
+                previousMessages,
+                userText,
+                userAttachments,
+            });
 
-          if (!GPTResponseText) {
-              return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
+            if (!GPTResponseText) {
+                return NextResponse.json({ error: "No response from GPT" }, { status: 502 });
+            }
+
+            await streamChat.upsertUser({
+                id: existingAgent.id,
+                name: existingAgent.name,
+                image: existingAgent.avatar_url,
+            });
+
+            await channel.sendMessage({
+                text: GPTResponseText,
+                user: {
+                    id: existingAgent.id,
+                    name: existingAgent.name,
+                    image: existingAgent.avatar_url,
+                },
+            });
           }
+        }
 
-          streamChat.upsertUser({
-              id: existingAgent.id,
-              name: existingAgent.name,
-              image: existingAgent.avatar_url,
-          });
-
-          channel.sendMessage({
-              text: GPTResponseText,
-              user: {
-                  id: existingAgent.id,
-                  name: existingAgent.name,
-                  image: existingAgent.avatar_url,
-              },
-          });
+        completed = true;
+      } catch (error) {
+        console.error("failed to reply to chat message", error);
+        return NextResponse.json({ error: "Failed to reply to message" }, { status: 500 });
+      } finally {
+        if (!completed) {
+          processedMessages.delete(messageId);
         }
       }
   };
