@@ -16,8 +16,10 @@ interface ProjectInfo {
   project_name: string;
   project_description: string | null;
   lead_name: string;
-  lead_email: string;
-  teammates: string[] | null;
+  // Absent on the invite preview, which is served to anonymous callers. Anyone
+  // who is already a member can read the project directly and gets these.
+  lead_email?: string | null;
+  teammates?: string[] | null;
   event_id: string | null;
   event?: {
     event_name: string;
@@ -36,6 +38,7 @@ function JoinProjectContent() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
@@ -85,7 +88,7 @@ function JoinProjectContent() {
           .single();
 
         if (projectError || !projectData) {
-          setError("Project not found");
+          setProjectLoadError("Project not found");
           return;
         }
 
@@ -99,7 +102,7 @@ function JoinProjectContent() {
           event: eventData
         });
       } catch {
-        setError("Failed to load project information");
+        setProjectLoadError("Failed to load project information");
       } finally {
         setLoading(false);
       }
@@ -137,6 +140,11 @@ function JoinProjectContent() {
           setTokenValid(true);
           setInvitedEmail(data.email);
           setInviteError(null);
+          // Fallback for private projects RLS hides from this invitee. The
+          // direct read carries more fields, so it wins when it succeeds.
+          if (data.project) {
+            setProject((current) => current ?? data.project);
+          }
         } else {
           setTokenValid(false);
           setInviteError(data.error || "Invalid or expired invitation link");
@@ -241,7 +249,10 @@ function JoinProjectContent() {
     }
   };
 
-  if (!loading && error && !project) {
+  // A failed direct read is not final until the token check can supply a preview.
+  const awaitingInvitePreview = Boolean(token) && tokenValid === null && !error;
+
+  if (!loading && !project && !awaitingInvitePreview) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -252,7 +263,9 @@ function JoinProjectContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <p className="text-gray-600 mb-4">
+              {error || inviteError || projectLoadError}
+            </p>
             <Button onClick={() => router.push("/projects")} className="w-full">
               Browse Projects
             </Button>
@@ -262,7 +275,7 @@ function JoinProjectContent() {
     );
   }
 
-  if (loading) {
+  if (loading || (!project && awaitingInvitePreview)) {
     return null;
   }
 
