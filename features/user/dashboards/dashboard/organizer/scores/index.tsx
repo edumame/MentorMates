@@ -18,6 +18,7 @@ import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
 import { RoundsEditor } from "@/components/events/rounds-editor";
 import {
+  filterScoresToRoundEligibleProjects,
   getActiveRound,
 } from "@/lib/judging/rounds";
 import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
@@ -557,7 +558,11 @@ export function ScoresTab({
           return;
         }
 
-        const scoreRows = (data || []) as ProjectScoreQueryRow[];
+        const scoreRows = await filterScoresToRoundEligibleProjects(
+          supabase,
+          eventId,
+          (data || []) as ProjectScoreQueryRow[]
+        );
         const judgeIds = Array.from(
           new Set(
             scoreRows

@@ -89,6 +89,84 @@ export async function getProjectIdsForRound(
   return [];
 }
 
+/**
+ * Keeps only the scores given to a project that is eligible for that score's
+ * round. Scores are not deleted when a project is dropped from a round, so
+ * anything ranking a round has to apply this. A score with no round number
+ * belongs to round 1.
+ */
+export async function filterScoresToRoundEligibleProjects<
+  T extends { project_id: string; round_number?: number | null },
+>(supabase: SupabaseClient, eventId: string, scores: T[]): Promise<T[]> {
+  const roundOf = (score: T) => score.round_number ?? 1;
+  const rounds = Array.from(new Set(scores.map(roundOf)));
+  const eligibleByRound = new Map(
+    await Promise.all(
+      rounds.map(
+        async (round) =>
+          [
+            round,
+            new Set(await getProjectIdsForRound(supabase, eventId, round)),
+          ] as const
+      )
+    )
+  );
+
+  return scores.filter((score) =>
+    eligibleByRound.get(roundOf(score))?.has(score.project_id)
+  );
+}
+
+/**
+ * Whether a user may score a project in the event's active round. Mirrors the
+ * validate_score_round_eligibility trigger on project_scores, which is what
+ * actually enforces this; callers use it to decide whether to offer scoring.
+ */
+export async function canScoreProjectInActiveRound(
+  supabase: SupabaseClient,
+  {
+    eventId,
+    projectId,
+    userId,
+    requireAssignment,
+  }: {
+    eventId: string;
+    projectId: string;
+    userId: string;
+    requireAssignment: boolean;
+  }
+): Promise<boolean> {
+  const { data: event, error: eventErr } = await supabase
+    .from("events")
+    .select("scoring_config")
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (eventErr) throw eventErr;
+
+  const activeRound = getActiveRound(
+    (event?.scoring_config as EventScoringConfig | null) ?? null
+  );
+  const eligibleProjectIds = await getProjectIdsForRound(
+    supabase,
+    eventId,
+    activeRound
+  );
+  if (!eligibleProjectIds.includes(projectId)) return false;
+  if (!requireAssignment) return true;
+
+  const { data: assignments, error: assignmentErr } = await supabase
+    .from("project_assignments")
+    .select("project_id")
+    .eq("event_id", eventId)
+    .eq("project_id", projectId)
+    .eq("user_id", userId)
+    .eq("role", "judge")
+    .limit(1);
+  if (assignmentErr) throw assignmentErr;
+
+  return (assignments?.length ?? 0) > 0;
+}
+
 export function rankProjectsForAdvancement(
   rows: AdvancementScoreRow[]
 ): AdvancementCandidate[] {
