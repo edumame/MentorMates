@@ -10,12 +10,13 @@ type CheckinResponse = {
 }
 
 interface CheckinStatusProps {
+  eventId: string
   token?: string | null
   onClose: () => void
   isOpen: boolean
 }
 
-export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
+export function CheckinStatus({ eventId, token, onClose, isOpen }: CheckinStatusProps) {
   const [status, setStatus] = useState<CheckinResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -24,8 +25,17 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
       return
     }
 
+    // Only evt and usr are read from the QR, so a crafted code cannot replace
+    // the event being scanned for.
+    const ticket = new URLSearchParams(token)
+    const params = new URLSearchParams({
+      event: eventId,
+      evt: ticket.get('evt') ?? '',
+      usr: ticket.get('usr') ?? '',
+    })
+
     setIsLoading(true)
-    fetch(`/api/checkin?${token}`)
+    fetch(`/api/checkin?${params}`)
       .then((res) => res.json())
       .then((data: CheckinResponse) => {
         setStatus(data)
@@ -37,7 +47,7 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
       .finally(() => {
         setIsLoading(false)
       })
-  }, [token, isOpen])
+  }, [eventId, token, isOpen])
 
   if (!isOpen) {
     return null
