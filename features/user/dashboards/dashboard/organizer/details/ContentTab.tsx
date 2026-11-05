@@ -33,34 +33,53 @@ export function ContentTab({
   const [savingLessons, setSavingLessons] = useState(false);
   const [savingContent, setSavingContent] = useState(false);
   const [loadingLessons, setLoadingLessons] = useState(false);
+  const [lessonsLoadFailed, setLessonsLoadFailed] = useState(false);
   const [uploadingImages, setUploadingImages] = useState<Record<number, boolean>>({});
   const { toast } = useToast();
 
-  // Fetch lessons from database when component mounts
+  // undefined means the list is unknown (the parent's load failed), which is
+  // different from an event that has no lessons. Saving replaces every stored
+  // lesson, so nothing may be saved or added until the list is known.
+  const lessonsUnknown = event.event_lessons === undefined;
+
+  // The parent owns event_lessons and they survive this tab being unmounted, so
+  // only load here when the parent has none. Reloading on every mount would
+  // overwrite unsaved drafts.
   useEffect(() => {
+    if (!lessonsUnknown) return;
+
+    const eventId = event.event_id;
+
     async function fetchLessons() {
       setLoadingLessons(true);
+      setLessonsLoadFailed(false);
       try {
         const { data: lessonsData, error } = await supabase
           .from("event_lessons")
           .select("title,cover_image_url,url,description,duration_minutes")
-          .eq("event_id", event.event_id);
+          .eq("event_id", eventId);
 
         if (error) {
           console.error("Error fetching lessons:", error);
+          setLessonsLoadFailed(true);
         } else {
-          // Update event with fetched lessons
-          setEvent({ ...event, event_lessons: (lessonsData || []) as Lesson[] });
+          // Functional update: other fields may have changed during the fetch.
+          setEvent((prev) =>
+            prev && prev.event_id === eventId && prev.event_lessons === undefined
+              ? { ...prev, event_lessons: (lessonsData || []) as Lesson[] }
+              : prev
+          );
         }
       } catch (err) {
         console.error("Exception fetching lessons:", err);
+        setLessonsLoadFailed(true);
       } finally {
         setLoadingLessons(false);
       }
     }
 
     fetchLessons();
-  }, [event.event_id]); // Only re-fetch when event_id changes
+  }, [event.event_id, lessonsUnknown, setEvent]);
 
   const addLesson = () => {
     const newLesson: Lesson = {
@@ -174,7 +193,7 @@ export function ContentTab({
   };
 
   const saveLessons = async () => {
-    if (isArchived) return;
+    if (isArchived || lessonsUnknown) return;
 
     try {
       setSavingLessons(true);
@@ -325,7 +344,7 @@ export function ContentTab({
               </TabsList>
               <Button 
                 variant="outline" 
-                disabled={isArchived || loadingLessons} 
+                disabled={isArchived || loadingLessons || lessonsUnknown} 
                 onClick={addLesson}
                 className="border border-[rgba(0,0,0,0.15)] bg-white"
               >
@@ -337,6 +356,10 @@ export function ContentTab({
           <TabsContent value="edit" className="mt-0">
             {loadingLessons ? (
               <p className="text-sm text-gray-500">Loading lessons...</p>
+            ) : lessonsUnknown && lessonsLoadFailed ? (
+              <p className="text-sm text-red-600">
+                Lessons could not be loaded. Reload the page to try again. Saving lessons is disabled so existing lessons are not overwritten.
+              </p>
             ) : (event.event_lessons || []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No lessons yet. Click &quot;Add Lesson&quot; to create one.</p>
             ) : null}
@@ -456,7 +479,7 @@ export function ContentTab({
           </Alert>
         )}
 
-        <Button onClick={saveLessons} disabled={isArchived || savingLessons} className="w-full">
+        <Button onClick={saveLessons} disabled={isArchived || savingLessons || lessonsUnknown} className="w-full">
           {savingLessons ? "Saving Lessons..." : "Save Lessons"}
         </Button>
           </TabsContent>
