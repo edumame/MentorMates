@@ -207,7 +207,12 @@ export function ProjectSubmissionSchemaSection({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onValueChange(field.key, [...listValue, ""])}
+                    onClick={() =>
+                      onValueChange(field.key, [
+                        ...(listValue.length > 0 ? listValue : [""]),
+                        "",
+                      ])
+                    }
                   >
                     Add another link
                   </Button>

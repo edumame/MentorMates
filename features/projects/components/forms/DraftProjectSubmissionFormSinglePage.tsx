@@ -55,6 +55,9 @@ import {
   buildSubmissionFormValues,
   findMissingRequiredSubmissionField,
   buildSubmissionAnswersPayload,
+  normalizeSubmissionValue,
+  getSavedUrlRows,
+  splitUrlRows,
   hasSubmissionFieldMismatch,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
@@ -127,17 +130,29 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [isPrivate, setIsPrivate] = useState(Boolean(initialProject.is_private));
 
   // Form state
+  const [savedUrlRows] = useState(() => ({
+    project: getSavedUrlRows(initialProject, "project_url"),
+    video: getSavedUrlRows(initialProject, "video_url"),
+    materials: getSavedUrlRows(initialProject, "additional_materials"),
+  }));
   const [formData, setFormData] = useState({
     project_name: initialProject.project_name || "",
     project_description: initialProject.project_description || "",
-    project_url: initialProject.project_url || "",
-    video_url: initialProject.video_url || "",
+    project_url: savedUrlRows.project[0] || initialProject.project_url || "",
+    video_url: savedUrlRows.video[0] || initialProject.video_url || "",
     cover_image_url: initialProject.cover_image_url || "",
-    additional_materials_url: initialProject.additional_materials_url || "",
+    additional_materials_url:
+      savedUrlRows.materials[0] || initialProject.additional_materials_url || "",
   });
-  const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
-  const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
-  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
+  const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>(
+    savedUrlRows.project.slice(1)
+  );
+  const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>(
+    savedUrlRows.video.slice(1)
+  );
+  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>(
+    savedUrlRows.materials.slice(1)
+  );
   const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
     initialProject.has_submission_field_config
       ? initialProject.submission_fields || []
@@ -391,22 +406,25 @@ export default function DraftProjectSubmissionFormSinglePage({
         case "project_description":
           return formData.project_description;
         case "project_url":
-          return formData.project_url;
+          return isMultiValueSubmissionFieldType(field.field_type)
+            ? [formData.project_url, ...extraProjectUrls]
+            : formData.project_url;
         case "video_url":
-          return formData.video_url;
+          return isMultiValueSubmissionFieldType(field.field_type)
+            ? [formData.video_url, ...extraVideoUrls]
+            : formData.video_url;
         case "cover_image":
           return formData.cover_image_url;
         case "additional_materials":
-          return [
-            formData.additional_materials_url,
-            ...extraMaterialsUrls,
-          ].filter((value) => value.trim().length > 0);
+          return [formData.additional_materials_url, ...extraMaterialsUrls];
         default:
           return submissionAnswers[field.id] ?? "";
       }
     },
     [
       extraMaterialsUrls,
+      extraProjectUrls,
+      extraVideoUrls,
       formData.additional_materials_url,
       formData.cover_image_url,
       formData.project_description,
@@ -468,18 +486,20 @@ export default function DraftProjectSubmissionFormSinglePage({
               typeof value === "string" ? value : value[0] || "",
           }));
           return;
-        case "project_url":
-          setFormData((prev) => ({
-            ...prev,
-            project_url: typeof value === "string" ? value : value[0] || "",
-          }));
+        case "project_url": {
+          const { primary, extras } = splitUrlRows(value);
+          setFormData((prev) => ({ ...prev, project_url: primary }));
+          // A plain url field sends a string and does not own the extra rows.
+          if (Array.isArray(value)) setExtraProjectUrls(extras);
           return;
-        case "video_url":
-          setFormData((prev) => ({
-            ...prev,
-            video_url: typeof value === "string" ? value : value[0] || "",
-          }));
+        }
+        case "video_url": {
+          const { primary, extras } = splitUrlRows(value);
+          setFormData((prev) => ({ ...prev, video_url: primary }));
+          // A plain url field sends a string and does not own the extra rows.
+          if (Array.isArray(value)) setExtraVideoUrls(extras);
           return;
+        }
         case "cover_image":
           setFormData((prev) => ({
             ...prev,
@@ -487,16 +507,9 @@ export default function DraftProjectSubmissionFormSinglePage({
           }));
           return;
         case "additional_materials": {
-          const urls = Array.isArray(value)
-            ? value
-            : value.trim().length > 0
-              ? [value]
-              : [];
-          setFormData((prev) => ({
-            ...prev,
-            additional_materials_url: urls[0] || "",
-          }));
-          setExtraMaterialsUrls(urls.slice(1));
+          const { primary, extras } = splitUrlRows(value);
+          setFormData((prev) => ({ ...prev, additional_materials_url: primary }));
+          setExtraMaterialsUrls(extras);
           return;
         }
         default: {
@@ -1166,7 +1179,10 @@ export default function DraftProjectSubmissionFormSinglePage({
                       targetField &&
                       isMultiValueSubmissionFieldType(targetField.field_type)
                     ) {
-                      const currentValue = submissionFieldValues[fieldKey];
+                      const currentValue = normalizeSubmissionValue(
+                        targetField,
+                        submissionFieldValues[fieldKey]
+                      );
                       handleSubmissionFieldChange(fieldKey, [
                         ...(Array.isArray(currentValue) ? currentValue : []),
                         ...uploadedUrls,
