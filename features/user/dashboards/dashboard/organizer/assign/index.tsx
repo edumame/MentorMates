@@ -323,6 +323,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
           eventId,
           role,
           rolesPerProject,
+          includeOrganizers,
         }),
       });
 
