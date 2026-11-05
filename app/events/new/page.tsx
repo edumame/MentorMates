@@ -178,17 +178,28 @@ function NewEventPageInner() {
   };
 
   // ── Save submission fields after event creation ─────────────────────────
-  const saveSubmissionFields = async (eventId: string) => {
-    if (event.submission_fields.length === 0) return;
+  // The event already exists at this point, so a failure here must not fail
+  // creation (a retry would duplicate it), but the organizer has to be told.
+  const saveSubmissionFields = async (eventId: string): Promise<boolean> => {
+    if (event.submission_fields.length === 0) return true;
+    let error: string | undefined;
     try {
-      await fetch(`/api/events/${eventId}/submission-fields`, {
+      const res = await fetch(`/api/events/${eventId}/submission-fields`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fields: fieldsToApiPayload(event.submission_fields as never) }),
       });
+      if (res.ok) return true;
+      error = (await res.json().catch(() => null))?.error;
     } catch {
-      // Non-critical
+      // Network failure: reported below.
     }
+    toast({
+      title: "Submission form not saved",
+      description: `Your event was created, but it won't use your custom form until you set it up again in the event's submission settings.${error ? ` ${error}` : ""}`,
+      variant: "destructive",
+    });
+    return false;
   };
 
   // ── Create event (shared logic) ─────────────────────────────────────────
@@ -251,8 +262,8 @@ function NewEventPageInner() {
         });
       }
 
-      await saveSubmissionFields(data.event.event_id);
-      return data.event;
+      const fieldsSaved = await saveSubmissionFields(data.event.event_id);
+      return { ...data.event, fieldsSaved };
     } catch {
       toast({
         title: "Network error",
@@ -269,10 +280,13 @@ function NewEventPageInner() {
   const handleSaveDraft = async () => {
     const created = await createEvent(EventVisibility.Draft);
     if (created) {
-      toast({
-        title: "Event saved as draft",
-        description: `${created.event_name} has been saved.`,
-      });
+      // Only one toast shows at a time, so this would hide a save failure.
+      if (created.fieldsSaved) {
+        toast({
+          title: "Event saved as draft",
+          description: `${created.event_name} has been saved.`,
+        });
+      }
       router.push(`/events/${created.slug || created.event_id}/overview`);
     }
   };
