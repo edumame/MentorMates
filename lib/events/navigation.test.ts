@@ -3,10 +3,30 @@ import {
   getEventNavigationTarget,
   getInternalEventHref,
   isEventManagerRole,
+  isInviteAcceptancePath,
   canUseInternalEventRoute,
 } from "./navigation";
 
 describe("event navigation", () => {
+  it.each([
+    "/events/old-slug/accept-judge",
+    "/events/old-slug/accept-participant",
+    "/events/old-slug/accept-organizer/",
+  ])("recognizes the invite acceptance route %s", (path) => {
+    expect(isInviteAcceptancePath(path)).toBe(true);
+  });
+
+  it.each([
+    null,
+    "/events/old-slug",
+    "/events/old-slug/overview",
+    "/events/old-slug/accept",
+    "/events/old-slug/accept-judge/extra",
+    "/events/accept-judge",
+  ])("does not treat %s as an invite acceptance route", (path) => {
+    expect(isInviteAcceptancePath(path)).toBe(false);
+  });
+
   it("uses the overview route as the internal event URL", () => {
     expect(
       getInternalEventHref({ event_id: "event-123", slug: "spring-showcase" })

@@ -145,7 +145,7 @@ describe("POST /api/events/invite-judge", () => {
       expect.objectContaining({
         to: "judge@email.com",
         subject: expect.stringContaining("judge"),
-        html: expect.stringContaining("/events/hack-night/accept-judge"),
+        html: expect.stringContaining("/events/event-123/accept-judge"),
       })
     );
   });

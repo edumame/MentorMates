@@ -7,14 +7,14 @@ export function getOrganizerInvitationEmailTemplate(
   eventName: string,
   eventId: string,
   inviterName: string,
-  eventSlug?: string,
   isNewUser?: boolean,
   acceptUrl?: string,
   eventUrlOverride?: string
 ): OrganizerInvitationEmailTemplate {
+  // Emailed links outlive a slug rename, so they use the immutable event id.
   const eventUrl =
     eventUrlOverride ||
-    `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventSlug || eventId}/overview`;
+    `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventId}/overview`;
 
   const actionUrl = isNewUser && acceptUrl ? acceptUrl : eventUrl;
   const actionText = isNewUser

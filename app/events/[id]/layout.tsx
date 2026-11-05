@@ -1,11 +1,16 @@
 import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
-import { canUseInternalEventRoute } from "@/lib/events/navigation";
+import {
+  canUseInternalEventRoute,
+  isInviteAcceptancePath,
+  REQUEST_PATHNAME_HEADER,
+} from "@/lib/events/navigation";
 
 // add authentication check for non private/public events
 
@@ -49,6 +54,13 @@ export default async function Layout({
   const { data: event } = await query.maybeSingle();
 
   if (!event) {
+    // An invite sent before a slug rename lands here. The accept pages explain
+    // that the link changed, which a generic 404 from this layout would hide.
+    const requestHeaders = await headers();
+    if (isInviteAcceptancePath(requestHeaders.get(REQUEST_PATHNAME_HEADER))) {
+      return <RouteBasedLayoutConfig>{children}</RouteBasedLayoutConfig>;
+    }
+
     notFound();
   }
 
