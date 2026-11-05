@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole, EventVisibility } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { withdrawSubmissionUpdate } from "@/lib/events/approval-visibility";
 import { z } from "zod";
 
 export async function DELETE(
@@ -213,7 +214,7 @@ export async function PATCH(
     // Get current event status
     const { data: event, error: fetchError } = await supabase
       .from("events")
-      .select("visibility")
+      .select("visibility, approval_status")
       .eq("event_id", eventId)
       .maybeSingle();
 
@@ -242,10 +243,14 @@ export async function PATCH(
       newVisibility = EventVisibility.Private;
     }
 
-    // Update the event visibility
+    // Update the event visibility, withdrawing any pending submission
+    const withdrawal = withdrawSubmissionUpdate(
+      event.approval_status,
+      newVisibility,
+    );
     const { error: updateError } = await supabase
       .from("events")
-      .update({ visibility: newVisibility })
+      .update({ visibility: newVisibility, ...withdrawal })
       .eq("event_id", eventId);
 
     if (updateError) {
@@ -259,6 +264,7 @@ export async function PATCH(
       success: true,
       action,
       newVisibility,
+      approvalStatus: withdrawal.approval_status ?? event.approval_status,
     });
   } catch (error) {
     console.error("Error updating event:", error);

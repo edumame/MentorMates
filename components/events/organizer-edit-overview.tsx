@@ -38,6 +38,7 @@ import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details
 import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/FAQTab";
 import { IntakeResponsesTab } from "@/features/user/dashboards/dashboard/organizer/registration";
 
+import { withdrawSubmissionUpdate } from "@/lib/events/approval-visibility";
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -213,9 +214,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   const handleAccessVisibilityChange = async (value: EventVisibility) => {
     try {
+      const withdrawal = withdrawSubmissionUpdate(event?.approval_status, value);
       const { error } = await supabase
         .from("events")
-        .update({ visibility: value })
+        .update({ visibility: value, ...withdrawal })
         .eq("event_id", eventId);
 
       if (error) {
@@ -229,7 +231,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       setEvent((prev) => {
         if (!prev) return prev;
-        return { ...prev, visibility: value };
+        return { ...prev, visibility: value, ...withdrawal };
       });
 
       toast({
@@ -471,7 +473,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
       const result = await res.json();
 
       // Update local state
-      setEvent({ ...event, visibility: result.newVisibility });
+      setEvent({
+        ...event,
+        visibility: result.newVisibility,
+        approval_status: result.approvalStatus,
+      });
 
       toast({
         title: "Success",
