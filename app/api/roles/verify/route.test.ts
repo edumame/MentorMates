@@ -3,6 +3,7 @@
 
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
 import { POST } from "./route";
 
@@ -36,12 +37,18 @@ jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
 }));
 
+jest.mock("@/lib/supabase/service", () => ({
+  createSupabaseServiceClient: jest.fn(),
+}));
+
 jest.mock("@/lib/events/participant-access", () => ({
   joinParticipantEvent: jest.fn(),
 }));
 
 describe("POST /api/roles/verify", () => {
   const mockCreateSupabaseClient = createSupabaseClient as jest.Mock;
+  const mockCreateSupabaseServiceClient =
+    createSupabaseServiceClient as jest.Mock;
   const mockCompare = bcrypt.compare as jest.Mock;
 
   const buildSupabase = () => {
@@ -78,14 +85,6 @@ describe("POST /api/roles/verify", () => {
           };
         }
 
-        if (table === "role_passwords") {
-          return {
-            select: jest.fn(() => ({
-              eq: rolePasswordEqEvent,
-            })),
-          };
-        }
-
         if (table === "user_event_roles") {
           return {
             upsert,
@@ -96,8 +95,24 @@ describe("POST /api/roles/verify", () => {
       }),
     };
 
+    // Hashes are not readable with the user's client, only the service client.
+    const rolePasswordSelect = jest.fn(() => ({
+      eq: rolePasswordEqEvent,
+    }));
+    const serviceSupabase = {
+      from: jest.fn((table: string) => {
+        if (table === "role_passwords") {
+          return { select: rolePasswordSelect };
+        }
+
+        throw new Error(`Unexpected service table ${table}`);
+      }),
+    };
+
     return {
       supabase,
+      serviceSupabase,
+      rolePasswordSelect,
       upsert,
       eventEq,
       rolePasswordEqEvent,
@@ -111,8 +126,9 @@ describe("POST /api/roles/verify", () => {
   });
 
   it("enforces mentor role passwords when configured", async () => {
-    const { supabase, upsert } = buildSupabase();
+    const { supabase, serviceSupabase, upsert } = buildSupabase();
     mockCreateSupabaseClient.mockResolvedValue(supabase);
+    mockCreateSupabaseServiceClient.mockReturnValue(serviceSupabase);
 
     const missingPasswordResponse = await POST(
       new Request("http://localhost/api/roles/verify", {
@@ -190,5 +206,62 @@ describe("POST /api/roles/verify", () => {
       }),
       { onConflict: "user_id,event_id" }
     );
+  });
+
+  it("reads the role password hash with the service client only", async () => {
+    const { supabase, serviceSupabase, rolePasswordSelect, upsert } =
+      buildSupabase();
+    mockCreateSupabaseClient.mockResolvedValue(supabase);
+    mockCreateSupabaseServiceClient.mockReturnValue(serviceSupabase);
+    mockCompare.mockResolvedValueOnce(true);
+
+    const response = await POST(
+      new Request("http://localhost/api/roles/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: "event-1",
+          role: EventRole.Judge,
+          password: "correct-password",
+          userId: "user-1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(serviceSupabase.from).toHaveBeenCalledWith("role_passwords");
+    expect(rolePasswordSelect).toHaveBeenCalledWith("password_hash");
+    expect(supabase.from).not.toHaveBeenCalledWith("role_passwords");
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not assign the role when the hash read fails", async () => {
+    const { supabase, serviceSupabase, rolePasswordMaybeSingle, upsert } =
+      buildSupabase();
+    mockCreateSupabaseClient.mockResolvedValue(supabase);
+    mockCreateSupabaseServiceClient.mockReturnValue(serviceSupabase);
+    rolePasswordMaybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: { message: "permission denied" },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/roles/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: "event-1",
+          role: EventRole.Judge,
+          password: "correct-password",
+          userId: "user-1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "Failed to verify role password",
+    });
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
