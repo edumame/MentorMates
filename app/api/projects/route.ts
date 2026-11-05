@@ -6,26 +6,18 @@ import {
   EventTrack,
   Prize,
   ProjectFromDatabase,
-  ProjectSubmissionAnswer,
   ProjectWithPrizes,
 } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
+import {
+  fetchArtifactsByProjectIds,
+  fetchSubmissionAnswersByProjectIds,
+} from "@/lib/projects/query";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
-
-type ArtifactRow = {
-  project_id: string;
-  id: string;
-  kind: "project_link" | "video_link" | "additional_material";
-  label: string;
-  url: string;
-  sort_order: number;
-  is_primary: boolean;
-  metadata: Record<string, unknown> | null;
-};
 
 type OrganizerProjectRow = {
   id: string;
@@ -35,8 +27,6 @@ type OrganizerProjectRow = {
   video_url?: string | null;
   [key: string]: unknown;
 };
-
-type SubmissionAnswerRow = ProjectSubmissionAnswer;
 
 async function fetchSubmissionFieldsByEventIds(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
@@ -64,62 +54,6 @@ async function fetchSubmissionFieldsByEventIds(
     map.set(row.event_id, existing);
   }
 
-  return map;
-}
-
-async function fetchSubmissionAnswersByProjectIds(
-  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-  projectIds: string[]
-) {
-  if (projectIds.length === 0) {
-    return new Map<string, SubmissionAnswerRow[]>();
-  }
-
-  const { data, error } = await supabase
-    .from("project_submission_answers")
-    .select("id, project_id, event_submission_field_id, answer")
-    .in("project_id", projectIds);
-
-  if (error || !data) {
-    return new Map<string, SubmissionAnswerRow[]>();
-  }
-
-  const map = new Map<string, SubmissionAnswerRow[]>();
-  for (const row of data as SubmissionAnswerRow[]) {
-    const existing = map.get(row.project_id) || [];
-    existing.push(row);
-    map.set(row.project_id, existing);
-  }
-
-  return map;
-}
-
-async function fetchArtifactsByProjectIds(
-  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-  projectIds: string[]
-) {
-  if (projectIds.length === 0) {
-    return new Map<string, ArtifactRow[]>();
-  }
-
-  const { data, error } = await supabase
-    .from("project_artifacts")
-    .select(
-      "id, project_id, kind, label, url, sort_order, is_primary, metadata"
-    )
-    .in("project_id", projectIds)
-    .order("sort_order", { ascending: true });
-
-  if (error || !data) {
-    return new Map<string, ArtifactRow[]>();
-  }
-
-  const map = new Map<string, ArtifactRow[]>();
-  for (const row of data as ArtifactRow[]) {
-    const existing = map.get(row.project_id) || [];
-    existing.push(row);
-    map.set(row.project_id, existing);
-  }
   return map;
 }
 

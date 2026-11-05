@@ -40,6 +40,45 @@ export type ProjectBaseRow = {
   project_tracks?: Array<{ event_tracks: EventTrack | null }> | null;
 };
 
+const PAGE_SIZE = 1000;
+
+/**
+ * Reads every page of a query. PostgREST silently caps each response at its
+ * `max_rows` setting and still reports success, so an unpaged read can return
+ * partial data. `fetchPage` must use a stable order and request an exact count;
+ * the count is what ends the loop, so a cap below PAGE_SIZE cannot end it early.
+ * Throws on a failed read so callers cannot mistake it for "no rows".
+ */
+async function fetchAllPages<Row>(
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: Row[] | null;
+    error: unknown;
+    count: number | null;
+  }>,
+) {
+  const rows: Row[] = [];
+
+  while (true) {
+    const { data, error, count } = await fetchPage(
+      rows.length,
+      rows.length + PAGE_SIZE - 1,
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    rows.push(...(data ?? []));
+
+    if (!data?.length || (count !== null && rows.length >= count)) {
+      return rows;
+    }
+  }
+}
+
 export async function fetchSubmissionFieldsByEventIds(
   supabase: ServiceSupabaseClient,
   eventIds: string[],
@@ -80,15 +119,17 @@ export async function fetchSubmissionAnswersByProjectIds(
     return new Map<string, ProjectSubmissionAnswer[]>();
   }
 
-  const { data, error } = await supabase
-    .from("project_submission_answers")
-    .select("id, project_id, event_submission_field_id, answer")
-    .in("project_id", uniqueProjectIds)
-    .overrideTypes<ProjectSubmissionAnswer[]>();
-
-  if (error || !data) {
-    return new Map<string, ProjectSubmissionAnswer[]>();
-  }
+  const data = await fetchAllPages((from, to) =>
+    supabase
+      .from("project_submission_answers")
+      .select("id, project_id, event_submission_field_id, answer", {
+        count: "exact",
+      })
+      .in("project_id", uniqueProjectIds)
+      .order("id", { ascending: true })
+      .range(from, to)
+      .overrideTypes<ProjectSubmissionAnswer[]>(),
+  );
 
   const map = new Map<string, ProjectSubmissionAnswer[]>();
   for (const row of data) {
@@ -109,18 +150,19 @@ export async function fetchArtifactsByProjectIds(
     return new Map<string, ProjectArtifactRow[]>();
   }
 
-  const { data, error } = await supabase
-    .from("project_artifacts")
-    .select(
-      "id, project_id, kind, label, url, sort_order, is_primary, metadata",
-    )
-    .in("project_id", uniqueProjectIds)
-    .order("sort_order", { ascending: true })
-    .overrideTypes<ProjectArtifactRow[]>();
-
-  if (error || !data) {
-    return new Map<string, ProjectArtifactRow[]>();
-  }
+  const data = await fetchAllPages((from, to) =>
+    supabase
+      .from("project_artifacts")
+      .select(
+        "id, project_id, kind, label, url, sort_order, is_primary, metadata",
+        { count: "exact" },
+      )
+      .in("project_id", uniqueProjectIds)
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+      .overrideTypes<ProjectArtifactRow[]>(),
+  );
 
   const map = new Map<string, ProjectArtifactRow[]>();
   for (const row of data) {
