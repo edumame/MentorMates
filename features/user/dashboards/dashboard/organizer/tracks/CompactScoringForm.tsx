@@ -111,6 +111,8 @@ function cloneTrackScoringConfig(track: TrackScoringConfig): TrackScoringConfig 
 interface CompactScoringFormProps {
   initialConfig?: EventScoringConfig | null;
   onSave: (config: EventScoringConfig) => void;
+  /** Reports the working draft, including edits that are not saved yet. */
+  onDraftChange?: (config: EventScoringConfig) => void;
   isSubmitting?: boolean;
   isArchived: boolean;
   eventId: string;
@@ -122,6 +124,7 @@ interface CompactScoringFormProps {
 export function CompactScoringForm({
   initialConfig,
   onSave,
+  onDraftChange,
   isSubmitting = false,
   isArchived,
   eventId,
@@ -130,6 +133,10 @@ export function CompactScoringForm({
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
   );
+
+  useEffect(() => {
+    onDraftChange?.(config);
+  }, [config, onDraftChange]);
 
   // Sync external config changes (from AI sidebar) into the internal state.
   // Uses a ref to avoid re-syncing when the user edits the form locally.

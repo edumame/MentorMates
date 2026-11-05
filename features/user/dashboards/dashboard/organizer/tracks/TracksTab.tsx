@@ -41,6 +41,9 @@ export function TracksTab({
 }: TracksTabProps) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [tracks, setTracks] = useState<EventTrack[]>([]);
+  const [draftConfig, setDraftConfig] = useState<EventScoringConfig | null>(
+    null
+  );
 
   const fetchTracks = useCallback(async () => {
     const { data, error } = await supabase
@@ -172,79 +175,81 @@ export function TracksTab({
         </div>
       </div>
 
-      {mode === "preview" ? (
+      {mode === "preview" && (
         <JudgePreviewDeck
-          scoringConfig={scoringConfig}
+          scoringConfig={draftConfig ?? scoringConfig}
           onClose={() => setMode("edit")}
         />
-      ) : (
-        <div className="flex gap-6 items-start">
-          {/* Left: Track editor */}
-          <div className="flex-1 min-w-0">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
-              {/* Header */}
-              <div className="space-y-1 mb-5">
-                <h2 className="text-xl font-bold text-black tracking-tight">
-                  Tracks &amp; Judging Criteria
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Define competition tracks, scoring criteria, and prizes. Click
-                  any criterion to edit it, or use + buttons to add new ones.
+      )}
+
+      {/* Hidden, not unmounted: the form holds the unsaved draft in local state. */}
+      <div className={mode === "preview" ? "hidden" : "flex gap-6 items-start"}>
+        {/* Left: Track editor */}
+        <div className="flex-1 min-w-0">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+            {/* Header */}
+            <div className="space-y-1 mb-5">
+              <h2 className="text-xl font-bold text-black tracking-tight">
+                Tracks &amp; Judging Criteria
+              </h2>
+              <p className="text-sm text-gray-600">
+                Define competition tracks, scoring criteria, and prizes. Click
+                any criterion to edit it, or use + buttons to add new ones.
+              </p>
+            </div>
+
+            {/* Inline help banners */}
+            <div className="space-y-3 mb-6">
+              <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
+                <Scale className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-blue-900">
+                  Each criterion has a{" "}
+                  <strong className="font-semibold">weight</strong> for
+                  relative importance and a{" "}
+                  <strong className="font-semibold">score range</strong>{" "}
+                  (min-max). Scores are weighted to produce a final ranking
+                  per track.
                 </p>
               </div>
-
-              {/* Inline help banners */}
-              <div className="space-y-3 mb-6">
-                <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
-                  <Scale className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-                  <p className="text-sm text-blue-900">
-                    Each criterion has a{" "}
-                    <strong className="font-semibold">weight</strong> for
-                    relative importance and a{" "}
-                    <strong className="font-semibold">score range</strong>{" "}
-                    (min-max). Scores are weighted to produce a final ranking
-                    per track.
-                  </p>
-                </div>
-                <div className="flex items-start gap-3 rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
-                  <Download className="h-5 w-5 text-gray-500 mt-0.5 shrink-0" />
-                  <p className="text-sm text-gray-700">
-                    After judging, you can{" "}
-                    <strong className="font-semibold">
-                      export all scores as CSV
-                    </strong>{" "}
-                    from the organizer dashboard.
-                  </p>
-                </div>
+              <div className="flex items-start gap-3 rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
+                <Download className="h-5 w-5 text-gray-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-gray-700">
+                  After judging, you can{" "}
+                  <strong className="font-semibold">
+                    export all scores as CSV
+                  </strong>{" "}
+                  from the organizer dashboard.
+                </p>
               </div>
-
-              {/* Compact scoring form */}
-              <CompactScoringForm
-                initialConfig={scoringConfig}
-                isSubmitting={saving}
-                onSave={handleScoreUpdate}
-                isArchived={isArchived}
-                eventId={eventId}
-                tracks={tracks}
-              />
             </div>
-          </div>
 
-          {/* Right: Judging sidebar (upload + AI chat) */}
-          <JudgingSidebar
-            config={
-              scoringConfig || {
-                tracks: {},
-                defaultMin: 0,
-                defaultMax: 10,
-                defaultWeight: 1,
-              }
-            }
-            onConfigChange={(newConfig) => setScoringConfig(newConfig)}
-            eventId={eventId}
-          />
+            {/* Compact scoring form */}
+            <CompactScoringForm
+              initialConfig={scoringConfig}
+              isSubmitting={saving}
+              onSave={handleScoreUpdate}
+              onDraftChange={setDraftConfig}
+              isArchived={isArchived}
+              eventId={eventId}
+              tracks={tracks}
+            />
+          </div>
         </div>
-      )}
+
+        {/* Right: Judging sidebar (upload + AI chat) */}
+        <JudgingSidebar
+          config={
+            scoringConfig || {
+              tracks: {},
+              defaultMin: 0,
+              defaultMax: 10,
+              defaultWeight: 1,
+            }
+          }
+          onConfigChange={(newConfig) => setScoringConfig(newConfig)}
+          eventId={eventId}
+        />
+      </div>
     </div>
   );
 }
