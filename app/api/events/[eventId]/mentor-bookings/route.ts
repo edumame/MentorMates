@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { CAPACITY_EXCEEDED_ERROR_CODE } from "@/lib/events/participant-access";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
 import { BookingStatus } from "@/lib/types/mentor-booking";
@@ -8,6 +9,10 @@ import { BookingStatus } from "@/lib/types/mentor-booking";
 const createSchema = z.object({
   availability_id: z.string().uuid(),
 });
+
+function slotFullResponse() {
+  return NextResponse.json({ error: "Slot is fully booked" }, { status: 409 });
+}
 
 async function getUserAndRole(eventId: string) {
   const supabase = await createSupabaseClient();
@@ -185,7 +190,8 @@ export async function POST(
       );
     }
 
-    // Capacity check.
+    // Capacity check. Fails fast only: enforce_mentor_booking_capacity decides
+    // under a lock when requests race, and is handled on the writes below.
     const { count: activeCount, error: countErr } = await service
       .from("mentor_bookings")
       .select("*", { count: "exact", head: true })
@@ -201,10 +207,7 @@ export async function POST(
     }
 
     if ((activeCount ?? 0) >= slot.max_bookings) {
-      return NextResponse.json(
-        { error: "Slot is fully booked" },
-        { status: 409 }
-      );
+      return slotFullResponse();
     }
 
     // If there's a cancelled row, flip it; otherwise insert.
@@ -217,6 +220,9 @@ export async function POST(
         .select()
         .single();
       if (error) {
+        if (error.code === CAPACITY_EXCEEDED_ERROR_CODE) {
+          return slotFullResponse();
+        }
         console.error("booking reactivate error", error);
         return NextResponse.json(
           { error: "Failed to book slot" },
@@ -241,6 +247,9 @@ export async function POST(
             { error: "You already booked this slot" },
             { status: 409 }
           );
+        }
+        if (error.code === CAPACITY_EXCEEDED_ERROR_CODE) {
+          return slotFullResponse();
         }
         console.error("booking insert error", error);
         return NextResponse.json(
