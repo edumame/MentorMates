@@ -147,7 +147,8 @@ async function fetchTeammateProfiles(
 // client — it only ever leaks a boolean.
 async function fetchCertificateExtras(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-  projectId: string
+  projectId: string,
+  eventId: string
 ): Promise<{ prizes_won: Prize[]; is_finalist: boolean }> {
   const { data: prizeRows } = await supabase
     .from("prize_winners")
@@ -183,16 +184,20 @@ async function fetchCertificateExtras(
     winning_project_id: row.project_id,
   })) as Prize[];
 
-  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId) };
+  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId, eventId) };
 }
 
-async function fetchIsFinalist(projectId: string): Promise<boolean> {
+async function fetchIsFinalist(
+  projectId: string,
+  eventId: string
+): Promise<boolean> {
   try {
     const serviceClient = createSupabaseServiceClient();
     const { data: advancements } = await serviceClient
       .from("project_round_advancements")
       .select("id")
       .eq("project_id", projectId)
+      .eq("event_id", eventId)
       .limit(1);
     return (advancements?.length ?? 0) > 0;
   } catch {
@@ -319,7 +324,11 @@ export async function GET(request: NextRequest) {
         artifactMap.get(project.id) || fallbackArtifacts
         );
 
-        const extras = await fetchCertificateExtras(supabase, project.id);
+        const extras = await fetchCertificateExtras(
+          supabase,
+          project.id,
+          project.event_id
+        );
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
           extras.prizes_won;
         (
@@ -691,7 +700,10 @@ export async function GET(request: NextRequest) {
 
       (
         transformedProject as unknown as { is_finalist?: boolean }
-      ).is_finalist = await fetchIsFinalist(transformedProject.id);
+      ).is_finalist = await fetchIsFinalist(
+        transformedProject.id,
+        project.event_id
+      );
 
       return NextResponse.json({ project: transformedProject });
     }
