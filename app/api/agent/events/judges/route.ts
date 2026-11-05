@@ -4,6 +4,8 @@ import {
   authorizeAgentEventAccess,
   requireScope,
 } from "@/lib/agent/auth";
+import { sendHtmlEmail } from "@/lib/email/send-html-email";
+import { escapeHtml } from "@/lib/email_templates/welcome-profile";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
 
@@ -143,7 +145,9 @@ export async function POST(request: NextRequest) {
       .eq("event_id", auth.eventId)
       .single();
 
-    // Send emails via the internal email API
+    const eventName = event?.event_name || "MentorMates";
+    const safeMessage = escapeHtml(message).replace(/\n/g, "<br>");
+
     const results = await Promise.allSettled(
       judges.map(async (judge) => {
         const profile = judge.user_profiles as unknown as {
@@ -152,21 +156,14 @@ export async function POST(request: NextRequest) {
         };
         if (!profile?.email) return { skipped: true, user_id: judge.user_id };
 
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email_notification`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: profile.email,
-              from: "hello@mentormates.ai",
-              subject: `[${event?.event_name || "MentorMates"}] ${subject}`,
-              html: `<p>Hi ${profile.display_name || ""},</p><p>${message.replace(/\n/g, "<br>")}</p><p>— ${event?.event_name || "MentorMates"} Team</p>`,
-            }),
-          }
-        );
+        const sent = await sendHtmlEmail({
+          to: profile.email,
+          from: "hello@mentormates.ai",
+          subject: `[${eventName}] ${subject}`,
+          html: `<p>Hi ${escapeHtml(profile.display_name || "")},</p><p>${safeMessage}</p><p>— ${escapeHtml(eventName)} Team</p>`,
+        });
 
-        return { sent: res.ok, email: profile.email };
+        return { sent, email: profile.email };
       })
     );
 

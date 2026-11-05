@@ -1,3 +1,5 @@
+import { escapeHtml } from "./welcome-profile";
+
 export interface ClaimTicketEmailTemplate {
   subject: string;
   html: string;
@@ -8,6 +10,8 @@ export function getClaimTicketEmailTemplate(
   ticketId: string,
   senderName: string
 ): ClaimTicketEmailTemplate {
+  const safeEventName = escapeHtml(eventName);
+  const safeSenderName = escapeHtml(senderName);
   const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/claim-ticket?ticket=${ticketId}`;
   
   return {
@@ -22,11 +26,11 @@ export function getClaimTicketEmailTemplate(
         
         <div style="padding: 40px 20px;">
           <h2 style="color: #2563eb; margin-bottom: 20px; font-size: 24px;">
-            ${senderName} has invited you to ${eventName}
+            ${safeSenderName} has invited you to ${safeEventName}
           </h2>
           
           <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-            Great news! You've been assigned a ticket to participate in <strong>${eventName}</strong>. 
+            Great news! You've been assigned a ticket to participate in <strong>${safeEventName}</strong>. 
             To secure your spot, you'll need to claim your ticket.
           </p>
           
@@ -63,7 +67,7 @@ export function getClaimTicketEmailTemplate(
         
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="font-size: 12px; color: #6b7280; margin: 0;">
-            This invitation was sent by ${senderName} through MentorMates. 
+            This invitation was sent by ${safeSenderName} through MentorMates. 
             If you believe this was sent in error, please contact the event organizer.
           </p>
         </div>
