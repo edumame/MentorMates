@@ -25,6 +25,7 @@ import {
   buildRawScoreExportFiles,
   buildScoreExportFiles,
   buildTrackScores,
+  filterScoresToCurrentTracks,
   type DashboardProjectScore,
   type RawScoreExportData,
   type TrackScore,
@@ -579,7 +580,7 @@ export function ScoresTab({
         }
 
         // Transform data for display (existing logic)
-        const allDisplayData = scoreRows.map((item: ProjectScoreQueryRow) => {
+        const allDisplayData = filterScoresToCurrentTracks(scoreRows, trackData || []).map((item: ProjectScoreQueryRow) => {
           const projectData = item.projects as unknown as {
             project_name: string;
             lead_name: string;
@@ -619,7 +620,8 @@ export function ScoresTab({
           (item) => item.round_number === activeRound
         );
 
-        // Store raw data for exports
+        // Store raw data for exports. This keeps scores for tracks a project has
+        // since left, as the record of what judges submitted; only rankings drop them.
         const rawData: RawScoreExportData[] = scoreRows.map((item: ProjectScoreQueryRow) => {
           const projects = Array.isArray(item.projects)
             ? item.projects[0]

@@ -79,6 +79,30 @@ export interface ScoreExportFile {
   rows: Array<Record<string, string | number | null>>;
 }
 
+/**
+ * project_scores rows outlive project_tracks membership, so drop rows for a
+ * track the project has left: they must not rank there. The rows themselves
+ * stay in the database and reappear if the project rejoins the track. Scores
+ * are kept when the track's membership is unknown.
+ */
+export function filterScoresToCurrentTracks<
+  T extends { project_id: string; track_id: string },
+>(scoreData: T[], eventTracks: ExportTrackMeta[]): T[] {
+  const projectIdsByTrack = new Map(
+    eventTracks
+      .filter((track) => track.project_tracks)
+      .map((track) => [
+        track.track_id,
+        new Set(track.project_tracks?.map((row) => row.project_id)),
+      ])
+  );
+
+  return scoreData.filter(
+    (score) =>
+      projectIdsByTrack.get(score.track_id)?.has(score.project_id) ?? true
+  );
+}
+
 function getTrackConfig(
   scoringConfig: EventScoringConfig,
   trackId: string,
