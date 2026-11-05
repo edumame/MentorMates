@@ -479,7 +479,6 @@ export async function POST(req: Request) {
       appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
       eventId: createdEvent.event_id,
       eventName: createdEvent.event_name,
-      eventSlug: createdEvent.slug,
       inviterName,
       existingOrganizerEmails: existingOrganizerInviteEmails,
       newOrganizerEmails: newOrganizerInviteEmails,
@@ -490,7 +489,6 @@ export async function POST(req: Request) {
       appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
       eventId: createdEvent.event_id,
       eventName: createdEvent.event_name,
-      eventSlug: createdEvent.slug,
       inviterName,
       visibility:
         (createdEvent.visibility as EventVisibility | null) ??

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   // Fetch event details for the email
   const { data: eventData } = await supabase
     .from('events')
-    .select('event_name, slug')
+    .select('event_name')
     .eq('event_id', eventId)
     .single();
 
@@ -111,7 +111,6 @@ export async function POST(request: Request) {
           eventData.event_name,
           eventId,
           inviterName,
-          eventData.slug,
           false // isNewUser
         );
 
@@ -144,13 +143,12 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventData.slug || eventId}/accept-organizer?email=${encodeURIComponent(email.trim())}`;
+    const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventId}/accept-organizer?email=${encodeURIComponent(email.trim())}`;
 
     const emailTemplate = getOrganizerInvitationEmailTemplate(
       eventData.event_name,
       eventId,
       inviterName,
-      eventData.slug,
       true, // isNewUser
       acceptUrl
     );

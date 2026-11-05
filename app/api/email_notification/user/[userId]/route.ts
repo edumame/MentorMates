@@ -117,11 +117,7 @@ const getUserEmail = async ({
     case EMAIL_TYPES.CHECKIN_QR_CODE:
       return await getCheckinQRCodeEmail(resolvedEventName, userId, eventId);
     case EMAIL_TYPES.EVENT_UPDATE:
-      return getEventUpdateNotificationEmail(
-        resolvedEventName,
-        eventId,
-        (eventData as EventDetails) || ({} as EventDetails)
-      );
+      return getEventUpdateNotificationEmail(resolvedEventName, eventId);
     case EMAIL_TYPES.EVENT_SCHEDULE_UPDATE:
       return getEventScheduleUpdateNotificationEmail(
         resolvedEventName,

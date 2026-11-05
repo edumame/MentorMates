@@ -8,8 +8,7 @@ export interface EmailTemplate {
 
 export function getEventUpdateNotificationEmail(
   eventName: string,
-  eventId: string,
-  eventInformation: EventDetails
+  eventId: string
 ): EmailTemplate {
   return {
     subject: `New Event Update for "${eventName}" - MentorMates`,
@@ -26,7 +25,7 @@ export function getEventUpdateNotificationEmail(
               Please Check the Event Page for the Latest Update:
             </p>
             <p style="font-size: 16px; line-height: 1.5; color: #374151;">
-              <a href="https://mentormates.ai/events/${eventInformation.slug || eventId}/overview">${eventName}</a>
+              <a href="https://mentormates.ai/events/${eventId}/overview">${eventName}</a>
             </p>
           </div>
           
@@ -69,7 +68,7 @@ export function getEventScheduleUpdateNotificationEmail(
               Please Check the Event Page for the Latest Updates:
             </p>
             <p style="font-size: 16px; line-height: 1.5; color: #374151;">
-              <a href="https://mentormates.ai/events/${eventInformation.slug || eventId}/overview">${eventName}</a>
+              <a href="https://mentormates.ai/events/${eventId}/overview">${eventName}</a>
             </p>
           </div>
           

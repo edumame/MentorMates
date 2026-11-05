@@ -66,9 +66,10 @@ export function GalleryContent({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setGalleryUrl(`${window.location.origin}/events/${slug}/gallery`);
+      // Shared and printed links outlive a slug rename, so use the immutable id.
+      setGalleryUrl(`${window.location.origin}/events/${eventId}/gallery`);
     }
-  }, [slug]);
+  }, [eventId]);
 
   const filteredProjects = projects.filter(
     (project) =>

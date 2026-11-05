@@ -27,7 +27,6 @@ describe("event invite emails", () => {
       appOrigin: "https://mentormates.ai/",
       eventId: "event-123",
       eventName: "Hack Night",
-      eventSlug: "hack-night",
       inviterName: "Casey Organizer",
       visibility: EventVisibility.Private,
       participantInviteEmails: ["participant@email.com", "participant@email.com"],
@@ -56,7 +55,7 @@ describe("event invite emails", () => {
         html: expect.stringContaining(
           getEventInviteAcceptanceUrl(
             "https://mentormates.ai/",
-            "hack-night",
+            "event-123",
             "participant",
             "participant@email.com"
           )
@@ -71,7 +70,7 @@ describe("event invite emails", () => {
         html: expect.stringContaining(
           getEventInviteAcceptanceUrl(
             "https://mentormates.ai/",
-            "hack-night",
+            "event-123",
             "judge",
             "judge@email.com"
           )
@@ -81,7 +80,7 @@ describe("event invite emails", () => {
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         html: expect.stringContaining(
-          getEventOverviewUrl("https://mentormates.ai/", "hack-night")
+          getEventOverviewUrl("https://mentormates.ai/", "event-123")
         ),
       })
     );
@@ -150,7 +149,6 @@ describe("event invite emails", () => {
       appOrigin: "https://mentormates.ai",
       eventId: "event-123",
       eventName: "Hack Night",
-      eventSlug: "hack-night",
       inviterName: "Casey Organizer",
       existingOrganizerEmails: ["existing@email.com"],
       newOrganizerEmails: ["new@email.com"],
@@ -167,7 +165,7 @@ describe("event invite emails", () => {
       expect.objectContaining({
         to: "existing@email.com",
         html: expect.stringContaining(
-          getEventOverviewUrl("https://mentormates.ai", "hack-night")
+          getEventOverviewUrl("https://mentormates.ai", "event-123")
         ),
       })
     );
@@ -179,7 +177,7 @@ describe("event invite emails", () => {
         html: expect.stringContaining(
           getOrganizerInviteAcceptanceUrl(
             "https://mentormates.ai",
-            "hack-night",
+            "event-123",
             "new@email.com"
           )
         ),

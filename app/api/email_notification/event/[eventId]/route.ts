@@ -213,21 +213,13 @@ const getEventEmail = (
         eventInformation
       );
     case EMAIL_TYPES.EVENT_UPDATE:
-      return getEventUpdateNotificationEmail(
-        eventName,
-        eventId,
-        eventInformation
-      );
+      return getEventUpdateNotificationEmail(eventName, eventId);
     case EMAIL_TYPES.EVENT_CUSTOM_UPDATE:
       return {
         subject: `Custom Message for "${eventName}" - MentorMates`,
         html: emailContent,
       };
     default:
-      return getEventUpdateNotificationEmail(
-        eventName,
-        eventId,
-        eventInformation
-      );
+      return getEventUpdateNotificationEmail(eventName, eventId);
   }
 };
