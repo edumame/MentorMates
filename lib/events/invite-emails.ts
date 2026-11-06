@@ -211,23 +211,34 @@ export async function sendOrganizerInviteEmails({
     return summary;
   }
 
+  // Email links must be absolute. A missing or malformed deployment origin
+  // must fail delivery rather than send recipients a relative/broken URL.
+  try {
+    const origin = new URL(appOrigin.trim());
+    if (
+      !["http:", "https:"].includes(origin.protocol) ||
+      origin.username || origin.password || origin.pathname !== "/" ||
+      origin.search || origin.hash
+    ) throw new Error("Invalid application origin");
+    appOrigin = origin.origin;
+  } catch {
+    summary.failed.push(...normalizedExisting, ...normalizedNew);
+    return summary;
+  }
+
   const eventSlugOrId = eventSlug || eventId;
   const eventUrl = getEventOverviewUrl(appOrigin, eventSlugOrId);
 
   const sendOrganizerEmail = async (email: string, isNewUser: boolean) => {
     try {
-      const acceptUrl = isNewUser
-        ? getOrganizerInviteAcceptanceUrl(
-            appOrigin,
-            eventSlugOrId,
-            email,
-            await generateEventRoleInviteToken({
-              email,
-              eventId,
-              role: "organizer",
-            })
-          )
-        : undefined;
+      // Existing users also need the invitation entry page when signed out.
+      // Use the stable ID so a later slug change does not break emailed links.
+      const acceptUrl = getOrganizerInviteAcceptanceUrl(
+        appOrigin,
+        eventId,
+        email,
+        await generateEventRoleInviteToken({ email, eventId, role: "organizer" })
+      );
 
       const template = getOrganizerInvitationEmailTemplate(
         eventName,
