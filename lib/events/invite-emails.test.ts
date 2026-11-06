@@ -149,6 +149,24 @@ describe("event invite emails", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["", "mentormates.ai", "/events", "javascript:alert(1)", "https://mentormates.ai/wrong-path", "https://mentormates.ai?query=1"])(
+    "does not send broken organizer links for origin %s",
+    async (appOrigin) => {
+      const sendEmail = jest.fn().mockResolvedValue(true);
+      const summary = await sendOrganizerInviteEmails({
+        appOrigin,
+        eventId: "event-123",
+        eventName: "Hack Night",
+        inviterName: "Casey",
+        existingOrganizerEmails: ["existing@email.com"],
+        newOrganizerEmails: ["new@email.com"],
+        sendEmail,
+      });
+      expect(summary).toEqual({ sent: 0, failed: ["existing@email.com", "new@email.com"] });
+      expect(sendEmail).not.toHaveBeenCalled();
+    }
+  );
+
   it("sends organizer invites for existing and new organizers", async () => {
     const sendEmail = jest.fn().mockResolvedValue(true);
 
@@ -173,7 +191,7 @@ describe("event invite emails", () => {
       expect.objectContaining({
         to: "existing@email.com",
         html: expect.stringContaining(
-          getEventOverviewUrl("https://mentormates.ai", "hack-night")
+          getOrganizerInviteAcceptanceUrl("https://mentormates.ai", "event-123", "existing@email.com", "signed-token")
         ),
       })
     );
@@ -185,7 +203,7 @@ describe("event invite emails", () => {
         html: expect.stringContaining(
           getOrganizerInviteAcceptanceUrl(
             "https://mentormates.ai",
-            "hack-night",
+            "event-123",
             "new@email.com",
             "signed-token"
           )

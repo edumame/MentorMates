@@ -3,11 +3,9 @@ import { NextResponse } from 'next/server';
 import { EventRole } from '@/lib/types';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
-import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { getOrganizerInviteAcceptanceUrl } from '@/lib/events/invite-emails';
-import { generateEventRoleInviteToken } from '@/lib/utils/jwt';
+import { sendOrganizerInviteEmails } from '@/lib/events/invite-emails';
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -105,83 +103,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to invite organizer' }, { status: 500 });
     }
 
-    // Send invitation email for existing user
-    const resend = getResend();
-    if (resend) {
-      try {
-        const emailTemplate = getOrganizerInvitationEmailTemplate(
-          eventData.event_name,
-          eventId,
-          inviterName,
-          eventData.slug,
-          false // isNewUser
-        );
-
-        const { error: emailError } = await resend.emails.send({
-          from: NOTIFICATIONS_EMAIL_FROM,
-          to: email.trim(),
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
-
-        if (emailError) {
-          console.error('Failed to send organizer invitation email:', emailError);
-          // Don't fail the entire request if email fails, but log it
-        }
-      } catch (emailError) {
-        console.error('Error sending organizer invitation email:', emailError);
-        // Don't fail the entire request if email fails
-      }
-    }
-
-    return NextResponse.json({ success: true, userExists: true });
   }
 
-  // User doesn't exist - send magic link invite
   const resend = getResend();
   if (!resend) {
+    // Existing users already have their role; preserve this endpoint's behavior
+    // when email delivery is unavailable.
+    if (user) return NextResponse.json({ success: true, userExists: true });
     return NextResponse.json(
       { error: 'Email is not configured (RESEND_API_KEY missing)' },
       { status: 503 }
     );
   }
-  try {
-    const inviteEmail = email.trim().toLowerCase();
-    const acceptUrl = getOrganizerInviteAcceptanceUrl(
-      process.env.NEXT_PUBLIC_APP_URL ?? '',
-      eventData.slug || eventId,
-      inviteEmail,
-      await generateEventRoleInviteToken({
-        email: inviteEmail,
-        eventId,
-        role: 'organizer',
-      }),
-    );
 
-    const emailTemplate = getOrganizerInvitationEmailTemplate(
-      eventData.event_name,
-      eventId,
-      inviterName,
-      eventData.slug,
-      true, // isNewUser
-      acceptUrl
-    );
+  const inviteEmail = email.trim().toLowerCase();
+  const summary = await sendOrganizerInviteEmails({
+    appOrigin: process.env.NEXT_PUBLIC_APP_URL ?? '',
+    eventId,
+    eventName: eventData.event_name,
+    eventSlug: eventData.slug,
+    inviterName,
+    existingOrganizerEmails: user ? [inviteEmail] : [],
+    newOrganizerEmails: user ? [] : [inviteEmail],
+    sendEmail: async (message) => {
+      const { error } = await resend.emails.send({
+        from: NOTIFICATIONS_EMAIL_FROM,
+        ...message,
+      });
+      if (error) console.error('Failed to send organizer invitation email:', error);
+      return !error;
+    },
+  });
 
-    const { error: emailError } = await resend.emails.send({
-      from: NOTIFICATIONS_EMAIL_FROM,
-      to: email.trim(),
-      subject: emailTemplate.subject,
-      html: emailTemplate.html,
-    });
-
-    if (emailError) {
-      console.error('Failed to send organizer invitation email:', emailError);
-      return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
-    }
-  } catch (emailError) {
-    console.error('Error sending organizer invitation email:', emailError);
+  if (summary.failed.length > 0 && !user) {
     return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, userExists: false });
+  return NextResponse.json({ success: true, userExists: Boolean(user) });
 }
