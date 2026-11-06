@@ -153,6 +153,8 @@ export function AcceptRoleInvite({
   const Icon = content.icon;
 
   useEffect(() => {
+    if (eventNotFound || !eventId) return;
+
     const checkAuth = async () => {
       const {
         data: { session },
@@ -178,7 +180,7 @@ export function AcceptRoleInvite({
     };
 
     checkAuth();
-  }, [eventId, eventSlug, role, router]);
+  }, [eventId, eventSlug, eventNotFound, role, router]);
 
   const handleLogin = () => {
     setReturnUrlFromCurrentLocation();
@@ -270,11 +272,11 @@ export function AcceptRoleInvite({
               </div>
             </div>
             <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl">
-              Event Link Changed
+              Invitation unavailable
             </h1>
             <p className="mb-6 text-lg text-gray-600">
-              The event link you&apos;re trying to access has been changed or no
-              longer exists.
+              This invitation is invalid, has expired, or the event is no longer
+              available.
             </p>
             <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-6 text-left">
               <h3 className="mb-3 font-semibold text-red-900">What to do next:</h3>
