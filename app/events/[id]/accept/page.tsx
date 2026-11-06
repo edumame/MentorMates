@@ -3,7 +3,10 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { CommunityButtons } from "./community-buttons";
-import { Resource } from "@/lib/types";
+import {
+  getVisibleEventResources,
+  normalizeEventResources,
+} from "@/lib/utils/event-resources";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -47,12 +50,17 @@ export default async function AcceptInvitePage({ params }: PageProps) {
     }
   }
 
-  // Extract WhatsApp and Discord links from event resources
-  const whatsappLink = eventData.event_resources?.find((resource: Resource) => 
+  const publicResources = getVisibleEventResources(
+    normalizeEventResources(eventData.event_resources),
+    false
+  );
+
+  // Extract WhatsApp and Discord links from public event resources
+  const whatsappLink = publicResources.find((resource) => 
     resource.name.toLowerCase().includes('whatsapp')
   )?.link;
 
-  const discordLink = eventData.event_resources?.find((resource: Resource) => 
+  const discordLink = publicResources.find((resource) => 
     resource.name.toLowerCase().includes('discord')
   )?.link;
 

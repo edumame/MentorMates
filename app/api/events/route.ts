@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import {
+  getVisibleEventResources,
+  normalizeEventResources,
+} from "@/lib/utils/event-resources";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -102,7 +106,18 @@ export async function GET() {
       const userRole =
         userRoles.find((role) => role.event_id === event.event_id)?.role ||
         null;
-      return { ...event, userRole };
+
+      const canViewPrivateResources = Boolean(isAdmin) || Boolean(userRole);
+      const visibleResources = getVisibleEventResources(
+        normalizeEventResources(event.event_resources),
+        canViewPrivateResources
+      );
+
+      return {
+        ...event,
+        event_resources: visibleResources,
+        userRole,
+      };
     });
 
     return NextResponse.json({ events: eventsWithRole });

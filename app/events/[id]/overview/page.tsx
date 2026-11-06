@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { EventDetails, EventTrack, EventRole, Lesson } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import {
+  getVisibleEventResources,
+  normalizeEventResources,
+} from "@/lib/utils/event-resources";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { EventPageContent } from "@/components/events/event-page-content";
 import { EventPageSidebar } from "@/components/events/event-page-sidebar";
@@ -71,6 +75,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
     .eq("event_id", eventData.event_id);
 
   const typedEvent = eventData as EventDetails & { cover_image_url?: string };
+  const normalizedResources = normalizeEventResources(typedEvent.event_resources);
   // Fetch lessons from new event_lessons table
   const { data: lessonsData } = await supabase
     .from("event_lessons")
@@ -156,38 +161,47 @@ export default async function EventOverviewPage({ params }: PageProps) {
     }));
   }
 
+  const visibleResources = getVisibleEventResources(
+    normalizedResources,
+    hasJoined
+  );
+  const eventForRender: EventDetails & { cover_image_url?: string } = {
+    ...typedEvent,
+    event_resources: visibleResources,
+  };
+
   return (
     <EventPageLayout
-      eventName={typedEvent.event_name}
-      eventBlurb={typedEvent.event_blurb || ""}
-      eventDate={typedEvent.event_date}
-      location={typedEvent.location}
-      coverImageUrl={typedEvent.cover_image_url}
+      eventName={eventForRender.event_name}
+      eventBlurb={eventForRender.event_blurb || ""}
+      eventDate={eventForRender.event_date}
+      location={eventForRender.location}
+      coverImageUrl={eventForRender.cover_image_url}
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
-      paid={typedEvent.paid}
-      eventType={typedEvent.event_type}
+      paid={eventForRender.paid}
+      eventType={eventForRender.event_type}
     >
       {/* Main Content */}
       <div className="min-w-0 flex-1">
         <EventPageContent
-          event={typedEvent}
+          event={eventForRender}
           tracks={tracks}
           hasJoined={hasJoined}
           userRole={userRole}
           judges={judges}
           userProjects={userProjects}
-          eventSlug={typedEvent.slug}
-          submissionDeadline={typedEvent.submission_time_cutoff}
+          eventSlug={eventForRender.slug}
+          submissionDeadline={eventForRender.submission_time_cutoff}
         />
       </div>
 
       {/* Sidebar */}
       <EventPageSidebar
-        eventResources={typedEvent.event_resources}
+        eventResources={visibleResources}
         eventId={eventData.event_id}
-        eventSlug={typedEvent.slug}
+        eventSlug={eventForRender.slug}
       />
     </EventPageLayout>
   );
