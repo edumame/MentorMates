@@ -1,9 +1,10 @@
 import { SignJWT, jwtVerify } from "jose";
 
-const getJwtSecret = () =>
-  new TextEncoder().encode(
-    process.env.JWT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret?.trim()) throw new Error("Invitation signing secret is not configured");
+  return new TextEncoder().encode(secret);
+};
 
 const EVENT_ROLE_INVITE_PURPOSE = "event_role_invite";
 const EVENT_ROLE_INVITE_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -91,8 +92,21 @@ export async function verifyEventRoleInviteToken(
   token: string
 ): Promise<EventRoleInvitePayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getJwtSecret());
-    if (payload.purpose !== EVENT_ROLE_INVITE_PURPOSE) return null;
+    const { payload } = await jwtVerify(token, getJwtSecret(), {
+      algorithms: ["HS256"],
+      requiredClaims: ["exp"],
+    });
+    if (
+      payload.purpose !== EVENT_ROLE_INVITE_PURPOSE ||
+      typeof payload.email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) ||
+      payload.email !== payload.email.toLowerCase() ||
+      typeof payload.eventId !== "string" ||
+      !payload.eventId.trim() ||
+      payload.eventId !== payload.eventId.trim() ||
+      typeof payload.role !== "string" ||
+      !["participant", "judge", "organizer"].includes(payload.role)
+    ) return null;
     return {
       email: payload.email as string,
       eventId: payload.eventId as string,

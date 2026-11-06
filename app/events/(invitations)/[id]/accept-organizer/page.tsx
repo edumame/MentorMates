@@ -3,7 +3,7 @@ import { AcceptOrganizerInvite } from "./AcceptOrganizerInvite";
 import {
   loadInviteAcceptanceEvent,
   redirectIfInviteAlreadyAccepted,
-} from "../invite-acceptance";
+} from "@/lib/events/invite-acceptance";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -12,8 +12,8 @@ interface PageProps {
 
 export default async function AcceptOrganizerInvitePage({ params, searchParams }: PageProps) {
   const { id } = await Promise.resolve(params);
-  const { email, token } = await Promise.resolve(searchParams);
-  const eventData = await loadInviteAcceptanceEvent(id);
+  const { token } = await Promise.resolve(searchParams);
+  const eventData = await loadInviteAcceptanceEvent(id, { token, role: "organizer" });
 
   if (!eventData) {
     return (
@@ -22,7 +22,6 @@ export default async function AcceptOrganizerInvitePage({ params, searchParams }
         eventName=""
         eventBlurb={null}
         eventSlug={null}
-        invitedEmail={email}
         eventNotFound={true}
       />
     );
@@ -40,7 +39,7 @@ export default async function AcceptOrganizerInvitePage({ params, searchParams }
       eventName={eventData.event_name}
       eventBlurb={eventData.event_blurb}
       eventSlug={eventData.slug}
-      invitedEmail={email}
+      invitedEmail={eventData.invitedEmail}
       inviteToken={token}
       eventNotFound={false}
     />

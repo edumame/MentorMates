@@ -49,3 +49,5 @@ jobs:
         run: python3 scripts/test_scraper_quota.py
       - name: Test event role policies in disposable PostgreSQL
         run: python3 scripts/test_event_role_rls.py
+      - name: Test meeting and agent read policies in disposable PostgreSQL
+        run: python3 scripts/test_meeting_agent_rls.py

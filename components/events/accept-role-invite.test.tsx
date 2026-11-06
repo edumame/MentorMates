@@ -86,10 +86,10 @@ describe("AcceptRoleInvite", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Event Link Changed" })
+      screen.getByRole("heading", { name: "Invitation unavailable" })
     ).toBeInTheDocument();
     expect(screen.getByText("judge@email.com")).toBeInTheDocument();
-    await waitFor(() => expect(mockGetSession).toHaveBeenCalled());
+    expect(mockGetSession).not.toHaveBeenCalled();
   });
 
   it("stores the current invite URL before sending unauthenticated users to login", async () => {
