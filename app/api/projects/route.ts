@@ -367,12 +367,25 @@ export async function GET(request: NextRequest) {
       // Ensure the event itself is public before returning any projects.
       const { data: eventMeta, error: eventMetaError } = await supabase
         .from("events")
-        .select("visibility")
+        .select("visibility, hide_gallery_until_deadline, submission_time_cutoff")
         .eq("event_id", resolvedEventId)
         .maybeSingle();
 
       if (eventMetaError || eventMeta?.visibility !== "public") {
         return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      }
+
+      // If the organizer has chosen to hide the gallery until the deadline,
+      // return an empty list with a hint until the submission window has closed.
+      const hideUntilDeadline = (eventMeta as { hide_gallery_until_deadline?: boolean | null })
+        .hide_gallery_until_deadline;
+      const cutoff = (eventMeta as { submission_time_cutoff?: string | null }).submission_time_cutoff;
+      if (hideUntilDeadline && cutoff && new Date(cutoff) > new Date()) {
+        return NextResponse.json({
+          projects: [],
+          hidden_until_deadline: true,
+          reveal_at: cutoff,
+        });
       }
 
       // Public view - fetch all projects for the event

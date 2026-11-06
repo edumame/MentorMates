@@ -645,6 +645,8 @@ export type Database = {
       }
       events: {
         Row: {
+          hide_gallery_until_deadline: boolean | null
+
           approval_status: Database["public"]["Enums"]["approval_status"] | null
           cover_image_url: string | null
           created_at: string | null
