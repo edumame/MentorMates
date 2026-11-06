@@ -167,6 +167,7 @@ export function BasicInfoTab({
           event_blurb: event.event_blurb,
           external_url: event.external_url?.trim() || null,
           external_redirect_enabled: event.external_redirect_enabled ?? false,
+          submissions_anonymized: event.submissions_anonymized ?? false,
           event_type: event.event_type,
           paywall_content: event.paywall_content,
           cover_image_url: coverImageUrl ?? null,
@@ -186,6 +187,7 @@ export function BasicInfoTab({
         cover_image_url: coverImageUrl ?? undefined,
         external_url: event.external_url?.trim() || null,
         external_redirect_enabled: event.external_redirect_enabled ?? false,
+        submissions_anonymized: event.submissions_anonymized ?? false,
       });
       setSelectedCoverImage(null);
       setPreviewUrl(null);
@@ -418,6 +420,8 @@ export function BasicInfoTab({
               />
             </div>
           </div>
+
+
         </div>
 
         {/* Seat Cap */}
@@ -843,6 +847,26 @@ export function BasicInfoTab({
             />
             <span className="text-sm text-gray-500">
               Judges can mark projects as recommended for finals
+            </span>
+          </div>
+        </div>
+
+        {/* Anonymize Submissions Toggle */}
+        <div className="space-y-2">
+          <label className="text-[16px] font-normal text-black">
+            Anonymize submissions
+          </label>
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={!!event.submissions_anonymized}
+              disabled={isArchived}
+              onCheckedChange={(checked) =>
+                setEvent({ ...event, submissions_anonymized: checked })
+              }
+            />
+            <span className="text-sm text-gray-500">
+              Hide participant names, emails, and avatars from judges, mentors,
+              and other participants. Organizers always see real identities.
             </span>
           </div>
         </div>

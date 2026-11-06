@@ -15,6 +15,10 @@ import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
+import {
+  redactAnonymizedProject,
+  redactAnonymizedProjects,
+} from "@/lib/projects/anonymize";
 
 type ArtifactRow = {
   project_id: string;
@@ -268,13 +272,15 @@ export async function GET(request: NextRequest) {
         // Ensure the owning event is public.
         const { data: eventMeta, error: eventMetaError } = await supabase
           .from("events")
-          .select("visibility")
+          .select("visibility, submissions_anonymized")
           .eq("event_id", project.event_id)
           .maybeSingle();
 
         if (eventMetaError || eventMeta?.visibility !== "public") {
           return NextResponse.json({ error: "Project not found" }, { status: 404 });
         }
+        // Public single-project view: never an organizer/admin path.
+        const anonymizeProjectFields = Boolean(eventMeta?.submissions_anonymized);
         const [artifactMap, fieldMap, answerMap] = await Promise.all([
           fetchArtifactsByProjectIds(supabase, [project.id]),
           fetchSubmissionFieldsByEventIds(supabase, [project.event_id]),
@@ -326,7 +332,11 @@ export async function GET(request: NextRequest) {
           transformedProject as unknown as { is_finalist?: boolean }
         ).is_finalist = extras.is_finalist;
 
-        return NextResponse.json({ project: transformedProject });
+                const responseProject = anonymizeProjectFields
+          ? redactAnonymizedProject(transformedProject, false)
+          : transformedProject;
+
+        return NextResponse.json({ project: responseProject });
       }
 
       if (!resolvedEventId && eventSlug) {
@@ -367,13 +377,15 @@ export async function GET(request: NextRequest) {
       // Ensure the event itself is public before returning any projects.
       const { data: eventMeta, error: eventMetaError } = await supabase
         .from("events")
-        .select("visibility")
+        .select("visibility, submissions_anonymized")
         .eq("event_id", resolvedEventId)
         .maybeSingle();
 
       if (eventMetaError || eventMeta?.visibility !== "public") {
         return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
+      // Public list: never an organizer/admin path.
+      const anonymizeEventProjects = Boolean(eventMeta?.submissions_anonymized);
 
       // Public view - fetch all projects for the event
       const { data: allProjects, error } = await supabase
@@ -543,7 +555,11 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return NextResponse.json({ projects: projectsWithArtifacts });
+      const responseProjects = anonymizeEventProjects
+        ? redactAnonymizedProjects(projectsWithArtifacts, false)
+        : projectsWithArtifacts;
+
+      return NextResponse.json({ projects: responseProjects });
     }
 
     // For all other requests, require authentication
@@ -604,6 +620,51 @@ export async function GET(request: NextRequest) {
           { error: "Project not found" },
           { status: 404 }
         );
+      }
+
+      // Determine whether this viewer should see real identities.
+      // Project lead + teammates always see real identities (it's their own
+      // project). Organizers + global admins always see real identities.
+      const { data: eventFlagRow, error: eventFlagError } = await supabase
+        .from("events")
+        .select("submissions_anonymized")
+        .eq("event_id", project.event_id)
+        .maybeSingle();
+      if (eventFlagError || (project.event_id && !eventFlagRow)) {
+        return NextResponse.json({ error: "Unable to verify project privacy settings" }, { status: 503 });
+      }
+      const eventAnonymized = Boolean(eventFlagRow?.submissions_anonymized);
+
+      let viewerIsOrganizerOrAdmin = false;
+      if (eventAnonymized) {
+        const isOwnProject =
+          project.lead_email === user.email ||
+          (Array.isArray(
+            (project as unknown as { teammates?: string[] }).teammates
+          ) &&
+            ((project as unknown as { teammates?: string[] }).teammates ?? [])
+              .includes(user.email ?? ""));
+        if (isOwnProject) {
+          viewerIsOrganizerOrAdmin = true;
+        } else {
+          const { data: viewerRole } = await supabase
+            .from("user_event_roles")
+            .select("role")
+            .eq("event_id", project.event_id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (
+            viewerRole &&
+            canAccessRole(viewerRole.role as EventRole, EventRole.Organizer)
+          ) {
+            viewerIsOrganizerOrAdmin = true;
+          } else {
+            const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+              user_id: user.id,
+            });
+            if (isAdmin === true) viewerIsOrganizerOrAdmin = true;
+          }
+        }
       }
 
       const [artifactMap, fieldMap, answerMap] = await Promise.all([
@@ -693,7 +754,12 @@ export async function GET(request: NextRequest) {
         transformedProject as unknown as { is_finalist?: boolean }
       ).is_finalist = await fetchIsFinalist(transformedProject.id);
 
-      return NextResponse.json({ project: transformedProject });
+            const responseProject =
+        eventAnonymized && !viewerIsOrganizerOrAdmin
+          ? redactAnonymizedProject(transformedProject, false)
+          : transformedProject;
+
+      return NextResponse.json({ project: responseProject });
     }
 
     // Handle projects by event
@@ -709,6 +775,24 @@ export async function GET(request: NextRequest) {
       const isOrganizer =
         userRole &&
         canAccessRole(userRole.role as EventRole, EventRole.Organizer);
+
+      // Fetch the event's anonymized flag in parallel with the admin check.
+      const [{ data: eventFlagRow, error: eventFlagError }, { data: isAdminRpc }] = await Promise.all([
+        supabase
+          .from("events")
+          .select("submissions_anonymized")
+          .eq("event_id", eventId)
+          .maybeSingle(),
+        // Skip RPC when already an organizer — pointless round-trip.
+        isOrganizer
+          ? Promise.resolve({ data: false })
+          : supabase.rpc("is_admin_user", { user_id: user.id }),
+      ]);
+      if (eventFlagError || !eventFlagRow) {
+        return NextResponse.json({ error: "Unable to verify project privacy settings" }, { status: 503 });
+      }
+      const eventAnonymized = Boolean(eventFlagRow?.submissions_anonymized);
+      const isOrganizerOrAdmin = Boolean(isOrganizer) || isAdminRpc === true;
 
       // Build query with track relationships
       const query = supabase
@@ -819,7 +903,14 @@ export async function GET(request: NextRequest) {
         );
       });
 
-      return NextResponse.json({ projects: transformedProjectsWithArtifacts });
+      const responseProjects = eventAnonymized
+        ? redactAnonymizedProjects(
+            transformedProjectsWithArtifacts,
+            isOrganizerOrAdmin
+          )
+        : transformedProjectsWithArtifacts;
+
+      return NextResponse.json({ projects: responseProjects });
     }
 
     // If no specific parameters, return error
