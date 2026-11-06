@@ -8,7 +8,7 @@ export default defineConfig({
   testMatch: 'invite-acceptance.spec.ts',
   workers: 1,
   timeout: 60_000,
-  use: { baseURL: 'http://127.0.0.1:3107', trace: 'retain-on-failure' },
+  use: { baseURL: 'http://localhost:3107', trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
@@ -18,7 +18,7 @@ export default defineConfig({
     },
     {
       command: 'npm run dev -- --port 3107',
-      url: 'http://127.0.0.1:3107/login',
+      url: 'http://localhost:3107/login',
       timeout: 180_000,
       reuseExistingServer: false,
       env: {
@@ -26,7 +26,7 @@ export default defineConfig({
         NEXT_PUBLIC_SUPABASE_ANON_KEY: 'invite-test-anon-key',
         SUPABASE_SERVICE_ROLE_KEY: 'invite-test-service-key',
         JWT_SECRET: 'invite-regression-only-secret',
-        NEXT_PUBLIC_APP_URL: 'http://127.0.0.1:3107',
+        NEXT_PUBLIC_APP_URL: 'http://localhost:3107',
       },
     },
   ],
