@@ -3,7 +3,7 @@ import { AcceptJudgeInvite } from "./AcceptJudgeInvite";
 import {
   loadInviteAcceptanceEvent,
   redirectIfInviteAlreadyAccepted,
-} from "../invite-acceptance";
+} from "@/lib/events/invite-acceptance";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -15,9 +15,9 @@ export default async function AcceptJudgeInvitePage({
   searchParams,
 }: PageProps) {
   const { id } = await Promise.resolve(params);
-  const { email, token } = await Promise.resolve(searchParams);
+  const { token } = await Promise.resolve(searchParams);
 
-  const eventData = await loadInviteAcceptanceEvent(id);
+  const eventData = await loadInviteAcceptanceEvent(id, { token, role: "judge" });
 
   if (!eventData) {
     return (
@@ -26,7 +26,6 @@ export default async function AcceptJudgeInvitePage({
         eventName=""
         eventBlurb={null}
         eventSlug={null}
-        invitedEmail={email}
         eventNotFound={true}
       />
     );
@@ -44,7 +43,7 @@ export default async function AcceptJudgeInvitePage({
       eventName={eventData.event_name}
       eventBlurb={eventData.event_blurb}
       eventSlug={eventData.slug}
-      invitedEmail={email}
+      invitedEmail={eventData.invitedEmail}
       inviteToken={token}
       eventNotFound={false}
     />
