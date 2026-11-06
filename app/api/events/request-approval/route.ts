@@ -21,6 +21,7 @@ const eventSchema = z.object({
   submission_time_start: z.string().optional(),
   submission_time_cutoff: z.string().optional(),
   participant_capacity: z.number().int().nonnegative().optional(),
+  max_projects: z.number().int().positive().nullable().optional(),
   paid: z.boolean().optional(),
   stripe_price_id: z.string().optional(),
   event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
@@ -75,7 +76,6 @@ const payloadSchema = z
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseClient();
-  const serviceSupabase = createSupabaseServiceClient();
 
   try {
     const {
@@ -144,10 +144,27 @@ export async function POST(req: Request) {
         );
       }
 
+      // Keep edits supplied with an existing-event approval request. Only copy
+      // validated, editable columns, and leave omitted values unchanged.
+      const updatePayload: Database["public"]["Tables"]["events"]["Update"] = {
+        approval_status: ApprovalStatus.Submitted,
+      };
+      if (event) {
+        const editableFields = [
+          "event_name", "event_date", "location", "rules", "slug", "cover_image_url",
+          "event_description", "event_blurb", "submission_time_start",
+          "submission_time_cutoff", "participant_capacity", "max_projects", "paid",
+          "stripe_price_id", "event_schedule", "event_resources", "faq",
+        ] as const;
+        for (const field of editableFields) {
+          if (event[field] !== undefined) Object.assign(updatePayload, { [field]: event[field] });
+        }
+      }
+
       // Update approval status to submitted
       const { data: updatedEvent, error: updateError } = await supabase
         .from("events")
-        .update({ approval_status: ApprovalStatus.Submitted })
+        .update(updatePayload)
         .eq("event_id", eventId)
         .select("*")
         .single();
@@ -198,6 +215,8 @@ export async function POST(req: Request) {
       );
     }
 
+    const serviceSupabase = createSupabaseServiceClient();
+
     // Build insert payload with approval_status set to 'submitted'
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
@@ -213,6 +232,7 @@ export async function POST(req: Request) {
       submission_time_start: event.submission_time_start ?? null,
       submission_time_cutoff: event.submission_time_cutoff ?? null,
       participant_capacity: event.participant_capacity ?? null,
+      max_projects: event.max_projects ?? null,
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
       event_schedule: (event.event_schedule as Json) ?? null,
