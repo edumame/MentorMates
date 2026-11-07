@@ -14,6 +14,7 @@ import {
 interface UseProjectSubmissionAutosaveOptions {
   enabled: boolean;
   projectId: string | null;
+  ensureProjectId?: () => Promise<string>;
   fields: EffectiveSubmissionField[];
   values: Record<string, SubmissionValue>;
   hasConfiguredSubmissionFields: boolean;
@@ -37,6 +38,7 @@ interface UseProjectSubmissionAutosaveOptions {
 export function useProjectSubmissionAutosave({
   enabled,
   projectId,
+  ensureProjectId,
   fields,
   values,
   hasConfiguredSubmissionFields,
@@ -78,8 +80,8 @@ export function useProjectSubmissionAutosave({
   const payloadSnapshot = useMemo(() => JSON.stringify(payload), [payload]);
 
   const activeSave = useRef<Promise<boolean> | null>(null);
-  const latest = useRef({ enabled, projectId, payloadSnapshot, onSaved, onError });
-  latest.current = { enabled, projectId, payloadSnapshot, onSaved, onError };
+  const latest = useRef({ enabled, projectId, ensureProjectId, payloadSnapshot, onSaved, onError });
+  latest.current = { enabled, projectId, ensureProjectId, payloadSnapshot, onSaved, onError };
 
   // Serialize manual saves with autosave; an older request must never finish
   // after the save used by publish/exit and overwrite its attachment URLs.
@@ -88,7 +90,7 @@ export function useProjectSubmissionAutosave({
       await activeSave.current;
     }
     const current = latest.current;
-    if (!current.enabled || !current.projectId) {
+    if (!current.enabled || (!current.projectId && !current.ensureProjectId)) {
       toast({ title: "Unable to save draft", description: "Please wait for the project to finish loading and try again.", variant: "destructive" });
       return false;
     }
@@ -96,7 +98,8 @@ export function useProjectSubmissionAutosave({
     setIsSaving(true);
     const request = (async () => {
       try {
-        const response = await fetch(`/api/projects/${current.projectId}`, {
+        const savedProjectId = current.projectId || await current.ensureProjectId!();
+        const response = await fetch(`/api/projects/${savedProjectId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: current.payloadSnapshot,
