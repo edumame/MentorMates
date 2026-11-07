@@ -28,6 +28,7 @@ import { EventCard } from "@/components/events/event-card";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
+import { useProjectDraftCreation } from "./hooks/useProjectDraftCreation";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
 import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
@@ -105,15 +106,11 @@ export function NewProjectSubmissionFormSinglePage({
   const [isUploading, setIsUploading] = useState(false);
   const isAdmin = useAdmin();
 
-  // Ref to track if draft creation has been attempted
-  const draftCreationAttempted = useRef(false);
-
   // Lets publish flush any multi-entry field drafts the submitter typed
   // but didn't explicitly add.
   const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
 
   // State
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
   );
@@ -448,60 +445,27 @@ export function NewProjectSubmissionFormSinglePage({
     submissionFieldValues.video_url,
   ]);
 
-  // Create a draft as soon as user starts typing (only once)
-  useEffect(() => {
-    const hasContent =
-      formData.projectName.trim() ||
-      formData.projectDescription.trim() ||
-      formData.projectUrl.trim();
-
-    // Skip if no content, already have a projectId, or already attempted to create a draft
-    if (!hasContent || projectId || draftCreationAttempted.current) return;
-
-    const createDraft = async () => {
-      // Mark that we've attempted to create a draft
-      draftCreationAttempted.current = true;
-
-      try {
-        const resp = await fetch("/api/projects", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            eventId,
-            leadName: formData.leadName,
-            leadEmail: formData.leadEmail,
-            contextus: isAdmin,
-          }),
-        });
-        if (resp.ok) {
-          const json = await resp.json();
-          setProjectId(json.id);
-          if (json.contextus_project_id && onContextusLinked && isAdmin) {
-            setContextusId(json.contextus_project_id as string);
-            onContextusLinked?.(json.contextus_project_id as string);
-          }
-        } else {
-          // Reset the flag if the request failed so it can be retried
-          draftCreationAttempted.current = false;
-        }
-      } catch (e) {
-        // Reset the flag if there was an error so it can be retried
-        draftCreationAttempted.current = false;
-      }
-    };
-
-    createDraft();
-  }, [
-    formData.projectName,
-    formData.projectDescription,
-    formData.projectUrl,
-    projectId,
+  const { projectId, ensureProjectId } = useProjectDraftCreation({
     eventId,
-    formData.leadName,
-    formData.leadEmail,
-    onContextusLinked,
-    isAdmin,
-  ]);
+    leadName: formData.leadName,
+    leadEmail: formData.leadEmail,
+    contextus: isAdmin,
+    onCreated: (linkedContextusId) => {
+      if (linkedContextusId && isAdmin) {
+        setContextusId(linkedContextusId);
+        onContextusLinked?.(linkedContextusId);
+      }
+    },
+  });
+
+  // Start creation in the background; explicit saves share the same request.
+  useEffect(() => {
+    if (formData.projectName.trim() || formData.projectDescription.trim() || formData.projectUrl.trim()) {
+      void ensureProjectId().catch(() => {
+        // An explicit save retries and surfaces the server error if it still fails.
+      });
+    }
+  }, [formData.projectName, formData.projectDescription, formData.projectUrl, ensureProjectId]);
 
   const participantEmails = useMemo(
     () => participants.map((participant) => participant.email.toLowerCase()),
@@ -518,6 +482,7 @@ export function NewProjectSubmissionFormSinglePage({
   const { lastSaved, flushSave } = useProjectSubmissionAutosave({
     enabled: !isLoading,
     projectId,
+    ensureProjectId,
     fields: effectiveSubmissionFields,
     values: submissionFieldValues,
     hasConfiguredSubmissionFields,
@@ -693,7 +658,7 @@ export function NewProjectSubmissionFormSinglePage({
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
       const payload = {
-        projectId,
+        projectId: await ensureProjectId(),
         projectName: formData.projectName,
         leadName: formData.leadName,
         leadEmail: formData.leadEmail,
