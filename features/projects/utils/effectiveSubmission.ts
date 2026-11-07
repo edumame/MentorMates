@@ -2,7 +2,11 @@ import {
   DEFAULT_SUBMISSION_FIELDS,
   type SubmissionField,
 } from "@/components/events/submission";
-import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
+import {
+  coerceSubmissionAnswerValue,
+  isMultiValueSubmissionFieldType,
+  type SubmissionFieldType,
+} from "@/features/projects/utils/submission";
 import type {
   EventSubmissionField,
   Project,
@@ -164,6 +168,43 @@ export function findMissingRequiredSubmissionField(
     const value = normalizeSubmissionValue(field, values[field.key]);
     return Array.isArray(value) ? value.length === 0 : value.trim().length === 0;
   });
+}
+
+/**
+ * Server-side counterpart of the publish-time required check the participant
+ * submission forms run. Builds form values from raw answer payloads (coerced
+ * the same way persistence coerces them) plus the project's own name and
+ * description, then delegates to `findMissingRequiredSubmissionField`.
+ */
+export function findMissingRequiredSubmissionAnswer(
+  fields: EffectiveSubmissionField[],
+  submission: {
+    projectName?: string | null;
+    projectDescription?: string | null;
+    answers: Array<{ eventSubmissionFieldId: string; answer: unknown }>;
+  }
+): EffectiveSubmissionField | undefined {
+  const answerByFieldId = new Map(
+    submission.answers.map((answer) => [answer.eventSubmissionFieldId, answer.answer])
+  );
+
+  const values = buildSubmissionFormValues(fields, (field) => {
+    if (answerByFieldId.has(field.id)) {
+      return (
+        coerceSubmissionAnswerValue(
+          field.field_type as SubmissionFieldType,
+          answerByFieldId.get(field.id)
+        ) ?? ""
+      );
+    }
+    if (field.key === "project_name") return submission.projectName ?? "";
+    if (field.key === "project_description") {
+      return submission.projectDescription ?? "";
+    }
+    return "";
+  });
+
+  return findMissingRequiredSubmissionField(fields, values);
 }
 
 export function buildSubmissionAnswerMapByFieldId(

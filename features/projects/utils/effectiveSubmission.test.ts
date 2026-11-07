@@ -2,6 +2,7 @@ import {
   applyEffectiveSubmissionToProject,
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
+  findMissingRequiredSubmissionAnswer,
   hasSubmissionFieldMismatch,
   hasConfiguredSubmissionFields,
 } from "./effectiveSubmission";
@@ -345,5 +346,79 @@ describe("effective submission helpers", () => {
         metadata: null,
       },
     ]);
+  });
+});
+
+describe("findMissingRequiredSubmissionAnswer", () => {
+  const field = (
+    overrides: Partial<EventSubmissionField>,
+  ): EventSubmissionField => ({
+    id: "field-demo",
+    event_id: "event-1",
+    key: "demo",
+    label: "Demo",
+    field_type: "url",
+    required: true,
+    sort_order: 0,
+    is_active: true,
+    ...overrides,
+  });
+
+  it("returns the first required field without an answer", () => {
+    expect(
+      findMissingRequiredSubmissionAnswer([field({})], { answers: [] })?.id,
+    ).toBe("field-demo");
+  });
+
+  it("accepts answered required fields and ignores optional ones", () => {
+    expect(
+      findMissingRequiredSubmissionAnswer(
+        [field({}), field({ id: "opt", key: "opt", required: false })],
+        { answers: [{ eventSubmissionFieldId: "field-demo", answer: "https://x.test" }] },
+      ),
+    ).toBeUndefined();
+  });
+
+  it("treats blank strings, empty lists and unchecked checkboxes as missing", () => {
+    expect(
+      findMissingRequiredSubmissionAnswer([field({})], {
+        answers: [{ eventSubmissionFieldId: "field-demo", answer: "  " }],
+      }),
+    ).toBeDefined();
+    expect(
+      findMissingRequiredSubmissionAnswer([field({ field_type: "multi_url" })], {
+        answers: [{ eventSubmissionFieldId: "field-demo", answer: ["", " "] }],
+      }),
+    ).toBeDefined();
+    expect(
+      findMissingRequiredSubmissionAnswer([field({ field_type: "checkbox" })], {
+        answers: [{ eventSubmissionFieldId: "field-demo", answer: "false" }],
+      }),
+    ).toBeDefined();
+    expect(
+      findMissingRequiredSubmissionAnswer([field({ field_type: "checkbox" })], {
+        answers: [{ eventSubmissionFieldId: "field-demo", answer: "true" }],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("falls back to the project name and description for locked fields", () => {
+    const fields = [
+      field({ id: "name", key: "project_name", field_type: "short_text" }),
+      field({ id: "desc", key: "project_description", field_type: "long_text" }),
+    ];
+    expect(
+      findMissingRequiredSubmissionAnswer(fields, {
+        projectName: "Name",
+        projectDescription: "Desc",
+        answers: [],
+      }),
+    ).toBeUndefined();
+    expect(
+      findMissingRequiredSubmissionAnswer(fields, {
+        projectName: "Name",
+        answers: [],
+      })?.id,
+    ).toBe("desc");
   });
 });
