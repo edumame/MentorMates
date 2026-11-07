@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      device_auth_codes: {
+        Row: {
+          id: string
+          device_code_hash: string
+          user_code: string
+          user_id: string | null
+          access_mode: string
+          status: string
+          api_key_id: string | null
+          api_key_raw_encrypted: string | null
+          expires_at: string
+          last_polled_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          device_code_hash: string
+          user_code: string
+          user_id?: string | null
+          access_mode?: string
+          status?: string
+          api_key_id?: string | null
+          api_key_raw_encrypted?: string | null
+          expires_at: string
+          last_polled_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          device_code_hash?: string
+          user_code?: string
+          user_id?: string | null
+          access_mode?: string
+          status?: string
+          api_key_id?: string | null
+          api_key_raw_encrypted?: string | null
+          expires_at?: string
+          last_polled_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          { foreignKeyName: "device_auth_codes_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "user_profiles"; referencedColumns: ["uid"] },
+          { foreignKeyName: "device_auth_codes_api_key_id_fkey"; columns: ["api_key_id"]; isOneToOne: false; referencedRelation: "agent_api_keys"; referencedColumns: ["id"] },
+        ]
+      }
       internal_api_usage: {
         Row: {
           completion_tokens: number | null
@@ -2444,6 +2489,10 @@ export type Database = {
     }
     Functions: {
       reserve_scraper_request: { Args: { p_user_id: string }; Returns: { allowed: boolean; retry_after_seconds: number }[] }
+      reserve_device_auth_attempt: {
+        Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
+        Returns: { allowed: boolean; retry_after_seconds: number }[]
+      }
       increment_internal_invite_uses: {
         Args: { p_invite_id: string }
         Returns: undefined
