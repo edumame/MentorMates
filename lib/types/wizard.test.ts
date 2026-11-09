@@ -2,7 +2,12 @@
  * @jest-environment node
  */
 // ORG-015: datetime-local values must be read in the organizer's time zone.
-process.env.TZ = "America/Los_Angeles";
+// Pin the "browser" zone so results don't depend on the machine running jest
+// (CI runs in UTC); setting process.env.TZ at runtime is not reliable in Node.
+jest.mock("@/lib/utils/zoned-time", () => ({
+  ...jest.requireActual("@/lib/utils/zoned-time"),
+  browserTimeZone: () => "America/Los_Angeles",
+}));
 
 import {
   buildApiPayload,
