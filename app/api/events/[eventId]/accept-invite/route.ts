@@ -3,7 +3,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
-import { verifyEventRoleInviteToken } from "@/lib/utils/jwt";
+import { consumeInvite, getPendingInvite, releaseInvite } from "@/lib/events/role-invitations";
 
 const INVALID_INVITE_MESSAGE =
   "This invitation link is invalid or has expired. Please ask the event organizer for a new one.";
@@ -24,10 +24,13 @@ export async function POST(
 
   const body = await request.json().catch(() => null);
   const token = body?.token;
-  const invite =
-    typeof token === "string" && token
-      ? await verifyEventRoleInviteToken(token)
-      : null;
+  // Signature AND stored row (pending, unexpired, unrevoked): ORG-012 round 2.
+  let invite;
+  try {
+    invite = await getPendingInvite(typeof token === "string" ? token : null);
+  } catch {
+    return NextResponse.json({ error: "Failed to accept invitation" }, { status: 500 });
+  }
 
   if (!invite || invite.eventId !== eventId) {
     return NextResponse.json({ error: INVALID_INVITE_MESSAGE }, { status: 403 });
@@ -58,6 +61,11 @@ export async function POST(
 
   // Accepting an invite must never downgrade someone who already has more access.
   const inviteRole = invite.role as EventRole;
+  // Single use: consume the invitation before granting anything.
+  if (!(await consumeInvite(invite.jti, user.id).catch(() => false))) {
+    return NextResponse.json({ error: INVALID_INVITE_MESSAGE }, { status: 403 });
+  }
+
   if (
     existingRole &&
     canAccessRole(existingRole.role as EventRole, inviteRole)
@@ -76,6 +84,7 @@ export async function POST(
   );
 
   if (roleError) {
+    await releaseInvite(invite.jti).catch(() => {});
     console.error("Error accepting event invite:", roleError);
     return NextResponse.json(
       { error: "Failed to accept invitation" },

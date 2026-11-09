@@ -10,7 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import type { WizardEventData } from "@/lib/types/wizard";
-import { slugify } from "@/lib/types/wizard";
+import { EVENT_NAME_MAX_LENGTH, slugify } from "@/lib/types/wizard";
 import { Switch } from "@/components/ui/switch";
 
 const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
@@ -22,6 +22,7 @@ interface BasicInfoEditorProps {
 
 export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
   const [customEventType, setCustomEventType] = useState("");
+  const timeZone = useBrowserTimeZone();
   const [baseUrl, setBaseUrl] = useState(process.env.NEXT_PUBLIC_BASE_URL || "");
 
   useEffect(() => {
@@ -45,8 +46,13 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             });
           }}
           placeholder="Event Title"
+          aria-label="Event title"
+          maxLength={EVENT_NAME_MAX_LENGTH}
           className="w-full border-none bg-transparent text-3xl font-semibold tracking-tight text-gray-900 outline-none placeholder:text-gray-300"
         />
+        <p className="text-right text-xs text-gray-400" aria-live="polite">
+          {event.event_name.length}/{EVENT_NAME_MAX_LENGTH}
+        </p>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">Blurb</label>
           <input
@@ -140,6 +146,9 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             <label className="text-sm font-medium text-gray-700">
               Submission Window
             </label>
+            <p className="text-xs text-gray-500">
+              Times are in your time zone{timeZone ? ` (${timeZone})` : ""}.
+            </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-xs text-gray-500">Opens</label>
@@ -371,4 +380,17 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
       </div>
     </>
   );
+}
+
+// Read after mount: the server render does not know the browser's time zone.
+function useBrowserTimeZone() {
+  const [timeZone, setTimeZone] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || null);
+    } catch {
+      setTimeZone(null);
+    }
+  }, []);
+  return timeZone;
 }

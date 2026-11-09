@@ -60,6 +60,7 @@ export function Footer({ publicPresentation = false }: { publicPresentation?: bo
                   type="email"
                   name="email" // <-- Substack expects this name
                   placeholder="Enter your email"
+                  aria-label="Email address for the MentorMates newsletter"
                   required
                   className="h-11 w-full rounded-md border border-gray-300 px-4 text-sm outline-none focus:border-gray-400"
                 />

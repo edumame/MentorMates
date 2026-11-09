@@ -6,6 +6,7 @@ import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { canAccessRole } from '@/features/user/roles/roles';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { sendOrganizerInviteEmails } from '@/lib/events/invite-emails';
+import { reserveInviteQuota } from '@/lib/email/invite-quota';
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -14,8 +15,6 @@ function getResend(): Resend | null {
 }
 
 export async function POST(request: Request) {
-  // TODO: Consider implementing rate limiting to prevent invite spam
-  // Example: Allow max 10 invites per organizer per hour
   const supabase = await createSupabaseClient();
   const { data: auth } = await supabase.auth.getUser();
 
@@ -81,42 +80,32 @@ export async function POST(request: Request) {
     ? `${inviterProfile.display_name}`.trim()
     : 'A MentorMates organizer';
 
+  const inviteEmail = email.trim().toLowerCase();
+
+  // The account lookup only picks the email wording (sign up vs sign in).
+  // user_profiles.email mirrors the verified auth email (MENT-008 migration).
   const { data: user } = await serviceSupabase
     .from('user_profiles')
     .select('uid')
-    .eq('email', email.trim().toLowerCase())
+    .eq('email', inviteEmail)
     .maybeSingle();
 
-  // If user exists, add them directly as organizer
-  if (user) {
-    const { error } = await supabase.from('user_event_roles').upsert(
-      {
-        user_id: user.uid,
-        event_id: eventId,
-        role: EventRole.Organizer,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,event_id' },
-    );
-
-    if (error) {
-      return NextResponse.json({ error: 'Failed to invite organizer' }, { status: 500 });
-    }
-
-  }
-
+  // ORG-012: never grant the organizer role here. Every invitee, existing
+  // account or not, receives a signed invitation and becomes an organizer only
+  // after accepting it while signed in with this email
+  // (app/api/events/[eventId]/accept-invite).
   const resend = getResend();
   if (!resend) {
-    // Existing users already have their role; preserve this endpoint's behavior
-    // when email delivery is unavailable.
-    if (user) return NextResponse.json({ success: true, userExists: true });
     return NextResponse.json(
       { error: 'Email is not configured (RESEND_API_KEY missing)' },
       { status: 503 }
     );
   }
 
-  const inviteEmail = email.trim().toLowerCase();
+  // ORG-012: per-inviter and per-event daily caps.
+  const quotaResponse = await reserveInviteQuota(serviceSupabase, auth.user.id, eventId);
+  if (quotaResponse) return quotaResponse;
+
   const summary = await sendOrganizerInviteEmails({
     appOrigin: process.env.NEXT_PUBLIC_APP_URL ?? '',
     eventId,
@@ -135,9 +124,10 @@ export async function POST(request: Request) {
     },
   });
 
-  if (summary.failed.length > 0 && !user) {
+  if (summary.failed.length > 0) {
     return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, userExists: Boolean(user) });
+  // Uniform response: whether the address has an account is not disclosed.
+  return NextResponse.json({ success: true });
 }

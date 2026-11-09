@@ -212,13 +212,21 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
 
       const deduplicatedProjects = Array.from(uniqueProjects.values());
 
-      // Step 3: Insert projects
+      // Step 3: Insert projects. ON CONFLICT DO UPDATE SET col = EXCLUDED.col
+      // needs SELECT on col, and the team email columns are not readable by
+      // client roles, so the upsert carries every other column and the emails
+      // are written afterwards with a plain UPDATE (needs only UPDATE rights).
       const { data: insertedProjects, error: projectInsertError } =
         await supabase
           .from("projects")
-          .upsert(deduplicatedProjects, {
-            onConflict: "project_url,event_id,project_name",
-          })
+          .upsert(
+            deduplicatedProjects.map((project) => {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { lead_email, teammates, ...rest } = project;
+              return rest;
+            }),
+            { onConflict: "project_url,event_id,project_name" }
+          )
           .select("id, project_url, event_id, project_name");
 
       if (projectInsertError) {
@@ -228,6 +236,28 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
           variant: "destructive",
         });
         return;
+      }
+
+      for (const project of insertedProjects ?? []) {
+        const source = deduplicatedProjects.find(
+          (row) =>
+            row.project_url === project.project_url &&
+            row.event_id === project.event_id &&
+            row.project_name === project.project_name
+        );
+        if (!source) continue;
+        const { error: teamError } = await supabase
+          .from("projects")
+          .update({ lead_email: source.lead_email, teammates: source.teammates ?? [] })
+          .eq("id", project.id);
+        if (teamError) {
+          toast({
+            title: "Error importing team members",
+            description: teamError.message,
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // Step 4: Create project-track relationships
