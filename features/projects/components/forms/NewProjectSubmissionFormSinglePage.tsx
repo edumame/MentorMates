@@ -464,6 +464,15 @@ export function NewProjectSubmissionFormSinglePage({
     },
   });
 
+  // Start creation in the background; explicit saves share the same request.
+  useEffect(() => {
+    if (formData.projectName.trim() || formData.projectDescription.trim() || formData.projectUrl.trim()) {
+      void ensureProjectId().catch(() => {
+        // An explicit save retries and surfaces the server error if it still fails.
+      });
+    }
+  }, [formData.projectName, formData.projectDescription, formData.projectUrl, ensureProjectId]);
+
   const participantEmails = useMemo(
     () => participants.map((participant) => participant.email.toLowerCase()),
     [participants]
