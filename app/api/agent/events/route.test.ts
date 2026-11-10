@@ -768,6 +768,9 @@ describe("agent event_prizes reach the prizes table", () => {
     };
 
     (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+      // POST checks is_admin_user for create moderation (XL-001); the event
+      // here is a draft, so a non-admin is fine.
+      rpc: jest.fn().mockResolvedValue({ data: false, error: null }),
       from: jest.fn((table: string) => {
         if (table === "events") return eventsQuery;
         if (table === "user_event_roles") {
