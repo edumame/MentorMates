@@ -24,6 +24,10 @@ it('does not send another welcome for an existing profile', async () => {
  single.mockResolvedValue({ data: { uid: 'u', onboarding_metadata: null }, error: null });
  await run(); expect(insert).not.toHaveBeenCalled(); expect(sendWelcomeProfileEmail).not.toHaveBeenCalled();
 });
+it('skips onboarding for a user with persisted onboarding state', async () => {
+ single.mockResolvedValue({ data: { uid: 'u', onboarding_metadata: { status: 'skipped' } }, error: null });
+ const response = await run(); expect(response.headers.get('location')).toBe('https://example.test/events');
+});
 it('continues onboarding when delivery fails', async () => {
  const log = jest.spyOn(console, 'error').mockImplementation(() => {});
  jest.mocked(sendWelcomeProfileEmail).mockRejectedValue(new Error('delivery failed'));

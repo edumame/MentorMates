@@ -43,6 +43,8 @@ interface RoundsEditorProps {
   eventId: string;
   scoringConfig: EventScoringConfig;
   onSaved?: (next: EventScoringConfig) => void;
+  /** Called after a round's advancement selection is saved. */
+  onAdvancementsSaved?: () => void;
 }
 
 interface AdvancementCandidate {
@@ -64,6 +66,7 @@ export function RoundsEditor({
   eventId,
   scoringConfig,
   onSaved,
+  onAdvancementsSaved,
 }: RoundsEditorProps) {
   const initialRounds = useMemo<RoundConfig[]>(
     () =>
@@ -252,6 +255,7 @@ export function RoundsEditor({
         title: `Saved ${json.advancedCount} project(s) for round ${json.toRound}`,
       });
       setAdvanceDialogOpen(false);
+      onAdvancementsSaved?.();
     } catch (err) {
       console.error("Advance selection save failed", err);
       toast({

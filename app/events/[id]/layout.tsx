@@ -10,6 +10,7 @@ import {
   canUseInternalEventRoute,
   getExternalRedirectUrl,
   isInviteAcceptancePath,
+  isPublicEventHiddenByReview,
   REQUEST_PATHNAME_HEADER,
 } from "@/lib/events/navigation";
 
@@ -37,7 +38,10 @@ export default async function Layout({
   }
 
   const externalUrl = getExternalRedirectUrl(event);
-  if (externalUrl) {
+  // Submitted or rejected public events are not live: only people who manage
+  // the event (or its submitter) may open them by direct link.
+  const hiddenByReview = isPublicEventHiddenByReview(event);
+  if (externalUrl || hiddenByReview) {
     const supabase = await createSupabaseClient();
     const {
       data: { user },
@@ -62,7 +66,22 @@ export default async function Layout({
       });
     }
 
-    if (!canUseInternalEventPage) {
+    if (hiddenByReview && !canUseInternalEventPage) {
+      // A signed-in submitter owns the event but has no organizer role.
+      // owner_id is not part of the shared route columns, so look it up here.
+      let isOwner = false;
+      if (user) {
+        const { data: ownership } = await supabase
+          .from("events")
+          .select("owner_id")
+          .eq("event_id", event.event_id)
+          .maybeSingle();
+        isOwner = ownership?.owner_id === user.id;
+      }
+      if (!isOwner) notFound();
+    }
+
+    if (externalUrl && !canUseInternalEventPage) {
       redirect(externalUrl);
     }
   }
@@ -95,6 +114,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await Promise.resolve(params);
   const { data: event } = await getEventForRoute(id);
+
+  // The 404 for these events must not carry the unreviewed title or blurb.
+  if (event && isPublicEventHiddenByReview(event)) {
+    return { title: "Event" };
+  }
 
   const path = event?.slug ? `/events/${event.slug}` : `/events/${id}`;
   const description = event?.event_blurb || event?.event_description || undefined;
