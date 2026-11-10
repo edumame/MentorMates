@@ -1,4 +1,4 @@
-import { generateEventRoleInviteToken } from "@/lib/utils/jwt";
+import { issueEventRoleInviteToken } from "@/lib/events/role-invitations";
 import { EventVisibility } from "@/lib/types";
 import {
   getEventRoleInvitationEmailTemplate,
@@ -126,7 +126,7 @@ export async function sendEventInviteEmails({
     await Promise.all(
       emails.map(async (email) => {
         try {
-          const token = await generateEventRoleInviteToken({
+          const token = await issueEventRoleInviteToken({
             email,
             eventId,
             role,
@@ -237,7 +237,7 @@ export async function sendOrganizerInviteEmails({
         appOrigin,
         eventId,
         email,
-        await generateEventRoleInviteToken({ email, eventId, role: "organizer" })
+        await issueEventRoleInviteToken({ email, eventId, role: "organizer" })
       );
 
       const template = getOrganizerInvitationEmailTemplate(

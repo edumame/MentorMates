@@ -7,7 +7,8 @@ const getJwtSecret = () => {
 };
 
 const EVENT_ROLE_INVITE_PURPOSE = "event_role_invite";
-const EVENT_ROLE_INVITE_TTL_SECONDS = 30 * 24 * 60 * 60;
+// Invitations are short-lived and bound to a stored, single-use row (jti).
+export const EVENT_ROLE_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export type InvitableEventRole = "participant" | "judge" | "organizer";
 
@@ -15,6 +16,8 @@ export interface EventRoleInvitePayload {
   email: string;
   eventId: string;
   role: InvitableEventRole;
+  /** id of the event_role_invitations row (see lib/events/role-invitations.ts). */
+  jti?: string;
 }
 
 export interface ProjectInvitePayload {
@@ -52,14 +55,16 @@ export async function verifyProjectInviteToken(
   token: string
 ): Promise<ProjectInvitePayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getJwtSecret());
+    const { payload } = await jwtVerify(token, getJwtSecret(), { algorithms: ["HS256"], requiredClaims: ["exp"] });
+    if (typeof payload.email !== "string" || typeof payload.projectId !== "string" ||
+        !payload.projectId.trim() || typeof payload.invitedBy !== "string" || !payload.invitedBy.trim() ||
+        payload.purpose !== undefined) return null;
     return {
       email: payload.email as string,
       projectId: payload.projectId as string,
       invitedBy: payload.invitedBy as string,
     };
-  } catch (error) {
-    console.error("JWT verification failed:", error);
+  } catch {
     return null;
   }
 }
@@ -72,7 +77,7 @@ export async function generateEventRoleInviteToken(
   payload: EventRoleInvitePayload,
   expiresIn: number = EVENT_ROLE_INVITE_TTL_SECONDS
 ): Promise<string> {
-  return await new SignJWT({
+  const jwt = new SignJWT({
     purpose: EVENT_ROLE_INVITE_PURPOSE,
     email: payload.email.trim().toLowerCase(),
     eventId: payload.eventId,
@@ -80,8 +85,9 @@ export async function generateEventRoleInviteToken(
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${expiresIn}s`)
-    .sign(getJwtSecret());
+    .setExpirationTime(`${expiresIn}s`);
+  if (payload.jti) jwt.setJti(payload.jti);
+  return await jwt.sign(getJwtSecret());
 }
 
 /**
@@ -111,7 +117,59 @@ export async function verifyEventRoleInviteToken(
       email: payload.email as string,
       eventId: payload.eventId as string,
       role: payload.role as InvitableEventRole,
+      ...(typeof payload.jti === "string" && payload.jti ? { jti: payload.jti } : {}),
     };
+  } catch {
+    return null;
+  }
+}
+
+const EVENT_CHECKIN_PURPOSE = "event_checkin";
+const EVENT_CHECKIN_TTL_SECONDS = 60 * 24 * 60 * 60;
+
+export interface EventCheckinPayload {
+  eventId: string;
+  userId: string;
+}
+
+/**
+ * Sign a check-in ticket for one attendee of one event. Only the server issues
+ * these (for the signed-in attendee), so a QR code cannot be forged from a
+ * known event id + user id. The purpose claim keeps it from being accepted as
+ * any other kind of token.
+ */
+export async function generateEventCheckinToken(
+  payload: EventCheckinPayload,
+  expiresIn: number = EVENT_CHECKIN_TTL_SECONDS
+): Promise<string> {
+  return await new SignJWT({
+    purpose: EVENT_CHECKIN_PURPOSE,
+    eventId: payload.eventId,
+    userId: payload.userId,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${expiresIn}s`)
+    .sign(getJwtSecret());
+}
+
+/** @returns The decoded payload, or null if the token is invalid or expired */
+export async function verifyEventCheckinToken(
+  token: string
+): Promise<EventCheckinPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, getJwtSecret(), {
+      algorithms: ["HS256"],
+      requiredClaims: ["exp"],
+    });
+    if (
+      payload.purpose !== EVENT_CHECKIN_PURPOSE ||
+      typeof payload.eventId !== "string" ||
+      !payload.eventId.trim() ||
+      typeof payload.userId !== "string" ||
+      !payload.userId.trim()
+    ) return null;
+    return { eventId: payload.eventId, userId: payload.userId };
   } catch {
     return null;
   }

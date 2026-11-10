@@ -2,6 +2,8 @@
 
 import { SignJWT } from "jose";
 import {
+  generateEventCheckinToken,
+  verifyEventCheckinToken,
   generateEventRoleInviteToken,
   generateProjectInviteToken,
   verifyEventRoleInviteToken,
@@ -158,5 +160,37 @@ describe("event role invite tokens", () => {
     const payload = await verifyProjectInviteToken(token);
 
     expect(payload?.projectId).toBeUndefined();
+  });
+});
+
+describe("event check-in tokens (PUB-007)", () => {
+  const originalSecret = process.env.JWT_SECRET;
+  beforeEach(() => {
+    process.env.JWT_SECRET = "checkin-test-secret";
+  });
+  afterAll(() => {
+    process.env.JWT_SECRET = originalSecret;
+  });
+
+  it("round-trips event and user", async () => {
+    const token = await generateEventCheckinToken({ eventId: "event-1", userId: "user-1" });
+    await expect(verifyEventCheckinToken(token)).resolves.toEqual({ eventId: "event-1", userId: "user-1" });
+  });
+
+  it("is not interchangeable with invite tokens", async () => {
+    const checkin = await generateEventCheckinToken({ eventId: "event-1", userId: "user-1" });
+    await expect(verifyProjectInviteToken(checkin)).resolves.toBeNull();
+    await expect(verifyEventRoleInviteToken(checkin)).resolves.toBeNull();
+    const invite = await generateEventRoleInviteToken({ email: "a@b.co", eventId: "event-1", role: "participant" });
+    await expect(verifyEventCheckinToken(invite)).resolves.toBeNull();
+  });
+
+  it("rejects expired, tampered or foreign-secret tokens", async () => {
+    const expired = await generateEventCheckinToken({ eventId: "e", userId: "u" }, -10);
+    await expect(verifyEventCheckinToken(expired)).resolves.toBeNull();
+    const token = await generateEventCheckinToken({ eventId: "e", userId: "u" });
+    await expect(verifyEventCheckinToken(token.slice(0, -2) + "xx")).resolves.toBeNull();
+    process.env.JWT_SECRET = "another-secret";
+    await expect(verifyEventCheckinToken(token)).resolves.toBeNull();
   });
 });

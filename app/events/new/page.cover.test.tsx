@@ -10,6 +10,10 @@ jest.mock("next/navigation", () => ({
 const toast = jest.fn();
 jest.mock("@/lib/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 
+// Records the cover_image_url write that follows a successful upload.
+const updateEq = jest.fn();
+const update = jest.fn();
+const from = jest.fn();
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
@@ -18,12 +22,16 @@ jest.mock("@/lib/supabase", () => ({
       }),
     },
     rpc: jest.fn().mockResolvedValue({ data: false }),
+    from: (...args: unknown[]) => from(...args),
   },
 }));
 
-const attachEventCoverImage = jest.fn();
-jest.mock("@/lib/utils/event-cover", () => ({
-  attachEventCoverImage: (...args: unknown[]) => attachEventCoverImage(...args),
+// Keep the real validateCoverImage so invalid files are refused for real;
+// only the storage upload is mocked.
+const uploadEventCoverImage = jest.fn();
+jest.mock("@/features/user/dashboards/dashboard/organizer/details/cover-image", () => ({
+  ...jest.requireActual("@/features/user/dashboards/dashboard/organizer/details/cover-image"),
+  uploadEventCoverImage: (...args: unknown[]) => uploadEventCoverImage(...args),
 }));
 
 jest.mock("./components/DetailsStep", () => ({ DetailsStep: () => null }));
@@ -57,16 +65,22 @@ jest.mock("./components/WizardShell", () => ({
   ),
 }));
 
+const createdResponse = () => ({
+  ok: true,
+  json: async () => ({ event: { event_id: "evt-1", slug: "hack", event_name: "Hack" } }),
+});
+
 const fetchMock = jest.fn();
 const oldFetch = global.fetch;
 beforeEach(() => {
   jest.clearAllMocks();
   coverFile = new File(["x"], "c.png", { type: "image/png" });
   global.fetch = fetchMock;
-  fetchMock.mockResolvedValue({
-    ok: true,
-    json: async () => ({ event: { event_id: "evt-1", slug: "hack", event_name: "Hack" } }),
-  });
+  fetchMock.mockImplementation(async () => createdResponse());
+  updateEq.mockResolvedValue({ error: null });
+  update.mockReturnValue({ eq: updateEq });
+  from.mockReturnValue({ update });
+  uploadEventCoverImage.mockResolvedValue("https://cdn.test/c.png");
 });
 afterAll(() => {
   global.fetch = oldFetch;
@@ -80,38 +94,63 @@ async function fillAndSaveDraft() {
   });
 }
 
-it("uploads the cover only after the event is created, then attaches it", async () => {
+const createCalls = () =>
+  fetchMock.mock.calls.filter(([url]) => url === "/api/events");
+
+it("uploads the cover only after the event is created, then saves it on that event", async () => {
   const order: string[] = [];
-  fetchMock.mockImplementation(async () => {
-    order.push("create");
-    return {
-      ok: true,
-      json: async () => ({ event: { event_id: "evt-1", slug: "hack", event_name: "Hack" } }),
-    };
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url === "/api/events") order.push("create");
+    return createdResponse();
   });
-  attachEventCoverImage.mockImplementation(async () => {
-    order.push("attach");
+  uploadEventCoverImage.mockImplementation(async () => {
+    order.push("upload");
     return "https://cdn.test/c.png";
+  });
+  updateEq.mockImplementation(async () => {
+    order.push("attach");
+    return { error: null };
   });
 
   await fillAndSaveDraft();
 
   await waitFor(() => expect(push).toHaveBeenCalledWith("/events/hack/overview"));
-  expect(order).toEqual(["create", "attach"]);
-  expect(attachEventCoverImage).toHaveBeenCalledWith(expect.anything(), "evt-1", coverFile);
-  const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-  expect(body.event.cover_image_url).toBeUndefined();
+  expect(order).toEqual(["create", "upload", "attach"]);
+  expect(uploadEventCoverImage).toHaveBeenCalledWith(expect.anything(), "evt-1", coverFile);
+  expect(from).toHaveBeenCalledWith("events");
+  expect(update).toHaveBeenCalledWith({ cover_image_url: "https://cdn.test/c.png" });
+  expect(updateEq).toHaveBeenCalledWith("event_id", "evt-1");
+  const body = JSON.parse(createCalls()[0][1].body);
+  expect(body.event.cover_image_url).toBeFalsy();
+  expect(toast).not.toHaveBeenCalledWith(
+    expect.objectContaining({ title: "Cover image not saved" })
+  );
 });
 
 it("still finishes creating the event and warns when the cover upload fails", async () => {
-  jest.spyOn(console, "error").mockImplementation(() => {});
-  attachEventCoverImage.mockRejectedValue(new Error("rls"));
+  uploadEventCoverImage.mockRejectedValue(new Error("Upload failed"));
+
+  await fillAndSaveDraft();
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith("/events/hack/overview"));
+  expect(update).not.toHaveBeenCalled();
+  expect(toast).toHaveBeenCalledWith(
+    expect.objectContaining({
+      title: "Cover image not saved",
+      description: "Upload failed",
+      variant: "destructive",
+    })
+  );
+});
+
+it("still finishes creating the event and warns when saving the cover URL fails", async () => {
+  updateEq.mockResolvedValue({ error: { message: "rls" } });
 
   await fillAndSaveDraft();
 
   await waitFor(() => expect(push).toHaveBeenCalledWith("/events/hack/overview"));
   expect(toast).toHaveBeenCalledWith(
-    expect.objectContaining({ title: "Cover image not uploaded", variant: "destructive" })
+    expect.objectContaining({ title: "Cover image not saved", variant: "destructive" })
   );
 });
 
@@ -121,9 +160,14 @@ it("blocks creation when the picked file is not a valid image", async () => {
   await fillAndSaveDraft();
 
   expect(fetchMock).not.toHaveBeenCalled();
-  expect(attachEventCoverImage).not.toHaveBeenCalled();
+  expect(uploadEventCoverImage).not.toHaveBeenCalled();
+  expect(push).not.toHaveBeenCalled();
   expect(toast).toHaveBeenCalledWith(
-    expect.objectContaining({ title: "Cover image problem", description: "Please upload an image file." })
+    expect.objectContaining({
+      title: "Check the cover image",
+      description: "Cover image must be a PNG, JPEG, WebP or GIF.",
+      variant: "destructive",
+    })
   );
 });
 
@@ -133,5 +177,6 @@ it("does not try to upload when no file was picked", async () => {
   await fillAndSaveDraft();
 
   await waitFor(() => expect(push).toHaveBeenCalled());
-  expect(attachEventCoverImage).not.toHaveBeenCalled();
+  expect(uploadEventCoverImage).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
 });

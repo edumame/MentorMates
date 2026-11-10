@@ -1,7 +1,7 @@
 /** @jest-environment node */
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
-import { verifyEventRoleInviteToken } from '@/lib/utils/jwt';
+import { getPendingInvite } from '@/lib/events/role-invitations';
 import { EventRole } from '@/lib/types';
 import { redirect } from 'next/navigation';
 import { loadInviteAcceptanceEvent, redirectIfInviteAlreadyAccepted } from './invite-acceptance';
@@ -10,12 +10,12 @@ jest.mock('server-only', () => ({}), { virtual: true });
 
 jest.mock('@/app/utils/supabase/server', () => ({ createSupabaseClient: jest.fn() }));
 jest.mock('@/lib/supabase/service', () => ({ createSupabaseServiceClient: jest.fn() }));
-jest.mock('@/lib/utils/jwt', () => ({ verifyEventRoleInviteToken: jest.fn() }));
+jest.mock('@/lib/events/role-invitations', () => ({ getPendingInvite: jest.fn() }));
 jest.mock('next/navigation', () => ({ redirect: jest.fn() }));
 
 const eventId = '11111111-1111-4111-8111-111111111111';
 const event = { event_id: eventId, slug: 'draft-event', event_name: 'Draft event', event_blurb: 'Draft details' };
-const verify = verifyEventRoleInviteToken as jest.Mock;
+const verify = getPendingInvite as jest.Mock;
 const service = createSupabaseServiceClient as jest.Mock;
 const server = createSupabaseClient as jest.Mock;
 
@@ -33,7 +33,7 @@ describe('invitation event loading', () => {
     jest.clearAllMocks();
     db = query({ data: event, error: null });
     service.mockReturnValue(db);
-    verify.mockResolvedValue({ eventId, role: 'organizer', email: 'invitee@example.test' });
+    verify.mockImplementation(async (token?: string) => (token ? { eventId, role: 'organizer', email: 'invitee@example.test', jti: 'inv-1' } : null));
   });
 
   it.each(['organizer', 'judge', 'participant'] as const)('loads a draft for a signed %s invitation without requiring membership', async role => {

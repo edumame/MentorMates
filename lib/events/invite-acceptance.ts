@@ -3,7 +3,8 @@ import "server-only";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { verifyEventRoleInviteToken, type InvitableEventRole } from "@/lib/utils/jwt";
+import type { InvitableEventRole } from "@/lib/utils/jwt";
+import { getPendingInvite } from "@/lib/events/role-invitations";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { redirect } from "next/navigation";
@@ -20,9 +21,8 @@ export async function loadInviteAcceptanceEvent(
   id: string,
   { token, role }: { token?: string; role: InvitableEventRole }
 ): Promise<InviteAcceptanceEvent | null> {
-  const invite = typeof token === "string" && token
-    ? await verifyEventRoleInviteToken(token)
-    : null;
+  // Signature + stored row: revoked, used or expired invitations show nothing.
+  const invite = await getPendingInvite(token);
   if (!invite || invite.role !== role) return null;
   if (isValidUUID(id) && id !== invite.eventId) return null;
 

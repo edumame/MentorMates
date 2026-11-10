@@ -3,7 +3,7 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
-import { verifyEventRoleInviteToken } from "@/lib/utils/jwt";
+import { consumeInvite, getPendingInvite, releaseInvite } from "@/lib/events/role-invitations";
 import { POST } from "./route";
 
 jest.mock("next/server", () => ({
@@ -23,11 +23,14 @@ jest.mock("@/lib/supabase/service", () => ({
   createSupabaseServiceClient: jest.fn(),
 }));
 
-jest.mock("@/lib/utils/jwt", () => ({
-  verifyEventRoleInviteToken: jest.fn(),
+jest.mock("@/lib/events/role-invitations", () => ({
+  getPendingInvite: jest.fn(),
+  consumeInvite: jest.fn(),
+  releaseInvite: jest.fn(),
 }));
 
-const mockVerify = verifyEventRoleInviteToken as jest.Mock;
+const mockVerify = getPendingInvite as jest.Mock;
+const mockConsume = consumeInvite as jest.Mock;
 
 describe("POST /api/events/[eventId]/accept-invite", () => {
   const upsert = jest.fn();
@@ -58,11 +61,13 @@ describe("POST /api/events/[eventId]/accept-invite", () => {
       }),
     });
     signIn({ id: "user-1", email: "Judge@Email.com" });
-    mockVerify.mockResolvedValue({
-      email: "judge@email.com",
-      eventId: "event-1",
-      role: EventRole.Judge,
-    });
+    mockVerify.mockImplementation(async (token: string | null) =>
+      token
+        ? { email: "judge@email.com", eventId: "event-1", role: EventRole.Judge, jti: "inv-1" }
+        : null
+    );
+    mockConsume.mockResolvedValue(true);
+    (releaseInvite as jest.Mock).mockResolvedValue(undefined);
   });
 
   it("requires a signed-in user", async () => {
@@ -76,7 +81,7 @@ describe("POST /api/events/[eventId]/accept-invite", () => {
     "rejects a missing or malformed token: %j",
     async (body) => {
       expect((await accept(body)).status).toBe(403);
-      expect(mockVerify).not.toHaveBeenCalled();
+      expect(mockConsume).not.toHaveBeenCalled();
       expect(upsert).not.toHaveBeenCalled();
     }
   );
@@ -93,6 +98,7 @@ describe("POST /api/events/[eventId]/accept-invite", () => {
       email: "judge@email.com",
       eventId: "event-2",
       role: EventRole.Judge,
+      jti: "inv-1",
     });
 
     expect((await accept()).status).toBe(403);
@@ -144,5 +150,23 @@ describe("POST /api/events/[eventId]/accept-invite", () => {
       error: "Failed to accept invitation",
     });
     spy.mockRestore();
+  });
+
+  // ORG-012 round 2: links are single-use and revocable.
+  it("consumes the invitation and refuses a reused, revoked or expired link", async () => {
+    expect((await accept()).status).toBe(200);
+    expect(mockConsume).toHaveBeenCalledWith("inv-1", "user-1");
+
+    upsert.mockClear();
+    mockConsume.mockResolvedValue(false);
+    expect((await accept()).status).toBe(403);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("releases the invitation when granting the role fails", async () => {
+    upsert.mockResolvedValue({ error: { message: "x" } });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    expect((await accept()).status).toBe(500);
+    expect(releaseInvite).toHaveBeenCalledWith("inv-1");
   });
 });

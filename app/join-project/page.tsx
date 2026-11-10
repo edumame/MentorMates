@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import { getTeamEmails } from "@/lib/projects/membership";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -41,7 +42,7 @@ function JoinProjectContent() {
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
   const [validatingToken, setValidatingToken] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
+  const inviteError = error;
   const [eventRegistrationHref, setEventRegistrationHref] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,6 +57,7 @@ function JoinProjectContent() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     if (!projectId) {
       setError("No project ID provided");
       setLoading(false);
@@ -64,6 +66,28 @@ function JoinProjectContent() {
 
     const fetchProject = async () => {
       try {
+        if (token) {
+          setValidatingToken(true);
+          const response = await fetch("/api/projects/verify-invite-token", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, projectId }),
+          });
+          const data = await response.json();
+          if (!active) return;
+          if (!response.ok || !data.valid) {
+            setTokenValid(false);
+            setError(data.error || "Invalid or expired invitation link");
+            return;
+          }
+          setTokenValid(true);
+          setInvitedEmail(data.email);
+          // Signed-out visitors get sign-in guidance without private metadata.
+          setProject(data.project ?? {
+            id: projectId, project_name: "Project invitation", project_description: null,
+            lead_name: "A teammate", lead_email: "", teammates: [], event_id: null,
+          });
+          return;
+        }
         const { data: projectData, error: projectError } = await supabase
           .from("projects")
           .select(
@@ -72,8 +96,6 @@ function JoinProjectContent() {
             project_name,
             project_description,
             lead_name,
-            lead_email,
-            teammates,
             event_id,
             event:events(
               event_name,
@@ -84,6 +106,7 @@ function JoinProjectContent() {
           .eq("id", projectId)
           .single();
 
+        if (!active) return;
         if (projectError || !projectData) {
           setError("Project not found");
           return;
@@ -94,63 +117,34 @@ function JoinProjectContent() {
           ? projectData.event[0]
           : null;
 
+        // Team emails only come back for existing members (project_team_emails);
+        // they drive the "already on this project" checks below.
+        const teamEmails = (await getTeamEmails(supabase, [projectId])).get(projectId);
+        if (!active) return;
         setProject({
           ...projectData,
+          lead_email: teamEmails?.lead_email ?? "",
+          teammates: teamEmails?.teammates ?? [],
           event: eventData
         });
       } catch {
-        setError("Failed to load project information");
+        if (active) setError("Failed to load project information");
       } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProject();
-  }, [projectId]);
-
-  useEffect(() => {
-    if (!token) {
-      setTokenValid(null);
-      setInviteError(null);
-      setInvitedEmail(null);
-      return;
-    }
-
-    if (!projectId) {
-      return;
-    }
-
-    const verifyToken = async () => {
-      setValidatingToken(true);
-      try {
-        const response = await fetch("/api/projects/verify-invite-token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ token, projectId }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.valid) {
-          setTokenValid(true);
-          setInvitedEmail(data.email);
-          setInviteError(null);
-        } else {
-          setTokenValid(false);
-          setInviteError(data.error || "Invalid or expired invitation link");
+        if (active) {
+          setValidatingToken(false);
+          setLoading(false);
         }
-      } catch {
-        setTokenValid(false);
-        setInviteError("Failed to verify invitation link");
-      } finally {
-        setValidatingToken(false);
       }
     };
 
-    verifyToken();
-  }, [token, projectId]);
+    setLoading(true);
+    setError(null);
+    setProject(null);
+    setTokenValid(null);
+    setInvitedEmail(null);
+    fetchProject();
+    return () => { active = false; };
+  }, [projectId, token]);
 
   const handleLogin = () => {
     setReturnUrlFromCurrentLocation();
@@ -183,20 +177,20 @@ function JoinProjectContent() {
         }
       }
 
-      // The server requires a valid invitation, so stop early without one.
-      if (!token || !tokenValid) {
+      // If token is not provided or invalid, show warning
+      if (token && !tokenValid) {
         setError("Invalid or expired invitation link. Please request a new invitation.");
         return;
       }
       
       // Check if user is already the project lead
-      if (project.lead_email === userEmail) {
+      if (project.lead_email.toLowerCase() === userEmail) {
         setError("You are already the project lead");
         return;
       }
 
       // Check if user is already a teammate
-      if (project.teammates?.includes(userEmail)) {
+      if (project.teammates?.some((email) => email.toLowerCase() === userEmail)) {
         setError("You are already a member of this project");
         return;
       }
@@ -221,13 +215,12 @@ function JoinProjectContent() {
 
       const response = await fetch("/api/projects/join", {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, token }),
       });
 
       if (!response.ok) {
-        const { error: joinError } = await response.json().catch(() => ({ error: null }));
-        setError(joinError || "Failed to join project. Please try again.");
-        return;
+        throw new Error("Failed to join project.");
       }
 
       setSuccess(true);

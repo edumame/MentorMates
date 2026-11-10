@@ -4,16 +4,13 @@ import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { joinParticipantEvent } from "@/lib/events/participant-access";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-
-// These roles can edit an event or its scores, so joining without a configured
-// role password is not allowed. Organizers invite people to them instead.
-const PASSWORD_REQUIRED_ROLES: EventRole[] = [EventRole.Judge, EventRole.Organizer];
+import { canAccessRole } from "@/features/user/roles/roles";
+import { isPasswordJoinableRole, PASSWORD_REQUIRED_ROLES } from "@/lib/roles/role-passwords";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
 
   try {
-    // Get request data
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -23,31 +20,30 @@ export async function POST(request: Request) {
     }
 
     const userId = user.id;
-    const { eventId, role, password } = await request.json();
+    const body = await request.json().catch(() => null);
+    const eventId = body?.eventId;
+    const role = body?.role;
+    const password = body?.password;
 
-    // Input validation
-    if (!eventId || !role) {
+    if (typeof eventId !== "string" || !eventId || typeof role !== "string" || !role) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Validate role is a valid EventRole value
-    const validRoles = [
-      EventRole.Participant, 
-      EventRole.Mentor, 
-      EventRole.Judge, 
-      EventRole.Organizer,
-    ];
-    if (!validRoles.includes(role)) {
+    // Organizer (and admin) access is only granted by invitation (ORG-013).
+    if (!isPasswordJoinableRole(role)) {
       return NextResponse.json(
-        { error: "Invalid role specified" },
-        { status: 400 }
+        { error: role === EventRole.Organizer
+            ? "Organizers are added by invitation from an existing organizer"
+            : "Invalid role specified" },
+        { status: role === EventRole.Organizer ? 403 : 400 }
       );
     }
+    const requestedRole: EventRole = role;
 
-    const { error: eventError } = await supabase
+    const { data: event, error: eventError } = await supabase
       .from("events")
       .select("event_id")
       .eq("event_id", eventId)
@@ -60,12 +56,46 @@ export async function POST(request: Request) {
       );
     }
 
-    // If this role has a configured password, require and verify it.
-    const { data: rolePassword, error: rolePasswordError } = await supabase
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const serviceSupabase = createSupabaseServiceClient();
+
+    // MENT-017: this endpoint never changes an existing role. An existing
+    // member can only move up to a staff role with that role's password; it
+    // never downgrades anyone (e.g. an organizer picking "Mentor").
+    const { data: existingRole, error: existingRoleError } = await serviceSupabase
+      .from("user_event_roles")
+      .select("role")
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingRoleError) {
+      return NextResponse.json(
+        { error: "Failed to check event registration" },
+        { status: 500 }
+      );
+    }
+
+    if (existingRole && canAccessRole(existingRole.role as EventRole, requestedRole)) {
+      return NextResponse.json(
+        {
+          error: `You are already registered for this event as ${existingRole.role}.`,
+          role: existingRole.role,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Hashes are never readable by the browser; authenticate and check event
+    // visibility before using the server-only verifier.
+    const { data: rolePassword, error: rolePasswordError } = await serviceSupabase
       .from("role_passwords")
       .select("password_hash")
       .eq("event_id", eventId)
-      .eq("role", role)
+      .eq("role", requestedRole)
       .maybeSingle();
 
     if (rolePasswordError) {
@@ -75,7 +105,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!rolePassword && PASSWORD_REQUIRED_ROLES.includes(role)) {
+    if (!rolePassword && PASSWORD_REQUIRED_ROLES.includes(requestedRole)) {
       return NextResponse.json(
         { error: "This role requires an invitation from an event organizer" },
         { status: 403 }
@@ -83,12 +113,33 @@ export async function POST(request: Request) {
     }
 
     if (rolePassword) {
-      if (!password) {
+      if (typeof password !== "string" || !password) {
         return NextResponse.json(
           { error: "Password required for this role" },
           { status: 400 }
         );
       }
+
+      // ORG-013: the attempt is counted atomically BEFORE the password is
+      // compared (per user and per event+role), so parallel requests cannot
+      // exceed the budget; a correct password refunds it.
+      const throttleArgs = {
+        p_user_id: userId,
+        p_event_id: eventId,
+        p_role: requestedRole,
+      };
+      const { data: attempt, error: attemptError } = await serviceSupabase.rpc(
+        "consume_role_password_attempt",
+        throttleArgs
+      );
+      const verdict = Array.isArray(attempt) ? attempt[0] : attempt;
+      if (attemptError || !verdict) {
+        return NextResponse.json(
+          { error: "Failed to verify role password" },
+          { status: 500 }
+        );
+      }
+      if (!verdict.allowed) return tooManyAttempts(verdict.retry_at);
 
       const isValid = await bcrypt.compare(password, rolePassword.password_hash);
 
@@ -98,16 +149,12 @@ export async function POST(request: Request) {
           { status: 401 }
         );
       }
+
+      await serviceSupabase.rpc("clear_role_password_failures", throttleArgs);
     }
 
-    // At this point, either:
-    // 1. This role has a configured password and it was verified
-    // 2. No password is configured and this role doesn't require one
-    // Every check above has passed, so writes use the service client: RLS only
-    // lets users self-assign the participant role.
-    const serviceSupabase = createSupabaseServiceClient();
-
-    if (role === EventRole.Participant) {
+    // Every check above has passed, so writes use the service client.
+    if (requestedRole === EventRole.Participant) {
       const joinResult = await joinParticipantEvent(serviceSupabase, {
         eventId,
         userId,
@@ -127,21 +174,30 @@ export async function POST(request: Request) {
       });
     }
 
-    // Now we can proceed with role assignment
-    // Assign role to user
-    const { error: roleError } = await serviceSupabase.from("user_event_roles").upsert(
-      {
-        user_id: userId,
-        event_id: eventId,
-        role: role,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "user_id,event_id",
-      }
-    );
+    const roleWrite = existingRole
+      ? serviceSupabase
+          .from("user_event_roles")
+          .update({ role: requestedRole, updated_at: new Date().toISOString() })
+          .eq("event_id", eventId)
+          .eq("user_id", userId)
+          // Guard against a concurrent change since the read above.
+          .eq("role", existingRole.role)
+      : serviceSupabase.from("user_event_roles").insert({
+          user_id: userId,
+          event_id: eventId,
+          role: requestedRole,
+          updated_at: new Date().toISOString(),
+        });
+
+    const { error: roleError } = await roleWrite;
 
     if (roleError) {
+      if (roleError.code === "23505") {
+        return NextResponse.json(
+          { error: "You are already registered for this event." },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { error: "Failed to assign role" },
         { status: 500 }
@@ -159,4 +215,17 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+function tooManyAttempts(lockedUntil: string | null) {
+  const retryAfterSeconds = lockedUntil
+    ? Math.max(1, Math.ceil((new Date(lockedUntil).getTime() - Date.now()) / 1000))
+    : 60;
+  return NextResponse.json(
+    {
+      error: "Too many incorrect password attempts. Please try again later.",
+      retry_after_seconds: retryAfterSeconds,
+    },
+    { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+  );
 }

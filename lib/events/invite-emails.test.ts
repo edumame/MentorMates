@@ -8,8 +8,8 @@ import {
   sendOrganizerInviteEmails,
 } from "./invite-emails";
 
-jest.mock("@/lib/utils/jwt", () => ({
-  generateEventRoleInviteToken: jest.fn().mockResolvedValue("signed-token"),
+jest.mock("@/lib/events/role-invitations", () => ({
+  issueEventRoleInviteToken: jest.fn().mockResolvedValue("signed-token"),
 }));
 
 describe("event invite emails", () => {

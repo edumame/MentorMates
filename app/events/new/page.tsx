@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { EventVisibility, ApprovalStatus } from "@/lib/types";
+import { EventVisibility } from "@/lib/types";
 import { useToast } from "@/lib/hooks/use-toast";
-import { validateCoverImageFile } from "@/lib/utils/file";
-import { attachEventCoverImage } from "@/lib/utils/event-cover";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import {
@@ -30,7 +28,15 @@ import {
   INITIAL_WIZARD_EVENT,
   buildApiPayload,
   applyScrapedData,
+  EVENT_NAME_MAX_LENGTH,
+  slugify,
+  validateSubmissionWindow,
 } from "@/lib/types/wizard";
+import { getEventSlugError } from "@/lib/events/event-slug";
+import {
+  uploadEventCoverImage,
+  validateCoverImage,
+} from "@/features/user/dashboards/dashboard/organizer/details/cover-image";
 import { fieldsToApiPayload } from "@/components/events/submission";
 import { WizardShell } from "./components/WizardShell";
 import { DetailsStep } from "./components/DetailsStep";
@@ -141,23 +147,28 @@ function NewEventPageInner() {
   }, [toast]);
 
   // ── Cover image upload ──────────────────────────────────────────────────
-  // Runs after the event exists: storage only accepts uploads from users who
-  // already organize an event, and the creator becomes organizer on create.
-  // A failure here doesn't undo the event; the organizer can add the cover
-  // later from the event's settings.
-  const attachCoverImage = async (eventId: string) => {
-    const file = event.cover_image_file;
-    if (!file) return;
+  // Cover uploads reuse the Edit Event rules (ORG-022): raster only, 5MB, and
+  // stored under event-covers/<event_id>/ so the per-event bucket policy
+  // applies. The file is validated before creating the event and uploaded
+  // once the event (and the creator's organizer role) exists.
+  const uploadCoverImageForEvent = async (eventId: string): Promise<boolean> => {
+    if (!event.cover_image_file) return true;
     try {
-      await attachEventCoverImage(supabase, eventId, file);
-    } catch (error) {
-      console.error("Cover image upload failed", error);
+      const url = await uploadEventCoverImage(supabase, eventId, event.cover_image_file);
+      const { error } = await supabase
+        .from("events")
+        .update({ cover_image_url: url })
+        .eq("event_id", eventId);
+      if (error) throw new Error("Could not save the cover image");
+      return true;
+    } catch (err) {
       toast({
-        title: "Cover image not uploaded",
+        title: "Cover image not saved",
         description:
-          "Your event was created, but the cover image failed to upload. Add it from the event settings.",
+          err instanceof Error ? err.message : "You can add it later from Edit Event.",
         variant: "destructive",
       });
+      return false;
     }
   };
 
@@ -191,11 +202,9 @@ function NewEventPageInner() {
   };
 
   // ── Create event (shared logic) ─────────────────────────────────────────
-  const createEvent = async (
-    visibility: EventVisibility,
-    approvalStatus?: ApprovalStatus
-  ) => {
-    if (!event.event_name || !event.event_date || !event.location) {
+  // Moderation (approval/featured) is decided server-side, never sent from here.
+  const createEvent = async (visibility: EventVisibility) => {
+    if (!event.event_name.trim() || !event.event_date || !event.location) {
       toast({
         title: "Missing fields",
         description: "Name, date, and location are required.",
@@ -204,13 +213,30 @@ function NewEventPageInner() {
       return null;
     }
 
-    const coverFileError = event.cover_image_file
-      ? validateCoverImageFile(event.cover_image_file)
-      : null;
-    if (coverFileError) {
+    if (event.event_name.trim().length > EVENT_NAME_MAX_LENGTH) {
       toast({
-        title: "Cover image problem",
-        description: coverFileError,
+        title: "Event name too long",
+        description: `Event names can be at most ${EVENT_NAME_MAX_LENGTH} characters.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    const slug = slugify(event.slug);
+    const slugError = slug ? getEventSlugError(slug) : null;
+    if (slugError) {
+      toast({ title: "Check the URL slug", description: slugError, variant: "destructive" });
+      return null;
+    }
+
+    const submissionWindowError = validateSubmissionWindow(
+      event.submission_time_start,
+      event.submission_time_cutoff
+    );
+    if (submissionWindowError) {
+      toast({
+        title: "Check the submission window",
+        description: submissionWindowError,
         variant: "destructive",
       });
       return null;
@@ -218,13 +244,18 @@ function NewEventPageInner() {
 
     setCreating(true);
     try {
+      const coverError = event.cover_image_file
+        ? validateCoverImage(event.cover_image_file)
+        : null;
+      if (coverError) {
+        toast({ title: "Check the cover image", description: coverError, variant: "destructive" });
+        return null;
+      }
       const organizerEmails = await getOrganizerEmails();
 
       // Build payload from wizard state
       const payload = buildApiPayload(event);
       payload.event.visibility = visibility;
-      if (approvalStatus)
-        (payload.event as Record<string, unknown>).approval_status = approvalStatus;
       payload.organizerEmails = organizerEmails;
 
       const res = await fetch("/api/events", {
@@ -260,8 +291,8 @@ function NewEventPageInner() {
         });
       }
 
+      await uploadCoverImageForEvent(data.event.event_id);
       await saveSubmissionFields(data.event.event_id);
-      await attachCoverImage(data.event.event_id);
       return data.event;
     } catch {
       toast({
@@ -296,14 +327,37 @@ function NewEventPageInner() {
     }
   };
 
+  // Public listing needs admin approval (ORG-002): non-admins get the event
+  // created as private (unlisted) and it is submitted for review right away.
   const handlePublishPublic = async () => {
-    const created = await createEvent(
-      EventVisibility.Public,
-      ApprovalStatus.Approved
-    );
-    if (created) {
-      router.push(`/events/${created.slug || created.event_id}/overview`);
+    const created = await createEvent(EventVisibility.Public);
+    if (!created) return;
+    const href = `/events/${created.slug || created.event_id}/overview`;
+    if (created.visibility === EventVisibility.Public) {
+      router.push(href);
+      return;
     }
+    try {
+      const res = await fetch("/api/events/request-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: created.event_id }),
+      });
+      if (!res.ok) throw new Error("request-approval failed");
+      toast({
+        title: "Submitted for approval",
+        description:
+          "Your event is live as a private (unlisted) event and will be listed publicly once an admin approves it.",
+      });
+    } catch {
+      toast({
+        title: "Published as private",
+        description:
+          "Your event was created as a private event, but submitting it for public listing failed. You can request approval from the event page.",
+        variant: "destructive",
+      });
+    }
+    router.push(href);
   };
 
   const handleSubmitForApproval = async () => {
