@@ -32,8 +32,6 @@ export OPENAI_FILE_SEARCH_VECTOR_STORE_IDS=""
 # Optional: tool-choice policy for chat route: required | auto | none
 # default in code is "required" so tool calls are actively invoked
 export OPENAI_CHAT_TOOL_CHOICE="required"
-# Optional: log tool call types in server logs (e.g. ["web_search_call"])
-export OPENAI_CHAT_LOG_TOOL_CALLS="true"
 # Optional: max number of message attachments forwarded to Responses input
 export OPENAI_CHAT_MAX_ATTACHMENT_INPUTS="3"
 ```
@@ -122,8 +120,7 @@ HTTP/1.1 200 OK
 
 1. Check your Next.js terminal logs for errors.
 2. Open the chat UI for that meeting/channel and confirm an assistant reply appears.
-3. If `OPENAI_CHAT_LOG_TOOL_CALLS=true`, confirm log entries include `web_search_call`.
-4. Confirm dedupe behavior by reusing the same message id:
+3. Confirm dedupe behavior by reusing the same message id:
    - The route should return `{"status":"duplicate_ignored"}`.
 
 ## Test 4: End-to-end webhook test with attachment (Stream-compatible file input)
