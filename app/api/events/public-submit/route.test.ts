@@ -39,6 +39,7 @@ jest.mock("@/lib/email/send-event-approval-notification", () => ({
   sendEventApprovalNotification: jest.fn(() => Promise.resolve({ sent: 1, failed: 0 })),
 }));
 
+import { sendEventApprovalNotification } from "@/lib/email/send-event-approval-notification";
 import { POST } from "./route";
 
 const VALID_PAYLOAD = {
@@ -65,6 +66,7 @@ describe("POST /api/events/public-submit", () => {
     insertSingleMock.mockReset();
     insertMock.mockClear();
     fromMock.mockClear();
+    (sendEventApprovalNotification as jest.Mock).mockClear();
     submissionInsertMock.mockClear();
     deleteMock.mockClear();
     deleteEqMock.mockClear();
@@ -140,6 +142,19 @@ describe("POST /api/events/public-submit", () => {
     const body = await res.json();
     expect(body).toMatchObject({ ok: true, event_id: "evt-uuid-123" });
     expect(fromMock).toHaveBeenCalledWith("events");
+  });
+
+  it("links the admin approval email by event id, not the generated slug", async () => {
+    insertSingleMock.mockResolvedValueOnce({
+      data: { event_id: "evt-uuid-789" },
+      error: null,
+    });
+
+    await POST(makeRequest(VALID_PAYLOAD));
+
+    expect(sendEventApprovalNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "evt-uuid-789" }),
+    );
   });
 
   it.each([undefined, ""])("rejects missing or empty submitter_name (%s) before inserting", async (submitter_name) => {

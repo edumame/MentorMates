@@ -1,3 +1,4 @@
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 
@@ -207,6 +208,10 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
     return [] as AgentEventSummary[];
   }
 
+  const cappedEventIds = visibleCandidates
+    .filter((event) => event.participant_capacity != null)
+    .map((event) => event.event_id);
+
   const [
     { data: registrationBindings, error: bindingError },
     { data: questionnaireSubmissions, error: questionnaireError },
@@ -225,11 +230,15 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
       .eq("context", "registration")
       .eq("submitter_user_id", userId)
       .eq("status", "submitted"),
-    supabase
-      .from("user_event_roles")
-      .select("event_id")
-      .in("event_id", candidateEventIds)
-      .eq("role", EventRole.Participant),
+    fetchAllRows((from, to) =>
+      supabase
+        .from("user_event_roles")
+        .select("event_id")
+        .in("event_id", cappedEventIds)
+        .eq("role", EventRole.Participant)
+        .order("id")
+        .range(from, to),
+    ),
   ]);
 
   if (bindingError || questionnaireError || participantError) {
@@ -242,12 +251,13 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
   const completedQuestionnaires = new Set(
     (questionnaireSubmissions || []).map((row) => row.event_id),
   );
-  const participantCounts = (participantRoles || []).reduce<
-    Record<string, number>
-  >((acc, row) => {
-    acc[row.event_id] = (acc[row.event_id] || 0) + 1;
-    return acc;
-  }, {});
+  const participantCounts = participantRoles.reduce<Record<string, number>>(
+    (acc, row) => {
+      acc[row.event_id] = (acc[row.event_id] || 0) + 1;
+      return acc;
+    },
+    {},
+  );
 
   return visibleCandidates.filter((event) => {
     if (

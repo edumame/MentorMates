@@ -14,7 +14,8 @@ describe("event notification templates escape interpolated values (ORG-019/PUB-0
     expect(email.html).not.toContain("<a href=\"https://phish");
     expect(email.html).toContain("&lt;a href=&quot;https://phish.example.test/x&quot;&gt;");
     expect(email.html).not.toContain("<script>");
-    expect(email.html).toContain('href="https://mentormates.ai/events/x%22%3E%3Cscript%3E/overview"');
+    // The link uses the immutable event id, never the (editable) slug.
+    expect(email.html).toContain('href="https://mentormates.ai/events/evt-1/overview"');
   });
 
   it("escapes schedule entries and tolerates a missing schedule", () => {
