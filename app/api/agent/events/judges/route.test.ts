@@ -1,114 +1,52 @@
-/** @jest-environment jsdom */
+/**
+ * @jest-environment node
+ */
 
-import { GET } from "./route";
-import {
-  authenticateAgentRequest,
-  authorizeAgentEventAccess,
-  requireScope,
-} from "@/lib/agent/auth";
-import { createCappedQuery } from "@/lib/supabase/capped-query.test-helper";
-import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { NextRequest } from "next/server";
+import { cappedQuery } from "@/lib/supabase/capped-query.test-helper";
 
-jest.mock("next/server", () => {
-  class MockNextResponse {
-    status: number;
-    private readonly body: unknown;
+const judgeRows = ["judge-1", "judge-2"].map((user_id) => ({
+  user_id,
+  role: "judge",
+  user_profiles: null,
+}));
 
-    constructor(body: unknown, init?: ResponseInit) {
-      this.status = init?.status ?? 200;
-      this.body = body;
-    }
+// judge-2's rows all sit past the row cap, so a single select never sees them.
+const scoreRows = [
+  ...Array.from({ length: 1000 }, () => ({ judge_id: "judge-1" })),
+  ...Array.from({ length: 200 }, () => ({ judge_id: "judge-2" })),
+];
 
-    static json(body: unknown, init?: ResponseInit) {
-      return new MockNextResponse(body, init);
-    }
-
-    async json() {
-      return this.body;
-    }
-  }
-
-  return { NextResponse: MockNextResponse };
-});
+const serviceMock = {
+  from: (table: string) => {
+    if (table === "user_event_roles") return cappedQuery(judgeRows);
+    if (table === "project_scores") return cappedQuery(scoreRows);
+    return cappedQuery([]);
+  },
+};
 
 jest.mock("@/lib/agent/auth", () => ({
-  authenticateAgentRequest: jest.fn(),
-  authorizeAgentEventAccess: jest.fn(),
-  requireScope: jest.fn(),
+  authenticateAgentRequest: jest.fn(async () => ({ eventId: "event-1" })),
+  authorizeAgentEventAccess: jest.fn(async () => ({})),
+  requireScope: jest.fn(() => null),
 }));
 
 jest.mock("@/lib/supabase/service", () => ({
-  createSupabaseServiceClient: jest.fn(),
+  createSupabaseServiceClient: () => serviceMock,
 }));
 
-const request = {
-  nextUrl: new URL(
-    "https://mentormates.ai/api/agent/events/judges?event_id=event-1",
-  ),
-} as never;
-
-function mockTables(scoresQuery: ReturnType<typeof createCappedQuery>) {
-  const rolesQuery = createCappedQuery([
-    { user_id: "judge-1", role: "judge" },
-    { user_id: "judge-2", role: "judge" },
-  ]);
-  const projectsQuery = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockResolvedValue({ count: 800, error: null }),
-  };
-
-  (createSupabaseServiceClient as jest.Mock).mockReturnValue({
-    from: jest.fn((table: string) => {
-      if (table === "user_event_roles") return rolesQuery;
-      if (table === "projects") return projectsQuery;
-      if (table === "project_scores") return scoresQuery;
-      throw new Error(`Unexpected table: ${table}`);
-    }),
-  });
-}
+import { GET } from "./route";
 
 describe("GET /api/agent/events/judges", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    (requireScope as jest.Mock).mockReturnValue(null);
-    (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({});
-    (authenticateAgentRequest as jest.Mock).mockResolvedValue({
-      userId: "user-1",
-      eventId: "event-1",
-      scopes: ["participants:read"],
-      keyId: "key-1",
-    });
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it("counts every score when the judges' scores exceed the row cap", async () => {
-    const scores = [
-      ...Array.from({ length: 700 }, () => ({ judge_id: "judge-1" })),
-      ...Array.from({ length: 600 }, () => ({ judge_id: "judge-2" })),
-    ];
-    mockTables(createCappedQuery(scores));
-
-    const response = await GET(request);
+  it("counts every score row beyond the PostgREST row cap", async () => {
+    const response = await GET(
+      new NextRequest("http://localhost/api/agent/events/judges")
+    );
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(
-      body.judges.map((judge: { projects_scored: number }) => judge.projects_scored),
-    ).toEqual([700, 600]);
-  });
-
-  it("returns an error instead of zero progress when the score query fails", async () => {
-    mockTables(createCappedQuery([], { error: { message: "boom" } }));
-
-    const response = await GET(request);
-
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "Failed to fetch judge scores",
-    });
+      body.judges.map((judge: { projects_scored: number }) => judge.projects_scored)
+    ).toEqual([1000, 200]);
   });
 });

@@ -1,53 +1,49 @@
+import { cappedQuery } from "./capped-query.test-helper";
 import { fetchAllRows } from "./fetch-all-rows";
-import { createCappedQuery } from "./capped-query.test-helper";
 
-const rows = (count: number) =>
-  Array.from({ length: count }, (_, index) => ({ index }));
+const rowsOf = (length: number) =>
+  Array.from({ length }, (_, index) => ({ index }));
+
+function fetchPaged(rows: { index: number }[], maxRows?: number) {
+  return fetchAllRows((from, to) =>
+    cappedQuery(rows, maxRows).order().range(from, to)
+  );
+}
 
 describe("fetchAllRows", () => {
-  it("returns every row when the total exceeds the row cap", async () => {
-    const query = createCappedQuery(rows(2500));
-
-    const result = await fetchAllRows((from, to) => query.range(from, to));
-
-    expect(result.error).toBeNull();
-    expect(result.data).toEqual(rows(2500));
+  it("returns an empty list when there are no rows", async () => {
+    await expect(fetchPaged([])).resolves.toEqual({ data: [], error: null });
   });
 
-  it("returns an exact multiple of the page size without losing rows", async () => {
-    const query = createCappedQuery(rows(2000));
+  it.each([1, 999, 1000, 1001, 2000, 2500])(
+    "returns all %i rows in order",
+    async (count) => {
+      const rows = rowsOf(count);
+      const { data, error } = await fetchPaged(rows);
 
-    const result = await fetchAllRows((from, to) => query.range(from, to));
+      expect(error).toBeNull();
+      expect(data).toEqual(rows);
+    }
+  );
 
-    expect(result.data).toHaveLength(2000);
+  it("keeps every row when the server cap is below the page size", async () => {
+    const rows = rowsOf(1200);
+    const { data } = await fetchPaged(rows, 500);
+
+    expect(data).toEqual(rows);
   });
 
-  it("keeps paging when the server cap is below the page size", async () => {
-    const query = createCappedQuery(rows(1200), { maxRows: 300 });
-
-    const result = await fetchAllRows((from, to) => query.range(from, to));
-
-    expect(result.data).toEqual(rows(1200));
-  });
-
-  it("returns no rows for an empty result", async () => {
-    const query = createCappedQuery([]);
-
-    await expect(
-      fetchAllRows((from, to) => query.range(from, to)),
-    ).resolves.toEqual({ data: [], error: null });
-  });
-
-  it("returns the error instead of partial rows when a later page fails", async () => {
+  it("returns the error, not partial rows, when a later page fails", async () => {
     const failure = { message: "boom" };
     const fetchPage = jest
       .fn()
-      .mockResolvedValueOnce({ data: rows(1000), error: null })
+      .mockResolvedValueOnce({ data: rowsOf(1000), error: null })
       .mockResolvedValueOnce({ data: null, error: failure });
 
     await expect(fetchAllRows(fetchPage)).resolves.toEqual({
-      data: [],
+      data: null,
       error: failure,
     });
+    expect(fetchPage).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 });

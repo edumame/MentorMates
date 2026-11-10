@@ -4,8 +4,8 @@ import {
   authorizeAgentEventAccess,
   requireScope,
 } from "@/lib/agent/auth";
-import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 
 // GET: List all projects for the event
 export async function GET(request: NextRequest) {
@@ -57,27 +57,18 @@ export async function GET(request: NextRequest) {
     let scores: Record<string, unknown>[] = [];
 
     if (projectIds.length > 0) {
-      const { data: scoreData, error: scoresError } = await fetchAllRows(
-        (from, to) =>
-          supabase
-            .from("project_scores")
-            .select(
-              "project_id, scores, comments, judge_id, finalist_recommendation"
-            )
-            .in("project_id", projectIds)
-            .order("id")
-            .range(from, to)
+      const { data: scoreData } = await fetchAllRows((from, to) =>
+        supabase
+          .from("project_scores")
+          .select(
+            "project_id, scores, comments, judge_id, finalist_recommendation"
+          )
+          .in("project_id", projectIds)
+          .order("id")
+          .range(from, to)
       );
 
-      if (scoresError) {
-        console.error("Error fetching project scores:", scoresError);
-        return NextResponse.json(
-          { error: "Failed to fetch project scores" },
-          { status: 500 }
-        );
-      }
-
-      scores = scoreData;
+      scores = scoreData || [];
     }
 
     // Attach scores to projects

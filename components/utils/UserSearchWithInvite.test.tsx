@@ -50,7 +50,7 @@ describe("UserSearchWithInvite", () => {
       pick(B);
 
       expect(onTagsChange).toHaveBeenCalledTimes(1);
-      expect(onTagsChange).toHaveBeenCalledWith([B]);
+      expect(onTagsChange).toHaveBeenCalledWith([B], { added: [B], removed: [] });
     });
 
     it("does not bring back a removed teammate when another chip is removed", () => {
@@ -72,7 +72,7 @@ describe("UserSearchWithInvite", () => {
       );
       removeChip(B);
 
-      expect(onTagsChange).toHaveBeenCalledWith([]);
+      expect(onTagsChange).toHaveBeenCalledWith([], { added: [], removed: [B] });
     });
 
     it("keeps the chips in step with a parent that owns the team list", () => {
@@ -200,7 +200,7 @@ describe("UserSearchWithInvite", () => {
       rerender(<UserSearchWithInvite {...props} initialTags={[]} />);
       finishInvite({ ok: true, json: async () => ({}) });
 
-      await waitFor(() => expect(onTagsChange).toHaveBeenCalledWith([INVITED]));
+      await waitFor(() => expect(onTagsChange).toHaveBeenCalledWith([INVITED], { added: [INVITED], removed: [] }));
     });
 
     it("keeps a second add while the first save is still in flight", () => {
@@ -229,6 +229,26 @@ describe("UserSearchWithInvite", () => {
       rerender(<UserSearchWithInvite {...props} initialTags={[]} />);
 
       expect(chip(B)).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("UserSearchWithInvite change reporting", () => {
+  it("reports only the removed email, not the whole list", () => {
+    const onTagsChange = jest.fn();
+    render(
+      <UserSearchWithInvite
+        allTags={[]}
+        onTagsChange={onTagsChange}
+        initialTags={["Ann (ann@x.com)", "bob@x.com"]}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove" })[0]);
+
+    expect(onTagsChange).toHaveBeenCalledWith(["bob@x.com"], {
+      added: [],
+      removed: ["ann@x.com"],
     });
   });
 });

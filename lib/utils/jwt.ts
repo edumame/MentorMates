@@ -27,6 +27,12 @@ export interface ProjectInvitePayload {
 }
 
 /**
+ * Lifetime of an emailed project invite. It has to cover reading the email,
+ * creating an account and registering for the event before joining.
+ */
+export const PROJECT_EMAIL_INVITE_EXPIRY_DAYS = 7;
+
+/**
  * Generate a JWT token for project invitations
  * @param payload The invitation data
  * @param expiresIn Expiration time in seconds (default: 10 minutes)
