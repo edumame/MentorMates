@@ -1,9 +1,9 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { FAQContent } from "@/components/events/faq-content";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -12,7 +12,6 @@ export default async function FAQPage({ params }: PageProps) {
   const { id } = await Promise.resolve(params);
   const supabase = await createSupabaseClient();
 
-  const isUUID = isValidUUID(id);
 
   let query = supabase.from("events").select(`
     event_id,
@@ -27,11 +26,10 @@ export default async function FAQPage({ params }: PageProps) {
     faq
   `);
 
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  query = query.eq("event_id", routeEventId);
 
   const { data: eventData, error: eventError } = await query.single();
 
@@ -39,8 +37,6 @@ export default async function FAQPage({ params }: PageProps) {
     notFound();
   }
 
-  // Deliberately viewer-scoped: the owner's account email is private, so anyone
-  // RLS hides it from gets the platform contact fallback in FAQContent.
   let organizerEmail: string | null = null;
 
   if (eventData.owner_id) {

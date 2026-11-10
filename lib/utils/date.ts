@@ -39,3 +39,27 @@ export function parseEventDateLocal(input?: string | null): Date | null {
   if (Number.isNaN(d.getTime())) return null;
   return d;
 }
+
+/**
+ * Format an instant as a `datetime-local` input value in the viewer's timezone.
+ *
+ * `new Date(value)` parses that input's offset-less string as local time, so
+ * the value it displays must be local too. Using `toISOString()` here shows UTC
+ * and shifts the time by the offset on each edit. Returns "" for invalid input.
+ */
+export function toDateTimeLocalValue(input: string): string {
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const pad = (part: number, length = 2) =>
+    String(part).padStart(length, "0");
+
+  // The input rejects years under four digits, such as while one is being typed.
+  const day = [
+    pad(date.getFullYear(), 4),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-");
+
+  return `${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
