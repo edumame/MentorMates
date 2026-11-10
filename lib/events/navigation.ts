@@ -1,19 +1,14 @@
 import { EventRole } from "@/lib/types";
+import { isApprovedApprovalStatus, safeExternalHref } from "./approval";
 
 export type EventNavigationRole = EventRole | string | null | undefined;
-
-// Set by middleware so server layouts, which do not receive the pathname, can
-// tell which /events/[id] child route is being rendered.
-export const EVENT_REQUEST_PATHNAME_HEADER = "x-mm-pathname";
-
-const EVENT_INVITE_ACCEPTANCE_PATH =
-  /^\/events\/[^/]+\/accept(?:-judge|-organizer|-participant)?\/?$/;
 
 export type EventNavigationItem = {
   event_id: string;
   slug?: string | null;
   external_url?: string | null;
   external_redirect_enabled?: boolean | null;
+  approval_status?: string | null;
   userRole?: EventNavigationRole;
   canManageEvent?: boolean | null;
 };
@@ -34,22 +29,28 @@ export function canUseInternalEventRoute({
   );
 }
 
-// Invite links are the only way a new invitee can get a role, so they have to
-// stay reachable even when the event redirects everyone else away.
-export function isEventInviteAcceptancePath(pathname: string | null | undefined) {
-  return EVENT_INVITE_ACCEPTANCE_PATH.test(pathname ?? "");
-}
-
 export function getInternalEventHref(event: Pick<EventNavigationItem, "event_id" | "slug">) {
   return `/events/${event.slug || event.event_id}/overview`;
 }
 
+/**
+ * The external URL visitors should be redirected to, or null when the event
+ * should stay on its internal page. Allow-list: only http(s) URLs of events an
+ * admin approved (anyone can create an unreviewed event; PUB-001).
+ */
+export function getExternalRedirectUrl(
+  event: Pick<EventNavigationItem, "external_url" | "external_redirect_enabled" | "approval_status">
+) {
+  if (event.external_redirect_enabled !== true) return null;
+  if (!isApprovedApprovalStatus(event.approval_status)) return null;
+  return safeExternalHref(event.external_url) ?? null;
+}
+
 export function getEventNavigationTarget(event: EventNavigationItem) {
-  const externalUrl = event.external_url?.trim();
-  const externalRedirectEnabled = event.external_redirect_enabled === true;
+  const externalUrl = getExternalRedirectUrl(event);
   const internalHref = getInternalEventHref(event);
 
-  if (externalUrl && externalRedirectEnabled && !canUseInternalEventRoute(event)) {
+  if (externalUrl && !canUseInternalEventRoute(event)) {
     return { href: externalUrl, isExternal: true };
   }
 

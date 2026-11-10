@@ -128,7 +128,7 @@ export type EventItem = {
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
   external_url?: string | null; // Optional outside event URL
-  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects visitors other than managers and judges away from MentorMates, except on invite acceptance routes
+  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects visitors other than managers and judges away from MentorMates (invite routes live outside the event layout)
   team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
   submitter_email?: string | null; // Contact email from the public submit form
   submitter_name?: string | null; // Submitter name from the public submit form
@@ -334,6 +334,21 @@ export interface ProjectSubmissionAnswer {
 }
 
 // Project Types
+/**
+ * Email-free team roster resolved server-side (see lib/projects/team-members.ts).
+ * Public project responses carry only this; lead_email/teammates are omitted.
+ */
+export interface ProjectTeamMember {
+  /** user_profiles.uid when the member has a profile, else null. */
+  id: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  affiliation: string | null;
+  role: "lead" | "member";
+  /** Only in authenticated (member/organizer) responses; never public. */
+  email?: string;
+}
+
 export interface Project {
   id: string;
   project_name: string;
@@ -361,6 +376,7 @@ export interface Project {
   is_finalist?: boolean;
   contextus_project_id?: string;
   submitted?: boolean;
+  team_members?: ProjectTeamMember[];
 }
 
 export enum ProjectBoardContext {

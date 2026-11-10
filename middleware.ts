@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/app/utils/supabase/middleware";
-import { EVENT_REQUEST_PATHNAME_HEADER } from "@/lib/events/navigation";
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
@@ -17,10 +16,6 @@ export async function middleware(request: NextRequest) {
   //   url.pathname = '/';
   //   return NextResponse.redirect(url);
   // }
-
-  // updateSession forwards the request headers to the app. Always overwrite
-  // this one so it cannot be supplied by the client.
-  request.headers.set(EVENT_REQUEST_PATHNAME_HEADER, pathname);
 
   // Update user's auth session
   return await updateSession(request);

@@ -4,7 +4,7 @@ import {
   getInternalEventHref,
   isEventManagerRole,
   canUseInternalEventRoute,
-  isEventInviteAcceptancePath,
+  getExternalRedirectUrl,
 } from "./navigation";
 
 describe("event navigation", () => {
@@ -45,32 +45,6 @@ describe("event navigation", () => {
     }
   );
 
-  it.each([
-    "/events/spring-showcase/accept",
-    "/events/spring-showcase/accept-judge",
-    "/events/spring-showcase/accept-organizer",
-    "/events/spring-showcase/accept-participant",
-    "/events/spring-showcase/accept-judge/",
-  ])("recognizes %s as an invite acceptance route", (pathname) => {
-    expect(isEventInviteAcceptancePath(pathname)).toBe(true);
-  });
-
-  it.each([
-    "/events/spring-showcase",
-    "/events/spring-showcase/overview",
-    "/events/spring-showcase/tickets",
-    "/events/spring-showcase/accepted",
-    "/events/accept-judge",
-    "/events/accept-judge/overview",
-    "/events/spring-showcase/tools/accept-judge",
-    "/accept-judge",
-    "",
-    null,
-    undefined,
-  ])("does not treat %s as an invite acceptance route", (pathname) => {
-    expect(isEventInviteAcceptancePath(pathname)).toBe(false);
-  });
-
   it("links external events out for non-manager roles when redirects are enabled", () => {
     expect(
       getEventNavigationTarget({
@@ -78,6 +52,7 @@ describe("event navigation", () => {
         slug: "partner-event",
         external_url: " https://partner.example.com/hack ",
         external_redirect_enabled: true,
+        approval_status: "approved",
         userRole: EventRole.Participant,
       })
     ).toEqual({
@@ -156,6 +131,35 @@ describe("event navigation", () => {
     ).toEqual({
       href: "/events/partner-event/overview",
       isExternal: false,
+    });
+  });
+
+  describe("getExternalRedirectUrl", () => {
+    const base = { external_url: "https://partner.example.com/hack", external_redirect_enabled: true };
+
+    it("redirects only admin-approved external events (allow-list)", () => {
+      expect(getExternalRedirectUrl({ ...base, approval_status: "approved" })).toBe(base.external_url);
+      expect(getExternalRedirectUrl({ ...base, approval_status: "not_submitted" })).toBeNull();
+      expect(getExternalRedirectUrl({ ...base, approval_status: null })).toBeNull();
+      expect(getExternalRedirectUrl({ ...base })).toBeNull();
+    });
+
+    it.each(["submitted", "rejected"])("never redirects %s (unreviewed) submissions", (approval_status) => {
+      expect(getExternalRedirectUrl({ ...base, approval_status })).toBeNull();
+      expect(
+        getEventNavigationTarget({ event_id: "e", slug: "s", ...base, approval_status })
+      ).toEqual({ href: "/events/s/overview", isExternal: false });
+    });
+
+    it.each(["javascript:alert(1)", "JAVASCRIPT:alert(1)", "data:text/html,x", "not a url", "  "])(
+      "rejects non-http(s) external URL %p",
+      (external_url) => {
+        expect(getExternalRedirectUrl({ ...base, approval_status: "approved", external_url })).toBeNull();
+      }
+    );
+
+    it("requires redirects to be enabled", () => {
+      expect(getExternalRedirectUrl({ ...base, approval_status: "approved", external_redirect_enabled: false })).toBeNull();
     });
   });
 });
