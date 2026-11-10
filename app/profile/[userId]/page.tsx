@@ -35,11 +35,14 @@ import Link from "next/link";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
+import { usePendingAvatar } from "@/features/user/profile/use-pending-avatar";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { PHONE_NUMBER_TEXT_USAGE_COPY } from "@/lib/constants/privacy";
 import { z } from "zod";
+import { webUrlSchema } from "@/lib/users/profile-links";
+import { avatarObjectPath } from "@/lib/users/avatar-upload";
 
 // Interface for events with role information
 interface EventWithRole extends EventDetails {
@@ -51,27 +54,19 @@ interface EventWithRole extends EventDetails {
 // Validation schemas (matching server-side validation)
 const SocialLinksSchema = z
   .object({
-    linkedin: z
-      .string()
-      .url("Invalid LinkedIn URL")
+    linkedin: webUrlSchema("Invalid LinkedIn URL")
       .optional()
       .or(z.literal("")),
-    github: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
-    twitter: z.string().url("Invalid Twitter URL").optional().or(z.literal("")),
-    facebook: z
-      .string()
-      .url("Invalid Facebook URL")
+    github: webUrlSchema("Invalid GitHub URL").optional().or(z.literal("")),
+    twitter: webUrlSchema("Invalid Twitter URL").optional().or(z.literal("")),
+    facebook: webUrlSchema("Invalid Facebook URL")
       .optional()
       .or(z.literal("")),
-    instagram: z
-      .string()
-      .url("Invalid Instagram URL")
+    instagram: webUrlSchema("Invalid Instagram URL")
       .optional()
       .or(z.literal("")),
-    youtube: z.string().url("Invalid YouTube URL").optional().or(z.literal("")),
-    portfolio: z
-      .string()
-      .url("Invalid Portfolio URL")
+    youtube: webUrlSchema("Invalid YouTube URL").optional().or(z.literal("")),
+    portfolio: webUrlSchema("Invalid Portfolio URL")
       .optional()
       .or(z.literal("")),
   })
@@ -164,11 +159,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>(PROFILE_TABS.PROJECTS);
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
   const [isSaving, setIsSaving] = useState(false);
+  // MENT-011: a missing profile or failed load used to render an empty "User Profile".
+  const [loadError, setLoadError] = useState<"not-found" | "error" | null>(null);
 
   // Keep the profile's project list in sync after deletions from the gallery
   const handleProjectDeleted = (projectId: string) => {
@@ -246,6 +242,10 @@ export default function ProfilePage() {
 
         // Fetch user profile and projects
         const response = await fetch(`/api/users/${userId}/profile`);
+        if (response.status === 404) {
+          setLoadError("not-found");
+          return;
+        }
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           console.error("Profile fetch error:", errorData);
@@ -320,11 +320,13 @@ export default function ProfilePage() {
         setIsProfileAdmin(Boolean(adminCheckData));
       } catch (error) {
         console.error("Error fetching data:", error);
+        setLoadError("error");
       } finally {
         setIsLoading(false);
       }
     };
 
+    setLoadError(null);
     fetchData();
   }, [userId]);
 
@@ -358,8 +360,8 @@ export default function ProfilePage() {
   };
 
   const handleUpdateProfile = async () => {
-    // Clear previous validation errors
-    setIsSaving(true);
+    // Clear previous validation errors. isSaving is only set once validation
+    // passes; the early return below used to leave Save stuck (MENT-009).
     setValidationErrors({});
 
     // Prepare data for validation
@@ -393,6 +395,7 @@ export default function ProfilePage() {
       return;
     }
 
+    setIsSaving(true);
     try {
       // Use the PATCH API endpoint for profile updates
       const response = await fetch(`/api/users/${userId}`, {
@@ -461,26 +464,26 @@ export default function ProfilePage() {
   };
 
   // Handle avatar file selection
-  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select an image under 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // Same type/size rules as the bucket (MENT-010). Returns the error shown, or null.
+  const validateAvatarFile = useCallback(
+    (file: File) => {
+      const check = avatarObjectPath(session?.user?.id ?? "", file);
+      if (!("error" in check)) return null;
+      toast({
+        title: "Unsupported image",
+        description: check.error,
+        variant: "destructive",
+      });
+      return check.error;
+    },
+    [session?.user?.id, toast]
+  );
+  const {
+    file: pendingAvatarFile,
+    preview: avatarPreview,
+    select: handleAvatarSelect,
+    clear: clearAvatarSelection,
+  } = usePendingAvatar(validateAvatarFile);
 
   // Handle avatar upload
   const handleAvatarUpload = async (file: File) => {
@@ -488,17 +491,19 @@ export default function ProfilePage() {
 
     setIsUploadingAvatar(true);
     try {
-      // Generate unique file name
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${userId}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      // Extension from the MIME type, path under the caller's own uid
+      // (required by the profile-images bucket policies).
+      const target = avatarObjectPath(session.user.id, file);
+      if ("error" in target) throw new Error(target.error);
+      const filePath = target.path;
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("profile-images")
         .upload(filePath, file, {
           cacheControl: "3600",
-          upsert: true,
+          contentType: file.type,
+          upsert: false,
         });
 
       if (uploadError) throw uploadError;
@@ -528,7 +533,7 @@ export default function ProfilePage() {
         description: "Your profile picture has been updated",
       });
 
-      setAvatarPreview(null);
+      clearAvatarSelection();
     } catch (error) {
       console.error("Error uploading avatar:", error);
       toast({
@@ -649,6 +654,28 @@ export default function ProfilePage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <PageContainer showBorder={false}>
+        <PageContent>
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-24 text-center">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {loadError === "not-found" ? "Profile not found" : "Couldn't load this profile"}
+            </h1>
+            <p className="text-gray-600">
+              {loadError === "not-found"
+                ? "This user doesn't exist or their profile is no longer available."
+                : "Please check your connection and try again."}
+            </p>
+            {loadError === "error" && (
+              <Button onClick={() => window.location.reload()}>Try again</Button>
+            )}
+          </div>
+        </PageContent>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer showBorder={false}>
       <PageContent>
@@ -704,7 +731,7 @@ export default function ProfilePage() {
                   <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
                       onChange={handleAvatarSelect}
                       className="hidden"
                       disabled={isUploadingAvatar}
@@ -727,12 +754,8 @@ export default function ProfilePage() {
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const input = document.querySelector(
-                        'input[type="file"]'
-                      ) as HTMLInputElement;
-                      const file = input?.files?.[0];
-                      if (file) {
-                        await handleAvatarUpload(file);
+                      if (pendingAvatarFile) {
+                        await handleAvatarUpload(pendingAvatarFile);
                       }
                     }}
                   >
@@ -741,7 +764,7 @@ export default function ProfilePage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setAvatarPreview(null)}
+                    onClick={() => clearAvatarSelection()}
                   >
                     Cancel
                   </Button>
@@ -945,11 +968,7 @@ export default function ProfilePage() {
                       </svg>
                       Share
                     </button>
-                    {!isOwnProfile && (
-                      <button className="px-5 py-2 bg-[#4b89ef] hover:bg-[#3d7ce0] text-white text-base font-medium rounded-xl transition-colors shadow-[inset_0_32px_24px_0_rgba(255,255,255,0.05),inset_0_2px_1px_0_rgba(255,255,255,0.25),inset_0_0_0_1px_rgba(0,0,0,0.15),inset_0_-2px_1px_0_rgba(0,0,0,0.2),0_1px_2px_0_rgba(0,0,0,0.05)]">
-                        Follow
-                      </button>
-                    )}
+                    {/* Follow was a dead button (no follow feature exists); removed until implemented. */}
                   </div>
                 </div>
               </div>
@@ -1106,7 +1125,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => {
                     setIsEditingLinks(false);
-                    setAvatarPreview(null);
+                    clearAvatarSelection();
                     setValidationErrors({});
                   }}
                   className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
@@ -1212,7 +1231,7 @@ export default function ProfilePage() {
                       <label className="bg-black/5 hover:bg-black/10 px-3 py-1 rounded-xl text-xs font-normal cursor-pointer transition-colors">
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
                           onChange={handleAvatarSelect}
                           className="hidden"
                           disabled={isUploadingAvatar}
@@ -1225,18 +1244,16 @@ export default function ProfilePage() {
                     <div className="flex gap-2 ml-[52px]">
                       <button
                         onClick={async () => {
-                          const input = document.querySelector(
-                            'input[type="file"]'
-                          ) as HTMLInputElement;
-                          const file = input?.files?.[0];
-                          if (file) await handleAvatarUpload(file);
+                          if (pendingAvatarFile) {
+                            await handleAvatarUpload(pendingAvatarFile);
+                          }
                         }}
                         className="text-sm text-[#4b89ef] hover:underline"
                       >
                         Save image
                       </button>
                       <button
-                        onClick={() => setAvatarPreview(null)}
+                        onClick={() => clearAvatarSelection()}
                         className="text-sm text-gray-500 hover:underline"
                       >
                         Cancel
@@ -1671,7 +1688,7 @@ export default function ProfilePage() {
                   <button
                     onClick={() => {
                       setIsEditingLinks(false);
-                      setAvatarPreview(null);
+                      clearAvatarSelection();
                       setValidationErrors({});
                     }}
                     className="flex-1 h-10 bg-black/5 hover:bg-black/10 rounded-xl text-base font-medium text-black transition-colors"

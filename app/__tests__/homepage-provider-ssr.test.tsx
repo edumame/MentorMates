@@ -23,7 +23,7 @@ it("includes landing and footer in initial HTML through both real auth providers
 });
 
 it("does not render protected content before client authentication", () => {
-  (usePathname as jest.Mock).mockReturnValue("/dashboard");
+  (usePathname as jest.Mock).mockReturnValue("/admin");
   expect(renderToString(<AuthProvider><main>Private content</main></AuthProvider>)).toBe("");
 });
 
