@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { EventsPageClient } from "./eventsPageClient";
+import { EventsPageClient, matchesEventSearch } from "./eventsPageClient";
 import type { EventWithRole } from "@/components/events/event-row";
 
 const mockUseAuth = jest.fn();
@@ -11,6 +11,15 @@ jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
 
 jest.mock("next/navigation", () => ({
   useSearchParams: () => mockUseSearchParams(),
+}));
+
+// Featured cards render EventRow, whose pending indicator calls useLinkStatus.
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a {...props}>{children}</a>
+  ),
+  useLinkStatus: () => ({ pending: false }),
 }));
 
 jest.mock("@/components/events/events-list", () => ({
@@ -147,5 +156,16 @@ describe("EventsPageClient", () => {
         [7, 8, 9, 10, 11, 12].map((n) => `Featured Event ${n}`)
       );
     });
+  });
+});
+
+describe("event search (PUB-018)", () => {
+  it("matches name or location, case-insensitively, ignoring surrounding spaces", () => {
+    const event = { event_name: "Spring Hack Night", location: "San Francisco" };
+    expect(matchesEventSearch(event, "  hack ")).toBe(true);
+    expect(matchesEventSearch(event, "francisco")).toBe(true);
+    expect(matchesEventSearch(event, "tokyo")).toBe(false);
+    expect(matchesEventSearch({ event_name: "Online Jam", location: null }, "jam")).toBe(true);
+    expect(matchesEventSearch(event, "")).toBe(true);
   });
 });
