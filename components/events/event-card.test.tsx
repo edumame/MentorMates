@@ -1,3 +1,4 @@
+import { ApprovalStatus } from "@/lib/types";
 import { render, screen } from "@testing-library/react";
 import { EventCard } from "./event-card";
 import { EventRole } from "@/lib/types";
@@ -35,6 +36,7 @@ describe("EventCard", () => {
           event_description: "Hosted on a partner site.",
           external_url: "https://partner.example.com/hack",
           external_redirect_enabled: true,
+          approval_status: ApprovalStatus.Approved,
         }}
       />
     );

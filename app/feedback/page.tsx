@@ -25,7 +25,7 @@ interface FeedbackItem {
   id: string;
   sender: {
     name: string;
-    avatar: string;
+    avatar: string | null;
     role?: string;
   };
   projectName: string;
@@ -234,7 +234,7 @@ export default function FeedbackPage() {
                         <div className="flex items-center gap-[6px] px-[24px] py-[28px] w-[264px] flex-shrink-0">
                           <Avatar className="h-[40px] w-[40px]">
                             <AvatarImage
-                              src={item.sender.avatar}
+                              src={item.sender.avatar ?? undefined}
                               alt={item.sender.name}
                             />
                             <AvatarFallback className="bg-gray-200 text-black font-semibold text-base">
@@ -533,7 +533,7 @@ export default function FeedbackPage() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage
-                          src={selectedFeedback?.sender.avatar}
+                          src={selectedFeedback?.sender.avatar ?? undefined}
                           alt={selectedFeedback?.sender.name}
                         />
                         <AvatarFallback>

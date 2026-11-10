@@ -12,6 +12,8 @@ interface VotableProjectCardProps {
   hasVoted: boolean;
   toggleVoteAction: () => Promise<boolean>;
   canVote: boolean;
+  /** Shown under the Vote button when voting is blocked for this project. */
+  disabledReason?: string | null;
 }
 
 export function VotableProjectCard({
@@ -19,6 +21,7 @@ export function VotableProjectCard({
   hasVoted,
   toggleVoteAction,
   canVote,
+  disabledReason = null,
 }: VotableProjectCardProps) {
   return (
     <div className="block">
@@ -117,6 +120,9 @@ export function VotableProjectCard({
               canVote={canVote}
               size="default"
             />
+            {disabledReason && (
+              <p className="mt-2 text-xs text-black/60">{disabledReason}</p>
+            )}
           </div>
         </div>
       </Card>
