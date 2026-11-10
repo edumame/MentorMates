@@ -10,6 +10,11 @@ type Op = [string, unknown[]];
 let viewer: string | null, authError: boolean, missing: boolean, failedTable: string | null;
 let viewerEmail: string | undefined;
 let profile: Record<string, unknown>, projects: Record<string, unknown>[];
+// Full project rows (with emails) as stored; the route may only see emails via RPCs.
+// project_ids_for_user matches the owner's verified auth email, not the editable profile email.
+const VERIFIED_EMAIL = 'account-private@example.test';
+const isVerifiedMember = (p: Record<string, unknown>) => p.lead_email === VERIFIED_EMAIL || (Array.isArray(p.teammates) && p.teammates.includes(VERIFIED_EMAIL));
+const emailFree = (row: Record<string, unknown>) => { const { lead_email: _l, teammates: _t, ...rest } = row; void _l; void _t; return rest; };
 let verifiedPhones: {phone_number: string}[], recentPhones: {phone_number: string}[];
 const calls: { client: string; table: string; ops: Op[] }[] = [];
 function from(client: string) {
@@ -18,9 +23,10 @@ function from(client: string) {
     calls.push({ client, table, ops });
     const result = () => {
       if (failedTable === table) return { data: null, error: { message: 'private-error-canary', code: 'private-code' } };
+      if (client === 'service' && table === 'projects') return { data: projects.map(p => ({ id: p.id, lead_name: p.lead_name, lead_email: p.lead_email, teammates: p.teammates })), error: null };
       if (client === 'service' && table !== 'user_profiles') throw new Error('Privileged non-profile query');
       if (table === 'user_profiles') return { data: missing ? null : profile, error: null };
-      if (table === 'projects') return { data: projects, error: null };
+      if (table === 'projects') return { data: projects.map(emailFree), error: null };
       if (table === 'events' || table === 'prize_winners') return { data: [], error: null };
       if (table === 'user_phone_numbers') return { data: ops.some(([op, args]) => op === 'eq' && args[0] === 'verification_status') ? verifiedPhones : recentPhones, error: null };
       throw new Error(`Unexpected table ${table}`);
@@ -45,8 +51,13 @@ beforeEach(() => {
   jest.mocked(createSupabaseClient).mockResolvedValue({
     auth: { getUser: async () => ({ data: { user: viewer ? { id: viewer, email: viewerEmail } : null }, error: authError ? new Error('private-auth-canary') : null }) },
     from: from('caller'),
+    // project_team_emails: the owner is on every listed team.
+    rpc: async (name: string) => { calls.push({ client: 'caller', table: 'rpc:' + name, ops: [] }); return { data: viewer === uid && !authError ? projects.map(p => ({ project_id: p.id, lead_email: p.lead_email, teammates: p.teammates })) : [], error: null }; },
   } as never);
-  jest.mocked(createSupabaseServiceClient).mockReturnValue({ from: from('service') } as never);
+  jest.mocked(createSupabaseServiceClient).mockReturnValue({
+    from: from('service'),
+    rpc: async (name: string) => { calls.push({ client: 'service', table: 'rpc:' + name, ops: [] }); return failedTable === 'rpc' ? { data: null, error: { message: 'private-rpc' } } : { data: projects.filter(isVerifiedMember).map(p => p.id), error: null }; },
+  } as never);
 });
 const run = () => GET(new NextRequest('https://example.test/api/profile'), { params: Promise.resolve({ userId: uid }) });
 
@@ -64,12 +75,13 @@ it.each(['anonymous', 'other', 'auth-error'])('does not disclose private fields 
   expect(calls.find(call => call.table === 'events')?.ops).toContainEqual(['in', ['visibility', ['public']]]);
 });
 it('returns owner contact fields and preserves own drafts/events without internal metadata', async () => {
-  viewer = uid; const response = await run(); expect(response.status).toBe(200); const body = await response.json();
+  viewer = uid; projects = [{ id: 'own', lead_email: VERIFIED_EMAIL, teammates: [], project_tracks: [] }];
+  const response = await run(); expect(response.status).toBe(200); const body = await response.json();
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   expect(body.profile.email).toBe('account-private@example.test'); expect(body.profile.phone_number).toBe('+15555555555');
   expect(body.profile).not.toHaveProperty('stripe_customer_id'); expect(body.profile).not.toHaveProperty('onboarding_metadata');
   expect(calls.filter(call => call.table === 'user_phone_numbers')).toHaveLength(1);
-  expect(calls.find(call => call.table === 'projects')?.ops).toContainEqual(['or', ['submitted.eq.false,submitted.eq.true']]);
+  expect(calls.find(call => call.table === 'projects' && call.client === 'caller')?.ops).toContainEqual(['or', ['submitted.eq.false,submitted.eq.true']]);
   expect(calls.find(call => call.table === 'events')?.ops).toContainEqual(['in', ['visibility', expect.arrayContaining(['private','draft'])]]);
 });
 it('uses the recent phone only when no verified phone exists', async () => {
@@ -80,11 +92,11 @@ it('degrades phone lookup errors to null for owner', async () => {
   viewer = uid; failedTable = 'user_phone_numbers'; const response = await run(); expect(response.status).toBe(200); expect((await response.json()).profile.phone_number).toBeNull();
 });
 it('redacts nested project email identities while preserving avatar count and deduplicating', async () => {
-  projects = [{ id: 'project', project_name: 'Project', lead_name: 'lead-private@example.test', lead_email: 'lead-private@example.test', teammates: ['member-private@example.test','other-private@example.test'], event_id: 'event', submitted: true, project_tracks: [], secret: 'project-secret' }];
+  projects = [{ id: 'project', project_name: 'Project', lead_name: 'lead-private@example.test', lead_email: 'lead-private@example.test', teammates: [VERIFIED_EMAIL,'other-private@example.test'], event_id: 'event', submitted: true, project_tracks: [], secret: 'project-secret' }];
   const body = await (await run()).json(); expect(body.projects).toHaveLength(1);
   expect(body.projects[0]).not.toHaveProperty('lead_email'); expect(body.projects[0].lead_name).toBe('Project lead');
   expect(body.projects[0].teammates).toEqual(['Team member 1','Team member 2']);
-  for (const canary of ['lead-private', 'member-private', 'other-private', 'project-secret']) expect(JSON.stringify(body)).not.toContain(canary);
+  for (const canary of ['lead-private', 'account-private', 'other-private', 'project-secret']) expect(JSON.stringify(body)).not.toContain(canary);
 });
 it('preserves owner project identity needed for own-project controls', async () => {
   viewer = uid; projects = [{ id: 'project', lead_email: 'account-private@example.test', teammates: ['teammate@example.test'], project_tracks: [] }];
@@ -95,9 +107,11 @@ it('does not query legacy memberships when the profile has no email', async () =
 });
 it('returns 404 for missing profiles', async () => { missing = true; expect((await run()).status).toBe(404); });
 it.each(['user_profiles', 'projects', 'events'])('returns generic errors for %s failures without privileged fallback', async table => {
-  failedTable = table; const response = await run(); expect(response.status).toBe(500);
+  failedTable = table; projects = [{ id: 'own', lead_email: VERIFIED_EMAIL, teammates: [], project_tracks: [] }];
+  const response = await run(); expect(response.status).toBe(500);
   expect(JSON.stringify(await response.json())).not.toContain('private-');
-  expect(calls.filter(call => call.client === 'service').every(call => call.table === 'user_profiles')).toBe(true);
+  // Service role only resolves the profile, membership ids and the email-free roster.
+  expect(calls.filter(call => call.client === 'service').every(call => ['user_profiles', 'rpc:project_ids_for_user', 'projects'].includes(call.table))).toBe(true);
 });
 it('does not expose thrown authentication error details', async () => {
   jest.mocked(createSupabaseClient).mockRejectedValueOnce(new Error('private-exception-canary'));
@@ -108,13 +122,10 @@ it('does not trust editable profile email for owner membership or disclose unrel
   viewer = uid; profile.email = 'spoofed@example.test';
   projects = [{ id: 'unrelated', lead_name: 'other@example.test', lead_email: 'spoofed@example.test', teammates: ['secret-member@example.test'], project_tracks: [] }];
   const body = await (await run()).json();
-  const projectQueries = calls.filter(call => call.table === 'projects');
-  expect(projectQueries[0].ops).toContainEqual(['eq', ['lead_email', 'account-private@example.test']]);
-  expect(projectQueries[1].ops).toContainEqual(['contains', ['teammates', ['account-private@example.test']]]);
-  expect(body.projects[0]).not.toHaveProperty('lead_email');
-  expect(body.projects[0].lead_name).toBe('Project lead');
-  expect(body.projects[0].teammates).toEqual(['Team member 1']);
-  expect(JSON.stringify(body.projects)).not.toContain('@example.test');
+  // Membership comes from project_ids_for_user (verified auth email), never the profile email.
+  expect(calls.some(call => call.table === 'rpc:project_ids_for_user' && call.client === 'service')).toBe(true);
+  expect(body.projects).toEqual([]);
+  expect(JSON.stringify(body)).not.toContain('secret-member');
 });
 it('does not fall back to editable profile email when verified owner has no auth email', async () => {
   viewer = uid; viewerEmail = undefined;

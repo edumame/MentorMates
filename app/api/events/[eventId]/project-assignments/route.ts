@@ -78,7 +78,9 @@ export async function GET(
         )
       `
       )
-      .in("project_id", projectIds);
+      .in("project_id", projectIds)
+      // Soft-revoked assignments (former judges) are not shown (A1, JUDGE-017).
+      .is("revoked_at", null);
 
     if (error) {
       return NextResponse.json(

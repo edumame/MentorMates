@@ -34,7 +34,6 @@ export default function JoinProjectPage() {
   const router = useRouter();
   const { setReturnUrlFromCurrentLocation } = useRedirect();
   const projectId = params.id as string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const token = params.token as string;
   
   const [session, setSession] = useState<Session | null>(null);
@@ -45,14 +44,16 @@ export default function JoinProjectPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const fetchProject = async () => {
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", projectId)
-      .single();
+    const response = await fetch("/api/projects/verify-invite-token", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId, token }),
+    });
+    const result = await response.json();
+    const data = result.project;
+    const error = !response.ok || !result.valid || !data;
 
     if (error) {
-      console.error("Error fetching project:", error);
+      // The verification endpoint preserves private-project access boundaries.
       setErrorMessage("Project not found or invite link is invalid.");
     } else {
       setProject(data);
@@ -74,21 +75,26 @@ export default function JoinProjectPage() {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      
-      if (session?.user?.email) {
-        const projectData = await fetchProject();
-        if (projectData) {
-          await checkMembership(session.user.email, projectData);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+
+        if (session?.user?.email) {
+          const projectData = await fetchProject();
+          if (projectData) {
+            await checkMembership(session.user.email, projectData);
+          }
         }
+      } catch {
+        setErrorMessage("Unable to load this invitation. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     getSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, token]);
 
 
   const handleJoinProject = async () => {
@@ -97,16 +103,13 @@ export default function JoinProjectPage() {
     setIsJoining(true);
     
     try {
-      // Add user to teammates array
-      const currentTeammates = project.teammates || [];
-      const updatedTeammates = [...currentTeammates, session.user.email];
-      
-      const { data, error } = await supabase
-        .from("projects")
-        .update({ teammates: updatedTeammates })
-        .eq("id", projectId)
-        .select()
-        .single();
+      // Legacy links use the same server-verified invitation boundary.
+      const response = await fetch("/api/projects/join", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, token }),
+      });
+      const data = await response.json();
+      const error = response.ok ? null : { message: data.error || "Failed to join project" };
 
       if (error) {
         setErrorMessage(error.message);
