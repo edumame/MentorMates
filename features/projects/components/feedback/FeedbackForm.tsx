@@ -21,23 +21,6 @@ interface AISuggestions {
   "more positive": string;
 }
 
-interface FeedbackData {
-  project_id: string;
-  project_name: string;
-  project_email: string;
-  project_lead_name: string;
-  project_description: string;
-  mentor_id: string | null;
-  mentor_name: string | null;
-  mentor_email: string | null;
-  original_feedback: string;
-  final_feedback: string;
-  specific_ai_suggestion: string;
-  positive_ai_suggestion: string;
-  actionable_ai_suggestion: string;
-  modifier_field: string[];
-  event_id: string;
-}
 interface FeedbackFormProps {
   projectId: string;
   projectName: string;
@@ -116,16 +99,17 @@ export default function FeedbackForm({
     localStorage.setItem("originalFeedback", feedback);
 
     try {
-      const url =
-        "https://magicloops.dev/api/loop/b59e7eb1-4d27-4fa7-8411-543646f3ee2f/run";
-      const response = await fetch(url, {
+      // Server route (MENT-014): no browser-to-third-party transfer.
+      const response = await fetch("/api/feedback/suggest", {
         method: "POST",
-        body: JSON.stringify({
-          feedback: feedback,
-          "project description": projectDescription,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, feedback }),
       });
-      const responseJson = await response.json();
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.suggestions) {
+        throw new Error(payload.error || "Failed to generate AI suggestions");
+      }
+      const responseJson = payload.suggestions as AISuggestions;
       setAiSuggestions(responseJson);
       setHasImprovedWithAI(true);
     } catch (error) {
@@ -137,20 +121,6 @@ export default function FeedbackForm({
     } finally {
       setIsGeneratingAI(false);
       setShowSubmitButton(true);
-    }
-  };
-
-  const logFeedbackToMagicLoop = async (feedbackData: FeedbackData) => {
-    const url =
-      "https://magicloops.dev/api/loop/d72bea64-246a-4c95-98d1-d7a9b90da991/run";
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify(feedbackData),
-      });
-      await response.json();
-    } catch (error) {
-      console.error("Error logging feedback to Magic Loop:", error);
     }
   };
 
@@ -339,40 +309,19 @@ export default function FeedbackForm({
 
       const modifier_field = Array.from(validatedTags);
 
-      const feedbackData: FeedbackData = {
-        project_id: projectId,
-        project_name: projectName,
-        project_description: projectDescription,
-        project_email: projectLeadEmail,
-        project_lead_name: projectLeadName,
-        mentor_id: session?.user?.id || null,
-        mentor_name: session?.user?.user_metadata?.full_name || null,
-        mentor_email: session?.user?.email || null,
-        original_feedback: originalFeedback,
-        final_feedback: feedback,
-        specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
-        positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
-        actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
-        modifier_field: Array.from(usedSuggestions),
-        event_id: eventId,
-      };
-
+      // Content only: the server derives project, event and authorship.
       const feedbackBody = {
-        project_id: projectId,
-        mentor_id: session?.user?.id || null,
-        mentor_name: session?.user?.user_metadata?.full_name || null,
-        mentor_email: session?.user?.email || null,
         feedback_text: feedback,
         original_feedback_text: originalFeedback,
         modifier_field: Array.from(usedSuggestions),
         specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
         positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
         actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
-        event_id: eventId,
       };
 
       const response = await fetch(`/api/feedback/submit/${projectId}`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(feedbackBody),
       });
       const data = await response.json();
@@ -401,9 +350,6 @@ export default function FeedbackForm({
       // if (!emailResponse.ok) {
       //   console.error("Failed to send feedback notification email");
       // }
-
-      // Log to Magic Loop API
-      await logFeedbackToMagicLoop(feedbackData);
 
       setIsSubmitted(true);
     } catch (error) {
