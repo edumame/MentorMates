@@ -29,13 +29,18 @@ export function getVisibleFieldKeys(
   schema: IntakeFormSchema,
   answers: IntakeFormAnswers
 ): Set<string> {
-  let visible = new Set(schema.fields.map((field) => field.key));
+  const schemaKeys = new Set(schema.fields.map((field) => field.key));
+  let visible = new Set(schemaKeys);
   for (let pass = 0; pass <= schema.fields.length; pass++) {
     const next = new Set(
       schema.fields
         .filter((field) => {
           if (!field.showIf) return true;
           const controller = field.showIf.fieldKey;
+          // A rule pointing at a question that no longer exists can never be
+          // satisfied; treat it as absent so the field (even a required one)
+          // is shown instead of silently skipped.
+          if (!schemaKeys.has(controller)) return true;
           return (
             visible.has(controller) &&
             String(answers[controller] ?? "") === field.showIf.equals
