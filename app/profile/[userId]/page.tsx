@@ -200,6 +200,18 @@ export default function ProfilePage() {
     (item) => !item.isComplete
   ).length;
 
+  // Every way of opening the edit modal must go through here: saving sends the
+  // form state, so an unseeded field would overwrite the saved value.
+  const openEditModal = useCallback(() => {
+    setIsEditingLinks(true);
+    setNewSocialLinks(userProfile?.links || {});
+    setNewBio(userProfile?.bio || "");
+    setNewAffiliation(userProfile?.affiliation || "");
+    setNewPhoneNumber(userProfile?.phone_number || "");
+    setNewDisplayName(userProfile?.display_name || "");
+    setValidationErrors({});
+  }, [userProfile]);
+
   // If we navigate to `/profile/:id?edit=1`, auto-open the edit modal.
   // This is used by the navbar "Complete your profile" notification.
   useEffect(() => {
@@ -209,12 +221,13 @@ export default function ProfilePage() {
       !hasAutoOpenedEditModalRef.current &&
       shouldAutoOpen &&
       isOwnProfile &&
-      !isLoading
+      !isLoading &&
+      userProfile
     ) {
-      setIsEditingLinks(true);
+      openEditModal();
       hasAutoOpenedEditModalRef.current = true;
     }
-  }, [editParam, isOwnProfile, isLoading]);
+  }, [editParam, isOwnProfile, isLoading, userProfile, openEditModal]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -891,15 +904,7 @@ export default function ProfilePage() {
                   <div className="flex gap-4 items-center">
                     {isOwnProfile && (
                       <button
-                        onClick={() => {
-                          setIsEditingLinks(true);
-                          setNewSocialLinks(userProfile?.links || {});
-                          setNewBio(userProfile?.bio || "");
-                          setNewAffiliation(userProfile?.affiliation || "");
-                          setNewPhoneNumber(userProfile?.phone_number || "");
-                          setNewDisplayName(userProfile?.display_name || "");
-                          setValidationErrors({});
-                        }}
+                        onClick={openEditModal}
                         className="flex items-center gap-1.5 px-5 py-2 text-base font-medium text-black hover:text-gray-600 transition-colors rounded-xl"
                       >
                         <svg

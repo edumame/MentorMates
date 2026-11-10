@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { EventsPageClient, matchesEventSearch } from "./eventsPageClient";
 import type { EventWithRole } from "@/components/events/event-row";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
@@ -12,6 +12,15 @@ jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
 
 jest.mock("next/navigation", () => ({
   useSearchParams: () => mockUseSearchParams(),
+}));
+
+// Featured cards render EventRow, whose pending indicator calls useLinkStatus.
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a {...props}>{children}</a>
+  ),
+  useLinkStatus: () => ({ pending: false }),
 }));
 
 jest.mock("@/components/events/events-list", () => ({
@@ -236,6 +245,59 @@ describe("EventsPageClient", () => {
       );
 
       expect(listedEvents()).toEqual(["Public hackathon"]);
+    });
+  });
+
+  describe("featured overflow", () => {
+    const makeFeaturedEvents = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        event_id: `event-${index + 1}`,
+        event_name: `Featured Event ${index + 1}`,
+        // Dated descending, as app/events/page.tsx passes them.
+        event_date: `2020-01-${String(28 - index).padStart(2, "0")}`,
+        location: "Remote",
+        featured: true,
+        // Discover only lists public, approved events.
+        visibility: EventVisibility.Public,
+        approval_status: ApprovalStatus.Approved,
+      })) as EventWithRole[];
+
+    const renderEvents = (eventsList: EventWithRole[]) => {
+      mockUseAuth.mockReturnValue({ isAuthenticated: false, isLoading: false });
+      render(
+        <EventsPageClient eventsList={eventsList} initialIsAuthenticated={false} />
+      );
+    };
+
+    const sectionNames = (heading: string) => {
+      const section = screen
+        .getByRole("heading", { name: heading })
+        .closest("section") as HTMLElement;
+      return within(section).getByTestId("events-list").textContent?.split(",");
+    };
+
+    it("lists featured events beyond the first six in their date bucket", () => {
+      renderEvents(makeFeaturedEvents(7));
+
+      expect(sectionNames("Featured")).toEqual(
+        [1, 2, 3, 4, 5, 6].map((n) => `Featured Event ${n}`)
+      );
+      expect(sectionNames("Past events")).toEqual(["Featured Event 7"]);
+    });
+
+    it("counts overflow featured events in pagination and reaches them with Load more", () => {
+      renderEvents(makeFeaturedEvents(12));
+
+      expect(screen.getByText(/10 of 12/)).toBeInTheDocument();
+      expect(sectionNames("Past events")).toEqual(
+        [7, 8, 9, 10].map((n) => `Featured Event ${n}`)
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /load more/i }));
+
+      expect(sectionNames("Past events")).toEqual(
+        [7, 8, 9, 10, 11, 12].map((n) => `Featured Event ${n}`)
+      );
     });
   });
 });

@@ -1,5 +1,6 @@
 import {
   buildDraftArtifactsPayload,
+  getInitialAdditionalMaterialUrls,
   hasDraftUrlListChanged,
   normalizeDraftUrls,
   splitPrimaryAndExtrasFromArtifacts,
@@ -117,3 +118,60 @@ describe("draft project artifact helpers", () => {
   });
 });
 
+describe("getInitialAdditionalMaterialUrls", () => {
+  const urls = ["https://one.example", "https://two.example", "https://three.example"];
+
+  it("returns every saved value for a configured multi-value field", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: urls[0],
+        submission_values: { additional_materials: urls },
+      })
+    ).toEqual(urls);
+  });
+
+  it("wraps a configured single-value field", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: urls[0],
+        submission_values: { additional_materials: urls[0] },
+      })
+    ).toEqual([urls[0]]);
+  });
+
+  it("stays empty when a configured field has no saved value", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: "",
+        submission_values: { additional_materials: [] },
+      })
+    ).toEqual([]);
+  });
+
+  it("falls back to the scalar when a configured event omits the field", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: urls[0],
+        submission_values: {},
+      })
+    ).toEqual([urls[0]]);
+  });
+
+  it("ignores submission values on unconfigured events, which hydrate from artifacts", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: false,
+        additional_materials_url: urls[0],
+        submission_values: { additional_materials: urls },
+      })
+    ).toEqual([urls[0]]);
+  });
+
+  it("handles a project with no additional materials data", () => {
+    expect(getInitialAdditionalMaterialUrls({})).toEqual([]);
+  });
+});
