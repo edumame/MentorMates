@@ -10,7 +10,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1] / "supabase/migrations"
 TABLE_MIGRATION = ROOT / "20260116_meeting_screen_context_table.sql"
-MIGRATION = ROOT / "202611050034_lock_meeting_screen_context.sql"
+MIGRATION = ROOT / "202611090302_lock_meeting_screen_context.sql"
 CONTAINER = "mentormates-screen-context-test-" + uuid.uuid4().hex[:12]
 READ = "SELECT count(*) FROM public.meeting_screen_context;"
 INSERT = "INSERT INTO public.meeting_screen_context (meeting_id, summary) VALUES ('{}', 'test');"
