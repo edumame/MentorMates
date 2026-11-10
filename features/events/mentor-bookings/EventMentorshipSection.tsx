@@ -38,9 +38,6 @@ export function EventMentorshipSection({
         );
         const data = await response.json();
 
-        console.log("Mentor availability data:", data);
-        console.log("Availabilties:", data.availability);
-
         if (!response.ok) {
           throw new Error(data.error || "Failed to load mentor availability");
         }
@@ -60,8 +57,6 @@ export function EventMentorshipSection({
 
     fetchMentorBookingStatus();
   }, [eventId, hasJoined, role]);
-
-  console.log("Current role:", role);
 
   if (!hasJoined) {
     return null;
@@ -83,12 +78,10 @@ export function EventMentorshipSection({
   }
 
   if (role !== EventRole.Participant) {
-    console.log("Mentorship section not shown for role:", role);
     return null;
   }
 
   if (loading || !mentorBookingsOpen) {
-    console.log("Mentorship section not shown for loading:", loading, "and mentorBookingsOpen:", mentorBookingsOpen);
     return null;
   }
 
