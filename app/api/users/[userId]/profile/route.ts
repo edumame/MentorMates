@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { isPrizeFromEvent, type PrizeWithEvent } from "@/lib/projects/awards";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { ApprovalStatus, EventVisibility } from "@/lib/types";
 import { presentProfile, publicDisplayName, publicTeammateLabels } from "@/lib/users/profile-presentation";
@@ -285,13 +286,18 @@ export async function GET(
     // Fetch prizes for all projects
     if (allProjects.length > 0) {
       const projectIds = allProjects.map((p) => p.id);
-      const { data: prizesData, error: prizesError } = await supabase
+      // Service client: this page is public and lists projects whatever their
+      // event's visibility, but anonymous event_tracks RLS hides archived, test
+      // and demo events, which would drop real wins. projectIds are limited to
+      // projects the caller can read, and only ids leave this query.
+      const { data: prizesData, error: prizesError } = await serviceSupabase
         .from("prize_winners")
         .select(
           `
           id,
           prize_id,
-          project_id
+          project_id,
+          prizes ( event_tracks ( event_id ) )
           `
         )
         .in("project_id", projectIds);
@@ -304,15 +310,25 @@ export async function GET(
         );
       }
 
-      // Group prizes by project_id
+      // Group prizes by project_id, counting only prizes from the project's
+      // current event so status does not follow a project that changed event
+      const projectEventIds = new Map(allProjects.map((p) => [p.id, p.event_id]));
       const prizesByProject = (prizesData || []).reduce(
-        (acc, prize) => {
+        (acc, { prizes, ...prize }) => {
           const projectId = prize.project_id!;
+          if (
+            !isPrizeFromEvent(
+              prizes as unknown as PrizeWithEvent,
+              projectEventIds.get(projectId)
+            )
+          ) {
+            return acc;
+          }
           if (!acc[projectId]) acc[projectId] = [];
           acc[projectId].push(prize);
           return acc;
         },
-        {} as Record<string, typeof prizesData>
+        {} as Record<string, { id: string; prize_id: string | null; project_id: string | null }[]>
       );
 
       // Add prizes to projects

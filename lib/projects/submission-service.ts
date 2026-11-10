@@ -55,14 +55,14 @@ const projectWriteSchema = z.object({
 
 /**
  * Database guards on projects (lane A1): moving a project to another event is
- * refused once it has scores/prizes/votes (23514) or when the target event was
- * not joined (42501). Surface those as client errors instead of a 500.
+ * refused once it has scores/prizes/votes or a round advancement (23514) or
+ * when the target event was not joined (42501). Surface those as client errors instead of a 500.
  */
 export function mapProjectUpdateError(error: { code?: string | null; message?: string | null }) {
   if (error.code === "23514") {
     return {
       error:
-        "This project can't be moved to another event because it already has scores, prizes or votes.",
+        "This project can't be moved to another event because it already has scores, prizes, votes or a round advancement.",
       status: 400 as const,
     };
   }

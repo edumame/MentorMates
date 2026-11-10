@@ -18,6 +18,7 @@ import {
   fetchSubmissionFieldsByEventIds as fetchSubmissionFieldsWithServiceClient,
 } from "@/lib/projects/query";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { isPrizeFromEvent, type PrizeWithEvent } from "@/lib/projects/awards";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
 import {
   buildProjectTeamMembers,
@@ -102,11 +103,12 @@ async function fetchTeammateProfiles(
 // Winner + finalist status for certificates. Prizes are readable through the
 // caller's client (prize_winners RLS is open); round advancements are
 // judge/organizer-only under RLS, so finalist status goes through the service
-// client — it only ever leaks a boolean.
+// client — it only ever leaks a boolean. Both only count for the event the
+// project is in now, so status earned elsewhere does not follow a moved project.
 async function fetchCertificateExtras(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
   projectId: string,
-  eventId: string
+  eventId: string | null
 ): Promise<{ prizes_won: Prize[]; is_finalist: boolean }> {
   const { data: prizeRows } = await supabase
     .from("prize_winners")
@@ -117,7 +119,8 @@ async function fetchCertificateExtras(
         prizes (
           track_id,
           prize_amount,
-          prize_description
+          prize_description,
+          event_tracks ( event_id )
         )
       `
     )
@@ -130,25 +133,33 @@ async function fetchCertificateExtras(
           track_id: string;
           prize_amount: string;
           prize_description: string;
+          event_tracks: { event_id: string } | null;
         } | null;
       }>
     >();
 
-  const prizes = (prizeRows ?? []).map((row) => ({
-    id: row.id,
-    track_id: row.prizes?.track_id,
-    prize_amount: row.prizes?.prize_amount,
-    prize_description: row.prizes?.prize_description,
-    winning_project_id: row.project_id,
-  })) as Prize[];
+  const prizes = (prizeRows ?? [])
+    .filter((row) => isPrizeFromEvent(row.prizes, eventId))
+    .map((row) => ({
+      id: row.id,
+      track_id: row.prizes?.track_id,
+      prize_amount: row.prizes?.prize_amount,
+      prize_description: row.prizes?.prize_description,
+      winning_project_id: row.project_id,
+    })) as Prize[];
 
-  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId, eventId) };
+  return {
+    prizes_won: prizes,
+    is_finalist: await fetchIsFinalist(projectId, eventId),
+  };
 }
 
 async function fetchIsFinalist(
   projectId: string,
-  eventId: string
+  eventId: string | null
 ): Promise<boolean> {
+  if (!eventId) return false;
+
   try {
     const serviceClient = createSupabaseServiceClient();
     const { data: advancements } = await serviceClient
@@ -485,6 +496,7 @@ export async function GET(request: NextRequest) {
             track_id,
             prize_amount,
             prize_description,
+            event_tracks ( event_id ),
             prize_winners (
               id,
               project_id,
@@ -506,6 +518,15 @@ export async function GET(request: NextRequest) {
 
           // Iterate through each prize and its winners
           prizesData.forEach((prize) => {
+            if (
+              !isPrizeFromEvent(
+                prize as unknown as PrizeWithEvent,
+                resolvedEventId
+              )
+            ) {
+              return;
+            }
+
             if (prize.prize_winners && prize.prize_winners.length > 0) {
               prize.prize_winners.forEach((winner) => {
                 const projectId = winner.project_id;
@@ -669,7 +690,8 @@ export async function GET(request: NextRequest) {
               id,
               track_id,
               prize_amount,
-              prize_description
+              prize_description,
+              event_tracks ( event_id )
             )
           `
         )
@@ -685,13 +707,16 @@ export async function GET(request: NextRequest) {
               track_id: string;
               prize_amount: number;
               prize_description: string;
+              event_tracks: { event_id: string } | null;
             };
           }>
         >();
 
       if (prizeWinnersData) {
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
-          prizeWinnersData as unknown as Prize[];
+          prizeWinnersData.filter((row) =>
+            isPrizeFromEvent(row.prizes, project.event_id)
+          ) as unknown as Prize[];
       }
 
       const [isFinalist, rosters] = await Promise.all([
