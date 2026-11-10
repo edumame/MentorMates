@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { NextRequest } from "next/server";
 import { GET } from "./route";
+import { cappedQuery } from "@/lib/supabase/capped-query.test-helper";
 
 type Result = { data: unknown; error: unknown };
 let tables: Record<string, Result>;
@@ -26,7 +27,10 @@ jest.mock("@/app/utils/supabase/server", () => ({
         (chain as { maybeSingle: () => Promise<Result> }).maybeSingle = async () => ({ data: { role: "organizer" }, error: null });
         return chain;
       }
-      return query(tables[table] ?? { data: [], error: null });
+      const result = tables[table] ?? { data: [], error: null };
+      // Scores are paged; serve them like PostgREST (1000-row cap, honours range).
+      if (table === "project_scores" && Array.isArray(result.data)) return cappedQuery(result.data);
+      return query(result);
     },
   }),
 }));
@@ -104,4 +108,16 @@ it("fails with 500 when scores cannot be loaded", async () => {
 
 it("rejects an invalid fromRound", async () => {
   expect((await run(new NextRequest("http://localhost/advance?fromRound=1.5"))).status).toBe(400);
+});
+
+it("ranks a project whose only scorecard lies past the 1000-row cap", async () => {
+  const filler = Array.from({ length: 1100 }, () =>
+    scoreRow("px", "j1", { impact: 10, polish: 10 }, "Ineligible")
+  );
+  tables.project_scores = {
+    data: [...filler, scoreRow("p3", "j1", { impact: 4, polish: 8 }, "Gamma")],
+    error: null,
+  };
+  const body = await (await run(get())).json();
+  expect(body.candidates[0]).toMatchObject({ projectId: "p3", judgeCount: 1, rank: 1 });
 });
