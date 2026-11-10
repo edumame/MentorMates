@@ -11,6 +11,7 @@ export function getProjectInvitationEmailTemplate(
   inviterName: string,
   eventName?: string,
   token?: string,
+  expiresInDays?: number,
 ): ProjectInvitationEmailTemplate {
   const claimUrl = token 
     ? `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}&token=${token}`
@@ -58,6 +59,10 @@ export function getProjectInvitationEmailTemplate(
               🚀 Join Project
             </a>
           </div>
+
+          ${expiresInDays ? `<p style="font-size: 14px; line-height: 1.5; color: #374151; text-align: center;">
+            This invitation expires in ${expiresInDays} ${expiresInDays === 1 ? 'day' : 'days'}. If it has expired, ask your teammate to send a new one.
+          </p>` : ''}
 
           <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 30px;">
             If the button doesn't work, you can copy and paste this link into your browser:<br>

@@ -2167,13 +2167,6 @@ export type Database = {
             referencedRelation: "coupons"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "promo_codes_coupon_id_fkey"
-            columns: ["coupon_id"]
-            isOneToOne: false
-            referencedRelation: "coupons_with_codes"
-            referencedColumns: ["id"]
-          },
         ]
       }
       role_passwords: {
@@ -2542,42 +2535,7 @@ export type Database = {
       }
     }
     Views: {
-      coupons_with_codes: {
-        Row: {
-          amount_off: number | null
-          created_at: string | null
-          created_by_user_id: string | null
-          currency: string | null
-          duration: string | null
-          duration_in_months: number | null
-          event_id: string | null
-          id: string | null
-          max_redemptions: number | null
-          name: string | null
-          percent_off: number | null
-          promo_codes: Json | null
-          redeem_by: string | null
-          status: Database["public"]["Enums"]["coupon_status_enum"] | null
-          stripe_coupon_id: string | null
-          updated_at: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "coupons_created_by_user_id_fkey"
-            columns: ["created_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["uid"]
-          },
-          {
-            foreignKeyName: "coupons_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["event_id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       record_event_checkin: {
