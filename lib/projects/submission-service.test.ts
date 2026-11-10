@@ -568,7 +568,11 @@ describe("saveProjectSubmission", () => {
             buildProjectRowQuery({ ...row, project_tracks: [] }),
           ),
         update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
         }),
       };
       const eventsQuery = {
@@ -600,6 +604,7 @@ describe("saveProjectSubmission", () => {
           }
           throw new Error(`Unexpected table ${table}`);
         }),
+        rpc: jest.fn(async () => ({ data: [], error: null })),
       };
 
       return { projectsTable, supabase };
