@@ -131,11 +131,11 @@ for (const [name, handler] of [["submit", submit], ["has-messages", hasMessages]
   });
 }
 
-it("claims only once across concurrent submissions and emits stable job identity", async () => {
+it("claims only once across concurrent submissions and ties job identity to the claim", async () => {
   const responses = await Promise.all([submit(request()), submit(request())]);
   expect(responses.map(r => r.status).sort()).toEqual([200, 409]);
   expect(query).toHaveBeenCalledTimes(1); expect(inngest.send).toHaveBeenCalledTimes(1);
-  expect(inngest.send).toHaveBeenCalledWith({ id: `meeting-transcript-${id}`, name: "meetings/processing", data: { meetingId: id, agentId: "agent", transcriptText: '{"speaker_id":"owner","text":"Hello"}' } });
+  expect(inngest.send).toHaveBeenCalledWith({ id: `meeting-transcript-${id}-${meeting.updated_at}`, name: "meetings/processing", data: { meetingId: id, agentId: "agent", transcriptText: '{"speaker_id":"owner","text":"Hello"}' } });
   expect((await submit(request())).status).toBe(202);
   expect(inngest.send).toHaveBeenCalledTimes(1);
 });
@@ -146,6 +146,19 @@ it.each(["completed", "processing"])("does not resubmit %s", async status => {
 it.each(["active", "cancelled", null])("does not claim unsupported status %s", async status => {
   meeting.status = status; expect((await submit(request())).status).toBe(409);
   expect(streamChat.channel).not.toHaveBeenCalled();
+});
+it("gives a resubmission after a failed job a new event ID so Inngest does not deduplicate it", async () => {
+  jest.useFakeTimers({ now: new Date("2026-01-01T12:00:00.000Z"), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
+  try {
+    expect((await submit(request())).status).toBe(200);
+    meeting.status = "upcoming"; // released by the meetings/processing onFailure handler
+    jest.setSystemTime(new Date("2026-01-01T12:05:00.000Z"));
+    expect((await submit(request())).status).toBe(200);
+  } finally {
+    jest.useRealTimers();
+  }
+  const [first, second] = (inngest.send as jest.Mock).mock.calls.map(([event]) => event.id);
+  expect(first).not.toBe(second);
 });
 it("does no upstream work if claim update fails", async () => {
   claimError = true;

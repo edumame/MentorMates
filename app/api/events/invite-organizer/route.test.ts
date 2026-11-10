@@ -68,6 +68,8 @@ describe("organizer invitation email entry", () => {
     const link = message.html.match(/href="([^"]+)"/)[1];
     const url = new URL(link);
     expect(url.pathname).toBe(`/events/${eventId}/accept-organizer`);
+    // Emailed links outlive a slug rename, so no link may use the slug.
+    expect(message.html).not.toContain("old-slug");
     expect(url.searchParams.get("email")).toBe("invitee@example.com");
     await expect(verifyEventRoleInviteToken(url.searchParams.get("token")!)).resolves.toEqual({ email: "invitee@example.com", eventId, role: "organizer", jti: "test-invite" });
     // ORG-012 / MENT-008: the role is granted only when the invite is accepted.
