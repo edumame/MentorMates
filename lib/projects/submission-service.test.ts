@@ -594,7 +594,11 @@ describe("saveProjectSubmission", () => {
       const projectsTable = {
         select: jest.fn(() => resolving(row)),
         update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
         }),
         insert: jest.fn(() => ({
           select: jest.fn(() => resolving({ id: projectId })),
@@ -622,6 +626,7 @@ describe("saveProjectSubmission", () => {
           if (!(table in tables)) throw new Error(`Unexpected table ${table}`);
           return tables[table];
         }),
+        rpc: jest.fn(async () => ({ data: [], error: null })),
       };
 
       return { supabase, projectsTable, answersTable };

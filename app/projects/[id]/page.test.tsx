@@ -53,6 +53,7 @@ describe("ProjectPage draft banner", () => {
           project_description: "Draft",
           teammates: [],
           submitted: false,
+          event_id: "event-1",
         },
       }),
     })) as unknown as typeof fetch;
