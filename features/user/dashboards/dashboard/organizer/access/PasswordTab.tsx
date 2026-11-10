@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole, EventDetails } from "@/lib/types";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import { supabase } from "@/lib/supabase";
+import {
+  getRolePasswordMinLength,
+  ROLE_PASSWORD_MAX_LENGTH,
+  type PasswordJoinableRole,
+} from "@/lib/roles/role-passwords";
 
 interface PasswordTabProps {
   eventId: string;
@@ -26,15 +32,26 @@ export function PasswordTab({
     {} as Record<EventRole, string>
   );
   const [isLoading, setIsLoading] = useState(false);
+  // Roles that currently have a password (null while loading / unknown).
+  const [configuredRoles, setConfiguredRoles] = useState<Set<string> | null>(null);
   const { toast } = useToast();
 
-  // List of available roles from the EventRole enum, excluding Admin
-  const availableRoles = [
-    EventRole.Participant,
-    EventRole.Mentor,
-    EventRole.Judge,
-    EventRole.Organizer,
-  ] as EventRole[];
+  const loadConfiguredRoles = useCallback(async () => {
+    // Only (event_id, role) are readable by clients; hashes stay server-side.
+    const { data, error } = await supabase
+      .from("role_passwords")
+      .select("role")
+      .eq("event_id", eventId);
+    if (error) {
+      setConfiguredRoles(null);
+      return;
+    }
+    setConfiguredRoles(new Set((data ?? []).map((row: { role: string }) => row.role)));
+  }, [eventId]);
+
+  useEffect(() => {
+    void loadConfiguredRoles();
+  }, [loadConfiguredRoles]);
 
   const handlePasswordChange = (role: EventRole, password: string) => {
     setRolePasswords((prev) => ({
@@ -43,10 +60,19 @@ export function PasswordTab({
     }));
   };
 
-  const handleSetPassword = async (role: EventRole) => {
+  const handleSetPassword = async (role: PasswordJoinableRole) => {
+    const password = rolePasswords[role] || "";
+    const minLength = getRolePasswordMinLength(role);
+    if (password.length < minLength) {
+      toast({
+        title: "Password too short",
+        description: `Use at least ${minLength} characters.`,
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       setIsLoading(true);
-      const password = rolePasswords[role] || "";
 
       const response = await fetch("/api/roles/set-password", {
         method: "POST",
@@ -78,6 +104,7 @@ export function PasswordTab({
 
       // Clear password input
       handlePasswordChange(role, "");
+      void loadConfiguredRoles();
     } catch (error) {
       console.error("Error setting password:", error);
       toast({
@@ -90,12 +117,46 @@ export function PasswordTab({
     }
   };
 
-  // Two-column grid order: left = Participant, Judge; right = Mentor, Organizer
-  const leftColumnRoles = [EventRole.Participant, EventRole.Judge];
-  const rightColumnRoles = [EventRole.Mentor, EventRole.Organizer];
+  const handleRemovePassword = async (role: PasswordJoinableRole) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/roles/set-password", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, role }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to remove password",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Password removed", description: `${role} password removed` });
+      void loadConfiguredRoles();
+    } catch (error) {
+      console.error("Error removing password:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const renderRoleField = (role: EventRole) => {
+  // Two-column grid order: left = Participant, Judge; right = Mentor.
+  // Organizer access is invitation-only, so it has no role password.
+  const leftColumnRoles: PasswordJoinableRole[] = [EventRole.Participant, EventRole.Judge];
+  const rightColumnRoles: PasswordJoinableRole[] = [EventRole.Mentor];
+
+  const renderRoleField = (role: PasswordJoinableRole) => {
     const label = getRoleLabel(role, roleLabels);
+    const isConfigured = configuredRoles?.has(role) ?? false;
+    const minLength = getRolePasswordMinLength(role);
     return (
       <div key={role} className="space-y-2">
         <label className="text-sm font-medium text-[var(--Color-Scheme-1-Text,#000)]">
@@ -106,7 +167,14 @@ export function PasswordTab({
             type="password"
             value={rolePasswords[role] || ""}
             onChange={(e) => handlePasswordChange(role, e.target.value)}
-            placeholder={`Set ${label.toLowerCase()} password`}
+            placeholder={
+              isConfigured
+                ? `Replace ${label.toLowerCase()} password`
+                : `Set ${label.toLowerCase()} password`
+            }
+            aria-label={`${label} password`}
+            minLength={minLength}
+            maxLength={ROLE_PASSWORD_MAX_LENGTH}
             disabled={isArchived}
             className="flex-1 min-w-0 rounded-[12px]"
           />
@@ -123,9 +191,29 @@ export function PasswordTab({
             Save
           </Button>
         </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+          {configuredRoles === null ? null : isConfigured ? (
+            <>
+              <span className="font-medium text-green-700" data-testid={`role-password-status-${role}`}>
+                Password set
+              </span>
+              <span aria-hidden="true">•</span>
+              <button
+                type="button"
+                className="underline disabled:opacity-50"
+                onClick={() => handleRemovePassword(role)}
+                disabled={isLoading || isArchived}
+              >
+                Remove
+              </button>
+            </>
+          ) : (
+            <span data-testid={`role-password-status-${role}`}>No password set</span>
+          )}
+        </div>
         <p className="text-xs text-gray-500">
           This password will be used by {label.toLowerCase()}s to join the
-          event.
+          event. Use at least {minLength} characters.
         </p>
       </div>
     );
