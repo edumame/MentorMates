@@ -56,36 +56,11 @@ export default function ClaimTicketPage() {
 
     const fetchTicket = async () => {
       try {
-        const { data: ticketData, error } = await supabase
-          .from("event_tickets")
-          .select(
-            `
-            id,
-            event_id,
-            assigned_to_email,
-            ticket_status,
-            assigned_to_user_id,
-            event:events!inner(
-              event_id,
-              event_name,
-              event_date,
-              event_description
-            )
-          `
-          )
-          .eq("id", ticketId)
-          .single()
-          .overrideTypes<TicketInfo>();
-
-        if (error) {
-          setError("Ticket not found");
-          return;
-        }
-
-        if (ticketData.assigned_to_user_id) {
-          setError("This ticket has already been claimed");
-          return;
-        }
+        const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/claim`);
+        if (response.status === 401) { setTicket(null); return; }
+        const payload = await response.json();
+        if (!response.ok) { setError(payload.error || "Ticket not found"); return; }
+        const ticketData = payload.ticket;
 
         setTicket(ticketData);
       } catch (error) {
@@ -111,50 +86,9 @@ export default function ClaimTicketPage() {
     setError(null);
 
     try {
-      //check if the user already has a role for this event
-      const { data: existingRole } = await supabase
-        .from("user_event_roles")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("event_id", ticket.event.event_id)
-        .single();
-
-      if (existingRole) {
-        setError("You are already registered for this event.");
-        return;
-      }
-
-      //check if user email is the same as the assigned_to_email
-      if (user.email !== ticket.assigned_to_email) {
-        setError(
-          "The email address you are signed in with does not match the email address assigned to this ticket."
-        );
-        return;
-      }
-
-      // Update the ticket
-      const { error: ticketError } = await supabase
-        .from("event_tickets")
-        .update({
-          assigned_to_user_id: user.id,
-          ticket_status: "assigned",
-          assigned_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", ticketId);
-
-      if (ticketError) throw ticketError;
-
-      // Create a participant role for the user
-      const { error: roleError } = await supabase
-        .from("user_event_roles")
-        .insert({
-          user_id: user.id,
-          event_id: ticket.event.event_id,
-          role: "participant",
-        });
-
-      if (roleError) throw roleError;
+      const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId!)}/claim`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) { setError(payload.error || "Failed to claim ticket"); return; }
 
       setSuccess(true);
 
@@ -238,6 +172,7 @@ export default function ClaimTicketPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {!user && !ticket && <div className="space-y-4"><p>Sign in to view and claim your ticket.</p><Button onClick={handleLogin}>Sign In to Claim Ticket</Button></div>}
           {ticket && (
             <div className="space-y-4">
               <div>

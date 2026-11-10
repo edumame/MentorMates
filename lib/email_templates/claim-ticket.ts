@@ -1,3 +1,5 @@
+import { escapeHtml, escapeUrl, plainTextSubject } from "./escape-html";
+
 export interface ClaimTicketEmailTemplate {
   subject: string;
   html: string;
@@ -9,9 +11,15 @@ export function getClaimTicketEmailTemplate(
   senderName: string
 ): ClaimTicketEmailTemplate {
   const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/claim-ticket?ticket=${ticketId}`;
+  // Every interpolated value is escaped (event/sender names are user data).
+  const h = {
+    eventName: escapeHtml(eventName),
+    senderName: escapeHtml(senderName),
+    claimUrl: escapeUrl(claimUrl),
+  };
   
   return {
-    subject: `You've been invited to ${eventName} - Claim Your Ticket`,
+    subject: plainTextSubject(`You've been invited to ${eventName} - Claim Your Ticket`),
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
@@ -22,11 +30,11 @@ export function getClaimTicketEmailTemplate(
         
         <div style="padding: 40px 20px;">
           <h2 style="color: #2563eb; margin-bottom: 20px; font-size: 24px;">
-            ${senderName} has invited you to ${eventName}
+            ${h.senderName} has invited you to ${h.eventName}
           </h2>
           
           <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-            Great news! You've been assigned a ticket to participate in <strong>${eventName}</strong>. 
+            Great news! You've been assigned a ticket to participate in <strong>${h.eventName}</strong>. 
             To secure your spot, you'll need to claim your ticket.
           </p>
           
@@ -40,7 +48,7 @@ export function getClaimTicketEmailTemplate(
           </div>
           
           <div style="text-align: center; margin: 40px 0;">
-            <a href="${claimUrl}" 
+            <a href="${h.claimUrl}" 
                style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
               🎫 Claim Your Ticket
             </a>
@@ -48,7 +56,7 @@ export function getClaimTicketEmailTemplate(
           
           <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 30px;">
             If the button doesn't work, you can copy and paste this link into your browser:<br>
-            <a href="${claimUrl}" style="color: #2563eb; word-break: break-all;">${claimUrl}</a>
+            <a href="${h.claimUrl}" style="color: #2563eb; word-break: break-all;">${h.claimUrl}</a>
           </p>
           
           <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb;">
@@ -63,7 +71,7 @@ export function getClaimTicketEmailTemplate(
         
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="font-size: 12px; color: #6b7280; margin: 0;">
-            This invitation was sent by ${senderName} through MentorMates. 
+            This invitation was sent by ${h.senderName} through MentorMates. 
             If you believe this was sent in error, please contact the event organizer.
           </p>
         </div>
