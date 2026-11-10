@@ -4,6 +4,8 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 jest.mock("@/lib/supabase/service", () => ({ createSupabaseServiceClient: jest.fn() }));
 jest.mock("@inngest/agent-kit", () => ({ createAgent: jest.fn(), openai: jest.fn() }));
+// functions.ts also holds meetingsEndAbandonedCall, which imports the Stream SDK.
+jest.mock("@/lib/stream-video", () => ({ streamVideo: { video: { call: jest.fn() } } }));
 
 type Internals = {
   fn: (ctx: unknown) => Promise<unknown>;

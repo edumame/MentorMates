@@ -26,7 +26,8 @@ import {
   NotificationPopoverContent,
 } from "@/components/layout/NotificationPopoverContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
 import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
@@ -188,8 +189,9 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
     clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
-    router.push("/");
-    window.location.reload();
+    // Full navigation, not push + reload: reload can fire before the push lands,
+    // and reloading a protected page signed out would redirect to login.
+    window.location.assign("/");
   };
 
   // Helper to determine if path is active
@@ -347,23 +349,29 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                   {session.user.email}
                 </p>
                 {needsProfileCompletion ? (
-                  <Button
-                    variant="defaultGray"
-                    onClick={() =>
+                  <DropdownMenuItem
+                    onSelect={() =>
                       router.push(`/profile/${session?.user?.id}?edit=1`)
                     }
-                    className="mt-4 w-full text-base"
+                    className={cn(
+                      buttonVariants({ variant: "defaultGray" }),
+                      "mt-4 w-full text-base"
+                    )}
                   >
                     Set up profile
-                  </Button>
+                  </DropdownMenuItem>
                 ) : (
-                  <Button
-                    variant="defaultGray"
-                    onClick={() => router.push(`/profile/${session?.user?.id}`)}
-                    className="mt-4 w-full text-base"
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      router.push(`/profile/${session?.user?.id}`)
+                    }
+                    className={cn(
+                      buttonVariants({ variant: "defaultGray" }),
+                      "mt-4 w-full text-base"
+                    )}
                   >
                     View profile
-                  </Button>
+                  </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator className="my-4" />
                 <div className="flex flex-col gap-0.5 pb-0.5">

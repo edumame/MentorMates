@@ -3,7 +3,7 @@
 import { NextRequest } from "next/server";
 import { DELETE, PATCH } from "./route";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { EventVisibility } from "@/lib/types";
+import { ApprovalStatus, EventVisibility } from "@/lib/types";
 
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
@@ -28,7 +28,7 @@ function mockClient({
 }: {
   user?: { id: string } | null;
   rpc?: Record<string, RpcResult>;
-  eventRow?: { visibility: EventVisibility } | null;
+  eventRow?: { visibility: EventVisibility; approval_status?: ApprovalStatus | null } | null;
   updateError?: { message: string } | null;
   updatedRows?: Array<{ event_id: string }>;
 } = {}) {
@@ -232,5 +232,56 @@ describe("PATCH /api/events/[eventId]", () => {
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toBe("Failed to archive event");
+  });
+});
+
+describe("PATCH withdraws a pending submission (audit-151)", () => {
+  const canManage = { can_manage_event: { data: true } };
+
+  it("withdraws a pending submission when the event is archived", async () => {
+    const { updateBuilder } = mockClient({
+      rpc: canManage,
+      eventRow: { visibility: EventVisibility.Private, approval_status: ApprovalStatus.Submitted },
+    });
+
+    const response = await PATCH(patchRequest({ action: "archive" }), params);
+
+    expect(response.status).toBe(200);
+    expect(updateBuilder.update).toHaveBeenCalledWith({
+      visibility: EventVisibility.Archived,
+      approval_status: ApprovalStatus.NotSubmitted,
+    });
+    expect(await response.json()).toMatchObject({
+      newVisibility: EventVisibility.Archived,
+      approvalStatus: ApprovalStatus.NotSubmitted,
+    });
+  });
+
+  it.each([ApprovalStatus.Approved, ApprovalStatus.Rejected, ApprovalStatus.NotSubmitted])(
+    "keeps approval_status %s when archiving",
+    async (approvalStatus) => {
+      const { updateBuilder } = mockClient({
+        rpc: canManage,
+        eventRow: { visibility: EventVisibility.Public, approval_status: approvalStatus },
+      });
+
+      const response = await PATCH(patchRequest({ action: "archive" }), params);
+
+      expect(response.status).toBe(200);
+      expect(updateBuilder.update).toHaveBeenCalledWith({ visibility: EventVisibility.Archived });
+      expect((await response.json()).approvalStatus).toBe(approvalStatus);
+    }
+  );
+
+  it("does not change approval_status when unarchiving", async () => {
+    const { updateBuilder } = mockClient({
+      rpc: canManage,
+      eventRow: { visibility: EventVisibility.Archived, approval_status: ApprovalStatus.Submitted },
+    });
+
+    const response = await PATCH(patchRequest({ action: "unarchive" }), params);
+
+    expect(response.status).toBe(200);
+    expect(updateBuilder.update).toHaveBeenCalledWith({ visibility: EventVisibility.Private });
   });
 });

@@ -19,6 +19,7 @@ import { useRedirect } from "@/features/user/authentication/redirect/RedirectPro
 import {
   appendConsentParams,
   buildSignupConsentMetadata,
+  CONSENT_QUERY_PARAMS,
 } from "@/features/user/authentication/signup-consent";
 
 const supabase = createClient();
@@ -200,6 +201,9 @@ function TestimonialPanelMobile() {
 
 // auth
 
+const termsRequiredMessage =
+  "Please accept the Terms of Service and Privacy Policy to create an account.";
+
 function LoginContent({
   onModeChange,
 }: {
@@ -230,6 +234,9 @@ function LoginContent({
     const up = mode === "signup";
     setIsSignUp(up);
     onModeChange?.(up);
+    if (up && searchParams.get(CONSENT_QUERY_PARAMS.required) === "1") {
+      setError(termsRequiredMessage);
+    }
   }, [searchParams, onModeChange]);
 
   useEffect(() => {
@@ -246,8 +253,6 @@ function LoginContent({
     check();
   }, [consumeReturnUrl, router, searchParams]);
 
-  const termsRequiredMessage =
-    "Please accept the Terms of Service and Privacy Policy to create an account.";
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -373,7 +378,8 @@ function LoginContent({
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        // Consent is only collected in sign-up mode; sign-in leaves it untouched.
+        // Consent is only collected in sign-up mode. The callback sends a new
+        // account that signed in here back to sign-up to accept the terms.
         redirectTo: isSignUp
           ? appendConsentParams(callbackUrl, { acceptedTerms, marketingOptIn })
           : callbackUrl,

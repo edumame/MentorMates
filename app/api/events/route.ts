@@ -481,7 +481,6 @@ export async function POST(req: Request) {
       appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
       eventId: createdEvent.event_id,
       eventName: createdEvent.event_name,
-      eventSlug: createdEvent.slug,
       inviterName,
       // Invitees have no access until they accept, so they all get the
       // "accept invitation" copy rather than "already activated".
@@ -497,7 +496,6 @@ export async function POST(req: Request) {
       appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
       eventId: createdEvent.event_id,
       eventName: createdEvent.event_name,
-      eventSlug: createdEvent.slug,
       inviterName,
       visibility:
         (createdEvent.visibility as EventVisibility | null) ??
