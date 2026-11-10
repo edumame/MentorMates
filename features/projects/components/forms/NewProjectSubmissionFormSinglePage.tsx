@@ -454,6 +454,18 @@ export function NewProjectSubmissionFormSinglePage({
     submissionFieldValues.video_url,
   ]);
 
+  // Anything the user entered that a draft must keep. The prefilled lead details
+  // and the privacy default don't count, so an untouched form stays blank.
+  const hasDraftContent =
+    // Multi-value fields keep blank rows while editing (#987), so a row only
+    // counts once it has text.
+    Object.values(submissionFieldValues).some((value) =>
+      (Array.isArray(value) ? value : [value]).some((row) => row.trim().length > 0)
+    ) ||
+    [...extraProjectUrls, ...extraVideoUrls].some((url) => url.trim().length > 0) ||
+    formData.teammates.length > 0 ||
+    selectedTrackIds.length > 0;
+
   const { projectId, ensureProjectId } = useProjectDraftCreation({
     eventId,
     leadName: formData.leadName,
@@ -467,14 +479,15 @@ export function NewProjectSubmissionFormSinglePage({
     },
   });
 
-  // Start creation in the background; explicit saves share the same request.
+  // Create a draft as soon as the user enters anything, tracks included.
+  // Explicit saves share the same request.
   useEffect(() => {
-    if (formData.projectName.trim() || formData.projectDescription.trim() || formData.projectUrl.trim()) {
+    if (hasDraftContent) {
       void ensureProjectId().catch(() => {
         // An explicit save retries and surfaces the server error if it still fails.
       });
     }
-  }, [formData.projectName, formData.projectDescription, formData.projectUrl, ensureProjectId]);
+  }, [hasDraftContent, ensureProjectId]);
 
   const participantEmails = useMemo(
     () => participants.map((participant) => participant.email.toLowerCase()),
@@ -489,7 +502,7 @@ export function NewProjectSubmissionFormSinglePage({
   );
 
   const { lastSaved, flushSave, isSaving, saveError, hasUnsavedChanges } = useProjectSubmissionAutosave({
-    enabled: isSessionActive && !isLoading && Boolean(projectId || formData.projectName.trim() || formData.projectDescription.trim() || formData.projectUrl.trim()),
+    enabled: isSessionActive && !isLoading && Boolean(projectId || hasDraftContent),
     projectId,
     ensureProjectId,
     fields: effectiveSubmissionFields,
@@ -504,6 +517,7 @@ export function NewProjectSubmissionFormSinglePage({
       addTeammates: validTeammates,
       removeTeammates: removedTeammates,
       private: isPrivate,
+      track_ids: selectedTrackIds,
     },
     // A removal applies once. Sent again, it would delete someone who joined
     // by invite after it was saved. The hook calls the onSaved from the render
@@ -625,7 +639,10 @@ export function NewProjectSubmissionFormSinglePage({
       toast({ title: "Upload in progress", description: "Wait for your files to finish uploading before leaving." });
       return;
     }
-    if (!(await flushSave())) return;
+    // A blank form has no draft and nothing to save, so it can just exit. Input
+    // still waiting on its draft goes through flushSave, which keeps the user here.
+    const hasNothingToSave = !projectId && !hasDraftContent;
+    if (!hasNothingToSave && !(await flushSave())) return;
     router.push(eventDetails?.slug
       ? `/events/${eventDetails.slug}/overview`
       : eventId ? `/events/${eventId}/overview` : `/projects`);
