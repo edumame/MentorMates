@@ -1,6 +1,16 @@
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { isApprovedApprovalStatus, safeExternalHref } from "./approval";
 
+// Set by middleware: layouts cannot otherwise see the path being requested.
+export const REQUEST_PATHNAME_HEADER = "x-mentormates-pathname";
+
+const INVITE_ACCEPTANCE_PATH =
+  /^\/events\/[^/]+\/accept-(judge|participant|organizer)\/?$/;
+
+export function isInviteAcceptancePath(pathname: string | null) {
+  return pathname !== null && INVITE_ACCEPTANCE_PATH.test(pathname);
+}
+
 export type EventNavigationRole = EventRole | string | null | undefined;
 
 export type EventNavigationItem = {
@@ -37,7 +47,12 @@ export function canUseInternalEventRoute({
   userRole,
   canManageEvent,
 }: Pick<EventNavigationItem, "userRole" | "canManageEvent">) {
-  return Boolean(canManageEvent) || isEventManagerRole(userRole);
+  // Judges score from the internal event page, which has no external equivalent.
+  return (
+    Boolean(canManageEvent) ||
+    isEventManagerRole(userRole) ||
+    userRole === EventRole.Judge
+  );
 }
 
 export function getInternalEventHref(event: Pick<EventNavigationItem, "event_id" | "slug">) {
