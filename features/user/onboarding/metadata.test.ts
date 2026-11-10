@@ -1,4 +1,5 @@
 import {
+  getPostAuthRedirectPath,
   hasCompletedOnboarding,
   hasPersistedOnboardingState,
   ONBOARDING_SKIP_STATUS,
@@ -34,5 +35,30 @@ describe("onboarding metadata helpers", () => {
     expect(hasPersistedOnboardingState({})).toBe(false);
     expect(hasCompletedOnboarding(null)).toBe(false);
     expect(hasCompletedOnboarding({})).toBe(false);
+  });
+});
+
+describe("getPostAuthRedirectPath", () => {
+  const skipped = { version: 4, status: ONBOARDING_SKIP_STATUS };
+
+  it.each([[null], [undefined], [{}]])(
+    "routes to onboarding with the return URL for metadata %j",
+    (metadata) => {
+      expect(getPostAuthRedirectPath(metadata, "/events/1?tab=a")).toBe(
+        "/onboarding?returnUrl=%2Fevents%2F1%3Ftab%3Da"
+      );
+    }
+  );
+
+  it.each([["/"], [null], [undefined]])(
+    "omits a trivial return URL (%j) from the onboarding link",
+    (returnUrl) => {
+      expect(getPostAuthRedirectPath(null, returnUrl)).toBe("/onboarding");
+    }
+  );
+
+  it("goes to the return URL once onboarding state exists, even if skipped", () => {
+    expect(getPostAuthRedirectPath(skipped, "/events/1")).toBe("/events/1");
+    expect(getPostAuthRedirectPath(skipped, null)).toBe("/");
   });
 });
