@@ -3,13 +3,21 @@
  */
 
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 const mockResendSend = jest.fn();
 const mockSetExpirationTime = jest.fn();
 const mockCreateSupabaseClient = createSupabaseClient as jest.Mock;
+const mockCreateServiceClient = createSupabaseServiceClient as jest.Mock;
 
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
+}));
+
+// Team email columns are not client-readable, so the route reads the project
+// with the service client.
+jest.mock("@/lib/supabase/service", () => ({
+  createSupabaseServiceClient: jest.fn(),
 }));
 
 jest.mock("resend", () => ({
@@ -47,21 +55,25 @@ function mockSupabase() {
     user_profiles: { email: "lead@example.com", display_name: "Lead" },
   };
 
+  const from = (table: string) => {
+    const query = {
+      select: () => query,
+      eq: () => query,
+      single: async () => ({ data: rows[table], error: null }),
+    };
+    return query;
+  };
+
+  // Authorization uses the verified auth email, not the profile email.
   mockCreateSupabaseClient.mockResolvedValue({
     auth: {
-      getUser: jest
-        .fn()
-        .mockResolvedValue({ data: { user: { id: "lead-id" } } }),
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: { id: "lead-id", email: "lead@example.com" } },
+      }),
     },
-    from: (table: string) => {
-      const query = {
-        select: () => query,
-        eq: () => query,
-        single: async () => ({ data: rows[table], error: null }),
-      };
-      return query;
-    },
+    from,
   });
+  mockCreateServiceClient.mockReturnValue({ from });
 }
 
 describe("POST /api/projects/invite-teammate", () => {
@@ -73,6 +85,8 @@ describe("POST /api/projects/invite-teammate", () => {
       ...originalEnv,
       NEXT_PUBLIC_APP_URL: "https://mentormates.ai",
       RESEND_API_KEY: "resend-key",
+      // lib/utils/jwt refuses to sign without a configured secret.
+      JWT_SECRET: "test-jwt-secret",
     };
     // Imported here because the route reads RESEND_API_KEY at load time.
     ({ POST } = await import("./route"));
