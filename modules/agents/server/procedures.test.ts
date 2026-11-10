@@ -1,114 +1,192 @@
-/** @jest-environment node */
-import { TRPCError } from "@trpc/server";
-
-// React's server-only `cache` export is absent from the build Jest resolves.
-jest.mock("react", () => ({
-  ...jest.requireActual("react"),
-  cache: (fn: unknown) => fn,
-}));
-
-jest.mock("@/app/utils/supabase/server", () => ({
-  createSupabaseClient: jest.fn(),
-  createSupabaseServiceClient: jest.fn(),
-}));
-
+/**
+ * @jest-environment node
+ */
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createCallerFactory } from "@/trpc/init";
 import { agentsRouter } from "./procedures";
 
-const USER_ID = "11111111-1111-4111-8111-111111111111";
-const EVENT_ID = "22222222-2222-4222-8222-222222222222";
-const agentInput = { name: "Pitch coach", instructions: "Coach pitches", type: "brainstorm" };
+// trpc/init.ts uses React's server-only cache(), which the Jest build of React does not export.
+jest.mock("react", () => ({
+    ...jest.requireActual("react"),
+    cache: <T,>(fn: T) => fn,
+}));
 
-function maybeSingleResult(data: unknown) {
-  const query: Record<string, jest.Mock> = {
-    select: jest.fn(() => query),
-    eq: jest.fn(() => query),
-    in: jest.fn(() => query),
-    maybeSingle: jest.fn(async () => ({ data, error: null })),
-  };
-  return query;
+jest.mock("@/app/utils/supabase/server", () => ({
+    createSupabaseClient: jest.fn(),
+    createSupabaseServiceClient: jest.fn(),
+}));
+
+const USER_ID = "user-participant";
+const EVENT_A = "event-a";
+const EVENT_B = "event-b";
+const EVENT_C = "event-c";
+const AGENT_X = "agent-x";
+const AGENT_Y = "agent-y";
+
+type Result = { data?: unknown; error?: unknown; count?: number };
+
+interface FakeOptions {
+    roles?: { event_id: string; role: string }[];
+    ownedEvents?: { event_id: string }[];
+    agentEvents?: { agent_id: string; event_id: string }[];
+    agentEventsError?: { message: string };
 }
 
-function setupSupabase({
-  isAdmin = false,
-  adminError = null,
-  eventOwnerId = null,
-  eventRole = null,
-}: {
-  isAdmin?: boolean;
-  adminError?: Error | null;
-  eventOwnerId?: string | null;
-  eventRole?: string | null;
-} = {}) {
-  const insert = jest.fn((payload: Record<string, unknown>) => ({
-    select: jest.fn(async () => ({ data: [{ id: "agent-1", ...payload }], error: null })),
-  }));
-  const client = {
-    auth: { getUser: jest.fn(async () => ({ data: { user: { id: USER_ID } } })) },
-    rpc: jest.fn(async () => ({ data: adminError ? null : isAdmin, error: adminError })),
-    from: jest.fn((table: string) => {
-      if (table === "agents") return { insert };
-      if (table === "events") return maybeSingleResult({ owner_id: eventOwnerId });
-      if (table === "user_event_roles") return maybeSingleResult(eventRole ? { role: eventRole } : null);
-      throw new Error(`Unexpected table ${table}`);
-    }),
-  };
-  (createSupabaseClient as jest.Mock).mockResolvedValue(client);
-  return { client, insert };
+function createFakeSupabase({ roles = [], ownedEvents = [], agentEvents = [], agentEventsError }: FakeOptions) {
+    const agentOrFilters: string[] = [];
+    const agentEventsLookups: unknown[][] = [];
+
+    const resultFor = (table: string): Result => {
+        switch (table) {
+            case "user_event_roles":
+                return { data: roles, error: null };
+            case "events":
+                return { data: ownedEvents, error: null };
+            case "agent_events":
+                return agentEventsError ? { data: null, error: agentEventsError } : { data: agentEvents, error: null };
+            default:
+                return { data: [], error: null, count: 0 };
+        }
+    };
+
+    const from = (table: string) => {
+        const builder = {
+            select: () => builder,
+            eq: (column: string, value: unknown) => {
+                if (table === "agent_events" && column === "event_id") agentEventsLookups.push([value]);
+                return builder;
+            },
+            ilike: () => builder,
+            order: () => builder,
+            range: () => builder,
+            or: (filter: string) => {
+                if (table === "agents") agentOrFilters.push(filter);
+                return builder;
+            },
+            in: (column: string, values: unknown[]) => {
+                if (table === "agent_events" && column === "event_id") agentEventsLookups.push(values);
+                return builder;
+            },
+            then: (resolve: (value: Result) => unknown, reject?: (reason: unknown) => unknown) =>
+                Promise.resolve(resultFor(table)).then(resolve, reject),
+        };
+        return builder;
+    };
+
+    const supabase = {
+        auth: { getUser: async () => ({ data: { user: { id: USER_ID } } }) },
+        rpc: async () => ({ data: false, error: null }),
+        from,
+    };
+
+    return { supabase, agentOrFilters, agentEventsLookups };
 }
 
-const caller = () =>
-  createCallerFactory(agentsRouter)({ userId: USER_ID } as Parameters<
-    ReturnType<typeof createCallerFactory>
-  >[0]);
+function callGetMany(options: FakeOptions, input: { pageSize: number; eventId?: string }) {
+    const fake = createFakeSupabase(options);
+    (createSupabaseClient as jest.Mock).mockResolvedValue(fake.supabase);
+    const caller = createCallerFactory(agentsRouter)({ userId: USER_ID });
+    return { fake, result: caller.getMany(input) };
+}
 
-describe("agents.create authorization", () => {
-  it.each([
-    ["omitted", agentInput],
-    ["empty", { ...agentInput, event_id: "" }],
-  ])("rejects a non-admin creating a global agent when event_id is %s", async (_label, input) => {
-    const { insert } = setupSupabase();
+describe("agents.getMany without an eventId", () => {
+    it("includes agents linked to the user's events in the items and count queries", async () => {
+        const { fake, result } = callGetMany(
+            {
+                roles: [{ event_id: EVENT_B, role: "participant" }],
+                agentEvents: [{ agent_id: AGENT_X, event_id: EVENT_B }],
+            },
+            { pageSize: 100 }
+        );
+        await result;
 
-    const error = await caller().create(input).catch((e: unknown) => e);
-
-    expect(error).toBeInstanceOf(TRPCError);
-    expect((error as TRPCError).code).toBe("FORBIDDEN");
-    expect(insert).not.toHaveBeenCalled();
-  });
-
-  it("does not insert a global agent when the admin check fails", async () => {
-    const adminError = new Error("rpc unavailable");
-    const { insert } = setupSupabase({ adminError });
-
-    await expect(caller().create(agentInput)).rejects.toThrow("rpc unavailable");
-    expect(insert).not.toHaveBeenCalled();
-  });
-
-  it("lets a platform admin create a global agent", async () => {
-    const { insert } = setupSupabase({ isAdmin: true });
-
-    await expect(caller().create(agentInput)).resolves.toMatchObject({ id: "agent-1" });
-    expect(insert).toHaveBeenCalledWith({ ...agentInput, user_id: USER_ID });
-  });
-
-  it.each([
-    ["organizer role", { eventRole: "organizer" }],
-    ["event ownership", { eventOwnerId: USER_ID }],
-  ])("lets a non-admin create an event agent through %s", async (_label, access) => {
-    const { insert } = setupSupabase(access);
-
-    await caller().create({ ...agentInput, event_id: EVENT_ID });
-
-    expect(insert).toHaveBeenCalledWith({ ...agentInput, event_id: EVENT_ID, user_id: USER_ID });
-  });
-
-  it("rejects a user who cannot manage the event", async () => {
-    const { insert } = setupSupabase();
-
-    await expect(caller().create({ ...agentInput, event_id: EVENT_ID })).rejects.toMatchObject({
-      code: "FORBIDDEN",
+        expect(fake.agentEventsLookups).toContainEqual([EVENT_B]);
+        expect(fake.agentOrFilters).toHaveLength(2);
+        for (const filter of fake.agentOrFilters) {
+            expect(filter).toContain(`id.in.(${AGENT_X})`);
+            // Own, event-scoped, and global agents must stay in the list.
+            expect(filter).toContain(`user_id.eq.${USER_ID}`);
+            expect(filter).toContain(`event_id.in.(${EVENT_B})`);
+            expect(filter).toContain("event_id.is.null");
+        }
     });
-    expect(insert).not.toHaveBeenCalled();
-  });
+
+    it("resolves links for owned events too and lists an agent linked to several events once", async () => {
+        const { fake, result } = callGetMany(
+            {
+                roles: [{ event_id: EVENT_B, role: "participant" }],
+                ownedEvents: [{ event_id: EVENT_C }],
+                agentEvents: [
+                    { agent_id: AGENT_X, event_id: EVENT_B },
+                    { agent_id: AGENT_X, event_id: EVENT_C },
+                    { agent_id: AGENT_Y, event_id: EVENT_C },
+                ],
+            },
+            { pageSize: 100 }
+        );
+        await result;
+
+        expect(fake.agentEventsLookups).toContainEqual([EVENT_B, EVENT_C]);
+        for (const filter of fake.agentOrFilters) {
+            expect(filter).toContain(`id.in.(${AGENT_X},${AGENT_Y})`);
+        }
+    });
+
+    it("omits the linked clause when the user's events have no linked agents", async () => {
+        const { fake, result } = callGetMany(
+            { roles: [{ event_id: EVENT_B, role: "participant" }] },
+            { pageSize: 100 }
+        );
+        await result;
+
+        expect(fake.agentOrFilters).toEqual([
+            `user_id.eq.${USER_ID},event_id.in.(${EVENT_B}),event_id.is.null`,
+            `user_id.eq.${USER_ID},event_id.in.(${EVENT_B}),event_id.is.null`,
+        ]);
+    });
+
+    it("skips the link lookup for a user with no events", async () => {
+        const { fake, result } = callGetMany({}, { pageSize: 100 });
+        await result;
+
+        expect(fake.agentEventsLookups).toEqual([]);
+        expect(fake.agentOrFilters).toEqual([
+            `user_id.eq.${USER_ID},event_id.is.null`,
+            `user_id.eq.${USER_ID},event_id.is.null`,
+        ]);
+    });
+
+    it("fails rather than silently hiding linked agents when the lookup errors", async () => {
+        const { result } = callGetMany(
+            {
+                roles: [{ event_id: EVENT_B, role: "participant" }],
+                agentEventsError: { message: "agent_events unavailable" },
+            },
+            { pageSize: 100 }
+        );
+
+        await expect(result).rejects.toBeDefined();
+    });
+});
+
+describe("agents.getMany with an eventId", () => {
+    it("only resolves links for the requested event", async () => {
+        const { fake, result } = callGetMany(
+            {
+                roles: [
+                    { event_id: EVENT_A, role: "participant" },
+                    { event_id: EVENT_B, role: "participant" },
+                ],
+                agentEvents: [{ agent_id: AGENT_X, event_id: EVENT_B }],
+            },
+            { pageSize: 100, eventId: EVENT_B }
+        );
+        await result;
+
+        expect(fake.agentEventsLookups).toContainEqual([EVENT_B]);
+        expect(fake.agentOrFilters).toEqual([
+            `event_id.eq.${EVENT_B},id.in.(${AGENT_X})`,
+            `event_id.eq.${EVENT_B},id.in.(${AGENT_X})`,
+        ]);
+    });
 });

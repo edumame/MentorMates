@@ -5,6 +5,7 @@ import { ApprovalStatus, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { sendEventApprovalNotification } from "@/lib/email/send-event-approval-notification";
+import { isHttpUrl } from "@/lib/events/approval";
 
 const submitSchema = z.object({
   submitter_name: z.string().min(1, "Name is required").max(120),
@@ -27,7 +28,11 @@ const submitSchema = z.object({
     message: "Invalid end datetime",
   }),
   location: z.string().min(1, "Location is required"),
-  link: z.string().url("Link must be a valid URL"),
+  link: z
+    .string()
+    .trim()
+    .url("Link must be a valid URL")
+    .refine(isHttpUrl, "Link must start with http:// or https://"),
   expected_attendance: z
     .number()
     .int("Expected attendance must be a whole number")
@@ -105,16 +110,16 @@ export async function POST(req: Request) {
       location,
       external_url: link,
       // External listings should send visitors to the organizer's own page once approved.
+      // The redirect only takes effect after review: submissions stay draft (not
+      // readable by anon/outsiders) until an admin approves them, which flips
+      // visibility to public (app/api/admin/events/[eventId]/route.ts). Inserting
+      // as public made every pending submission a live open redirect (PUB-001).
       external_redirect_enabled: true,
-      visibility: EventVisibility.Public,
+      visibility: EventVisibility.Draft,
       approval_status: ApprovalStatus.Submitted,
       featured: false,
       featured_requested: want_featured,
       owner_id: ownerId,
-      submitter_email: email,
-      submitter_name,
-      organizer_affiliation: affiliation,
-      expected_attendance,
       event_blurb,
       rules: [], // events.rules is NOT NULL with no default — required for any insert
     })
@@ -123,6 +128,28 @@ export async function POST(req: Request) {
 
   if (error) {
     console.error("public-submit insert failed", error);
+    return NextResponse.json(
+      { error: "Failed to submit event. Please try again." },
+      { status: 500 }
+    );
+  }
+
+  // Submitter contact details are admin-only (RLS on event_submissions); they
+  // must never be stored on the publicly readable events row (PUB-003).
+  const { error: submissionError } = await supabase
+    .from("event_submissions")
+    .insert({
+      event_id: data.event_id,
+      submitter_email: email,
+      submitter_name,
+      organizer_affiliation: affiliation,
+      expected_attendance,
+    });
+
+  if (submissionError) {
+    console.error("public-submit contact insert failed", submissionError);
+    // Do not leave an event admins cannot contact the submitter about.
+    await supabase.from("events").delete().eq("event_id", data.event_id);
     return NextResponse.json(
       { error: "Failed to submit event. Please try again." },
       { status: 500 }

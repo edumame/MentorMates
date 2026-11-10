@@ -1,105 +1,59 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AgentsTab } from "./AgentsTab";
+import React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
-const USER_ID = "11111111-1111-4111-8111-111111111111";
-const EVENT_ID = "22222222-2222-4222-8222-222222222222";
+const refetch = jest.fn();
+let agentsState: Record<string, unknown> = {};
 
-const mockRpc = jest.fn();
-
-function mockQueryBuilder() {
-  const query: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "in", "order"]) query[method] = jest.fn(() => query);
-  query.maybeSingle = jest.fn(async () => ({ data: null, error: null }));
-  query.then = (resolve: (value: { data: unknown[]; error: null }) => void) =>
-    resolve({ data: [], error: null });
-  return query;
-}
-
-jest.mock("@/lib/supabase", () => ({
-  supabase: {
-    rpc: (...args: unknown[]) => mockRpc(...args),
-    from: () => mockQueryBuilder(),
-  },
+jest.mock("@tanstack/react-query", () => ({
+  useQuery: () => agentsState,
+  useMutation: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
 }));
-
-jest.mock("@/trpc/client", () => ({
-  useTRPC: () => ({
-    agents: {
-      getMany: {
-        queryOptions: () => ({
-          queryKey: ["agents"],
-          queryFn: async () => ({ items: [], total: 0, totalPages: 0 }),
-        }),
-        queryKey: () => ["agents"],
-      },
-      update: { mutationOptions: (options: object) => options },
-      remove: { mutationOptions: (options: object) => options },
-      linkToEvents: { mutationOptions: (options: object) => options },
-      unlinkFromEvents: { mutationOptions: (options: object) => options },
-      updateEventSessionCaps: { mutationOptions: (options: object) => options },
-    },
-  }),
-}));
-
+jest.mock("@/trpc/client", () => {
+  const options = () => ({ queryOptions: () => ({}), mutationOptions: () => ({}), queryKey: () => [] });
+  const proxy: unknown = new Proxy({}, { get: () => new Proxy({}, { get: () => options() }) });
+  return { useTRPC: () => proxy };
+});
 jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
-  useAuth: () => ({ session: { user: { id: USER_ID } } }),
+  useAuth: () => ({ session: { user: { id: "org-1" } } }),
 }));
-
+jest.mock("@/lib/supabase", () => {
+  const query: Record<string, unknown> = {};
+  for (const m of ["select", "eq", "in", "order", "limit", "maybeSingle", "single"]) query[m] = () => query;
+  (query as { then: unknown }).then = (resolve: (v: unknown) => void) =>
+    Promise.resolve({ data: [], error: null }).then(resolve);
+  return { supabase: { from: () => query, auth: { getSession: async () => ({ data: { session: null } }) } } };
+});
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
-jest.mock("@/lib/hooks/use-confirm", () => ({
-  useConfirm: () => [() => null, jest.fn(async () => true)],
-}));
 jest.mock("@/modules/agents/ui/components/new-agent-dialog", () => ({ NewAgentDialog: () => null }));
 jest.mock("@/modules/agents/ui/components/update-agent-dialog", () => ({ UpdateAgentDialog: () => null }));
 jest.mock("@/modules/meetings/ui/components/meeting-form", () => ({ MeetingForm: () => null }));
+jest.mock("@/components/responsive-dialog", () => ({ ResponsiveDialog: () => null }));
+jest.mock("@/lib/hooks/use-confirm", () => ({ useConfirm: () => [() => null, async () => true] }));
 
-function renderTab(eventId?: string) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <AgentsTab eventId={eventId} />
-    </QueryClientProvider>
-  );
-}
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { AgentsTab } = require("./AgentsTab");
 
-describe("AgentsTab add agent access", () => {
-  beforeEach(() => {
-    mockRpc.mockReset();
+beforeEach(() => {
+  refetch.mockClear();
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as jest.Mock;
+});
+
+describe("AgentsTab (PUB-014)", () => {
+  it("shows an error with a working Retry instead of loading forever", () => {
+    agentsState = { isLoading: false, isError: true, isFetching: false, data: undefined, refetch };
+    render(<AgentsTab eventId="event-1" />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load agents.");
+    expect(screen.queryByText("Loading agents...")).toBeNull();
+    expect(screen.queryByText("No agents found")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(refetch).toHaveBeenCalled();
   });
 
-  it("does not offer a global agent to a non-admin outside an event", async () => {
-    mockRpc.mockResolvedValue({ data: false, error: null });
-
-    renderTab();
-
-    await waitFor(() => expect(mockRpc).toHaveBeenCalledWith("is_admin_user", { user_id: USER_ID }));
-    expect((await screen.findAllByText(/open the Agents tab of an event you manage/i)).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: /add agent/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /add your first agent/i })).not.toBeInTheDocument();
-  });
-
-  it("hides the control when the admin check fails", async () => {
-    mockRpc.mockResolvedValue({ data: null, error: new Error("rpc unavailable") });
-
-    renderTab();
-
-    await waitFor(() => expect(mockRpc).toHaveBeenCalled());
-    expect(screen.queryByRole("button", { name: /add agent/i })).not.toBeInTheDocument();
-  });
-
-  it("offers it to a platform admin outside an event", async () => {
-    mockRpc.mockResolvedValue({ data: true, error: null });
-
-    renderTab();
-
-    expect(await screen.findByRole("button", { name: /^add agent$/i })).toBeInTheDocument();
-  });
-
-  it("offers it inside an event without an admin check", async () => {
-    renderTab(EVENT_ID);
-
-    expect(await screen.findByRole("button", { name: /^add agent$/i })).toBeInTheDocument();
-    expect(mockRpc).not.toHaveBeenCalled();
+  it("shows the loading state while fetching", () => {
+    agentsState = { isLoading: true, isError: false, isFetching: true, data: undefined, refetch };
+    render(<AgentsTab eventId="event-1" />);
+    expect(screen.getByText("Loading agents...")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

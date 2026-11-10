@@ -1420,7 +1420,29 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
           </div>
         )}
 
-        {!agentsQuery.isLoading && filteredOwnedAgents.length === 0 && (
+        {/* PUB-014: a failed query used to spin on "Loading agents..." forever. */}
+        {agentsQuery.isError && (
+          <div
+            role="alert"
+            className="rounded-[14px] border border-red-200 bg-red-50 p-6 text-sm text-red-800"
+          >
+            <p className="font-medium">Couldn&apos;t load agents.</p>
+            <p className="mt-1 text-red-700">
+              Agents are temporarily unavailable. Please try again.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3"
+              disabled={agentsQuery.isFetching}
+              onClick={() => void agentsQuery.refetch()}
+            >
+              {agentsQuery.isFetching ? "Retrying..." : "Retry"}
+            </Button>
+          </div>
+        )}
+
+        {!agentsQuery.isLoading && !agentsQuery.isError && filteredOwnedAgents.length === 0 && (
           <div className="rounded-[14px] border border-dashed border-[rgba(0,0,0,0.25)] bg-white p-8 text-center">
             <p className="text-base font-medium text-black">No agents found</p>
             <p className="mt-1 text-sm text-muted-foreground">

@@ -4,15 +4,11 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, ParticipantRequestStatus } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { APPROVABLE_REQUEST_ROLES } from "@/lib/roles/approval-requests";
 
+// Self-service approval requests are for the participant role only (ORG-017).
 const createRequestSchema = z.object({
-  role: z
-    .enum([
-      EventRole.Participant,
-      EventRole.Mentor,
-      EventRole.Judge,
-    ])
-    .default(EventRole.Participant),
+  role: z.enum(APPROVABLE_REQUEST_ROLES).default(EventRole.Participant),
 });
 
 const listRequestsSchema = z.object({

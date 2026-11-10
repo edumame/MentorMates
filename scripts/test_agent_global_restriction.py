@@ -12,7 +12,7 @@ import uuid
 MIGRATIONS = Path(__file__).resolve().parents[1] / "supabase/migrations"
 BASE_POLICIES = MIGRATIONS / "20260217_agents_collaborative_editing.sql"
 AGENT_EVENTS = MIGRATIONS / "20260211_agent_events.sql"
-MIGRATION = MIGRATIONS / "202611050156_restrict_global_agents_to_admins.sql"
+MIGRATION = MIGRATIONS / "202611090156_restrict_global_agents_to_admins.sql"
 CONTAINER = "mentormates-agents-test-" + uuid.uuid4().hex[:12]
 
 ADMIN = "00000000-0000-4000-8000-000000000001"

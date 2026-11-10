@@ -187,15 +187,18 @@ export const agentsRouter = createTRPCRouter({
                 }
             }
 
-            // When filtering by a specific event, also include agents linked via agent_events
+            // Also include agents linked via agent_events, for the requested event or else all of the user's events
+            const linkLookupEventIds = eventId ? [eventId] : accessibleEventIds;
             let linkedAgentIds: string[] = [];
-            if (eventId) {
-                const { data: linkedRows } = await supabase
+            if (linkLookupEventIds.length > 0) {
+                const { data: linkedRows, error: linkedError } = await supabase
                     .from("agent_events")
                     .select("agent_id")
-                    .eq("event_id", eventId);
-                linkedAgentIds = (linkedRows || []).map((r: { agent_id: string }) => r.agent_id).filter(Boolean);
+                    .in("event_id", linkLookupEventIds);
+                if (linkedError) throw linkedError;
+                linkedAgentIds = Array.from(toIdSet((linkedRows || []).map((r: { agent_id: string }) => r.agent_id)));
             }
+            const linkedAgentsClause = linkedAgentIds.length > 0 ? `,id.in.(${linkedAgentIds.join(",")})` : "";
 
             // Build query to get:
             // 1. Agents owned by the user (user_id = current user)
@@ -213,9 +216,9 @@ export const agentsRouter = createTRPCRouter({
                     agentsQuery = agentsQuery.eq("event_id", eventId);
                 }
             } else if (accessibleEventIds.length > 0) {
-                // Show user's own agents OR agents from events they have access to OR global agents (no event_id)
+                // Show user's own agents OR agents from or linked to events they have access to OR global agents (no event_id)
                 agentsQuery = agentsQuery.or(
-                    `user_id.eq.${userId},event_id.in.(${accessibleEventIds.join(",")}),event_id.is.null`
+                    `user_id.eq.${userId},event_id.in.(${accessibleEventIds.join(",")}),event_id.is.null${linkedAgentsClause}`
                 );
             } else {
                 // No event access, show user's own agents or global agents
@@ -243,7 +246,7 @@ export const agentsRouter = createTRPCRouter({
                 }
             } else if (accessibleEventIds.length > 0) {
                 countQuery = countQuery.or(
-                    `user_id.eq.${userId},event_id.in.(${accessibleEventIds.join(",")}),event_id.is.null`
+                    `user_id.eq.${userId},event_id.in.(${accessibleEventIds.join(",")}),event_id.is.null${linkedAgentsClause}`
                 );
             } else {
                 countQuery = countQuery.or(`user_id.eq.${userId},event_id.is.null`);

@@ -62,7 +62,7 @@ export interface Coupon {
   stripe_coupon_id: string;
   name: string;
   percent_off?: number; // Percentage discount (1-100)
-  amount_off?: number; // Fixed amount discount in cents
+  amount_off?: number; // Fixed amount discount in the currency's smallest unit (Stripe amount_off)
   currency?: string; // Currency for amount_off (e.g., 'usd')
   duration: CouponDuration;
   duration_in_months?: number; // For 'repeating' duration
@@ -334,6 +334,21 @@ export interface ProjectSubmissionAnswer {
 }
 
 // Project Types
+/**
+ * Email-free team roster resolved server-side (see lib/projects/team-members.ts).
+ * Public project responses carry only this; lead_email/teammates are omitted.
+ */
+export interface ProjectTeamMember {
+  /** user_profiles.uid when the member has a profile, else null. */
+  id: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  affiliation: string | null;
+  role: "lead" | "member";
+  /** Only in authenticated (member/organizer) responses; never public. */
+  email?: string;
+}
+
 export interface Project {
   id: string;
   project_name: string;
@@ -361,6 +376,7 @@ export interface Project {
   is_finalist?: boolean;
   contextus_project_id?: string;
   submitted?: boolean;
+  team_members?: ProjectTeamMember[];
 }
 
 export enum ProjectBoardContext {
