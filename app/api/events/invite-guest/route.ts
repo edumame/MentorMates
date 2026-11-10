@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   // Fetch event details for the email
   const { data: eventData } = await supabase
     .from('events')
-    .select('event_name, slug')
+    .select('event_name')
     .eq('event_id', eventId)
     .single();
 
@@ -81,7 +81,6 @@ export async function POST(request: Request) {
       eventData.event_name,
       eventId,
       inviterName,
-      eventData.slug,
       scheduleItem
     );
 

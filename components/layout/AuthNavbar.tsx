@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,7 +12,6 @@ import { AuthNavbarRight } from "./AuthNavbarRight";
 import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 export function AuthNavbar() {
-  const router = useRouter();
   const { clearReturnUrl } = useRedirect();
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -34,8 +32,9 @@ export function AuthNavbar() {
     clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
-    router.push("/");
-    window.location.reload();
+    // Full navigation, not push + reload: reload can fire before the push lands,
+    // and reloading a protected page signed out would redirect to login.
+    window.location.assign("/");
     setIsOpen(false);
   };
 

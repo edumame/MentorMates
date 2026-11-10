@@ -4,7 +4,9 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole, type EventScoringConfig, type EventTrack } from "@/lib/types";
 import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import {
+  filterScoresToCurrentProjectTracks,
   getProjectIdsForRound,
   replaceAdvancements,
 } from "@/lib/judging/rounds";
@@ -99,26 +101,31 @@ export async function GET(
     if (advancedErr) throw advancedErr;
 
     const [scoreResult, tracksResult, eventResult, scorerRolesResult] = await Promise.all([
-      supabase
-        .from("project_scores")
-        .select(
+      // Paged: PostgREST silently truncates a select at max_rows (1000).
+      fetchAllRows((from, to) =>
+        supabase
+          .from("project_scores")
+          .select(
+            `
+            project_id,
+            judge_id,
+            track_id,
+            scores,
+            projects:projects!inner (
+              project_name,
+              lead_name,
+              event_id
+            ),
+            event_tracks:event_tracks!fk_project_scores_track (
+              name
+            )
           `
-          project_id,
-          judge_id,
-          track_id,
-          scores,
-          projects:projects!inner (
-            project_name,
-            lead_name,
-            event_id
-          ),
-          event_tracks:event_tracks!fk_project_scores_track (
-            name
           )
-        `
-        )
-        .eq("event_id", eventId)
-        .eq("round_number", fromRound),
+          .eq("event_id", eventId)
+          .eq("round_number", fromRound)
+          .order("id")
+          .range(from, to)
+      ),
       supabase
         .from("event_tracks")
         .select("track_id, name, scoring_criteria")
@@ -160,8 +167,19 @@ export async function GET(
     const first = <T,>(value: Joined<T>): T | null =>
       Array.isArray(value) ? value[0] ?? null : value;
 
+    let currentProjectTracks: Array<{ project_id: string; track_id: string }> = [];
+    if (eligibleProjectIds.length > 0) {
+      const { data, error: projectTracksErr } = await supabase
+        .from("project_tracks")
+        .select("project_id, track_id")
+        .in("project_id", eligibleProjectIds);
+      if (projectTracksErr) throw projectTracksErr;
+      currentProjectTracks = data ?? [];
+    }
+
     const rankedProjects = rankProjectsForAdvancement(
-      ((scoreResult.data ?? []) as Array<{
+      filterScoresToCurrentProjectTracks(
+        (scoreResult.data ?? []) as Array<{
         project_id: string;
         judge_id: string | null;
         track_id: string | null;
@@ -172,7 +190,10 @@ export async function GET(
           event_id?: string | null;
         }>;
         event_tracks: Joined<{ name?: string | null }>;
-      }>)
+      }>,
+        // A track the project has left must not affect its rank.
+        currentProjectTracks
+      )
         // Rank eligible projects only, so competition ranks have no gaps.
         .filter((row) => eligibleProjectIdSet.has(row.project_id))
         .map((row) => {

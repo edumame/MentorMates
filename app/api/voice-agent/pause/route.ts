@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeMeetingRequest } from "@/lib/meetings/route-access";
-import { workerHeaders } from "@/lib/meetings/worker";
+import { workerControlResult, workerHeaders } from "@/lib/meetings/worker";
 
 export async function POST(request: Request) {
   try {
@@ -12,8 +12,8 @@ export async function POST(request: Request) {
       method: "POST", headers: workerHeaders(),
       body: JSON.stringify({ meetingId: access.meeting.id }), signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) return NextResponse.json({ error: "Worker operation failed" }, { status: 502 });
-    return NextResponse.json({ ok: true });
+    const result = await workerControlResult(response);
+    return NextResponse.json(result.body, { status: result.status });
   } catch {
     return NextResponse.json({ error: "Voice control unavailable" }, { status: 502 });
   }

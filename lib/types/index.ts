@@ -62,7 +62,7 @@ export interface Coupon {
   stripe_coupon_id: string;
   name: string;
   percent_off?: number; // Percentage discount (1-100)
-  amount_off?: number; // Fixed amount discount in cents
+  amount_off?: number; // Fixed amount discount in the currency's smallest unit (Stripe amount_off)
   currency?: string; // Currency for amount_off (e.g., 'usd')
   duration: CouponDuration;
   duration_in_months?: number; // For 'repeating' duration
@@ -128,7 +128,7 @@ export type EventItem = {
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
   external_url?: string | null; // Optional outside event URL
-  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
+  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects visitors other than managers and judges away from MentorMates (invite routes live outside the event layout)
   team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
   submitter_email?: string | null; // Contact email from the public submit form
   submitter_name?: string | null; // Submitter name from the public submit form
