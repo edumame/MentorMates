@@ -1,5 +1,20 @@
 import type { EventScoringConfig, EventTrackScoringConfig } from "@/lib/types";
-import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
+import {
+  getTrackScoringConfigForRound,
+  normalizeCriterion,
+} from "@/lib/judging/scoring-config";
+
+describe("normalizeCriterion", () => {
+  const criterion = { id: "c", name: "C", description: "" };
+
+  it("keeps an explicit weight of 0", () => {
+    expect(normalizeCriterion({ ...criterion, weight: 0 }).weight).toBe(0);
+  });
+
+  it("defaults a missing weight to 1", () => {
+    expect(normalizeCriterion(criterion).weight).toBe(1);
+  });
+});
 
 describe("getTrackScoringConfigForRound", () => {
   const baseConfig: EventScoringConfig = {
