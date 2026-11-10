@@ -15,6 +15,15 @@ jest.mock("@/lib/supabase", () => ({
         data: { session: null },
       }),
     },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            maybeSingle: jest.fn().mockResolvedValue({ data: null }),
+          }),
+        }),
+      }),
+    }),
   },
 }));
 
@@ -35,7 +44,8 @@ function renderInvite(ui: ReactElement) {
 describe("AcceptRoleInvite", () => {
   beforeEach(() => {
     push.mockClear();
-    mockGetSession.mockClear();
+    mockGetSession.mockReset();
+    mockGetSession.mockResolvedValue({ data: { session: null } } as never);
     localStorage.clear();
     window.history.replaceState({}, "", "/events/hack-night/accept-judge?token=abc");
   });
@@ -76,10 +86,10 @@ describe("AcceptRoleInvite", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Event Link Changed" })
+      screen.getByRole("heading", { name: "Invitation unavailable" })
     ).toBeInTheDocument();
     expect(screen.getByText("judge@email.com")).toBeInTheDocument();
-    await waitFor(() => expect(mockGetSession).toHaveBeenCalled());
+    expect(mockGetSession).not.toHaveBeenCalled();
   });
 
   it("stores the current invite URL before sending unauthenticated users to login", async () => {
@@ -103,5 +113,39 @@ describe("AcceptRoleInvite", () => {
     );
     expect(push).toHaveBeenCalledWith("/login");
     await waitFor(() => expect(mockGetSession).toHaveBeenCalled());
+  });
+
+  it("redeems the signed token on the server instead of writing the role itself", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = fetchMock;
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: { user: { id: "user-1", email: "judge@email.com" } },
+      },
+    } as never);
+
+    renderInvite(
+      <AcceptRoleInvite
+        role={EventRole.Judge}
+        eventId="event-1"
+        eventName="Hack Night"
+        eventBlurb="Build something ambitious."
+        eventSlug="hack-night"
+        invitedEmail="judge@email.com"
+        inviteToken="signed-token"
+      />
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /accept/i }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/events/event-1/accept-invite",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ token: "signed-token" }),
+        })
+      )
+    );
   });
 });

@@ -4,24 +4,21 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
-import { UserProfile } from "@/lib/types";
 import {
   getMissingProfileFieldLabels,
+  loadProfileCompletionFields,
   profileNeedsCompletion,
+  type ProfileCompletionFields,
 } from "@/features/user/profile/profile-completion";
 import { NotificationsNone } from "@mui/icons-material";
 import { GraduationCap } from "lucide-react";
 
-interface ExtendedUserProfile extends UserProfile {
-  onboarding_metadata: Record<string, unknown> | null;
-  affiliation: string | null;
-  phone_number?: string | null;
-  links?: Record<string, string> | null;
-}
 
 export function useNotificationData() {
   const [session, setSession] = useState<Session | null>(null);
-  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(null);
+  const [completionFields, setCompletionFields] =
+    useState<ProfileCompletionFields | null>(null);
+  const [completionLoaded, setCompletionLoaded] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -29,23 +26,33 @@ export function useNotificationData() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const userId = session?.user?.id;
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("uid", session?.user?.id)
-        .single();
-      setUserProfile(data);
+    if (!userId) return;
+    let active = true;
+    // Shared by the bell, the desktop sidebar and the mobile drawer so all
+    // three agree; includes the phone number from user_phone_numbers.
+    loadProfileCompletionFields(supabase, userId)
+      .then((fields) => {
+        if (active) setCompletionFields(fields);
+      })
+      .catch(() => {
+        if (active) setCompletionFields(null);
+      })
+      .finally(() => {
+        if (active) setCompletionLoaded(true);
+      });
+    return () => {
+      active = false;
     };
-    if (session) fetchUserProfile();
-  }, [session]);
+  }, [userId]);
+  const userProfile = completionFields;
 
+  // Don't flash the reminder before the fields have loaded.
   const needsProfileCompletion =
-    Boolean(session) && profileNeedsCompletion(userProfile);
-  const missingProfileFields = session
-    ? getMissingProfileFieldLabels(userProfile)
-    : [];
+    Boolean(session) && completionLoaded && profileNeedsCompletion(userProfile);
+  const missingProfileFields =
+    session && completionLoaded ? getMissingProfileFieldLabels(userProfile) : [];
 
   return {
     session,

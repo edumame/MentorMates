@@ -4,6 +4,7 @@ import { PATCH } from "./route";
 import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
+import { NextResponse } from "next/server";
 
 jest.mock("next/server", () => {
   class MockNextResponse {
@@ -147,13 +148,36 @@ describe("PATCH /api/agent/events/participants", () => {
     });
     expect(deleteQuery.delete).not.toHaveBeenCalled();
   });
+  it("asks for write access, so archived events are refused before any write (XL-001)", async () => {
+    const archived = NextResponse.json(
+      { error: "archived events are read-only; unarchive first" },
+      { status: 409 }
+    );
+    (authorizeAgentEventAccess as jest.Mock).mockResolvedValue(archived);
+    const from = jest.fn();
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({ from });
 
+    const response = await PATCH({
+      json: async () => ({
+        user_id: "44444444-4444-4444-8444-444444444444",
+        action: "remove",
+      }),
+    } as never);
+
+    expect(authorizeAgentEventAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "22222222-2222-4222-8222-222222222222" }),
+      EventRole.Organizer,
+      { intent: "write" }
+    );
+    expect(response).toBe(archived);
+    expect(from).not.toHaveBeenCalled();
+  });
   describe("remove action on an approved participant", () => {
     const targetUserId = "55555555-5555-4555-8555-555555555555";
     const eventId = "22222222-2222-4222-8222-222222222222";
     const reviewerId = "11111111-1111-4111-8111-111111111111";
 
-    function mockRemoval(revokeError: { message: string } | null) {
+    function mockRemoval(result: { data: unknown; error: unknown }) {
       (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({
         eventId,
         isAdmin: false,
@@ -161,19 +185,11 @@ describe("PATCH /api/agent/events/participants", () => {
         userRole: EventRole.Organizer,
       });
 
-      const roleDelete = jest.fn(() => ({
-        eq: jest.fn(() => ({
-          eq: jest.fn().mockResolvedValue({ error: null }),
-        })),
-      }));
-      const revokeEq = jest.fn().mockReturnThis();
-      const revokeThen = jest.fn(
-        (resolve: (value: { error: unknown }) => unknown) =>
-          resolve({ error: revokeError }),
-      );
-      const revokeUpdate = jest.fn(() => ({ eq: revokeEq, then: revokeThen }));
+      const roleDelete = jest.fn();
+      const rpc = jest.fn().mockResolvedValue(result);
 
       (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+        rpc,
         from: jest.fn((table: string) => {
           if (table === "user_event_roles") {
             return {
@@ -186,48 +202,56 @@ describe("PATCH /api/agent/events/participants", () => {
               delete: roleDelete,
             };
           }
-          if (table === "participant_approval_requests") {
-            return { update: revokeUpdate };
-          }
           throw new Error(`Unexpected table: ${table}`);
         }),
       });
 
-      return { roleDelete, revokeEq, revokeUpdate };
+      return { roleDelete, rpc };
     }
 
     const removeRequest = {
       json: async () => ({ user_id: targetUserId, action: "remove" }),
     };
 
-    it("revokes the approval before deleting the role", async () => {
-      const { roleDelete, revokeEq, revokeUpdate } = mockRemoval(null);
+    it("removes through remove_event_member so the approval is closed in the same transaction", async () => {
+      const { roleDelete, rpc } = mockRemoval({
+        data: { removedTeamMemberships: 0, promotedTeamLeads: 0, closedApprovalRequests: 1 },
+        error: null,
+      });
 
       const response = await PATCH(removeRequest as never);
 
       expect(response.status).toBe(200);
-      expect(revokeUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "rejected",
-          reviewed_by: reviewerId,
-          reviewed_at: expect.any(String),
-        }),
-      );
-      expect(revokeEq).toHaveBeenCalledWith("event_id", eventId);
-      expect(revokeEq).toHaveBeenCalledWith("user_id", targetUserId);
-      expect(revokeEq).toHaveBeenCalledWith("status", "approved");
-      expect(revokeUpdate.mock.invocationCallOrder[0]).toBeLessThan(
-        roleDelete.mock.invocationCallOrder[0],
-      );
+      expect(rpc).toHaveBeenCalledWith("remove_event_member", {
+        p_event_id: eventId,
+        p_user_id: targetUserId,
+        p_actor_id: reviewerId,
+      });
+      expect(roleDelete).not.toHaveBeenCalled();
     });
 
-    it("keeps the role when the revocation fails", async () => {
-      const { roleDelete } = mockRemoval({ message: "write failed" });
+    it("reports a failed removal and does not claim success", async () => {
+      mockRemoval({ data: null, error: { code: "XX000", message: "write failed" } });
 
       const response = await PATCH(removeRequest as never);
 
       expect(response.status).toBe(500);
-      expect(roleDelete).not.toHaveBeenCalled();
+    });
+
+    it("maps the last-organizer guard to 409", async () => {
+      mockRemoval({ data: null, error: { hint: "last_organizer", message: "guard" } });
+
+      const response = await PATCH(removeRequest as never);
+
+      expect(response.status).toBe(409);
+    });
+
+    it("returns 404 when the role was already gone", async () => {
+      mockRemoval({ data: null, error: null });
+
+      const response = await PATCH(removeRequest as never);
+
+      expect(response.status).toBe(404);
     });
   });
 });

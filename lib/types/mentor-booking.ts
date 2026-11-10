@@ -13,6 +13,8 @@ export interface MentorAvailability {
   end_time: string; // ISO
   max_bookings: number;
   created_at: string;
+  /** Set when the slot was cancelled (soft delete keeps its booking history). */
+  cancelled_at?: string | null;
 }
 
 export interface MentorBooking {
@@ -26,13 +28,16 @@ export interface MentorBooking {
 export interface MentorProfileLite {
   uid: string;
   display_name: string | null;
-  email: string | null;
+  /** Not returned by the availability API (MENT-002). */
+  email?: string | null;
   avatar_url: string | null;
 }
 
 export interface UserProfileLite {
   display_name: string | null;
   email: string | null;
+  /** Present for viewers who may cancel this attendee's booking. */
+  booking_id?: string;
 }
 
 export interface MentorAvailabilityWithBookings extends MentorAvailability {
