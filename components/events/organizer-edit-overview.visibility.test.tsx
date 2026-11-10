@@ -158,6 +158,7 @@ async function chooseVisibility(name: string) {
 it("withdraws a pending submission when the organizer sets Draft", async () => {
   mockEvent = {
     event_id: "sample",
+    event_name: "Sample",
     event_tracks: [],
     visibility: "private",
     approval_status: "submitted",
@@ -175,6 +176,7 @@ it("withdraws a pending submission when the organizer sets Draft", async () => {
 it("keeps a pending submission when the organizer keeps it Private", async () => {
   mockEvent = {
     event_id: "sample",
+    event_name: "Sample",
     event_tracks: [],
     visibility: "private",
     approval_status: "submitted",
@@ -188,6 +190,7 @@ it("keeps a pending submission when the organizer keeps it Private", async () =>
 it("keeps an approved status when the organizer sets Draft", async () => {
   mockEvent = {
     event_id: "sample",
+    event_name: "Sample",
     event_tracks: [],
     visibility: "public",
     approval_status: "approved",

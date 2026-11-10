@@ -94,19 +94,30 @@ export function EventPageSidebar({
         <div className="flex gap-2 items-start">
           {/* Copy Link */}
           <button
+            type="button"
+            aria-label="Copy event link"
+            title="Copy event link"
             onClick={() => handleShare("copy")}
             className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
           >
-            <LinkIcon className="w-6 h-6 text-black" />
+            <LinkIcon className="w-6 h-6 text-black" aria-hidden="true" />
           </button>
 
           {/* QR Code */}
-          <button className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg">
-            <QrCode className="w-6 h-6 text-black" />
+          <button
+            type="button"
+            aria-label="Show QR code"
+            title="Show QR code"
+            className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg"
+          >
+            <QrCode className="w-6 h-6 text-black" aria-hidden="true" />
           </button>
 
           {/* LinkedIn */}
           <button
+            type="button"
+            aria-label="Share on LinkedIn"
+            title="Share on LinkedIn"
             onClick={() => handleShare("linkedin")}
             className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
           >
@@ -118,6 +129,9 @@ export function EventPageSidebar({
 
           {/* Twitter/X */}
           <button
+            type="button"
+            aria-label="Share on X"
+            title="Share on X"
             onClick={() => handleShare("twitter")}
             className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
           >
@@ -128,6 +142,9 @@ export function EventPageSidebar({
 
           {/* Facebook */}
           <button
+            type="button"
+            aria-label="Share on Facebook"
+            title="Share on Facebook"
             onClick={() => handleShare("facebook")}
             className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
           >

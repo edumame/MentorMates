@@ -17,6 +17,17 @@ const setEvent = jest.fn();
 const toast = jest.fn();
 const router = { refresh: jest.fn(), push: jest.fn() };
 
+// ArchiveEventDialog (EventLifecycleDialogs.tsx) owns the archive request and
+// uses its own router and toast.
+jest.mock("next/navigation", () => ({ useRouter: () => router }));
+jest.mock("@/lib/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
+
+/** setEvent receives an updater; apply it to see the stored event. */
+function storedEvent(previous: EventDetails) {
+  const update = setEvent.mock.calls[setEvent.mock.calls.length - 1][0];
+  return typeof update === "function" ? update(previous) : update;
+}
+
 function mockArchiveResponse(newVisibility: string, approvalStatus: string) {
   mockFetch.mockResolvedValue({
     ok: true,
@@ -71,7 +82,7 @@ it("stores the withdrawn status when archiving a submitted event", async () => {
       body: JSON.stringify({ action: "archive" }),
     }),
   );
-  expect(setEvent).toHaveBeenCalledWith({
+  expect(storedEvent(event)).toEqual({
     ...event,
     visibility: "archived",
     approval_status: "not_submitted",
@@ -84,7 +95,7 @@ it("keeps an approved status when archiving", async () => {
 
   await confirm("Archive", "Confirm Archive");
 
-  expect(setEvent).toHaveBeenCalledWith({
+  expect(storedEvent(event)).toEqual({
     ...event,
     visibility: "archived",
     approval_status: "approved",
@@ -103,7 +114,7 @@ it("stores the status the route returns when unarchiving", async () => {
       body: JSON.stringify({ action: "unarchive" }),
     }),
   );
-  expect(setEvent).toHaveBeenCalledWith({
+  expect(storedEvent(event)).toEqual({
     ...event,
     visibility: "private",
     approval_status: "not_submitted",

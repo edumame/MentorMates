@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server'
 import { OpenAI } from 'openai'
-import { createClient } from '@supabase/supabase-js'
+import { authorizeMeetingRequest } from '@/lib/meetings/route-access'
+import { z } from 'zod'
 
 const SYSTEM_PROMPT = `You are summarizing a shared screen for a live meeting assistant. Describe only what's visible and important. Prefer UI text, error messages, numbers, button labels, and user actions. Ignore decoration. Keep it under 40 words. If nothing meaningful changed, respond exactly: 'No meaningful change'.`
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const { meetingId, ts, imageBase64 } = body || {}
-    if (!meetingId || !imageBase64) {
-      return NextResponse.json({ error: 'missing params' }, { status: 400 })
-    }
+    const access = await authorizeMeetingRequest(req, 2_000_000)
+    if (access.response) return access.response
+    const parsed = z.object({ ts: z.union([z.string(), z.number()]).refine(v => Number.isFinite(new Date(v).getTime())), imageBase64: z.string().min(4).max(1_900_000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).safeParse(access.body)
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid frame' }, { status: 400 })
+    const { ts, imageBase64 } = parsed.data
+    const meetingId = access.meeting.id
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -95,9 +97,9 @@ export async function POST(req: Request) {
     if (summary !== 'No meaningful change') summary = `[Screen] ${summary}`
 
     // Upsert into Supabase
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const supabase = access.service
 
-    await supabase.from('meeting_screen_context').upsert(
+    const { error: writeError } = await supabase.from('meeting_screen_context').upsert(
       {
         meeting_id: meetingId,
         summary,
@@ -107,6 +109,7 @@ export async function POST(req: Request) {
       { onConflict: 'meeting_id' }
     )
 
+    if (writeError) throw new Error('Screen context write failed')
     return NextResponse.json({ ok: true, summary })
   } catch (err) {
     console.error('vision route error', err)
