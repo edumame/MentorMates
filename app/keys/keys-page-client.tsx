@@ -121,11 +121,13 @@ export default function KeysPageClient({
     }
   }, [activeTab, scopeMode]);
 
+  // Organizer keys are verified against eventId in both scope modes, so it must
+  // be a managed event even when the event picker is hidden for personal keys.
   useEffect(() => {
-    if (scopeMode !== "event") return;
-    if (currentEventOptions.some((e) => e.id === eventId)) return;
-    setEventId(currentEventOptions[0]?.id ?? "");
-  }, [activeTab, currentEventOptions, eventId, scopeMode]);
+    if (activeTab !== "organizer") return;
+    if (managedEventOptions.some((e) => e.id === eventId)) return;
+    setEventId(managedEventOptions[0]?.id ?? "");
+  }, [activeTab, eventId, managedEventOptions]);
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
