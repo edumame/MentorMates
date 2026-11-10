@@ -8,6 +8,7 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { z } from "zod";
 
 // GET: List judges and their scoring progress
@@ -55,11 +56,15 @@ export async function GET(request: NextRequest) {
     let scoreCounts: { judge_id: string }[] = [];
 
     if (judgeIds.length > 0) {
-      const { data: scores } = await supabase
-        .from("project_scores")
-        .select("judge_id")
-        .eq("event_id", auth.eventId)
-        .in("judge_id", judgeIds);
+      const { data: scores } = await fetchAllRows((from, to) =>
+        supabase
+          .from("project_scores")
+          .select("judge_id")
+          .eq("event_id", auth.eventId)
+          .in("judge_id", judgeIds)
+          .order("id")
+          .range(from, to)
+      );
 
       scoreCounts = scores || [];
     }

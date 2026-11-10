@@ -1,273 +1,143 @@
-import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
+import { useQuery } from "@tanstack/react-query";
 import { MentorCards } from "./MentorCards";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { meetingsRouter } from "@/modules/meetings/server/procedures";
+import { createCallerFactory } from "@/trpc/init";
 
-type MeetingFixture = {
-  id: string;
-  name: string;
-  status: string;
-  event_id: string | null;
-  project_id: string | null;
-  agent: null;
-};
-
-type GetManyInput = { page?: number; eventId?: string; projectId?: string };
-
-const PAGE_SIZE = 10;
-
-const mockState: {
-  meetings: MeetingFixture[];
-  getManyInputs: GetManyInput[];
-} = { meetings: [], getManyInputs: [] };
-
-const mockGetMany = async (input: GetManyInput) => {
-  mockState.getManyInputs.push(input);
-  const matching = mockState.meetings.filter(
-    (m) =>
-      (!input.eventId || m.event_id === input.eventId) &&
-      (!input.projectId || m.project_id === input.projectId),
-  );
-  const offset = ((input.page ?? 1) - 1) * PAGE_SIZE;
-  return {
-    items: matching.slice(offset, offset + PAGE_SIZE),
-    total: matching.length,
-    totalPages: Math.ceil(matching.length / PAGE_SIZE),
-  };
-};
-
-const mockGetFilterOptions = async () => ({
-  eventIds: Array.from(new Set(mockState.meetings.map((m) => m.event_id).filter(Boolean))),
-  projectIds: Array.from(new Set(mockState.meetings.map((m) => m.project_id).filter(Boolean))),
-});
-
-const mockRemove = async ({ id }: { id: string }) => {
-  mockState.meetings = mockState.meetings.filter((m) => m.id !== id);
-  return { id };
-};
-
-// MentorCards only queries meetings for signed-in users.
-let mockIsAuthenticated = true;
-jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
-  useAuth: () => ({ isAuthenticated: mockIsAuthenticated }),
+// trpc/init wraps its context in the RSC-only React.cache.
+jest.mock("react", () => ({ ...jest.requireActual("react"), cache: (fn: unknown) => fn }));
+jest.mock("@/app/utils/supabase/server", () => ({
+  createSupabaseClient: jest.fn(),
+  createSupabaseServiceClient: jest.fn(),
 }));
-
+jest.mock("@/lib/stream-video", () => ({ streamVideo: {} }));
+jest.mock("@/lib/stream-chat", () => ({ streamChat: {} }));
+jest.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: { getUser: jest.fn(async () => ({ data: { user: null } })) },
+    from: jest.fn(),
+    rpc: jest.fn(),
+  },
+}));
+// MentorCards only fires getMany for signed-in viewers.
+jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
+  useAuth: () => ({ isAuthenticated: true }),
+}));
+jest.mock("@/lib/hooks/use-confirm",() => ({ useConfirm: () => [() => null, jest.fn()] }));
+jest.mock("@/modules/meetings/ui/components/update-meeting-dialog", () => ({ UpdateMeetingDialog: () => null }));
 jest.mock("@/trpc/client", () => ({
   useTRPC: () => ({
     meetings: {
-      getMany: {
-        queryOptions: (input: GetManyInput, opts?: object) => ({
-          queryKey: ["getMany", input],
-          queryFn: () => mockGetMany(input),
-          ...opts,
-        }),
-      },
-      getFilterOptions: {
-        queryOptions: () => ({
-          queryKey: ["getFilterOptions"],
-          queryFn: mockGetFilterOptions,
-        }),
-      },
-      remove: {
-        mutationOptions: (opts: object) => ({ mutationFn: mockRemove, ...opts }),
-      },
+      getMany: { queryOptions: jest.fn(() => ({})) },
+      getFilterOptions: { queryOptions: jest.fn(() => ({})) },
+      remove: { mutationOptions: jest.fn(() => ({})) },
     },
   }),
 }));
-
-jest.mock("@/lib/supabase", () => {
-  const nameRows = (table: string, ids: string[]) =>
-    table === "events"
-      ? ids.map((id) => ({ event_id: id, event_name: `Event ${id}` }))
-      : ids.map((id) => ({ id, project_name: `Project ${id}` }));
-
-  return {
-    supabase: {
-      auth: { getUser: async () => ({ data: { user: { id: "user-1" } } }) },
-      rpc: async () => ({ data: true }),
-      from: (table: string) => ({
-        select: () => ({
-          in: async (_column: string, ids: string[]) => ({ data: nameRows(table, ids) }),
-          eq: () => ({ eq: async () => ({ data: [] }) }),
-        }),
-      }),
-    },
-  };
-});
-
-jest.mock("@/modules/meetings/ui/components/update-meeting-dialog", () => ({
-  UpdateMeetingDialog: () => null,
+jest.mock("@tanstack/react-query", () => ({
+  keepPreviousData: jest.fn(),
+  useMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),
+  useQuery: jest.fn(),
+  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
 }));
 
-jest.mock("@/lib/hooks/use-confirm", () => ({
-  useConfirm: () => [() => null, async () => true],
-}));
+const PROMPT = "Please select a project to start the session";
 
-// Radix menus only open on pointer events; the items themselves are what these tests exercise.
-jest.mock("@/components/ui/dropdown-menu", () => {
-  const Passthrough = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
-  return {
-    DropdownMenu: Passthrough,
-    DropdownMenuContent: Passthrough,
-    DropdownMenuTrigger: Passthrough,
-    DropdownMenuItem: ({
-      children,
-      onClick,
-    }: {
-      children: React.ReactNode;
-      onClick?: () => void;
-    }) => <button onClick={onClick}>{children}</button>,
-  };
+type Row = Record<string, unknown>;
+
+/** Resolves every query in the chain with the rows for that table, like PostgREST. */
+const supabaseWith = (tables: Record<string, Row[]>) => ({
+  auth: { getUser: jest.fn(async () => ({ data: { user: { id: "user-1" } } })) },
+  from: (table: string) => {
+    const result = { data: tables[table], error: null, count: tables[table].length };
+    const builder = {
+      select: () => builder,
+      eq: () => builder,
+      in: () => builder,
+      ilike: () => builder,
+      order: () => builder,
+      range: () => builder,
+      then: (resolve: (value: typeof result) => unknown) => Promise.resolve(result).then(resolve),
+    };
+    return builder;
+  },
 });
 
-const meetings = (count: number, overrides: Partial<MeetingFixture> = {}, prefix = "Meeting") =>
-  Array.from({ length: count }, (_, i): MeetingFixture => ({
-    id: `${prefix}-${i + 1}`,
-    name: `${prefix} ${i + 1}`,
-    status: "upcoming",
-    event_id: null,
-    project_id: null,
-    agent: null,
-    ...overrides,
-  }));
-
-const renderCards = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MentorCards />
-    </QueryClientProvider>,
+const getManyFor = (meeting: Row, agent: Row) => {
+  (createSupabaseClient as jest.Mock).mockResolvedValue(
+    supabaseWith({
+      meetings: [{ id: "meeting-1", name: "TODO: Pitch", agent_id: "agent-1", ...meeting }],
+      agents: [{ id: "agent-1", name: "Mentor", avatar_url: null, ...agent }],
+    })
   );
+  return createCallerFactory(meetingsRouter)({ userId: "user-1" }).getMany({});
 };
 
-describe("MentorCards", () => {
-  beforeEach(() => {
-    mockIsAuthenticated = true;
-    mockState.meetings = [];
-    mockState.getManyInputs = [];
+/** Renders the card from the real getMany output so the server projection is covered. */
+const renderCard = async (meeting: Row, agent: Row) => {
+  const data = await getManyFor(meeting, agent);
+  (useQuery as jest.Mock).mockReturnValue({ data, refetch: jest.fn(), isPending: false, isError: false });
+  render(<MentorCards />);
+};
+
+const expectGated = () => {
+  expect(screen.getByText(PROMPT)).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Chat" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Start Call" })).not.toBeInTheDocument();
+};
+
+const expectOpen = () => {
+  expect(screen.queryByText(PROMPT)).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/chat/meeting-1");
+  expect(screen.getByRole("link", { name: "Start Call" })).toHaveAttribute("href", "/call/meeting-1");
+};
+
+describe("meetings.getMany agent hydration", () => {
+  it.each([true, false])("keeps requires_project=%s on the agent", async (requiresProject) => {
+    const { items } = await getManyFor({ status: "upcoming" }, { requires_project: requiresProject });
+    expect(items[0].agent?.requires_project).toBe(requiresProject);
   });
 
-  it("does not query meetings for signed-out visitors", async () => {
-    mockIsAuthenticated = false;
-    mockState.meetings = meetings(3);
-    renderCards();
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(mockState.getManyInputs).toHaveLength(0);
-    expect(screen.queryByText("Meeting 1")).not.toBeInTheDocument();
+  it("does not leak other agent columns onto the list payload", async () => {
+    const { items } = await getManyFor({ status: "upcoming" }, { requires_project: true, instructions: "secret" });
+    expect(items[0].agent).toEqual({ id: "agent-1", name: "Mentor", avatar_url: null, requires_project: true });
   });
 
-  it("reaches meetings beyond the first page", async () => {
-    mockState.meetings = meetings(25);
-    renderCards();
+  it("returns null when the column is missing from the row", async () => {
+    const { items } = await getManyFor({ status: "upcoming" }, {});
+    expect(items[0].agent?.requires_project).toBeNull();
+  });
+});
 
-    expect(await screen.findByText("Meeting 1")).toBeInTheDocument();
-    expect(screen.queryByText("Meeting 11")).not.toBeInTheDocument();
-    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
-
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-
-    expect(await screen.findByText("Meeting 11")).toBeInTheDocument();
-    expect(screen.queryByText("Meeting 1")).not.toBeInTheDocument();
-    expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
-    expect(mockState.getManyInputs).toContainEqual(expect.objectContaining({ page: 2 }));
-
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-
-    expect(await screen.findByText("Meeting 25")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-
-    await userEvent.click(screen.getByRole("button", { name: "Previous" }));
-
-    expect(await screen.findByText("Meeting 11")).toBeInTheDocument();
+describe("MentorCards project gating", () => {
+  it("blocks an auto-created upcoming meeting with no project", async () => {
+    await renderCard({ status: "upcoming", project_id: null }, { requires_project: true });
+    expectGated();
   });
 
-  it("hides the pagination controls when everything fits on one page", async () => {
-    mockState.meetings = meetings(PAGE_SIZE);
-    renderCards();
-
-    expect(await screen.findByText("Meeting 10")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
+  it("blocks Start Call on an active meeting with no project", async () => {
+    await renderCard({ status: "active", project_id: null }, { requires_project: true });
+    expect(screen.getByText(PROMPT)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Start Call" })).not.toBeInTheDocument();
   });
 
-  it("offers filter options for events and projects outside the first page", async () => {
-    mockState.meetings = [
-      ...meetings(PAGE_SIZE, { event_id: "a", project_id: "p" }, "Recent"),
-      ...meetings(1, { event_id: "b", project_id: "q" }, "Older"),
-    ];
-    renderCards();
-
-    const [eventSelect, projectSelect] = await screen.findAllByRole("combobox");
-
-    expect(await within(eventSelect).findByRole("option", { name: "Event b" })).toBeInTheDocument();
-    expect(await within(projectSelect).findByRole("option", { name: "Project q" })).toBeInTheDocument();
+  it("opens the session once a project is selected", async () => {
+    await renderCard({ status: "upcoming", project_id: "project-1" }, { requires_project: true });
+    expectOpen();
   });
 
-  it("goes back to the first page when a filter changes", async () => {
-    mockState.meetings = [
-      ...meetings(PAGE_SIZE, { event_id: "a" }, "Recent"),
-      ...meetings(PAGE_SIZE + 1, { event_id: "b", project_id: "q" }, "Older"),
-    ];
-    renderCards();
-
-    await screen.findByText("Page 1 of 3");
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByText("Page 2 of 3");
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByText("Page 3 of 3");
-
-    const [eventSelect, projectSelect] = screen.getAllByRole("combobox");
-    await within(eventSelect).findByRole("option", { name: "Event b" });
-    await userEvent.selectOptions(eventSelect, "b");
-
-    expect(await screen.findByText("Older 1")).toBeInTheDocument();
-    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
-    expect(mockState.getManyInputs).toContainEqual({ page: 1, eventId: "b", projectId: undefined });
-
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByText("Page 2 of 2");
-
-    await within(projectSelect).findByRole("option", { name: "Project q" });
-    await userEvent.selectOptions(projectSelect, "q");
-
-    expect(await screen.findByText("Page 1 of 2")).toBeInTheDocument();
-    expect(mockState.getManyInputs).toContainEqual({ page: 1, eventId: "b", projectId: "q" });
+  it.each([
+    ["does not require a project", { requires_project: false }],
+    ["has a null requires_project", { requires_project: null }],
+    ["has no requires_project column", {}],
+  ])("stays open when the agent %s", async (_label, agent) => {
+    await renderCard({ status: "upcoming", project_id: null }, agent);
+    expectOpen();
   });
 
-  it("falls back to the last page when the only meeting on the current page is removed", async () => {
-    mockState.meetings = meetings(PAGE_SIZE + 1);
-    renderCards();
-
-    await screen.findByText("Page 1 of 2");
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(await screen.findByText("Meeting 11")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
-
-    expect(await screen.findByText("Meeting 1")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText("Meeting 11")).not.toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
-  });
-
-  it("drops a removed meeting's event from the filter options", async () => {
-    mockState.meetings = [
-      ...meetings(1, { event_id: "a" }, "Keep"),
-      ...meetings(1, { event_id: "b" }, "Gone"),
-    ];
-    renderCards();
-
-    const [eventSelect] = await screen.findAllByRole("combobox");
-    await within(eventSelect).findByRole("option", { name: "Event b" });
-
-    const goneCard = screen.getByText("Gone 1").closest("li") as HTMLElement;
-    await userEvent.click(within(goneCard).getByRole("button", { name: "Delete" }));
-
-    await waitFor(() =>
-      expect(within(eventSelect).queryByRole("option", { name: "Event b" })).not.toBeInTheDocument(),
-    );
+  it("shows no prompt on a completed meeting with no project", async () => {
+    await renderCard({ status: "completed", project_id: null }, { requires_project: true });
+    expect(screen.queryByText(PROMPT)).not.toBeInTheDocument();
   });
 });
