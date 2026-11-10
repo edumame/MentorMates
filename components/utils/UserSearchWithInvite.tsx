@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ChangeEvent, useEffect } from "react";
+import { useState, ChangeEvent, useEffect, useRef } from "react";
 import { Mail, UserPlus, Link2 } from "lucide-react";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { toast } from "@/lib/hooks/use-toast";
@@ -30,6 +30,33 @@ const UserSearchWithInvite = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [filteredTags, setFilteredTags] = useState<string[]>([]);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
+
+  // Read after awaiting the invite request, when the closure may be out of date.
+  const latestSelectedTags = useRef(selectedTags);
+  latestSelectedTags.current = selectedTags;
+
+  // Compared by value because several callers build initialTags on every render.
+  const initialTagsKey = JSON.stringify(initialTags);
+  const syncedInitialTagsKey = useRef(initialTagsKey);
+
+  // The parent can change the team outside this component, and it saves whatever
+  // list we send as a full replace, so a stale chip would undo that change.
+  // Tags the parent has not seen yet stay: a save still in flight, or a pending
+  // invitation, which the project page never adds to the team.
+  useEffect(() => {
+    if (syncedInitialTagsKey.current === initialTagsKey) return;
+
+    const previousTags: string[] = JSON.parse(syncedInitialTagsKey.current);
+    const nextTags: string[] = JSON.parse(initialTagsKey);
+    syncedInitialTagsKey.current = initialTagsKey;
+
+    setSelectedTags((current) => [
+      ...nextTags,
+      ...current.filter(
+        (tag) => !previousTags.includes(tag) && !nextTags.includes(tag)
+      ),
+    ]);
+  }, [initialTagsKey]);
 
   useEffect(() => {
     if (tagInput) {
@@ -110,7 +137,7 @@ const UserSearchWithInvite = ({
       });
 
       // Add the invited email to selected tags so it shows up in the UI
-      const newSelectedTags = [...selectedTags, email.trim()];
+      const newSelectedTags = [...latestSelectedTags.current, email.trim()];
       setSelectedTags(newSelectedTags);
       onTagsChange(newSelectedTags);
 
