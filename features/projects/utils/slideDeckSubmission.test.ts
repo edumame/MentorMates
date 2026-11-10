@@ -4,6 +4,8 @@ import {
   buildSubmissionFormValues,
   buildSubmissionValuesFromProject,
   findMissingRequiredSubmissionField,
+  getSavedUrlRows,
+  splitUrlRows,
   type EffectiveSubmissionField,
 } from './effectiveSubmission';
 import type { Project, ProjectSubmissionAnswer } from '@/lib/types';
@@ -51,9 +53,37 @@ describe('required slide deck submission', () => {
     expect(buildSubmissionAnswersPayload([custom], values)[0].answer).toBe(url);
   });
 
+  it('uses the first non-blank legacy row for a single-file field', () => {
+    const values = buildSubmissionFormValues([deck], () => ['', ` ${url} `]);
+    expect(values.additional_materials).toBe(url);
+  });
+
   it('preserves multiple decks for multi-file fields', () => {
     const field = { ...deck, field_type: 'multi_file' as const };
     const values = buildSubmissionFormValues([field], () => [url, 'https://example.com/appendix.pdf']);
     expect(buildSubmissionAnswersPayload([field], values)[0].answer).toEqual([url, 'https://example.com/appendix.pdf']);
+  });
+});
+
+describe('link field rows', () => {
+  const project = (fieldType: string, answer: string | string[] | undefined) => ({
+    has_submission_field_config: true,
+    submission_fields: [{ id: 'f', key: 'project_url', field_type: fieldType }],
+    submission_answers: answer === undefined ? [] : [{ event_submission_field_id: 'f', answer }],
+  }) as unknown as Partial<Project>;
+
+  it('splits array and string values into a primary link and extras', () => {
+    expect(splitUrlRows(['a', '', 'b'])).toEqual({ primary: 'a', extras: ['', 'b'] });
+    expect(splitUrlRows([])).toEqual({ primary: '', extras: [] });
+    expect(splitUrlRows('a')).toEqual({ primary: 'a', extras: [] });
+  });
+
+  it('reads saved rows only from configured multi-value fields', () => {
+    expect(getSavedUrlRows(project('multi_url', [' a ', '', 'b']), 'project_url')).toEqual(['a', 'b']);
+    expect(getSavedUrlRows(project('multi_url', 'a'), 'project_url')).toEqual(['a']);
+    expect(getSavedUrlRows(project('multi_url', undefined), 'project_url')).toEqual([]);
+    expect(getSavedUrlRows(project('url', 'a'), 'project_url')).toEqual([]);
+    expect(getSavedUrlRows(project('multi_url', ['a']), 'video_url')).toEqual([]);
+    expect(getSavedUrlRows({ ...project('multi_url', ['a']), has_submission_field_config: false }, 'project_url')).toEqual([]);
   });
 });

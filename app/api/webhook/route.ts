@@ -441,19 +441,26 @@ export async function POST(req: NextRequest) {
     const event = payload as CallSessionParticipantLeftEvent;
     const meetingId = event.call_cid.split(":")[1];
 
-    const call = streamVideo.video.call("default", meetingId);
-    await call.end();
-    try {
-      const workerUrl2 = process.env.SCREEN_VISION_WORKER_URL;
-      if (workerUrl2) {
-        await fetch(`${workerUrl2.replace(/\/$/, "")}/session/stop`, {
-          method: "POST",
-          headers: workerHeaders(),
-          body: JSON.stringify({ meetingId }),
-        });
-      }
-    } catch (e) {
-      console.warn("failed to notify worker about participant_left", e);
+    const { data: meeting, error: meetingError } = await supabase
+      .from("meetings")
+      .select("agent_id, user_id")
+      .eq("id", meetingId)
+      .maybeSingle();
+
+    if (meetingError || !meeting) {
+      return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+    }
+
+    // A departure may only be a page refresh or a dropped connection, and an
+    // ended call can never be re-joined, so decide after a grace window. An
+    // agent dropping is no reason to end the call for the people still in it.
+    // call.session_ended stops the worker once the call really ends.
+    const leftUserId = event.participant?.user?.id;
+    if (leftUserId !== meeting.agent_id) {
+      await inngest.send({
+        name: "meetings/participant-left",
+        data: { meetingId, agentId: meeting.agent_id, ownerId: meeting.user_id, leftUserId },
+      });
     }
   } else if (eventType === "call.session_ended") {
     const event = payload as CallEndedEvent;

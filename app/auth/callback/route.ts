@@ -5,8 +5,10 @@ import { hasPersistedOnboardingState } from "@/features/user/onboarding/metadata
 import { getSafeRedirectPath } from "@/features/user/authentication/redirect/redirect-url";
 import {
   buildSignupConsentMetadata,
+  CONSENT_QUERY_PARAMS,
   hasRecordedTermsAcceptance,
   parseConsentParams,
+  requiresTermsAcceptance,
 } from "@/features/user/authentication/signup-consent";
 
 export async function GET(request: Request) {
@@ -43,6 +45,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
   }
 
+  // Default redirect for non-mentor users
+  const returnUrl = getSafeRedirectPath(
+    searchParams.get("returnUrl"),
+    cleanBaseUrl
+  );
+
   // Record sign-up consent passed through from the OAuth sign-up form. Never
   // overwrite an existing acceptance (e.g. a returning user who re-clicked
   // "Sign up with Google").
@@ -54,6 +62,23 @@ export async function GET(request: Request) {
     if (consentError) {
       console.error("Error recording sign-up consent:", consentError);
     }
+  } else if (!consent.acceptedTerms && requiresTermsAcceptance(user)) {
+    // OAuth creates the account even from the sign-in screen, where no consent
+    // is collected. Sign out so the sign-up page doesn't bounce them back in.
+    const { error: signOutError } = await supabase.auth.signOut({
+      scope: "local",
+    });
+    if (signOutError) {
+      console.error("Error clearing session for terms consent:", signOutError);
+      return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
+    }
+    const signupUrl = new URL("/login", cleanBaseUrl);
+    signupUrl.searchParams.set("mode", "signup");
+    signupUrl.searchParams.set(CONSENT_QUERY_PARAMS.required, "1");
+    if (returnUrl && returnUrl !== "/") {
+      signupUrl.searchParams.set("returnUrl", returnUrl);
+    }
+    return NextResponse.redirect(signupUrl);
   }
 
   // Try to check user profile first
@@ -96,12 +121,6 @@ export async function GET(request: Request) {
       console.error("Error sending welcome email:", emailError);
     }
   }
-
-  // Default redirect for non-mentor users
-  const returnUrl = getSafeRedirectPath(
-    searchParams.get("returnUrl"),
-    cleanBaseUrl
-  );
 
   // If onboarding metadata is missing or empty, redirect to onboarding flow
   const needsOnboarding = !hasPersistedOnboardingState(

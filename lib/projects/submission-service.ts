@@ -573,12 +573,13 @@ export async function saveProjectSubmission(
   let existingProjectEventId: string | null | undefined = input.eventId;
   let existingProjectName: string | null = null;
   let existingProjectDescription: string | null = null;
+  let existingProjectIsDraft = false;
   let existingTeammates: string[] | null = null;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description, teammates",
+        "id, event_id, contextus_project_id, project_name, project_description, teammates, submitted",
       )
       .eq("id", projectId)
       .single()
@@ -591,6 +592,7 @@ export async function saveProjectSubmission(
           | "project_name"
           | "project_description"
           | "teammates"
+          | "submitted"
         >
       >();
     if (error || !existingProject) {
@@ -605,6 +607,7 @@ export async function saveProjectSubmission(
     existingProjectName = existingProject.project_name ?? null;
     existingProjectDescription = existingProject.project_description ?? null;
     existingTeammates = existingProject.teammates;
+    existingProjectIsDraft = existingProject.submitted === false;
   }
 
   const validation = await validateProjectEventContext(
@@ -683,6 +686,11 @@ export async function saveProjectSubmission(
   const isNonEmptyString = (value: unknown): value is string =>
     typeof value === "string" && value.trim().length > 0;
 
+  // Drafts created by POST /api/projects start with no name or description, so
+  // the locked fields only apply once the saved project is submitted.
+  const resultingSubmitted = submitted ?? !existingProjectIsDraft;
+  const staysDraft = mode === "update" && !resultingSubmitted;
+
   const lockedFieldErrors: string[] = [];
   const finalProjectName =
     updateData.project_name !== undefined
@@ -693,10 +701,10 @@ export async function saveProjectSubmission(
       ? updateData.project_description
       : existingProjectDescription;
 
-  if (!isNonEmptyString(finalProjectName)) {
+  if (!staysDraft && !isNonEmptyString(finalProjectName)) {
     lockedFieldErrors.push("project_name");
   }
-  if (!isNonEmptyString(finalProjectDescription)) {
+  if (!staysDraft && !isNonEmptyString(finalProjectDescription)) {
     lockedFieldErrors.push("project_description");
   }
 
@@ -970,13 +978,15 @@ export async function saveProjectSubmission(
   const contextusProjectId = await maybeCreateContextusProject(supabase, {
     projectId: finalProjectId,
     contextusProjectId: updatedProject.contextus_project_id,
-    label: input.projectName,
-    leadName: input.leadName,
+    // Publishing a draft can send only { projectId, submitted }, so read these
+    // from the saved row rather than the request.
+    label: updatedProject.project_name ?? undefined,
+    leadName: updatedProject.lead_name ?? undefined,
     leadEmail: updatedProject.lead_email ?? undefined,
     eventId: existingProjectEventId ?? input.eventId,
-    projectDescription: input.projectDescription,
-    projectUrl: legacyFields.project_url,
-    submitted,
+    projectDescription: updatedProject.project_description ?? undefined,
+    projectUrl: legacyFields.project_url ?? updatedProject.project_url ?? null,
+    submitted: staysDraft ? false : submitted,
   });
 
   const [fieldMap, answerMap, artifactMap] = await Promise.all([

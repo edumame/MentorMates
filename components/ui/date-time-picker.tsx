@@ -61,6 +61,19 @@ const getUserTimezone = (): string => {
   }
 };
 
+// Calendar and updateDateTime work with browser-local dates, so the instant is
+// re-expressed as the browser-local date matching its day in the given timezone.
+const toDisplayDay = (date: Date, tz: string): Date => {
+  try {
+    const [year, month, day] = formatInTimeZone(date, tz, "yyyy-MM-dd")
+      .split("-")
+      .map(Number);
+    return new Date(year, month - 1, day);
+  } catch {
+    return date;
+  }
+};
+
 export function DateTimePicker({
   value,
   onChange,
@@ -137,14 +150,13 @@ export function DateTimePicker({
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
-    setSelectedDate(date);
     updateDateTime(date, timeString, selectedTimezone);
   };
 
   const handleTimeChange = (time: string) => {
     setTimeString(time);
     if (selectedDate) {
-      updateDateTime(selectedDate, time, selectedTimezone);
+      updateDateTime(toDisplayDay(selectedDate, selectedTimezone), time, selectedTimezone);
     }
   };
 
@@ -164,6 +176,8 @@ export function DateTimePicker({
       return;
     }
     setTimeError(null);
+    // Keep selectedDate as the saved instant, not the calendar's local date.
+    setSelectedDate(new Date(result.iso));
     onChange?.(result.iso);
   };
 
@@ -233,7 +247,7 @@ export function DateTimePicker({
             {/* On narrow screens show time first so it stays above the fold */}
             <div className="flex flex-col-reverse gap-4 md:flex-col md:gap-4">
               <Calendar
-                selected={selectedDate}
+                selected={selectedDate && toDisplayDay(selectedDate, selectedTimezone)}
                 onSelect={handleDateSelect}
               />
 

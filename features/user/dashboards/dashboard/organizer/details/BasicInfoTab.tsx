@@ -983,8 +983,18 @@ export function BasicInfoTab({
           </div>
           <ArchiveEventDialog
             event={event}
-            onVisibilityChange={(visibility) =>
-              setEvent((prev) => (prev ? { ...prev, visibility } : prev))
+            onVisibilityChange={(visibility, approvalStatus) =>
+              setEvent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      visibility,
+                      ...(approvalStatus !== undefined
+                        ? { approval_status: approvalStatus }
+                        : {}),
+                    }
+                  : prev
+              )
             }
             trigger={({ busy, isArchived: archived }) => (
               <Button
