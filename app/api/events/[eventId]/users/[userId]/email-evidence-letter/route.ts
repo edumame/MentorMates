@@ -7,6 +7,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import { escapeHtml } from "@/lib/email_templates/escape-html";
 import {
   EvidenceLetterData,
   generateEvidenceLetterPdf,
@@ -36,15 +37,6 @@ const ALLOWED_ROLES = new Set<EventRole>([EventRole.Judge, EventRole.Mentor]);
 interface EmailLetterBody {
   letterData: EvidenceLetterData;
   coverNote?: string;
-}
-
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 function buildCoverHtml(
