@@ -1,4 +1,7 @@
+import { Resend } from "resend";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import { NextRequest, NextResponse } from "next/server";
+import { EventRole } from "@/lib/types";
 import {
   authenticateAgentRequest,
   authorizeAgentEventAccess,
@@ -94,7 +97,9 @@ export async function POST(request: NextRequest) {
     const scopeError = requireScope(auth, "participants:write");
     if (scopeError) return scopeError;
 
-    const access = await authorizeAgentEventAccess(auth);
+    const access = await authorizeAgentEventAccess(auth, EventRole.Organizer, {
+      intent: "write",
+    });
     if (access instanceof NextResponse) return access;
 
     const body = await request.json();
@@ -152,21 +157,13 @@ export async function POST(request: NextRequest) {
         };
         if (!profile?.email) return { skipped: true, user_id: judge.user_id };
 
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email_notification`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: profile.email,
-              from: "hello@mentormates.ai",
-              subject: `[${event?.event_name || "MentorMates"}] ${subject}`,
-              html: `<p>Hi ${profile.display_name || ""},</p><p>${message.replace(/\n/g, "<br>")}</p><p>— ${event?.event_name || "MentorMates"} Team</p>`,
-            }),
-          }
-        );
+        const { error: sendError } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+          to: profile.email, from: NOTIFICATIONS_EMAIL_FROM,
+          subject: `[${event?.event_name || "MentorMates"}] ${subject}`,
+          text: `Hi ${profile.display_name || ""},\n\n${message}\n\n— ${event?.event_name || "MentorMates"} Team`,
+        });
 
-        return { sent: res.ok, email: profile.email };
+        return { sent: !sendError, email: profile.email };
       })
     );
 

@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import { sendEventInviteEmails } from "@/lib/events/invite-emails";
+import { reserveInviteQuota } from "@/lib/email/invite-quota";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, EventVisibility } from "@/lib/types";
 
@@ -84,46 +85,25 @@ export async function POST(request: Request) {
     inviterProfile?.email?.trim() ||
     "A MentorMates organizer";
 
-  const serviceSupabase = createSupabaseServiceClient();
-  const { data: existingUser } = await serviceSupabase
-    .from("user_profiles")
-    .select("uid")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  if (existingUser) {
-    const { error } = await supabase.from("user_event_roles").upsert(
-      {
-        user_id: existingUser.uid,
-        event_id: eventId,
-        role: EventRole.Judge,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,event_id" }
-    );
-
-    if (error) {
-      return NextResponse.json(
-        { error: "Failed to invite judge" },
-        { status: 500 }
-      );
-    }
-  }
-
+  // ORG-012 / MENT-008: never grant the judge role here. Every invitee,
+  // existing account or not, receives a signed invitation and becomes a judge
+  // only after accepting it while signed in with this email
+  // (app/api/events/[eventId]/accept-invite).
   const resend = getResend();
-  if (!resend && !existingUser) {
+  if (!resend) {
     return NextResponse.json(
       { error: "Email is not configured (RESEND_API_KEY missing)" },
       { status: 503 }
     );
   }
 
-  if (!resend) {
-    return NextResponse.json({
-      success: true,
-      userExists: true,
-    });
-  }
+  // ORG-012: per-inviter and per-event daily caps.
+  const quotaResponse = await reserveInviteQuota(
+    createSupabaseServiceClient(),
+    auth.user.id,
+    eventId
+  );
+  if (quotaResponse) return quotaResponse;
 
   const summary = await sendEventInviteEmails({
     appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin,
@@ -157,15 +137,13 @@ export async function POST(request: Request) {
     },
   });
 
-  if (!existingUser && summary.sent.judge !== 1) {
+  if (summary.sent.judge !== 1) {
     return NextResponse.json(
       { error: "Failed to send invitation email" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({
-    success: true,
-    userExists: Boolean(existingUser),
-  });
+  // Uniform response: whether the address has an account is not disclosed.
+  return NextResponse.json({ success: true });
 }

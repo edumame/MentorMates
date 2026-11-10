@@ -4,6 +4,7 @@ import { PATCH } from "./route";
 import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
+import { NextResponse } from "next/server";
 
 jest.mock("next/server", () => {
   class MockNextResponse {
@@ -146,5 +147,29 @@ describe("PATCH /api/agent/events/participants", () => {
       error: "Only admins can modify organizer-level roles",
     });
     expect(deleteQuery.delete).not.toHaveBeenCalled();
+  });
+  it("asks for write access, so archived events are refused before any write (XL-001)", async () => {
+    const archived = NextResponse.json(
+      { error: "archived events are read-only; unarchive first" },
+      { status: 409 }
+    );
+    (authorizeAgentEventAccess as jest.Mock).mockResolvedValue(archived);
+    const from = jest.fn();
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({ from });
+
+    const response = await PATCH({
+      json: async () => ({
+        user_id: "44444444-4444-4444-8444-444444444444",
+        action: "remove",
+      }),
+    } as never);
+
+    expect(authorizeAgentEventAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "22222222-2222-4222-8222-222222222222" }),
+      EventRole.Organizer,
+      { intent: "write" }
+    );
+    expect(response).toBe(archived);
+    expect(from).not.toHaveBeenCalled();
   });
 });

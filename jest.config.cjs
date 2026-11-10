@@ -1,3 +1,5 @@
+// next/jest is loaded by this CommonJS configuration.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const nextJest = require("next/jest");
 
 const createJestConfig = nextJest({
@@ -6,8 +8,8 @@ const createJestConfig = nextJest({
 
 const customJestConfig = {
   testEnvironment: "jsdom",
-  // Browser journeys run through the dedicated Playwright configuration.
-  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/e2e/"],
+  // Browser journeys use Playwright; audit snapshots are historical bug reproductions, not regression tests.
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/e2e/", "<rootDir>/audit-recovery/", "<rootDir>/audit-2026-11-06/"],
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",

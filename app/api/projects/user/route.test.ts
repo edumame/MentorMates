@@ -34,6 +34,18 @@ it("only reports prizes won in the event each project belongs to", async () => {
         error: null,
       }),
     },
+    // Membership and team emails come from RPCs (email columns are hidden).
+    rpc: async (name: string) => ({
+      data:
+        name === "my_project_ids"
+          ? projects.map((project) => project.id)
+          : projects.map((project) => ({
+              project_id: project.id,
+              lead_email: "lead@example.test",
+              teammates: [],
+            })),
+      error: null,
+    }),
     from: (table: string) => chain(table === "projects" ? projects : prizes),
   } as never);
 

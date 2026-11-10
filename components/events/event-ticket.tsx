@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ interface EventTicketProps {
 }
 
 export function EventTicket({ eventId }: EventTicketProps) {
+  const emailRequestId = useRef<string | null>(null);
   const [tickets, setTickets] = useState<EventTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
@@ -143,6 +144,8 @@ export function EventTicket({ eventId }: EventTicketProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          requestId: emailRequestId.current ||= crypto.randomUUID(),
+          ticketId,
           to: ticketEmail,
           from: NOTIFICATIONS_EMAIL_FROM,
           subject: email.subject,
@@ -154,6 +157,7 @@ export function EventTicket({ eventId }: EventTicketProps) {
         throw new Error("Failed to send invitation email");
       }
 
+      emailRequestId.current = null;
       const updatedTickets = await fetchMyTickets();
       setTickets(updatedTickets);
 

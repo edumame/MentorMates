@@ -47,6 +47,15 @@ function client() {
         error: null,
       }),
     },
+    rpc: async (name: string) =>
+      name === "project_team_emails"
+        ? {
+            data: [
+              { project_id: projectId, lead_email: "lead@example.test", teammates: [] },
+            ],
+            error: null,
+          }
+        : { data: [projectId], error: null },
     from: (table: string) => {
       const filters: Record<string, unknown> = {};
       const result = () => {

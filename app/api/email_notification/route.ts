@@ -1,122 +1,64 @@
-import { supabase } from "@/lib/supabase";
-import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
+import { createHash } from "node:crypto";
+import { NextResponse } from 'next/server';
+import { Resend } from 'resend';
+import { z } from 'zod';
+import { createSupabaseClient } from '@/app/utils/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
+import { getClaimTicketEmailTemplate } from '@/lib/email_templates/claim-ticket';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-interface EmailData {
-  from: string;
-  to: string;
-  subject: string;
-  html: string;
-  bcc?: string[];
-  cc?: string[];
-}
-
-
-// assuming resend allows 50 recipients per email, we need to send in batches of 49 to include the "to" recipient
-const MAX_RECIPIENTS_PER_BATCH = 49;
-
-function chunkArray<T>(array: T[], chunkSize: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += chunkSize) {
-    chunks.push(array.slice(i, i + chunkSize));
-  }
-  return chunks;
-}
-
-export async function POST(request: NextRequest) {
+const schema = z.object({
+  requestId: z.string().uuid(),
+  eventId: z.string().uuid().optional(), ticketId: z.string().uuid().optional(),
+  to: z.string().email(), bcc: z.array(z.string().email()).max(500).default([]),
+  cc: z.array(z.string().email()).max(500).default([]),
+  subject: z.string().min(1).max(250), html: z.string().min(1).max(100_000),
+});
+export async function POST(request: Request) {
   try {
-    const { to, from, subject, html, bcc, cc } = await request.json();
-
-    const { data: user } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const session = await createSupabaseClient();
+    const { data: { user }, error: authError } = await session.auth.getUser();
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const parsed = schema.safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid email request' }, { status: 400 });
+    const body = parsed.data;
+    const service = createSupabaseServiceClient();
+    let recipients: string[];
+    let subject = body.subject, html = body.html;
+    if (body.ticketId) {
+      const { data: ticket, error } = await service.from('event_tickets').select('id,event_id,purchased_by_user_id,assigned_to_email').eq('id', body.ticketId).maybeSingle();
+      if (error) throw error;
+      if (!ticket || ticket.purchased_by_user_id !== user.id || ticket.assigned_to_email?.toLowerCase() !== body.to.toLowerCase()) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      const { data: event } = await service.from('events').select('event_name').eq('event_id', ticket.event_id).single();
+      const template = getClaimTicketEmailTemplate(event?.event_name || 'Event', ticket.id, 'A ticket holder');
+      subject = template.subject; html = template.html; recipients = [body.to];
+    } else {
+      if (!body.eventId) return NextResponse.json({ error: 'eventId required' }, { status: 400 });
+      const { data: allowed, error } = await session.rpc('is_event_organizer_or_owner', { p_event_id: body.eventId, p_user_id: user.id });
+      const { data: admin, error: adminError } = await session.rpc('is_admin_user', { user_id: user.id });
+      if (error || adminError) throw new Error('Permission lookup failed');
+      if (!allowed && !admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      recipients = [...new Set((body.bcc.length || body.cc.length ? [...body.bcc, ...body.cc] : [body.to]).map(x => x.toLowerCase()))];
+      if (recipients.length > 500) return NextResponse.json({ error: 'Too many recipients' }, { status: 400 });
+      const { data: members, error: memberError } = await service.from('user_event_roles').select('user_profiles!user_event_roles_user_id_fkey1!inner(email)').eq('event_id', body.eventId).in('user_profiles.email', recipients);
+      if (memberError) throw memberError;
+      const emails = new Set((members || []).flatMap(row => {
+        const profiles = row.user_profiles as unknown as { email?: string } | { email?: string }[];
+        return (Array.isArray(profiles) ? profiles : [profiles]).map(p => p?.email?.toLowerCase());
+      }));
+      if (recipients.some(email => !emails.has(email))) return NextResponse.json({ error: 'Recipients must belong to the event' }, { status: 403 });
     }
-
-    const bccArray: string[] = Array.isArray(bcc) ? bcc : [];
-    const ccArray: string[] = Array.isArray(cc) ? cc : [];
-
-    // Check if we need to batch
-    const needsBatching = bccArray.length > MAX_RECIPIENTS_PER_BATCH || ccArray.length > MAX_RECIPIENTS_PER_BATCH;
-
-    if (!needsBatching) {
-      // Single email send
-      const emailData: EmailData = {
-        from: from,
-        to: to,
-        subject: subject,
-        html: html,
-        bcc: bccArray,
-        cc: ccArray,
-      };
-
-      const { error: resendError } = await resend.emails.send(emailData);
-      console.error(resendError);
-
-      if (resendError) {
-        return NextResponse.json(
-          { error: "Failed to send email" },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json(
-        { message: "Email sent successfully" },
-        { status: 200 }
-      );
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    // Provider batches are bounded; each retry uses the same content-bound key.
+    recipients.sort();
+    for (let offset = 0; offset < recipients.length; offset += 100) {
+      const batch = recipients.slice(offset, offset + 100).map(to => ({ from: NOTIFICATIONS_EMAIL_FROM, to, subject, html }));
+      const key = createHash('sha256').update(JSON.stringify([user.id, body.requestId, offset, batch])).digest('hex');
+      const { error } = await resend.batch.send(batch, { idempotencyKey: key });
+      if (error) return NextResponse.json({ error: 'Some emails failed to send', sent: offset, retryWithSameRequestId: true }, { status: 422 });
     }
-
-    // Batch processing
-    const bccBatches = chunkArray<string>(bccArray, MAX_RECIPIENTS_PER_BATCH);
-    const ccBatches = chunkArray<string>(ccArray, MAX_RECIPIENTS_PER_BATCH);
-    
-    // Determine the maximum number of batches needed
-    const maxBatches = Math.max(bccBatches.length, ccBatches.length);
-    
-    const sendPromises: Promise<unknown>[] = [];
-
-    for (let i = 0; i < maxBatches; i++) {
-      const batchBcc: string[] = bccBatches[i] || [];
-      const batchCc: string[] = ccBatches[i] || [];
-
-      const emailData: EmailData = {
-        from: from,
-        to: to,
-        subject: subject,
-        html: html,
-        bcc: batchBcc,
-        cc: batchCc,
-      };
-
-      sendPromises.push(resend.emails.send(emailData));
-    }
-
-    const results = await Promise.allSettled(sendPromises);
-    
-    // Check for any failures
-    const failures = results.filter((result) => result.status === "rejected" || 
-      (result.status === "fulfilled" && result.value && typeof result.value === "object" && "error" in result.value && result.value.error)
-    );
-
-    if (failures.length > 0) {
-      console.error("Some email batches failed:", failures);
-      return NextResponse.json(
-        { error: "Some emails failed to send", failedBatches: failures.length },
-        { status: 422 }
-      );
-    }
-
-    return NextResponse.json(
-      { message: `Email sent successfully in ${maxBatches} batch(es)` },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: "Failed to send email" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: 'Email sent successfully' });
+  } catch {
+    return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
   }
 }

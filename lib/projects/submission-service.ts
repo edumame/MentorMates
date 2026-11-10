@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getTeamEmails } from "@/lib/projects/membership";
 import type { Database, Json } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 import { createContextusProject } from "@/lib/integrations/contextus";
@@ -40,10 +41,30 @@ const projectWriteSchema = z.object({
   extraMaterialsUrls: z.array(z.string()).optional(),
 });
 
-export type NormalizedProjectWriteInput = z.infer<typeof projectWriteSchema>;
 
-// SQLSTATE raised by the guard_project_event_move trigger.
-const PROJECT_EVENT_MOVE_REFUSED_SQLSTATE = "MM001";
+/**
+ * Database guards on projects (lane A1): moving a project to another event is
+ * refused once it has scores/prizes/votes or a round advancement (23514) or
+ * when the target event was not joined (42501). Surface those as client errors instead of a 500.
+ */
+export function mapProjectUpdateError(error: { code?: string | null; message?: string | null }) {
+  if (error.code === "23514") {
+    return {
+      error:
+        "This project can't be moved to another event because it already has scores, prizes, votes or a round advancement.",
+      status: 400 as const,
+    };
+  }
+  if (error.code === "42501") {
+    return {
+      error: "You can only move a project to an event you have joined.",
+      status: 403 as const,
+    };
+  }
+  return null;
+}
+
+export type NormalizedProjectWriteInput = z.infer<typeof projectWriteSchema>;
 
 type ConfiguredSubmissionField = {
   key: string;
@@ -449,74 +470,6 @@ async function validateProjectEventContext(
   };
 }
 
-/**
- * A project may only move into an event its editor belongs to, and never once
- * it holds a prize, because the prize belongs to the event that awarded it.
- * Round advancements are hidden from participants by RLS, so those are refused
- * by the guard_project_event_move trigger, which also covers direct table writes.
- */
-async function checkProjectEventMove(
-  supabase: ServiceSupabaseClient,
-  options: {
-    projectId: string;
-    targetEventId: string;
-    actorUserId: string | undefined;
-  },
-) {
-  const { projectId, targetEventId, actorUserId } = options;
-  const noRole = {
-    error: "You must be part of an event to move a project into it",
-    status: 403 as const,
-  };
-
-  if (!actorUserId) {
-    return noRole;
-  }
-
-  const { data: targetRole, error: roleError } = await supabase
-    .from("user_event_roles")
-    .select("role")
-    .eq("event_id", targetEventId)
-    .eq("user_id", actorUserId)
-    .maybeSingle()
-    .overrideTypes<{ role: string } | null>();
-
-  if (roleError) {
-    console.error("[submit] fetch target event role failed", {
-      targetEventId,
-      error: roleError,
-    });
-    return { error: "Failed to verify event access", status: 500 as const };
-  }
-
-  if (!targetRole) {
-    return noRole;
-  }
-
-  const { data: prizeWins, error: prizeWinsError } = await supabase
-    .from("prize_winners")
-    .select("id")
-    .eq("project_id", projectId)
-    .limit(1);
-
-  if (prizeWinsError) {
-    console.error("[submit] fetch prize wins failed", {
-      projectId,
-      error: prizeWinsError,
-    });
-    return { error: "Failed to verify project prizes", status: 500 as const };
-  }
-
-  if (prizeWins && prizeWins.length > 0) {
-    return {
-      error: "A project that has won a prize cannot be moved to another event",
-      status: 409 as const,
-    };
-  }
-
-  return null;
-}
-
 async function maybeCreateContextusProject(
   supabase: ServiceSupabaseClient,
   options: {
@@ -583,8 +536,6 @@ export async function saveProjectSubmission(
     mode: "create" | "update";
     projectId?: string;
     defaultSubmitted?: boolean;
-    /** Required for an update to change the project's event. */
-    actorUserId?: string;
   },
 ) {
   const { input, mode } = options;
@@ -641,17 +592,6 @@ export async function saveProjectSubmission(
         error,
       });
       return { error: "Project not found", status: 404 as const };
-    }
-
-    if (input.eventId && input.eventId !== existingProject.event_id) {
-      const moveRefusal = await checkProjectEventMove(supabase, {
-        projectId,
-        targetEventId: input.eventId,
-        actorUserId: options.actorUserId,
-      });
-      if (moveRefusal) {
-        return moveRefusal;
-      }
     }
 
     existingProjectEventId = input.eventId ?? existingProject.event_id;
@@ -803,19 +743,27 @@ export async function saveProjectSubmission(
 
     finalProjectId = createdProject.id;
   } else {
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("projects")
       .update(updateData)
-      .eq("id", finalProjectId!);
-    if (error?.code === PROJECT_EVENT_MOVE_REFUSED_SQLSTATE) {
-      return { error: error.message, status: 409 as const };
-    }
+      .eq("id", finalProjectId!)
+      .select("id");
     if (error) {
+      const mapped = mapProjectUpdateError(error);
+      if (mapped) return mapped;
       console.error("[submit] update project failed", {
         projectId: finalProjectId,
         error,
       });
       return { error: "Failed to update project", status: 500 as const };
+    }
+    // RLS filters an unauthorised UPDATE to zero rows without an error; that
+    // must not be reported as a successful save (PUB-011).
+    if (!updatedRows || updatedRows.length === 0) {
+      return {
+        error: "You don't have permission to edit this project",
+        status: 403 as const,
+      };
     }
   }
 
@@ -955,9 +903,7 @@ export async function saveProjectSubmission(
       id,
       project_name,
       lead_name,
-      lead_email,
       project_description,
-      teammates,
       project_url,
       video_url,
       additional_materials_url,
@@ -996,7 +942,14 @@ export async function saveProjectSubmission(
     return { error: "Failed to fetch updated project", status: 500 as const };
   }
 
-  const updatedProject = updatedProjectRow;
+  // Team emails are not client-readable columns; the saver is a team member
+  // or organizer, so project_team_emails returns them.
+  const savedTeamEmails = (await getTeamEmails(supabase, [finalProjectId])).get(finalProjectId);
+  const updatedProject: ProjectBaseRow = {
+    ...updatedProjectRow,
+    lead_email: savedTeamEmails?.lead_email ?? null,
+    teammates: savedTeamEmails?.teammates ?? null,
+  };
 
   const contextusProjectId = await maybeCreateContextusProject(supabase, {
     projectId: finalProjectId,
