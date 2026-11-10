@@ -182,3 +182,23 @@ describe("helpers shared with ParticipantIntakeDialog", () => {
     expect(satisfiesRequired(schema.fields[0], "")).toBe(false);
   });
 });
+
+describe("required selects with no usable options", () => {
+  it.each(["single_select", "multi_select"] as const)(
+    "does not require a %s whose options are all blank (client and server agree)",
+    (type) => {
+      const f = field({ key: "pick", type, required: true, options: ["", "  "] });
+      expect(satisfiesRequired(f, undefined)).toBe(true);
+      expect(validateIntakeAnswers({ title: "T", fields: [f] }, {})).toEqual({ ok: true, answers: {} });
+    }
+  );
+
+  it("still requires a select that has at least one usable option", () => {
+    const f = field({ key: "pick", type: "single_select", required: true, options: ["A", ""] });
+    expect(satisfiesRequired(f, undefined)).toBe(false);
+    expect(validateIntakeAnswers({ title: "T", fields: [f] }, {})).toEqual({
+      ok: false,
+      errors: { pick: "This field is required" },
+    });
+  });
+});

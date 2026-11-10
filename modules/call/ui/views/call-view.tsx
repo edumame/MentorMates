@@ -12,5 +12,7 @@ export const CallView = ({ meetingId }: Props) => {
     const trpc = useTRPC();
     const { data } = useSuspenseQuery(trpc.meetings.getOne.queryOptions({ id: meetingId }));
 
-    return <CallProvider meetingId={meetingId} meetingName={(data as { name: string }).name} />
+    const { name, user_id } = data as { name: string; user_id: string | null };
+
+    return <CallProvider meetingId={meetingId} meetingName={name} meetingOwnerId={user_id} />
 };

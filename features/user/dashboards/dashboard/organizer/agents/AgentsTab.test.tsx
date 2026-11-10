@@ -1,98 +1,46 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import React from "react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AgentsTab } from "./AgentsTab";
 
-const CURRENT_USER = "user-b";
-const LINKED_EVENT = { event_id: "event-linked", event_name: "Linked Hack" };
-const OTHER_EVENT = { event_id: "event-other", event_name: "Other Hack" };
+const EVENT_X = "aaaaaaaa-0000-0000-0000-000000000001";
+const EVENT_Y = "bbbbbbbb-0000-0000-0000-000000000002";
+const AGENT_ID = "cccccccc-0000-0000-0000-000000000003";
 
-const toast = jest.fn();
-const linkToEvents = jest.fn();
-const unlinkFromEvents = jest.fn();
-const updateEventSessionCaps = jest.fn();
+let mockAgents: Array<Record<string, unknown>> = [];
+let mockLinkRows: Array<{ event_id: string }> = [];
+const mockLinkToEvents = jest.fn();
+const mockUnlinkFromEvents = jest.fn();
+const mockUpdateCaps = jest.fn();
 
-let agents: Array<Record<string, unknown>> = [];
-let mockAgentCaps: Record<string, number> = {};
-
-jest.mock("@/lib/hooks/use-toast", () => ({
-  toast: (...args: unknown[]) => toast(...args),
+jest.mock("@/trpc/client", () => ({
+  useTRPC: () =>
+    new Proxy(
+      {},
+      {
+        get: (_target, router: string) =>
+          new Proxy(
+            {},
+            {
+              get: (_inner, procedure: string) => ({
+                queryOptions: () => ({ key: `${router}.${procedure}` }),
+                mutationOptions: () => ({ key: procedure }),
+              }),
+            }
+          ),
+      }
+    ),
 }));
-
-jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
-  useAuth: () => ({ session: { user: { id: "user-b" } } }),
-}));
-
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn() }),
-}));
-
-jest.mock("@/lib/hooks/use-confirm", () => ({
-  useConfirm: () => [() => null, jest.fn()],
-}));
-
-jest.mock("@/modules/agents/ui/components/new-agent-dialog", () => ({
-  NewAgentDialog: () => null,
-}));
-
-jest.mock("@/modules/agents/ui/components/update-agent-dialog", () => ({
-  UpdateAgentDialog: () => null,
-}));
-
-jest.mock("@/modules/meetings/ui/components/meeting-form", () => ({
-  MeetingForm: () => null,
-}));
-
-jest.mock("@/components/responsive-dialog", () => ({
-  ResponsiveDialog: ({
-    open,
-    title,
-    children,
-  }: {
-    open: boolean;
-    title: string;
-    children: React.ReactNode;
-  }) =>
-    open ? (
-      <div role="dialog" aria-label={title}>
-        {children}
-      </div>
-    ) : null,
-}));
-
-jest.mock("@/trpc/client", () => {
-  const mutation = (name: string) => ({
-    mutationOptions: (options: Record<string, unknown> = {}) => ({ ...options, name }),
-  });
-  const trpc = {
-    agents: {
-      getMany: { queryOptions: () => ({ queryKey: ["agents"] }) },
-      update: mutation("update"),
-      remove: mutation("remove"),
-      updateEventSessionCaps: mutation("updateEventSessionCaps"),
-      linkToEvents: mutation("linkToEvents"),
-      unlinkFromEvents: mutation("unlinkFromEvents"),
-    },
-  };
-  return { useTRPC: () => trpc };
-});
 
 jest.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({ data: { items: agents }, isLoading: false }),
-  useQueryClient: () => ({ invalidateQueries: jest.fn().mockResolvedValue(undefined) }),
-  useMutation: (options: { name: string; onError?: (error: Error) => void }) => ({
+  useQuery: () => ({ data: { items: mockAgents } }),
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+  useMutation: (options: { key: string }) => ({
     isPending: false,
-    mutateAsync: async (input: unknown) => {
-      const handlers: Record<string, jest.Mock> = {
-        linkToEvents,
-        unlinkFromEvents,
-        updateEventSessionCaps,
-      };
-      try {
-        return await handlers[options.name]?.(input);
-      } catch (error) {
-        options.onError?.(error as Error);
-        throw error;
-      }
+    mutateAsync: (input: unknown) => {
+      if (options.key === "linkToEvents") return mockLinkToEvents(input);
+      if (options.key === "unlinkFromEvents") return mockUnlinkFromEvents(input);
+      if (options.key === "updateEventSessionCaps") return mockUpdateCaps(input);
+      return Promise.resolve();
     },
   }),
 }));
@@ -102,243 +50,216 @@ jest.mock("@/lib/supabase", () => {
     if (table === "user_event_roles") {
       return {
         data: [
-          {
-            event_id: "event-linked",
-            events: { event_id: "event-linked", event_name: "Linked Hack" },
-          },
-          {
-            event_id: "event-other",
-            events: { event_id: "event-other", event_name: "Other Hack" },
-          },
+          { event_id: "x", events: { event_id: EVENT_X, event_name: "Event X" } },
+          { event_id: "y", events: { event_id: EVENT_Y, event_name: "Event Y" } },
         ],
         error: null,
       };
     }
-    if (table === "agent_events") {
-      return { data: [{ event_id: "event-linked" }], error: null };
-    }
-    return {
-      data: [{ event_id: "event-linked", session_caps: { agent_caps: mockAgentCaps } }],
-      error: null,
-    };
+    if (table === "agent_events") return { data: mockLinkRows, error: null };
+    return { data: [], error: null };
   };
 
   return {
     supabase: {
       from: (table: string) => {
-        const result = resultFor(table);
-        const chain = {
-          select: () => chain,
-          eq: () => chain,
-          in: () => chain,
-          order: () => chain,
-          maybeSingle: async () => ({
-            data: { session_caps: { agent_caps: mockAgentCaps } },
-            error: null,
-          }),
-          then: (resolve: (value: typeof result) => unknown) => resolve(result),
-        };
+        const chain: Record<string, unknown> = {};
+        for (const method of ["select", "eq", "in", "order"]) {
+          chain[method] = () => chain;
+        }
+        chain.maybeSingle = () => Promise.resolve({ data: null, error: null });
+        chain.then = (resolve: (value: unknown) => unknown) =>
+          Promise.resolve(resultFor(table)).then(resolve);
         return chain;
       },
     },
   };
 });
 
-function agent(userId: string) {
+jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
+  useAuth: () => ({ session: { user: { id: "organizer-1" } } }),
+}));
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+jest.mock("@/lib/hooks/use-toast", () => ({ toast: jest.fn() }));
+jest.mock("@/lib/hooks/use-confirm", () => ({
+  useConfirm: () => [() => null, jest.fn()],
+}));
+jest.mock("@/modules/agents/ui/components/new-agent-dialog", () => ({
+  NewAgentDialog: () => null,
+}));
+jest.mock("@/modules/agents/ui/components/update-agent-dialog", () => ({
+  UpdateAgentDialog: () => null,
+}));
+jest.mock("@/modules/meetings/ui/components/meeting-form", () => ({
+  MeetingForm: () => null,
+}));
+jest.mock("@/components/responsive-dialog", () => ({
+  ResponsiveDialog: ({
+    open,
+    title,
+    description,
+    children,
+  }: {
+    open: boolean;
+    title: string;
+    description: string;
+    children: React.ReactNode;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label={title}>
+        <p>{description}</p>
+        {children}
+      </div>
+    ) : null,
+}));
+
+function agent(overrides: Record<string, unknown>) {
   return {
-    id: "agent-1",
+    id: AGENT_ID,
     name: "Helper",
-    user_id: userId,
-    event_id: LINKED_EVENT.event_id,
-    instructions: "Help out",
-    type: "mentor",
+    instructions: "Help",
+    type: "general",
     enabled: true,
-    scoring: true,
     can_edit: true,
-    linkedEventIds: [LINKED_EVENT.event_id],
+    // Linking is creator-only, so these agents belong to the signed-in user.
+    user_id: "organizer-1",
+    event_id: null,
+    linkedEventIds: [],
+    ...overrides,
   };
 }
 
-async function openEventAccess() {
-  const user = userEvent.setup();
+async function renderCard() {
   render(<AgentsTab />);
-  await user.click(await screen.findByRole("button", { name: "Event access" }));
-  await screen.findByRole("dialog", { name: "Manage agent availability" });
-  const linked = await screen.findByRole("checkbox", { name: new RegExp(LINKED_EVENT.event_name) });
-  await waitFor(() => expect(linked).toBeChecked());
-  return user;
+  // Event names load asynchronously and feed the card label.
+  await waitFor(() => expect(screen.queryByText(/Event [0-9a-f]{8}/)).toBeNull());
 }
 
-function eventCheckbox(eventName: string) {
-  return screen.getByRole("checkbox", { name: new RegExp(eventName) });
+function availabilityLabel() {
+  const heading = screen.getByText("Available in");
+  return heading.nextElementSibling?.textContent;
 }
 
-function capInput(eventName: string) {
-  const input = eventCheckbox(eventName).closest("label")?.querySelector("input[type='number']");
-  if (!input) throw new Error(`No cap input for ${eventName}`);
-  return input;
+async function openDialog() {
+  fireEvent.click(screen.getByRole("button", { name: "Event access" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Manage agent availability",
+  });
+  await waitFor(() =>
+    expect(within(dialog).queryByText("Loading existing caps...")).toBeNull()
+  );
+  return dialog;
 }
 
-function saveButton() {
-  return screen.getByRole("button", { name: "Save access" });
+function eventRow(dialog: HTMLElement, name: string) {
+  const row = within(dialog).getByText(name).closest("label");
+  if (!row) throw new Error(`No row for ${name}`);
+  return row as HTMLElement;
 }
 
-function lastToast() {
-  return toast.mock.calls[toast.mock.calls.length - 1][0];
-}
-
-describe("AgentsTab Event access", () => {
+describe("AgentsTab agent availability", () => {
   beforeEach(() => {
-    toast.mockReset();
-    linkToEvents.mockReset().mockResolvedValue({ ok: true });
-    unlinkFromEvents.mockReset().mockResolvedValue({ ok: true });
-    updateEventSessionCaps.mockReset().mockResolvedValue({ ok: true });
-    agents = [agent(CURRENT_USER)];
-    mockAgentCaps = {};
+    mockAgents = [];
+    mockLinkRows = [];
+    mockLinkToEvents.mockReset().mockResolvedValue({ ok: true });
+    mockUnlinkFromEvents.mockReset().mockResolvedValue({ ok: true });
+    mockUpdateCaps.mockReset().mockResolvedValue({ ok: true });
   });
 
-  describe("when the viewer can edit an agent someone else created", () => {
-    beforeEach(() => {
-      agents = [agent("user-a")];
-    });
+  it("does not claim a global agent is limited to the events it is linked to", async () => {
+    mockAgents = [agent({ event_id: null, linkedEventIds: [EVENT_X] })];
+    await renderCard();
 
-    it("does not offer the link and unlink controls the server would reject", async () => {
-      await openEventAccess();
-
-      expect(eventCheckbox(OTHER_EVENT.event_name)).toBeDisabled();
-      expect(eventCheckbox(LINKED_EVENT.event_name)).toBeDisabled();
-      expect(screen.getByText(/only the agent's creator can add or remove events/i)).toBeInTheDocument();
-    });
-
-    it("still saves cap changes on events the agent is already linked to", async () => {
-      const user = await openEventAccess();
-
-      fireEvent.change(capInput(LINKED_EVENT.event_name), { target: { value: "5" } });
-      await user.click(saveButton());
-
-      await waitFor(() => expect(updateEventSessionCaps).toHaveBeenCalledTimes(1));
-      expect(updateEventSessionCaps).toHaveBeenCalledWith({
-        eventId: LINKED_EVENT.event_id,
-        sessionCaps: { agent_caps: { "agent-1": 5 } },
-      });
-      expect(linkToEvents).not.toHaveBeenCalled();
-      expect(unlinkFromEvents).not.toHaveBeenCalled();
-      await waitFor(() =>
-        expect(lastToast()).toEqual({
-          title: "Availability updated",
-          description: "1 cap updates",
-        })
-      );
-    });
+    await waitFor(() => expect(availabilityLabel()).toContain("Event X"));
+    expect(availabilityLabel()).toContain("Global (all events)");
   });
 
-  describe("when the viewer created the agent", () => {
-    it("does not show the note and leaves the event checkboxes enabled", async () => {
-      await openEventAccess();
+  it("tells the organizer that ticking events does not restrict a global agent", async () => {
+    mockAgents = [agent({ event_id: null })];
+    await renderCard();
+    const dialog = await openDialog();
 
-      expect(eventCheckbox(OTHER_EVENT.event_name)).toBeEnabled();
-      expect(eventCheckbox(LINKED_EVENT.event_name)).toBeEnabled();
-      expect(screen.queryByText(/only the agent's creator/i)).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/does not restrict who can use it/i)
+    ).toBeTruthy();
+  });
+
+  it("keeps the home event in the label when other events are linked", async () => {
+    mockAgents = [agent({ event_id: EVENT_Y, linkedEventIds: [EVENT_X] })];
+    await renderCard();
+
+    await waitFor(() => expect(availabilityLabel()).toBe("Event X, Event Y"));
+  });
+
+  it("lists the home event once when it also has a link row", async () => {
+    mockAgents = [agent({ event_id: EVENT_Y, linkedEventIds: [EVENT_Y] })];
+    await renderCard();
+
+    await waitFor(() => expect(availabilityLabel()).toBe("Event Y"));
+  });
+
+  it("shows the home event ticked and locked without a link row", async () => {
+    mockAgents = [agent({ event_id: EVENT_Y })];
+    await renderCard();
+    const dialog = await openDialog();
+
+    const homeRow = eventRow(dialog, "Event Y");
+    const homeCheckbox = within(homeRow).getByRole("checkbox");
+    expect(homeCheckbox.getAttribute("aria-checked")).toBe("true");
+    expect((homeCheckbox as HTMLButtonElement).disabled).toBe(true);
+    expect(within(homeRow).getByText("home event")).toBeTruthy();
+    expect(within(homeRow).queryByText("already applied")).toBeNull();
+
+    const otherCheckbox = within(eventRow(dialog, "Event X")).getByRole("checkbox");
+    expect(otherCheckbox.getAttribute("aria-checked")).toBe("false");
+    expect((otherCheckbox as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("locks the home event even when a link row exists for it", async () => {
+    mockAgents = [agent({ event_id: EVENT_Y, linkedEventIds: [EVENT_Y] })];
+    mockLinkRows = [{ event_id: EVENT_Y }];
+    await renderCard();
+    const dialog = await openDialog();
+
+    const homeCheckbox = within(eventRow(dialog, "Event Y")).getByRole("checkbox");
+    expect(homeCheckbox.getAttribute("aria-checked")).toBe("true");
+    expect((homeCheckbox as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("saves a home event cap without creating a redundant link row", async () => {
+    mockAgents = [agent({ event_id: EVENT_Y })];
+    await renderCard();
+    const dialog = await openDialog();
+
+    const capInput = within(eventRow(dialog, "Event Y")).getByRole("spinbutton");
+    expect((capInput as HTMLInputElement).disabled).toBe(false);
+    fireEvent.change(capInput, { target: { value: "5" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save access" }));
+
+    await waitFor(() => expect(mockUpdateCaps).toHaveBeenCalledTimes(1));
+    expect(mockUpdateCaps).toHaveBeenCalledWith({
+      eventId: EVENT_Y,
+      sessionCaps: { agent_caps: { [AGENT_ID]: 5 } },
     });
+    expect(mockLinkToEvents).not.toHaveBeenCalled();
+    expect(mockUnlinkFromEvents).not.toHaveBeenCalled();
+  });
 
-    it("reports success and closes the dialog when everything saved", async () => {
-      const user = await openEventAccess();
+  it("links a new event without linking or unlinking the home event", async () => {
+    mockAgents = [agent({ event_id: EVENT_Y })];
+    await renderCard();
+    const dialog = await openDialog();
 
-      await user.click(eventCheckbox(OTHER_EVENT.event_name));
-      await user.click(saveButton());
+    fireEvent.click(within(eventRow(dialog, "Event X")).getByRole("checkbox"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save access" }));
 
-      await waitFor(() =>
-        expect(lastToast()).toEqual({
-          title: "Availability updated",
-          description: "1 linked",
-        })
-      );
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(mockLinkToEvents).toHaveBeenCalledTimes(1));
+    expect(mockLinkToEvents).toHaveBeenCalledWith({
+      agentId: AGENT_ID,
+      eventIds: [EVENT_X],
     });
-
-    it("shows a failure title and the reason when linking fails", async () => {
-      linkToEvents.mockRejectedValue(new Error("Not authorized"));
-      const user = await openEventAccess();
-
-      await user.click(eventCheckbox(OTHER_EVENT.event_name));
-      await user.click(saveButton());
-
-      await waitFor(() =>
-        expect(lastToast()).toEqual({
-          title: "Availability not fully updated",
-          description: "1 failed | Not authorized",
-          variant: "destructive",
-        })
-      );
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
-    });
-
-    it("shows a failure title when unlinking fails", async () => {
-      unlinkFromEvents.mockRejectedValue(new Error("Not authorized"));
-      const user = await openEventAccess();
-
-      await user.click(eventCheckbox(LINKED_EVENT.event_name));
-      await user.click(saveButton());
-
-      await waitFor(() =>
-        expect(lastToast()).toEqual({
-          title: "Availability not fully updated",
-          description: "1 failed | Not authorized",
-          variant: "destructive",
-        })
-      );
-      expect(updateEventSessionCaps).not.toHaveBeenCalled();
-    });
-
-    it("does not count a successful link as failed when its cap write fails", async () => {
-      updateEventSessionCaps.mockRejectedValue(new Error("No permission for caps"));
-      const user = await openEventAccess();
-
-      await user.click(eventCheckbox(OTHER_EVENT.event_name));
-      fireEvent.change(capInput(OTHER_EVENT.event_name), { target: { value: "3" } });
-      await user.click(saveButton());
-
-      await waitFor(() =>
-        expect(lastToast()).toEqual({
-          title: "Availability not fully updated",
-          description: "1 linked | 1 cap updates failed | No permission for caps",
-          variant: "destructive",
-        })
-      );
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
-    });
-
-    it("does not count a successful unlink as failed when its cap cleanup fails", async () => {
-      mockAgentCaps = { "agent-1": 2 };
-      updateEventSessionCaps.mockRejectedValue(new Error("No permission for caps"));
-      const user = await openEventAccess();
-
-      await user.click(eventCheckbox(LINKED_EVENT.event_name));
-      await user.click(saveButton());
-
-      await waitFor(() =>
-        expect(lastToast()).toEqual({
-          title: "Availability not fully updated",
-          description: "1 unlinked | 1 cap updates failed | No permission for caps",
-          variant: "destructive",
-        })
-      );
-    });
-
-    it("reports a cap-only failure with a failure title", async () => {
-      updateEventSessionCaps.mockRejectedValue(new Error("No permission for caps"));
-      const user = await openEventAccess();
-
-      fireEvent.change(capInput(LINKED_EVENT.event_name), { target: { value: "5" } });
-      await user.click(saveButton());
-
-      await waitFor(() =>
-        expect(lastToast()).toEqual({
-          title: "Availability not fully updated",
-          description: "1 cap updates failed | No permission for caps",
-          variant: "destructive",
-        })
-      );
-    });
+    expect(mockUnlinkFromEvents).not.toHaveBeenCalled();
   });
 });
