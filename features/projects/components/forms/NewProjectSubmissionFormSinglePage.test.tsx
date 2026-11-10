@@ -292,6 +292,8 @@ describe("NewProjectSubmissionFormSinglePage team writes", () => {
       await click("remove pat");
       await waitForPatch(removes("pat@x.com"));
       await editDescription("Edited after the failed save");
+      // Autosave pauses after a failed save until the lead retries.
+      await click("Retry save");
 
       await waitForPatch(
         (body) =>
