@@ -42,3 +42,25 @@ it('passes through the 403 for a zero-row RLS update', async () => {
   mockSave.mockResolvedValue({ error: "You don't have permission to edit this project", status: 403 });
   expect((await post({ projectId: 'p1' })).status).toBe(403);
 });
+
+describe('project lead (audit-014)', () => {
+  const savedInput = () => mockSave.mock.calls[0][1].input;
+
+  it('does not make the caller the lead when submitting an existing project', async () => {
+    mockAccess.mockResolvedValue({ access: { canEdit: true } });
+    expect((await post({ projectId: 'p1', submitted: true })).status).toBe(200);
+    expect(mockSave.mock.calls[0][1]).toMatchObject({ mode: 'update', projectId: 'p1' });
+    expect(savedInput().leadEmail).toBeUndefined();
+  });
+
+  it('defaults the lead to the caller when creating a project', async () => {
+    await post({ projectName: 'New' });
+    expect(mockSave.mock.calls[0][1].mode).toBe('create');
+    expect(savedInput().leadEmail).toBe('outsider@example.test');
+  });
+
+  it('keeps an explicit lead email when creating a project', async () => {
+    await post({ projectName: 'New', leadEmail: 'lead@example.com' });
+    expect(savedInput().leadEmail).toBe('lead@example.com');
+  });
+});

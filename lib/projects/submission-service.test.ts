@@ -6,6 +6,11 @@ import {
   fetchSubmissionFieldsByEventIds,
   hydrateProjectsWithSubmissionData,
 } from "@/lib/projects/query";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+
+jest.mock("@/lib/supabase/service", () => ({
+  createSupabaseServiceClient: jest.fn(),
+}));
 
 jest.mock("@/lib/integrations/contextus", () => ({
   createContextusProject: jest.fn(),
@@ -552,6 +557,121 @@ describe("saveProjectSubmission", () => {
     expect(projectsTable.update).not.toHaveBeenCalled();
   });
 
+  describe("project lead on update", () => {
+    const buildUpdateSupabase = (contextusProjectId: string | null) => {
+      const existingProjectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            id: projectId,
+            event_id: null,
+            contextus_project_id: contextusProjectId,
+            project_name: "Existing Name",
+            project_description: "Existing Description",
+          },
+          error: null,
+        }),
+      };
+      const updatedProjectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            id: projectId,
+            project_name: "Existing Name",
+            lead_name: "Real Lead",
+            lead_email: "lead@example.com",
+            project_description: "Existing Description",
+            teammates: ["teammate@example.com"],
+            project_url: null,
+            video_url: null,
+            additional_materials_url: null,
+            cover_image_url: null,
+            event_id: null,
+            contextus_project_id: contextusProjectId,
+            private: false,
+            created_at: "2026-04-16T12:00:00.000Z",
+            submitted: true,
+            submitted_at: "2026-04-16T12:00:00.000Z",
+            project_tracks: [],
+          },
+          error: null,
+        }),
+      };
+      const projectsTable = {
+        select: jest
+          .fn()
+          .mockReturnValueOnce(existingProjectQuery)
+          .mockReturnValueOnce(updatedProjectQuery),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
+        }),
+      };
+      const supabase = {
+        // project_team_emails is the source of the stored lead.
+        rpc: jest.fn(async () => ({
+          data: [
+            {
+              project_id: projectId,
+              lead_email: "lead@example.com",
+              teammates: ["teammate@example.com"],
+            },
+          ],
+          error: null,
+        })),
+        from: jest.fn((table: string) => {
+          if (table === "projects") return projectsTable;
+          throw new Error(`Unexpected table ${table}`);
+        }),
+      };
+
+      return { supabase, projectsTable };
+    };
+
+    it("does not write lead_email, even when the input carries one", async () => {
+      const { supabase, projectsTable } = buildUpdateSupabase("ctx-1");
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { leadEmail: "teammate@example.com", submitted: true },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledTimes(1);
+      expect(projectsTable.update.mock.calls[0][0]).toMatchObject({
+        submitted: true,
+      });
+      expect(projectsTable.update.mock.calls[0][0]).not.toHaveProperty(
+        "lead_email",
+      );
+    });
+
+    it("reports the stored lead to Contextus, not the input lead", async () => {
+      const { supabase } = buildUpdateSupabase(null);
+      (createContextusProject as jest.Mock).mockResolvedValue("ctx-new");
+
+      await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { leadEmail: "teammate@example.com", submitted: true },
+      });
+
+      expect(createContextusProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            team_lead_email: "lead@example.com",
+          }),
+        }),
+      );
+    });
+  });
+
   it("rejects update when input clears the locked project_name", async () => {
     const existingProjectQuery = {
       eq: jest.fn().mockReturnThis(),
@@ -659,6 +779,261 @@ describe("saveProjectSubmission", () => {
       });
 
       expect(update).not.toHaveProperty("teammates");
+    });
+  });
+
+  describe("moving a project to another event", () => {
+    const targetEventId = "55555555-5555-4555-8555-555555555555";
+    const pastCutoff = "2020-01-01T00:00:00.000Z";
+    const futureCutoff = "2999-01-01T00:00:00.000Z";
+
+    type QueryResult = { data: unknown; error: unknown };
+
+    // Every builder method chains; awaiting or calling overrideTypes resolves.
+    const query = (result: QueryResult) => {
+      const builder: Record<string, unknown> = {
+        then: (
+          resolve: (value: QueryResult) => unknown,
+          reject: (reason: unknown) => unknown,
+        ) => Promise.resolve(result).then(resolve, reject),
+        overrideTypes: jest.fn().mockResolvedValue(result),
+      };
+      for (const method of ["select", "eq", "order", "limit", "single", "maybeSingle"]) {
+        builder[method] = jest.fn().mockReturnValue(builder);
+      }
+      return builder;
+    };
+
+    const setup = ({
+      submitted = true,
+      sourceEventId = eventId,
+      sourceCutoff = futureCutoff,
+      sourceEventError = null,
+      judgingRows = {},
+      judgingError = null,
+    }: {
+      submitted?: boolean | null;
+      sourceEventId?: string | null;
+      sourceCutoff?: string | null;
+      sourceEventError?: unknown;
+      judgingRows?: Record<string, unknown[]>;
+      judgingError?: unknown;
+    } = {}) => {
+      const projectRow = {
+        id: projectId,
+        event_id: sourceEventId,
+        contextus_project_id: "ctx-1",
+        project_name: "Existing Name",
+        project_description: "Existing Description",
+        submitted,
+      };
+      const projectsTable = {
+        select: jest
+          .fn()
+          .mockReturnValueOnce(query({ data: projectRow, error: null }))
+          .mockReturnValueOnce(
+            query({
+              data: { ...projectRow, event_id: targetEventId, project_tracks: [] },
+              error: null,
+            }),
+          ),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
+        }),
+      };
+
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (table === "projects") return projectsTable;
+          if (table === "events") {
+            return query({
+              data: {
+                event_id: targetEventId,
+                event_name: "Target Event",
+                submission_time_start: null,
+                submission_time_cutoff: futureCutoff,
+              },
+              error: null,
+            });
+          }
+          if (table === "event_submission_fields") {
+            return query({ data: [], error: null });
+          }
+          throw new Error(`Unexpected table ${table}`);
+        }),
+        rpc: jest.fn(async () => ({ data: [], error: null })),
+      };
+
+      // Advancements are hidden from leads by RLS, so the guard has
+      // to see them through the service client. The caller's client above
+      // throws on those tables to prove it never relies on them.
+      const serviceClient = {
+        from: jest.fn((table: string) => {
+          if (table === "events") {
+            return query({
+              data: sourceEventError
+                ? null
+                : { submission_time_cutoff: sourceCutoff },
+              error: sourceEventError,
+            });
+          }
+          return query({
+            data: judgingError ? null : (judgingRows[table] ?? []),
+            error: judgingError,
+          });
+        }),
+      };
+      (createSupabaseServiceClient as jest.Mock).mockReturnValue(serviceClient);
+
+      const move = (eventIdInput: string = targetEventId) =>
+        saveProjectSubmission(supabase as never, {
+          mode: "update",
+          projectId,
+          input: { eventId: eventIdInput },
+        });
+
+      return { move, projectsTable, serviceClient };
+    };
+
+    it("rejects the move once the current event's cutoff has passed", async () => {
+      const { move, projectsTable } = setup({ sourceCutoff: pastCutoff });
+
+      await expect(move()).resolves.toMatchObject({
+        code: "project_event_move_blocked",
+        status: 409,
+      });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects the move when the cutoff has passed and advancements exist", async () => {
+      const { move, projectsTable } = setup({
+        sourceCutoff: pastCutoff,
+        judgingRows: { project_round_advancements: [{ project_id: projectId }] },
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 409 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects the move while the window is open if the project advanced a round", async () => {
+      const { move, projectsTable } = setup({
+        judgingRows: { project_round_advancements: [{ project_id: projectId }] },
+      });
+
+      await expect(move()).resolves.toMatchObject({
+        code: "project_event_move_blocked",
+        status: 409,
+      });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("leaves scores and assignments to the database triggers", async () => {
+      // guard_project_event_change refuses scored projects (23514) and
+      // cleanup_project_after_event_change drops stale assignments.
+      const { move, serviceClient } = setup({
+        judgingRows: {
+          project_scores: [{ project_id: projectId }],
+          project_assignments: [{ project_id: projectId }],
+        },
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 200 });
+      const tables = serviceClient.from.mock.calls.map(([table]) => table);
+      expect(tables).not.toContain("project_scores");
+      expect(tables).not.toContain("project_assignments");
+    });
+
+    it("rejects a draft that already has judging records", async () => {
+      const { move, projectsTable } = setup({
+        submitted: false,
+        sourceCutoff: pastCutoff,
+        judgingRows: { project_round_advancements: [{ project_id: projectId }] },
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 409 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("treats a legacy project with unknown submitted state as submitted", async () => {
+      const { move, projectsTable } = setup({
+        submitted: null,
+        sourceCutoff: pastCutoff,
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 409 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when the current event cannot be read", async () => {
+      const { move, projectsTable } = setup({
+        sourceEventError: { message: "boom" },
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 500 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when judging records cannot be read", async () => {
+      const { move, projectsTable } = setup({
+        judgingError: { message: "boom" },
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 500 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when the service client is unavailable", async () => {
+      const { move, projectsTable } = setup();
+      (createSupabaseServiceClient as jest.Mock).mockImplementation(() => {
+        throw new Error("supabaseKey is required.");
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 500 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("still moves a project whose window is open and has no judging records", async () => {
+      const { move, projectsTable } = setup();
+
+      await expect(move()).resolves.toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ event_id: targetEventId }),
+      );
+    });
+
+    it("still lets an unsubmitted draft leave a closed event", async () => {
+      const { move, projectsTable } = setup({
+        submitted: false,
+        sourceCutoff: pastCutoff,
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ event_id: targetEventId }),
+      );
+    });
+
+    it("does not guard a project that has no current event", async () => {
+      const { move, projectsTable, serviceClient } = setup({
+        sourceEventId: null,
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 200 });
+      expect(serviceClient.from).not.toHaveBeenCalled();
+      expect(projectsTable.update).toHaveBeenCalled();
+    });
+
+    it("does not guard an update that resends the current event", async () => {
+      const { move, serviceClient } = setup({
+        judgingRows: { project_scores: [{ project_id: projectId }] },
+      });
+
+      await expect(move(eventId)).resolves.toMatchObject({ status: 200 });
+      expect(serviceClient.from).not.toHaveBeenCalled();
     });
   });
 
