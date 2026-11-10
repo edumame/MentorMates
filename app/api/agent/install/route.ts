@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
       .from("agent_api_keys")
       .insert({
         user_id: user.id,
+        // ORG-023: the key installed from an event is scoped to that event.
+        event_id,
         key_hash: hash,
         key_prefix: prefix,
         label: `auto-install-${new Date().toISOString().slice(0, 10)}`,
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
       setup_commands: {
         env_export: `export MENTORMATES_API_KEY="${raw}"`,
         event_export: `export MENTORMATES_EVENT_ID="${event_id}"`,
-        skill_save: `mkdir -p .claude && curl -s "${baseUrl}/api/agent/skill" > .claude/commands/mentormates.md`,
+        skill_save: `mkdir -p .claude/commands && curl -s "${baseUrl}/api/agent/skill" > .claude/commands/mentormates.md`,
       },
     });
   } catch (error) {

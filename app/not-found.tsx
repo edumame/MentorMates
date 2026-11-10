@@ -3,12 +3,9 @@
 import { ArrowLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function NotFound() {
-  const handleGoHome = () => {
-    window.location.href = "/";
-  };
-
   const handleGoBack = () => {
     if (window.history.length > 1) {
       window.history.back();
@@ -49,9 +46,11 @@ export default function NotFound() {
             <ArrowLeft className="h-4 w-4" />
             Go back
           </Button>
-          <Button onClick={handleGoHome} className="gap-2">
-            <Search className="h-4 w-4" />
-            Browse events
+          <Button asChild className="gap-2">
+            <Link href="/events">
+              <Search className="h-4 w-4" />
+              Browse events
+            </Link>
           </Button>
         </div>
       </div>
