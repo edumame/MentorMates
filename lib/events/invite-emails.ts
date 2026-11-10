@@ -66,7 +66,6 @@ export async function sendEventInviteEmails({
   appOrigin,
   eventId,
   eventName,
-  eventSlug,
   inviterName,
   visibility,
   participantInviteEmails,
@@ -77,7 +76,6 @@ export async function sendEventInviteEmails({
   appOrigin: string;
   eventId: string;
   eventName: string;
-  eventSlug?: string | null;
   inviterName: string;
   visibility: EventVisibility;
   participantInviteEmails?: string[];
@@ -119,8 +117,8 @@ export async function sendEventInviteEmails({
     return summary;
   }
 
-  const eventUrl = getEventOverviewUrl(appOrigin, eventSlug || eventId);
-  const eventSlugOrId = eventSlug || eventId;
+  // Emailed links outlive a slug rename, so they use the immutable event id.
+  const eventUrl = getEventOverviewUrl(appOrigin, eventId);
 
   const sendRoleEmails = async (role: EventInviteRole, emails: string[]) => {
     await Promise.all(
@@ -133,7 +131,7 @@ export async function sendEventInviteEmails({
           });
           const actionUrl = getEventInviteAcceptanceUrl(
             appOrigin,
-            eventSlugOrId,
+            eventId,
             role,
             email,
             token
@@ -175,7 +173,6 @@ export async function sendOrganizerInviteEmails({
   appOrigin,
   eventId,
   eventName,
-  eventSlug,
   inviterName,
   existingOrganizerEmails,
   newOrganizerEmails,
@@ -184,7 +181,6 @@ export async function sendOrganizerInviteEmails({
   appOrigin: string;
   eventId: string;
   eventName: string;
-  eventSlug?: string | null;
   inviterName: string;
   existingOrganizerEmails?: string[];
   newOrganizerEmails?: string[];
@@ -226,8 +222,8 @@ export async function sendOrganizerInviteEmails({
     return summary;
   }
 
-  const eventSlugOrId = eventSlug || eventId;
-  const eventUrl = getEventOverviewUrl(appOrigin, eventSlugOrId);
+  // Emailed links outlive a slug rename, so they use the immutable event id.
+  const eventUrl = getEventOverviewUrl(appOrigin, eventId);
 
   const sendOrganizerEmail = async (email: string, isNewUser: boolean) => {
     try {
@@ -244,7 +240,6 @@ export async function sendOrganizerInviteEmails({
         eventName,
         eventId,
         inviterName,
-        eventSlugOrId,
         isNewUser,
         acceptUrl,
         eventUrl

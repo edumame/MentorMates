@@ -1,7 +1,6 @@
 import {
   mergeAssistantPatch,
   mergeParsedRubric,
-  removeTrackFromConfig,
 } from "./track-draft";
 import type { EventScoringConfig, TrackScoringConfig } from "@/lib/types";
 
@@ -112,23 +111,5 @@ describe("mergeParsedRubric", () => {
       configurable: true,
       value: originalCrypto,
     });
-  });
-});
-
-describe("removeTrackFromConfig", () => {
-  it("removes the track and its round overrides", () => {
-    const config: EventScoringConfig = {
-      tracks: { a, b },
-      rounds: [
-        { round_number: 1, name: "One", tracks: { a, b } },
-        { round_number: 2, name: "Two", tracks: { a } },
-      ],
-    };
-
-    const result = removeTrackFromConfig(config, "a");
-
-    expect(result.tracks).toEqual({ b });
-    expect(result.rounds?.[0].tracks).toEqual({ b });
-    expect(result.rounds?.[1].tracks).toBeUndefined();
   });
 });

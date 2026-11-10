@@ -162,6 +162,7 @@ function ControlledForm({
       onConfigChange={setConfig}
       isArchived={false}
       eventId="event-1"
+      onTrackDeleted={jest.fn()}
       {...props}
     />
   );
@@ -269,10 +270,18 @@ describe("CompactScoringForm", () => {
 
   describe("track delete confirmation (ORG-021 / JUDGE-005)", () => {
     function mockTables(counts: { project_scores: number; project_tracks: number; prizes: number }) {
-      const deleteEq = jest.fn().mockResolvedValue({ error: null });
+      const deleteEq = jest.fn();
+      // removeTrack chains .eq("track_id").eq("event_id").select("track_id").
+      const deleteQuery = {
+        eq: (...args: unknown[]) => {
+          deleteEq(...args);
+          return deleteQuery;
+        },
+        select: jest.fn().mockResolvedValue({ data: [{ track_id: "track-1" }], error: null }),
+      };
       from.mockImplementation((table: string) => {
         if (table === "event_tracks") {
-          return { delete: jest.fn().mockReturnValue({ eq: deleteEq }) };
+          return { delete: jest.fn().mockReturnValue(deleteQuery) };
         }
         return {
           select: jest.fn().mockReturnValue({
@@ -293,6 +302,7 @@ describe("CompactScoringForm", () => {
           onSave={jest.fn()}
           isArchived={false}
           eventId="event-1"
+          onTrackDeleted={jest.fn()}
         />
       );
 
@@ -321,7 +331,8 @@ describe("CompactScoringForm", () => {
       fireEvent.change(screen.getByLabelText(/to confirm/), { target: { value: "AI Track" } });
       expect(confirm).toBeEnabled();
       fireEvent.click(confirm);
-      await waitFor(() => expect(deleteEq).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(deleteEq).toHaveBeenCalledWith("track_id", "track-1"));
+      expect(deleteEq).toHaveBeenCalledWith("event_id", "event-1");
     });
 
     it("cancel keeps the track", async () => {
@@ -382,6 +393,7 @@ describe("CompactScoringForm", () => {
           isArchived={false}
           eventId="event-1"
           tracks={[savedTrack]}
+          onTrackDeleted={jest.fn()}
         />
       );
       expect(screen.getByPlaceholderText("e.g., Best Overall")).toHaveValue("Climate Track");
@@ -406,6 +418,7 @@ describe("CompactScoringForm", () => {
           isArchived={false}
           eventId="event-1"
           tracks={[savedTrack]}
+          onTrackDeleted={jest.fn()}
         />
       );
       fireEvent.change(screen.getByLabelText("Track description"), {
@@ -423,6 +436,7 @@ describe("CompactScoringForm", () => {
           isArchived={false}
           eventId="event-1"
           tracks={[savedTrack]}
+          onTrackDeleted={jest.fn()}
         />
       );
       expect(screen.getByText("$100")).toBeInTheDocument();

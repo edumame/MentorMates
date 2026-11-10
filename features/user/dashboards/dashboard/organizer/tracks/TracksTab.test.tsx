@@ -1,274 +1,600 @@
+import { randomUUID } from "node:crypto";
 import React, { useState } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TracksTab } from "./TracksTab";
 import type { EventDetails, EventScoringConfig } from "@/lib/types";
 
-const from = jest.fn();
-const upsert = jest.fn();
-const insert = jest.fn();
-const deleteEq = jest.fn();
+// jsdom's crypto has no randomUUID; the browser code under test relies on it.
+Object.defineProperty(globalThis.crypto, "randomUUID", {
+  value: randomUUID,
+  configurable: true,
+});
 
-jest.mock("@/lib/hooks/use-toast", () => ({
-  useToast: () => ({ toast: jest.fn() }),
-}));
+type Row = {
+  track_id: string;
+  event_id: string;
+  name: string;
+  scoring_criteria: {
+    rounds?: Record<string, unknown>;
+  };
+};
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// In-memory stand-in for event_tracks: it generates an id when the insert omits
+// one, enforces the primary key, and (like PostgREST) reports no error when a
+// delete matches zero rows.
+let dbRows: Row[] = [];
+let dbIdCounter = 0;
+let denyDeletes = false;
+let failTrackReads = false;
+let failIdLookups = false;
+let insertFailure: { code: string; message: string } | null = null;
+const insertSpy = jest.fn();
+const deleteSpy = jest.fn();
+
+const rowsFor = (eventId: string) =>
+  dbRows.filter((row) => row.event_id === eventId).map((row) => ({ ...row }));
+
+const eventTracksTable = () => ({
+  select: () => ({
+    eq: (_column: string, eventId: string) => {
+      const result = failTrackReads
+        ? { data: null, error: { message: "read failed" } }
+        : { data: rowsFor(eventId), error: null };
+      return Object.assign(Promise.resolve(result), {
+        in: async (_inColumn: string, ids: string[]) =>
+          failIdLookups
+            ? { data: null, error: { message: "lookup failed" } }
+            : {
+                data: rowsFor(eventId).filter((row) =>
+                  ids.includes(row.track_id)
+                ),
+                error: null,
+              },
+      });
+    },
+  }),
+  upsert: async (rows: Row[]) => {
+    rows.forEach((row) => {
+      const index = dbRows.findIndex((r) => r.track_id === row.track_id);
+      if (index >= 0) {
+        dbRows[index] = row;
+      } else {
+        dbRows.push(row);
+      }
+    });
+    return { error: null };
+  },
+  insert: async (rows: Array<Omit<Row, "track_id"> & { track_id?: string }>) => {
+    insertSpy(rows);
+    if (insertFailure) return { error: insertFailure };
+    if (rows.some((row) => row.track_id && !UUID_RE.test(row.track_id))) {
+      return { error: { message: "invalid input syntax for type uuid" } };
+    }
+    if (dbRows.some((r) => rows.some((row) => row.track_id === r.track_id))) {
+      return { error: { code: "23505", message: "duplicate key value" } };
+    }
+    rows.forEach((row) => {
+      dbIdCounter += 1;
+      const generated = `00000000-0000-4000-8000-${String(dbIdCounter).padStart(12, "0")}`;
+      dbRows.push({ ...row, track_id: row.track_id ?? generated });
+    });
+    return { error: null };
+  },
+  delete: () => {
+    const filters: Record<string, string> = {};
+    const query = {
+      eq: (column: string, value: string) => {
+        filters[column] = value;
+        return query;
+      },
+      select: async () => {
+        deleteSpy(filters.track_id);
+        const removed = denyDeletes
+          ? []
+          : dbRows.filter(
+              (row) =>
+                row.track_id === filters.track_id &&
+                (!filters.event_id || row.event_id === filters.event_id)
+            );
+        dbRows = dbRows.filter((row) => !removed.includes(row));
+        return { data: removed, error: null };
+      },
+    };
+    return query;
+  },
+});
+
+// TrackDeleteDialog counts a track's scores, entries and prizes before the
+// delete is confirmed; report none so the confirm button is enabled.
+const impactCountTable = () => ({
+  select: () => ({
+    eq: async () => ({ count: 0, error: null }),
+  }),
+});
 
 jest.mock("@/lib/supabase", () => ({
   supabase: {
-    from: (...args: unknown[]) => from(...args),
+    from: (table: string) =>
+      table === "event_tracks" ? eventTracksTable() : impactCountTable(),
   },
 }));
 
-const TRACK_A = "11111111-1111-4111-8111-111111111111";
-const TRACK_B = "22222222-2222-4222-8222-222222222222";
+const formToast = jest.fn();
+jest.mock("@/lib/hooks/use-toast", () => ({
+  useToast: () => ({ toast: formToast }),
+}));
 
-const criterion = (id: string, name: string) => ({
-  id,
-  name,
-  description: "",
-  type: "numeric" as const,
-  weight: 1,
-  min: 1,
-  max: 10,
-});
+jest.mock("./JudgePreviewDeck", () => ({ JudgePreviewDeck: () => null }));
 
-const savedConfig: EventScoringConfig = {
-  tracks: {
-    [TRACK_A]: { name: "AI Track", criteria: [criterion("impact", "Impact")] },
-    [TRACK_B]: { name: "Web Track", criteria: [criterion("design", "Design")] },
-  },
-  defaultMin: 1,
+// The real sidebar applies AI output through onConfigChange, so the stub does
+// the same with the id shape the AI parse route is prompted to produce.
+jest.mock("./JudgingSidebar", () => ({
+  JudgingSidebar: ({
+    config,
+    onConfigChange,
+  }: {
+    config: EventScoringConfig;
+    onConfigChange: (config: EventScoringConfig) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onConfigChange({
+          ...config,
+          tracks: {
+            ...config.tracks,
+            "track-1234": { name: "AI Track", criteria: [] },
+          },
+          rounds: [
+            {
+              round_number: 2,
+              name: "Finals",
+              tracks: { "track-1234": { name: "AI Track", criteria: [] } },
+            },
+          ],
+        })
+      }
+    >
+      Apply AI config
+    </button>
+  ),
+}));
+
+const emptyConfig: EventScoringConfig = {
+  tracks: {},
+  defaultMin: 0,
   defaultMax: 10,
   defaultWeight: 1,
-  rounds: [{ round_number: 1, name: "Qualifiers" }],
-  activeRound: 1,
 };
 
-let latestSavedConfig: EventScoringConfig | null = null;
+const tabToast = jest.fn();
 
-function Harness() {
+function Harness({
+  initialConfig = emptyConfig,
+}: {
+  initialConfig?: EventScoringConfig;
+}) {
+  const [event, setEvent] = useState<EventDetails | null>({
+    id: "event-1",
+  } as unknown as EventDetails);
   const [scoringConfig, setScoringConfig] =
-    useState<EventScoringConfig | null>(savedConfig);
+    useState<EventScoringConfig | null>(initialConfig);
   const [saving, setSaving] = useState(false);
-  latestSavedConfig = scoringConfig;
 
   return (
-    <TracksTab
-      eventId="event-1"
-      event={{ event_id: "event-1" } as unknown as EventDetails}
-      setEvent={jest.fn()}
-      scoringConfig={scoringConfig}
-      setScoringConfig={setScoringConfig}
-      saving={saving}
-      setSaving={setSaving}
-      toast={jest.fn()}
-      isArchived={false}
-    />
+    <>
+      <output data-testid="event-tracks">
+        {(event?.event_tracks ?? []).map((track) => track.name).join(",")}
+      </output>
+      <output data-testid="parent-config-ids">
+        {JSON.stringify({
+          tracks: Object.keys(scoringConfig?.tracks ?? {}),
+          rounds: (scoringConfig?.rounds ?? []).flatMap((round) =>
+            Object.keys(round.tracks ?? {})
+          ),
+        })}
+      </output>
+      <output data-testid="parent-config-tracks">
+        {Object.values(scoringConfig?.tracks ?? {})
+          .map((track) => track.name)
+          .join(",")}
+      </output>
+      <TracksTab
+        eventId="event-1"
+        event={event as EventDetails}
+        setEvent={setEvent}
+        scoringConfig={scoringConfig}
+        setScoringConfig={setScoringConfig}
+        saving={saving}
+        setSaving={setSaving}
+        toast={tabToast}
+        isArchived={false}
+      />
+    </>
   );
 }
 
-const jsonResponse = (body: unknown) => ({
-  ok: true,
-  json: async () => body,
-});
+const renderTab = async (initialConfig?: EventScoringConfig) => {
+  render(<Harness initialConfig={initialConfig} />);
+  await act(async () => {});
+};
 
-const renameImpactCriterion = (name: string) => {
-  fireEvent.click(screen.getByText("Impact"));
-  fireEvent.change(screen.getByDisplayValue("Impact"), {
+const save = async () => {
+  fireEvent.click(
+    screen.getByRole("button", { name: "Save Scoring Configuration" })
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Save Scoring Configuration" })
+    ).toBeEnabled()
+  );
+  await act(async () => {});
+};
+
+const addNamedTrack = (name: string) => {
+  fireEvent.click(screen.getByRole("button", { name: /Add new track/ }));
+  fireEvent.change(screen.getByPlaceholderText("e.g., Best Overall"), {
     target: { value: name },
   });
 };
 
-const sendChat = (text: string) => {
-  fireEvent.change(screen.getByPlaceholderText("Ask me to set up tracks..."), {
-    target: { value: text },
+const addNamedTrackAt = (index: number, name: string) => {
+  fireEvent.click(screen.getByRole("button", { name: /Add new track/ }));
+  fireEvent.change(screen.getAllByPlaceholderText("e.g., Best Overall")[index], {
+    target: { value: name },
   });
-  fireEvent.submit(screen.getByPlaceholderText("Ask me to set up tracks..."));
 };
 
-const lastChatConfig = () => {
-  const [, init] = (global.fetch as jest.Mock).mock.calls.at(-1);
-  return JSON.parse(init.body).event.scoring_config as EventScoringConfig;
-};
-
-// Deleting goes through the confirmation dialog (ORG-021 / JUDGE-005). The
-// mocked impact counts are zero, so no typed name is needed.
-const deleteTrack = async (name: string) => {
-  fireEvent.click(screen.getByRole("button", { name: `Delete track ${name}` }));
-  await screen.findByRole("alertdialog");
-  const confirm = screen.getByRole("button", { name: "Delete track" });
+// Deleting goes through TrackDeleteDialog: open it, then confirm.
+const clickDeleteTrack = async (index = 0) => {
+  fireEvent.click(screen.getAllByTitle("Delete")[index]);
+  const confirm = await screen.findByRole("button", { name: "Delete track" });
   await waitFor(() => expect(confirm).toBeEnabled());
   fireEvent.click(confirm);
+  await act(async () => {});
 };
 
-describe("TracksTab draft handling", () => {
+const switchToPreviewAndBack = async () => {
+  fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  await act(async () => {});
+};
+
+describe("TracksTab track persistence", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    upsert.mockResolvedValue({ error: null });
-    insert.mockResolvedValue({ error: null });
-    deleteEq.mockResolvedValue({ error: null });
-    from.mockImplementation(() => ({
-      select: () => ({
-        eq: async () => ({
-          data: [
-            { track_id: TRACK_A, name: "AI Track" },
-            { track_id: TRACK_B, name: "Web Track" },
-          ],
-          error: null,
-        }),
-      }),
-      delete: () => ({ eq: deleteEq }),
-      upsert,
-      insert,
-    }));
-    global.fetch = jest.fn();
-    Element.prototype.scrollTo = jest.fn();
+    dbRows = [];
+    dbIdCounter = 0;
+    denyDeletes = false;
+    failTrackReads = false;
+    failIdLookups = false;
+    insertFailure = null;
   });
 
-  const renderLoaded = async () => {
-    render(<Harness />);
-    await screen.findByText(/Bulk Assign All Projects/);
+  it("updates a newly added track on a later save instead of inserting it again", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    await save();
+
+    fireEvent.change(screen.getByPlaceholderText("e.g., Best Overall"), {
+      target: { value: "Best Hack" },
+    });
+    await save();
+
+    expect(insertSpy).toHaveBeenCalledTimes(1);
+    expect(dbRows.map((row) => row.name)).toEqual(["Best Hack"]);
+  });
+
+  it("does not re-insert a duplicated track on a later save", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    await save();
+
+    fireEvent.click(screen.getByTitle("Duplicate"));
+    await save();
+    await save();
+
+    expect(dbRows.map((row) => row.name).sort()).toEqual([
+      "Best Overall",
+      "Best Overall (Copy)",
+    ]);
+  });
+
+  it("deletes the stored row for a track added earlier in the session", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    await save();
+
+    await clickDeleteTrack();
+
+    expect(dbRows).toEqual([]);
+    expect(formToast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "Track deleted" })
+    );
+  });
+
+  it("reports a failure and keeps the track when a saved track's delete removes no row", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    await save();
+
+    denyDeletes = true;
+    await clickDeleteTrack();
+
+    expect(formToast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "Failed to delete track" })
+    );
+    expect(screen.getByPlaceholderText("e.g., Best Overall")).toHaveValue(
+      "Best Overall"
+    );
+    expect(screen.getByTestId("event-tracks")).toHaveTextContent("Best Overall");
+    expect(screen.getByTestId("parent-config-tracks")).toHaveTextContent(
+      "Best Overall"
+    );
+  });
+
+  it("does not bring a deleted track back after switching to Preview and back", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    await save();
+
+    await clickDeleteTrack();
+    await switchToPreviewAndBack();
+
+    expect(screen.queryByDisplayValue("Best Overall")).not.toBeInTheDocument();
+    expect(screen.queryAllByTitle("Delete")).toHaveLength(0);
+    await save();
+    expect(dbRows).toEqual([]);
+    expect(
+      formToast.mock.calls.filter(
+        ([toast]) => toast.description === "Failed to delete track"
+      )
+    ).toEqual([]);
+  });
+
+  it("drops a deleted track from the event, parent config and bulk-assign list", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    await save();
+    expect(screen.getByTestId("event-tracks")).toHaveTextContent("Best Overall");
+    expect(
+      screen.getByRole("button", { name: "Assign All Projects" })
+    ).toBeInTheDocument();
+
+    await clickDeleteTrack();
+
+    expect(screen.getByTestId("event-tracks")).toBeEmptyDOMElement();
+    expect(screen.getByTestId("parent-config-tracks")).toBeEmptyDOMElement();
+    expect(
+      screen.queryByRole("button", { name: "Assign All Projects" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears the bulk-assign choice when that track is deleted", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    addNamedTrackAt(1, "Best Design");
+    await save();
+    const [deletedRow] = dbRows;
+
+    fireEvent.change(document.querySelector("select") as HTMLSelectElement, {
+      target: { value: deletedRow.track_id },
+    });
+    await act(async () => {});
+    const assign = screen.getByRole("button", { name: "Assign All Projects" });
+    expect(assign).toBeEnabled();
+
+    await clickDeleteTrack(0);
+
+    expect(assign).toBeDisabled();
+  });
+
+  it("keeps unsaved edits to other tracks when a track is deleted", async () => {
+    await renderTab();
+    addNamedTrack("Best Overall");
+    addNamedTrackAt(1, "Best Design");
+    await save();
+
+    fireEvent.change(screen.getByDisplayValue("Best Design"), {
+      target: { value: "Best Design (edited)" },
+    });
+    addNamedTrackAt(2, "Unsaved Draft");
+    await clickDeleteTrack(0);
+
+    expect(screen.queryByDisplayValue("Best Overall")).not.toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("Best Design (edited)")
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Unsaved Draft")).toBeInTheDocument();
+
+    await save();
+    expect(dbRows.map((row) => row.name).sort()).toEqual([
+      "Best Design (edited)",
+      "Unsaved Draft",
+    ]);
+  });
+
+  it("still applies an AI config after a delete", async () => {
+    await renderTab();
+    addNamedTrack("Draft Track");
+    await clickDeleteTrack();
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply AI config" }));
+    await act(async () => {});
+
+    expect(screen.getByDisplayValue("AI Track")).toBeInTheDocument();
+  });
+
+  it("still removes a track that was never saved", async () => {
+    await renderTab();
+    addNamedTrack("Draft Track");
+
+    await clickDeleteTrack();
+
+    expect(formToast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "Track deleted" })
+    );
+    expect(screen.queryByDisplayValue("Draft Track")).not.toBeInTheDocument();
+  });
+
+  it("does not re-insert an AI-generated track whose id is not a UUID", async () => {
+    await renderTab();
+    fireEvent.click(screen.getByRole("button", { name: "Apply AI config" }));
+    await act(async () => {});
+    await save();
+    await save();
+
+    expect(dbRows).toHaveLength(1);
+    expect(dbRows[0].track_id).toMatch(UUID_RE);
+    expect(dbRows[0].scoring_criteria.rounds).toEqual(
+      expect.objectContaining({ "2": expect.anything() })
+    );
+  });
+});
+
+// A duplicated event with no track rows of its own falls back to scoring_config,
+// which still holds the source event's track ids.
+describe("TracksTab config keys that collide with stored rows", () => {
+  const SOURCE_TRACK_ID = "a1b2c3d4-e5f6-4890-abcd-ef1234567890";
+  const sourceRow: Row = {
+    track_id: SOURCE_TRACK_ID,
+    event_id: "source-event",
+    name: "Source Track",
+    scoring_criteria: {},
+  };
+  const inheritedConfig: EventScoringConfig = {
+    ...emptyConfig,
+    tracks: { [SOURCE_TRACK_ID]: { name: "Source Track", criteria: [] } },
+    rounds: [
+      {
+        round_number: 2,
+        name: "Finals",
+        tracks: { [SOURCE_TRACK_ID]: { name: "Source Track", criteria: [] } },
+      },
+    ],
   };
 
-  it("sends the unsaved draft to the assistant and keeps it when a patch arrives", async () => {
-    (global.fetch as jest.Mock).mockImplementation(async (_url, init) => {
-      const sent = JSON.parse(init.body).event.scoring_config;
-      return jsonResponse({
-        reply: "Added a track.",
-        patch: {
-          tracks: {
-            ...sent.tracks,
-            new_track_1: { name: "Design Track", criteria: [] },
-          },
-        },
-      });
-    });
-    await renderLoaded();
-
-    renameImpactCriterion("Real World Impact");
-    sendChat("Add a design track");
-
-    expect(await screen.findByDisplayValue("Design Track")).toBeInTheDocument();
-    expect(
-      lastChatConfig().tracks[TRACK_A].criteria[0].name
-    ).toBe("Real World Impact");
-    expect(screen.getByDisplayValue("Real World Impact")).toBeInTheDocument();
-  });
-
-  it("keeps edits made while the assistant request is in flight", async () => {
-    let respond: (value: unknown) => void = () => undefined;
-    (global.fetch as jest.Mock).mockReturnValue(
-      new Promise((resolve) => {
-        respond = resolve;
+  const thisEventRows = () => dbRows.filter((r) => r.event_id === "event-1");
+  const parentConfigIds = () =>
+    JSON.parse(screen.getByTestId("parent-config-ids").textContent ?? "{}");
+  const expectSaveFailed = () =>
+    expect(tabToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Failed to save scoring configuration",
       })
     );
-    await renderLoaded();
 
-    sendChat("Rename the web track");
-    renameImpactCriterion("Edited While Waiting");
-
-    await act(async () => {
-      respond(
-        jsonResponse({
-          reply: "Renamed.",
-          patch: {
-            tracks: {
-              [TRACK_A]: savedConfig.tracks[TRACK_A],
-              [TRACK_B]: { ...savedConfig.tracks[TRACK_B], name: "Frontend Track" },
-            },
-          },
-        })
-      );
-    });
-
-    expect(await screen.findByDisplayValue("Frontend Track")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Edited While Waiting")).toBeInTheDocument();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    dbRows = [{ ...sourceRow }];
+    dbIdCounter = 0;
+    denyDeletes = false;
+    failTrackReads = false;
+    failIdLookups = false;
+    insertFailure = null;
   });
 
-  it("keeps the draft when a rubric is uploaded", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(
-      jsonResponse({
-        success: true,
-        config: {
-          tracks: {
-            "33333333-3333-4333-8333-333333333333": {
-              name: "Rubric Track",
-              criteria: [],
-            },
-          },
-          defaultMin: 1,
-          defaultMax: 5,
-          defaultWeight: 1,
-        },
+  it("saves under a fresh id, leaves the other event's row alone, and stays stable", async () => {
+    await renderTab(inheritedConfig);
+
+    await save();
+
+    expect(dbRows).toContainEqual(sourceRow);
+    expect(thisEventRows()).toHaveLength(1);
+    const [row] = thisEventRows();
+    expect(row.track_id).toMatch(UUID_RE);
+    expect(row.track_id).not.toBe(SOURCE_TRACK_ID);
+    expect(row.scoring_criteria.rounds).toEqual(
+      expect.objectContaining({ "2": expect.anything() })
+    );
+    expect(parentConfigIds()).toEqual({
+      tracks: [row.track_id],
+      rounds: [row.track_id],
+    });
+    expect(tabToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Scoring configuration saved successfully",
       })
     );
-    const { container } = render(<Harness />);
-    await screen.findByText(/Bulk Assign All Projects/);
 
-    renameImpactCriterion("Real World Impact");
-    fireEvent.change(
-      container.querySelector('input[type="file"]') as HTMLInputElement,
-      {
-        target: {
-          files: [new File(["rubric"], "rubric.txt", { type: "text/plain" })],
-        },
-      }
-    );
-
-    expect(await screen.findByDisplayValue("Rubric Track")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Real World Impact")).toBeInTheDocument();
-  });
-
-  it("does not resurrect a deleted track from an assistant patch or on save", async () => {
-    let respond: (value: unknown) => void = () => undefined;
-    (global.fetch as jest.Mock).mockReturnValue(
-      new Promise((resolve) => {
-        respond = resolve;
-      })
-    );
-    await renderLoaded();
-
-    sendChat("Set all weights to equal");
-    await deleteTrack("Web Track");
-    await waitFor(() =>
-      expect(screen.queryByDisplayValue("Web Track")).not.toBeInTheDocument()
-    );
-
-    await act(async () => {
-      respond(
-        jsonResponse({
-          reply: "Done.",
-          patch: { tracks: savedConfig.tracks },
-        })
-      );
+    fireEvent.change(screen.getByPlaceholderText("e.g., Best Overall"), {
+      target: { value: "Renamed" },
     });
-    await screen.findByText("Done.");
+    await save();
 
-    expect(screen.queryByDisplayValue("Web Track")).not.toBeInTheDocument();
-    expect(latestSavedConfig?.tracks[TRACK_B]).toBeUndefined();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Save Scoring Configuration" })
-    );
-    await waitFor(() => expect(upsert).toHaveBeenCalled());
-
-    const upserted = upsert.mock.calls[0][0] as { track_id: string }[];
-    expect(upserted.map((row) => row.track_id)).toEqual([TRACK_A]);
-    expect(insert).not.toHaveBeenCalled();
+    expect(dbRows).toContainEqual(sourceRow);
+    expect(thisEventRows()).toEqual([
+      expect.objectContaining({ track_id: row.track_id, name: "Renamed" }),
+    ]);
+    // The colliding attempt and its retry; the later save updates the row.
+    expect(insertSpy).toHaveBeenCalledTimes(2);
   });
 
-  it("does not send a deleted track to the assistant", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(
-      jsonResponse({ reply: "Noted." })
-    );
-    await renderLoaded();
+  it("saves a genuinely new track in the same batch as a colliding one", async () => {
+    await renderTab(inheritedConfig);
+    addNamedTrackAt(1, "Brand New");
 
-    await deleteTrack("Web Track");
-    await waitFor(() =>
-      expect(screen.queryByDisplayValue("Web Track")).not.toBeInTheDocument()
-    );
-    sendChat("What tracks do I have?");
-    await screen.findByText("Noted.");
+    await save();
+    await save();
 
-    expect(lastChatConfig().tracks[TRACK_B]).toBeUndefined();
+    expect(dbRows).toContainEqual(sourceRow);
+    expect(thisEventRows().map((row) => row.name).sort()).toEqual([
+      "Brand New",
+      "Source Track",
+    ]);
+  });
+
+  it("updates this event's own row instead of duplicating it when the track list is stale", async () => {
+    const ownRow = { ...sourceRow, event_id: "event-1" };
+    dbRows = [ownRow];
+    failTrackReads = true;
+    await renderTab({
+      ...inheritedConfig,
+      tracks: { [ownRow.track_id]: { name: "Edited", criteria: [] } },
+    });
+    failTrackReads = false;
+
+    await save();
+
+    expect(dbRows).toEqual([
+      expect.objectContaining({ track_id: ownRow.track_id, name: "Edited" }),
+    ]);
+    expect(parentConfigIds().tracks).toEqual([ownRow.track_id]);
+  });
+
+  it("reports a failure and writes nothing when the collision lookup fails", async () => {
+    failIdLookups = true;
+    await renderTab(inheritedConfig);
+
+    await save();
+
+    expect(dbRows).toEqual([sourceRow]);
+    expect(parentConfigIds().tracks).toEqual([SOURCE_TRACK_ID]);
+    expectSaveFailed();
+  });
+
+  it("does not retry an insert that failed for another reason", async () => {
+    insertFailure = { code: "42501", message: "permission denied" };
+    await renderTab();
+    addNamedTrack("Best Overall");
+
+    await save();
+
+    expect(insertSpy).toHaveBeenCalledTimes(1);
+    expectSaveFailed();
+  });
+
+  it("does not delete the other event's row when the inherited track is removed", async () => {
+    await renderTab(inheritedConfig);
+
+    await clickDeleteTrack();
+
+    expect(dbRows).toEqual([sourceRow]);
+    expect(screen.queryByDisplayValue("Source Track")).not.toBeInTheDocument();
+    await save();
+    expect(dbRows).toEqual([sourceRow]);
   });
 });

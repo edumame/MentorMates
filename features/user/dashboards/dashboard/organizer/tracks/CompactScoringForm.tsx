@@ -53,8 +53,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { removeTrackFromConfig } from "./track-draft";
 import { TrackDeleteDialog } from "./TrackDeleteDialog";
+import { withoutTrack } from "./classify-track-entries";
 
 // ── Templates ─────────────────────────────────────────────────────────
 
@@ -126,11 +126,11 @@ interface CompactScoringFormProps {
   config: EventScoringConfig;
   onConfigChange: React.Dispatch<React.SetStateAction<EventScoringConfig>>;
   onSave: (config: EventScoringConfig, details: TrackDetailsById) => void;
-  onTrackDeleted?: (trackId: string) => void;
   isSubmitting?: boolean;
   isArchived: boolean;
   eventId: string;
   tracks?: EventTrack[];
+  onTrackDeleted: (trackId: string) => void;
 }
 
 // ── Main Component ────────────────────────────────────────────────────
@@ -139,11 +139,11 @@ export function CompactScoringForm({
   config,
   onConfigChange: setConfig,
   onSave,
-  onTrackDeleted,
   isSubmitting = false,
   isArchived,
   eventId,
   tracks: savedTracks = [],
+  onTrackDeleted,
 }: CompactScoringFormProps) {
   const [expandedTracks, setExpandedTracks] = useState<Set<string>>(() => {
     // Auto-expand the first track or all tracks if ≤ 2
@@ -407,13 +407,22 @@ export function CompactScoringForm({
 
   const removeTrack = async (id: string) => {
     setTrackPendingDelete(null);
-    const { error } = await supabase.from("event_tracks").delete().eq("track_id", id);
-    if (error) {
+    const { data: deletedRows, error } = await supabase
+      .from("event_tracks")
+      .delete()
+      .eq("track_id", id)
+      // A config key can be another event's track id; never delete that row.
+      .eq("event_id", eventId)
+      .select("track_id");
+    // A delete matching no rows is not an error, so check a saved track really
+    // went. A track that was never saved has no row to remove.
+    const savedRowRemains =
+      savedTracks.some((track) => track.track_id === id) && !deletedRows?.length;
+    if (error || savedRowRemains) {
       toast({ title: "Error", description: "Failed to delete track", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Track deleted" });
-      setConfig((prev) => removeTrackFromConfig(prev, id));
-      onTrackDeleted?.(id);
+      setConfig((prev) => withoutTrack(prev, id));
       setSelectedRubricScopeByTrack((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -424,6 +433,8 @@ export function CompactScoringForm({
         next.delete(id);
         return next;
       });
+      setSelectedTrackForBulkAssign((prev) => (prev === id ? "" : prev));
+      onTrackDeleted(id);
     }
   };
 

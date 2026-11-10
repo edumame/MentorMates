@@ -5,32 +5,6 @@
 
 import type { EventScoringConfig } from "@/lib/types";
 
-export function removeTrackFromConfig(
-  config: EventScoringConfig,
-  trackId: string
-): EventScoringConfig {
-  const newTracks = { ...config.tracks };
-  delete newTracks[trackId];
-
-  return {
-    ...config,
-    tracks: newTracks,
-    rounds: (config.rounds || []).map((round) => {
-      if (!round.tracks?.[trackId]) {
-        return round;
-      }
-
-      const nextTracks = { ...round.tracks };
-      delete nextTracks[trackId];
-
-      return {
-        ...round,
-        tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
-      };
-    }),
-  };
-}
-
 /**
  * Apply an assistant patch to the current draft. `sentConfig` is the draft the
  * assistant was shown, so a track that changed since then (draft updates are
