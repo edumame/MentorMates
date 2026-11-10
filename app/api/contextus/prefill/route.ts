@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { getUserProjectIds } from "@/lib/projects/membership";
 
 // Fields expected by the MentorMates project submission form
 export type PrefillData = {
@@ -98,14 +99,22 @@ export async function POST(req: Request) {
 			}
 			contextusProjectId = (data as unknown as { contextus_project_id?: string | null })?.contextus_project_id ?? null;
 		} else if (eventId && leadEmail) {
-			const { data, error } = await supabase
-				.from("projects")
-				.select("id, contextus_project_id")
-				.eq("event_id", eventId)
-				.eq("lead_email", leadEmail)
-				.order("created_at", { ascending: false })
-				.limit(1)
-				.maybeSingle();
+			// Resolve the caller's own latest project in the event via
+			// my_project_ids. Filtering by an arbitrary leadEmail was an
+			// email lookup, and the email column is not client-readable.
+			const { ids, error: idsError } = await getUserProjectIds(supabase, eventId);
+			if (idsError || !ids) {
+				return NextResponse.json({ error: "Failed to resolve current project" }, { status: 400 });
+			}
+			const { data, error } = ids.length
+				? await supabase
+						.from("projects")
+						.select("id, contextus_project_id")
+						.in("id", ids)
+						.order("created_at", { ascending: false })
+						.limit(1)
+						.maybeSingle()
+				: { data: null, error: null };
 			if (error) {
 				return NextResponse.json({ error: "Failed to resolve current project" }, { status: 400 });
 			}

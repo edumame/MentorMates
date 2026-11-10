@@ -90,6 +90,16 @@ const lastChatConfig = () => {
   return JSON.parse(init.body).event.scoring_config as EventScoringConfig;
 };
 
+// Deleting goes through the confirmation dialog (ORG-021 / JUDGE-005). The
+// mocked impact counts are zero, so no typed name is needed.
+const deleteTrack = async (name: string) => {
+  fireEvent.click(screen.getByRole("button", { name: `Delete track ${name}` }));
+  await screen.findByRole("alertdialog");
+  const confirm = screen.getByRole("button", { name: "Delete track" });
+  await waitFor(() => expect(confirm).toBeEnabled());
+  fireEvent.click(confirm);
+};
+
 describe("TracksTab draft handling", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -218,7 +228,7 @@ describe("TracksTab draft handling", () => {
     await renderLoaded();
 
     sendChat("Set all weights to equal");
-    fireEvent.click(screen.getAllByTitle("Delete")[1]);
+    await deleteTrack("Web Track");
     await waitFor(() =>
       expect(screen.queryByDisplayValue("Web Track")).not.toBeInTheDocument()
     );
@@ -252,7 +262,7 @@ describe("TracksTab draft handling", () => {
     );
     await renderLoaded();
 
-    fireEvent.click(screen.getAllByTitle("Delete")[1]);
+    await deleteTrack("Web Track");
     await waitFor(() =>
       expect(screen.queryByDisplayValue("Web Track")).not.toBeInTheDocument()
     );

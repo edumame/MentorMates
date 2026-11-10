@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CompactScoringForm } from "./CompactScoringForm";
 import type { EventScoringConfig } from "@/lib/types";
 
@@ -17,6 +17,8 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
+  // Used by the real AlertDialog (TrackDeleteDialog).
+  buttonVariants: () => "",
   Button: ({
     children,
     type = "button",
@@ -145,7 +147,13 @@ function ControlledForm({
 }: { initialConfig: EventScoringConfig } & Pick<
   React.ComponentProps<typeof CompactScoringForm>,
   "onSave"
->) {
+> &
+  Partial<
+    Omit<
+      React.ComponentProps<typeof CompactScoringForm>,
+      "config" | "onConfigChange" | "onSave"
+    >
+  >) {
   const [config, setConfig] = React.useState(initialConfig);
 
   return (
@@ -240,7 +248,8 @@ describe("CompactScoringForm", () => {
             }),
           }),
         ]),
-      })
+      }),
+      { descriptions: {} }
     );
   });
 
@@ -256,5 +265,168 @@ describe("CompactScoringForm", () => {
     );
 
     expect(screen.queryByText("Rubric")).not.toBeInTheDocument();
+  });
+
+  describe("track delete confirmation (ORG-021 / JUDGE-005)", () => {
+    function mockTables(counts: { project_scores: number; project_tracks: number; prizes: number }) {
+      const deleteEq = jest.fn().mockResolvedValue({ error: null });
+      from.mockImplementation((table: string) => {
+        if (table === "event_tracks") {
+          return { delete: jest.fn().mockReturnValue({ eq: deleteEq }) };
+        }
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({
+              count: counts[table as keyof typeof counts],
+              error: null,
+            }),
+          }),
+        };
+      });
+      return deleteEq;
+    }
+
+    const renderForm = () =>
+      render(
+        <ControlledForm
+          initialConfig={multiRoundConfig}
+          onSave={jest.fn()}
+          isArchived={false}
+          eventId="event-1"
+        />
+      );
+
+    it("does not delete on the first click and shows what will be lost", async () => {
+      const deleteEq = mockTables({ project_scores: 0, project_tracks: 2, prizes: 1 });
+      renderForm();
+      fireEvent.click(screen.getByRole("button", { name: "Delete track AI Track" }));
+      expect(deleteEq).not.toHaveBeenCalled();
+      const dialog = await screen.findByRole("alertdialog");
+      await waitFor(() => expect(dialog).toHaveTextContent("0 judge scores, 1 prize"));
+      expect(dialog).toHaveTextContent("2 projects");
+      fireEvent.click(screen.getByRole("button", { name: "Delete track" }));
+      await waitFor(() => expect(deleteEq).toHaveBeenCalledWith("track_id", "track-1"));
+    });
+
+    it("requires typing the track name once judges have scored it", async () => {
+      const deleteEq = mockTables({ project_scores: 3, project_tracks: 1, prizes: 0 });
+      renderForm();
+      fireEvent.click(screen.getByRole("button", { name: "Delete track AI Track" }));
+      const dialog = await screen.findByRole("alertdialog");
+      await waitFor(() => expect(dialog).toHaveTextContent("3 judge scores"));
+      const confirm = screen.getByRole("button", { name: "Delete track" });
+      expect(confirm).toBeDisabled();
+      fireEvent.change(screen.getByLabelText(/to confirm/), { target: { value: "AI" } });
+      expect(confirm).toBeDisabled();
+      fireEvent.change(screen.getByLabelText(/to confirm/), { target: { value: "AI Track" } });
+      expect(confirm).toBeEnabled();
+      fireEvent.click(confirm);
+      await waitFor(() => expect(deleteEq).toHaveBeenCalledTimes(1));
+    });
+
+    it("cancel keeps the track", async () => {
+      const deleteEq = mockTables({ project_scores: 0, project_tracks: 0, prizes: 0 });
+      renderForm();
+      fireEvent.click(screen.getByRole("button", { name: "Delete track AI Track" }));
+      await screen.findByRole("alertdialog");
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+      expect(deleteEq).not.toHaveBeenCalled();
+      expect(screen.getByText("AI Track")).toBeInTheDocument();
+    });
+
+    it("requires the typed name when the impact cannot be loaded", async () => {
+      from.mockImplementation(() => ({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ count: null, error: { message: "boom" } }),
+        }),
+      }));
+      jest.spyOn(console, "error").mockImplementation(() => {});
+      renderForm();
+      fireEvent.click(screen.getByRole("button", { name: "Delete track AI Track" }));
+      await screen.findByText(/couldn.t check/);
+      expect(screen.getByRole("button", { name: "Delete track" })).toBeDisabled();
+      expect(screen.getByLabelText(/to confirm/)).toBeInTheDocument();
+    });
+
+    it("the delete control is a keyboard-focusable button", () => {
+      mockTables({ project_scores: 0, project_tracks: 0, prizes: 0 });
+      renderForm();
+      const button = screen.getByRole("button", { name: "Delete track AI Track" });
+      expect(button.tagName).toBe("BUTTON");
+      button.focus();
+      expect(button).toHaveFocus();
+    });
+  });
+
+  describe("saved track details (JUDGE-006 / JUDGE-018)", () => {
+    const savedTrack = {
+      track_id: "track-1",
+      event_id: "event-1",
+      name: "Climate Track",
+      description: "Build something for climate resilience",
+      scoring_criteria: { name: "AI Track", criteria: [] },
+      created_at: "",
+      updated_at: "",
+      prizes: [
+        { id: "prize-1", track_id: "track-1", prize_amount: "$100", prize_description: "Best hack" },
+      ],
+    };
+
+    it("shows the DB name/description and saves them unchanged", () => {
+      const onSave = jest.fn();
+      render(
+        <ControlledForm
+          initialConfig={{ ...multiRoundConfig, rounds: undefined }}
+          onSave={onSave}
+          isArchived={false}
+          eventId="event-1"
+          tracks={[savedTrack]}
+        />
+      );
+      expect(screen.getByPlaceholderText("e.g., Best Overall")).toHaveValue("Climate Track");
+      expect(screen.getByLabelText("Track description")).toHaveValue(
+        "Build something for climate resilience"
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Save Scoring Configuration" }));
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tracks: { "track-1": expect.objectContaining({ name: "Climate Track" }) },
+        }),
+        { descriptions: { "track-1": "Build something for climate resilience" } }
+      );
+    });
+
+    it("saves an edited description", () => {
+      const onSave = jest.fn();
+      render(
+        <ControlledForm
+          initialConfig={{ ...multiRoundConfig, rounds: undefined }}
+          onSave={onSave}
+          isArchived={false}
+          eventId="event-1"
+          tracks={[savedTrack]}
+        />
+      );
+      fireEvent.change(screen.getByLabelText("Track description"), {
+        target: { value: "New copy" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Save Scoring Configuration" }));
+      expect(onSave.mock.calls[0][1]).toEqual({ descriptions: { "track-1": "New copy" } });
+    });
+
+    it("lists the track's prizes instead of a placeholder", () => {
+      render(
+        <ControlledForm
+          initialConfig={{ ...multiRoundConfig, rounds: undefined }}
+          onSave={jest.fn()}
+          isArchived={false}
+          eventId="event-1"
+          tracks={[savedTrack]}
+        />
+      );
+      expect(screen.getByText("$100")).toBeInTheDocument();
+      expect(screen.queryByText(/No prizes added yet/)).toBeNull();
+    });
   });
 });
