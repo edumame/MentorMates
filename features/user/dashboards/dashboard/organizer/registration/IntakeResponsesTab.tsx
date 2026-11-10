@@ -192,7 +192,7 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
     const schemaFields = activeForm?.schema?.fields ?? [];
 
     const knownRows = schemaFields
-      .filter((field) => isFieldVisible(field, answersByKey))
+      .filter((field) => isFieldVisible(field, answersByKey, schemaFields))
       .map((field) => ({
         key: field.key,
         label: field.label,
