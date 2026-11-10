@@ -47,6 +47,12 @@ const mockRemove = async ({ id }: { id: string }) => {
   return { id };
 };
 
+// MentorCards only queries meetings for signed-in users.
+let mockIsAuthenticated = true;
+jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
+  useAuth: () => ({ isAuthenticated: mockIsAuthenticated }),
+}));
+
 jest.mock("@/trpc/client", () => ({
   useTRPC: () => ({
     meetings: {
@@ -139,8 +145,19 @@ const renderCards = () => {
 
 describe("MentorCards", () => {
   beforeEach(() => {
+    mockIsAuthenticated = true;
     mockState.meetings = [];
     mockState.getManyInputs = [];
+  });
+
+  it("does not query meetings for signed-out visitors", async () => {
+    mockIsAuthenticated = false;
+    mockState.meetings = meetings(3);
+    renderCards();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockState.getManyInputs).toHaveLength(0);
+    expect(screen.queryByText("Meeting 1")).not.toBeInTheDocument();
   });
 
   it("reaches meetings beyond the first page", async () => {

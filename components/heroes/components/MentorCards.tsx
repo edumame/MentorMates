@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTRPC } from "@/trpc/client";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { keepPreviousData, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -44,18 +45,23 @@ export function MentorCards() {
 
   const [page, setPage] = useState(DEFAULT_PAGE);
 
-  const { data: filterOptions } = useQuery(trpc.meetings.getFilterOptions.queryOptions());
-  const { data, refetch, isPending, isError, isPlaceholderData } = useQuery(
-    trpc.meetings.getMany.queryOptions(
-      {
-        page,
-        eventId: selectedEventId ?? undefined,
-        projectId: selectedProjectId ?? undefined,
-      },
-      // Keeps the filters and page controls mounted while the next page loads.
-      { placeholderData: keepPreviousData }
-    )
-  );
+  // meetings.* are protected procedures: don't fire them (and log 401s)
+  // for signed-out visitors of /learn.
+  const { isAuthenticated } = useAuth();
+  const { data: filterOptions } = useQuery({
+    ...trpc.meetings.getFilterOptions.queryOptions(),
+    enabled: isAuthenticated,
+  });
+  const { data, refetch, isPending, isError, isPlaceholderData } = useQuery({
+    ...trpc.meetings.getMany.queryOptions({
+      page,
+      eventId: selectedEventId ?? undefined,
+      projectId: selectedProjectId ?? undefined,
+    }),
+    // Keeps the filters and page controls mounted while the next page loads.
+    placeholderData: keepPreviousData,
+    enabled: isAuthenticated,
+  });
 
   const totalPages = data?.totalPages ?? 0;
 
