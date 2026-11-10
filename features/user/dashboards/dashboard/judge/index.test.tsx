@@ -14,7 +14,7 @@ function mockQuery(table: string) {
   const builder: Record<string, unknown> = {
     then: (resolve: (value: typeof result) => unknown) => resolve(result),
   };
-  ["select", "eq", "in", "overrideTypes"].forEach((method) => {
+  ["select", "eq", "in", "is", "overrideTypes"].forEach((method) => {
     builder[method] = () => builder;
   });
   builder.maybeSingle = () =>
@@ -69,8 +69,10 @@ jest.mock(
   () => ({ CoverImageWithFallback: () => null })
 );
 
+// A 0-10 range keeps the shared weighted score (normalized to the criterion's
+// min/max, lib/judging/weighted-score.ts) equal to the raw value.
 const criteria = [
-  { id: "quality", name: "Quality", type: "scale", weight: 1, min: 1, max: 10 },
+  { id: "quality", name: "Quality", type: "scale", weight: 1, min: 0, max: 10 },
 ];
 
 function project(id: string, name: string, trackIds: string[]) {
