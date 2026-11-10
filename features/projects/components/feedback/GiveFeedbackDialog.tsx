@@ -19,7 +19,6 @@ interface GiveFeedbackDialogProps {
   onOpenChange: (open: boolean) => void;
   projectName: string;
   projectId: string;
-  projectDescription?: string;
   eventId?: string;
 }
 
@@ -62,10 +61,14 @@ export function GiveFeedbackDialog({
   onOpenChange,
   projectName,
   projectId,
-  projectDescription = "",
   eventId = "",
 }: GiveFeedbackDialogProps) {
   const [feedback, setFeedback] = useState("");
+  // Draft the AI suggestions were generated from (MENT-015: kept in memory
+  // only, never in localStorage, and only recorded when suggestions exist).
+  const [originalFeedback, setOriginalFeedback] = useState<string | null>(null);
+  // Hidden until the server confirms the AI feature is configured.
+  const [aiAvailable, setAiAvailable] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(
     null
   );
@@ -84,28 +87,52 @@ export function GiveFeedbackDialog({
     }
   }, [feedback]);
 
+  useEffect(() => {
+    if (!open) return;
+    let current = true;
+    fetch("/api/feedback/suggest")
+      .then((res) => (res.ok ? res.json() : { available: false }))
+      .then((data: { available?: boolean }) => {
+        if (current) setAiAvailable(Boolean(data?.available));
+      })
+      .catch(() => {
+        if (current) setAiAvailable(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [open]);
+
   const handleEnhanceWithAI = async () => {
+    const draft = feedback;
     try {
       setIsGeneratingAI(true);
-      localStorage.setItem(`originalFeedback_${projectId}`, feedback);
-
-      const res = await fetch(
-        "https://magicloops.dev/api/loop/b59e7eb1-4d27-4fa7-8411-543646f3ee2f/run",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            feedback,
-            "project description": projectDescription,
-          }),
-        }
-      );
-      const json = await res.json();
-      setAiSuggestions(json);
+      // The server reads the project description itself (only if this viewer
+      // may read the project); nothing goes to a third party from the browser.
+      const res = await fetch("/api/feedback/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, feedback: draft }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        suggestions?: AISuggestions;
+        error?: string;
+      };
+      if (res.status === 503) setAiAvailable(false);
+      if (!res.ok || !data.suggestions) {
+        throw new Error(
+          data.error || "Failed to generate AI suggestions. Please try again."
+        );
+      }
+      setAiSuggestions(data.suggestions);
+      setOriginalFeedback(draft);
     } catch (e) {
-      console.error(e);
       toast({
         title: "Error",
-        description: "Failed to generate AI suggestions. Please try again.",
+        description:
+          e instanceof Error
+            ? e.message
+            : "Failed to generate AI suggestions. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -116,22 +143,16 @@ export function GiveFeedbackDialog({
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
+      const aiEnhanced = Boolean(aiSuggestions && originalFeedback !== null);
 
-      const originalFeedback =
-        localStorage.getItem(`originalFeedback_${projectId}`) || feedback;
-
+      // Content only: the server derives project, event and authorship.
       const payload = {
-        project_id: projectId,
-        mentor_id: null,
-        mentor_name: null,
-        mentor_email: null,
         feedback_text: feedback,
-        original_feedback_text: originalFeedback,
-        modifier_field: aiSuggestions ? ["ai_enhanced"] : [],
+        original_feedback_text: aiEnhanced ? originalFeedback : feedback,
+        modifier_field: aiEnhanced ? ["ai_enhanced"] : [],
         specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
         positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
         actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
-        event_id: eventId || "",
       };
 
       const res = await fetch(`/api/feedback/submit/${projectId}`, {
@@ -143,7 +164,6 @@ export function GiveFeedbackDialog({
       if (!res.ok) throw new Error(data?.error || "Failed to submit feedback");
 
       setIsSubmitted(true);
-      localStorage.removeItem(`originalFeedback_${projectId}`);
     } catch (e) {
       console.error(e);
       toast({
@@ -178,10 +198,17 @@ export function GiveFeedbackDialog({
 
   const handleClose = () => {
     onOpenChange(false);
+    // Clear drafts older builds left in localStorage (shared machines).
+    try {
+      localStorage.removeItem(`originalFeedback_${projectId}`);
+    } catch {
+      // storage unavailable
+    }
     // reset after close animation
     setTimeout(() => {
       setFeedback("");
       setAiSuggestions(null);
+      setOriginalFeedback(null);
       setIsSubmitted(false);
       setIsGeneratingAI(false);
       setIsSubmitting(false);
@@ -237,7 +264,7 @@ export function GiveFeedbackDialog({
                   asChild
                   className="h-10 rounded-xl bg-[#4b89ef] px-6 py-2.5 text-sm font-medium text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#3d75d9]"
                 >
-                  <Link href={`/events/${eventId}/gallery`}>Explore more projects</Link>
+                  <Link href={eventId ? `/events/${eventId}/gallery` : "/projects"}>Explore more projects</Link>
                 </Button>
               </div>
             </div>
@@ -272,6 +299,7 @@ export function GiveFeedbackDialog({
 
               <div className="mb-3 h-px w-full bg-zinc-200" />
 
+              {aiAvailable && (
               <button
                 onClick={handleEnhanceWithAI}
                 disabled={isGeneratingAI || !feedback.trim()}
@@ -286,6 +314,7 @@ export function GiveFeedbackDialog({
                   ? "Enhancing with AI..."
                   : "Improve feedback with AI"}
               </button>
+              )}
 
               <div className="mb-6 flex-1">
                 <Textarea

@@ -12,10 +12,14 @@ import {
   getDefaultScopesForAccessMode,
 } from "@/lib/agent/scopes";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const createKeySchema = z.object({
   event_id: z.string().uuid().optional(),
   access_mode: agentAccessModeSchema.optional().default("organizer"),
-  scope_mode: agentScopeModeSchema.optional().default("public"),
+  // ORG-023: when omitted, a key minted for an event is scoped to that event;
+  // account-wide ("public") keys must be requested explicitly.
+  scope_mode: agentScopeModeSchema.optional(),
   label: z.string().max(100).optional().default("default"),
   scopes: z.array(agentScopeSchema).optional(),
 });
@@ -33,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = createKeySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -42,7 +46,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { event_id, access_mode, scope_mode, label } = parsed.data;
+    const { event_id, access_mode, label } = parsed.data;
+    const scope_mode = parsed.data.scope_mode ?? (event_id ? "event" : "public");
     const scopes = parsed.data.scopes ?? getDefaultScopesForAccessMode(access_mode);
 
     if (!areScopesAllowedForAccessMode(access_mode, scopes)) {
@@ -184,6 +189,14 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (eventId) {
+      // ORG-023: an event's Agent Keys tab lists keys scoped to that event
+      // plus the user's account-wide keys (event_id null, e.g. created from an
+      // event console before keys were event-scoped). The UI labels the
+      // latter "All your events" so revoking one is a deliberate choice.
+      // eventId is validated as a UUID, so the filter string is safe.
+      if (!UUID_RE.test(eventId)) {
+        return NextResponse.json({ error: "Invalid event_id" }, { status: 400 });
+      }
       query = query.or(`event_id.eq.${eventId},event_id.is.null`);
     }
 
