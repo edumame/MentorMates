@@ -101,7 +101,9 @@ export async function PATCH(request: NextRequest) {
     const scopeError = requireScope(auth, "participants:write");
     if (scopeError) return scopeError;
 
-    const access = await authorizeAgentEventAccess(auth);
+    const access = await authorizeAgentEventAccess(auth, EventRole.Organizer, {
+      intent: "write",
+    });
     if (access instanceof NextResponse) return access;
 
     const body = await request.json();

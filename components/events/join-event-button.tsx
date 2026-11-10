@@ -35,6 +35,7 @@ import {
   ParticipantApprovalRequest,
   EventTicket,
 } from "@/lib/types";
+import { PASSWORD_REQUIRED_ROLES } from "@/lib/roles/role-passwords";
 import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import {
@@ -212,11 +213,10 @@ export function JoinEventButton({
 
         if (!session) return;
 
-        const { data: rolePasswordRows, error: rolePasswordsError } =
-          await supabase
-            .from("role_passwords")
-            .select("role")
-            .eq("event_id", eventId);
+        // role_passwords rows are organizer-only; the RPC exposes just which
+        // roles are password-protected for this event (A2 round 2).
+        const { data: passwordRoles, error: rolePasswordsError } =
+          await supabase.rpc("event_password_roles", { p_event_id: eventId });
 
         if (rolePasswordsError) {
           console.error(
@@ -225,7 +225,7 @@ export function JoinEventButton({
           );
         } else {
           const protectedRoles = Object.fromEntries(
-            (rolePasswordRows ?? []).map(({ role }) => [String(role), true])
+            (passwordRoles ?? []).map((role: string) => [String(role), true])
           );
           setPasswordProtectedRoles(protectedRoles);
         }
@@ -352,6 +352,12 @@ export function JoinEventButton({
       role: EventRole = selectedRole,
       intentPassword = password
     ) => {
+      // Only a real tier id may override the selection (PUB-006: a click
+      // event passed here used to become the "tier id" and break checkout).
+      const tierIdOverride =
+        typeof pricingTierIdOverride === "string" && pricingTierIdOverride
+          ? pricingTierIdOverride
+          : undefined;
       try {
         setIsLoading(true);
 
@@ -359,11 +365,11 @@ export function JoinEventButton({
           data: { session },
         } = await supabase.auth.getSession();
         if (!session) {
-          storeLoginJoinIntent(role, intentPassword, pricingTierIdOverride);
+          storeLoginJoinIntent(role, intentPassword, tierIdOverride);
           return;
         }
 
-        const pricingTierId = pricingTierIdOverride || selectedPricingTierId;
+        const pricingTierId = tierIdOverride || selectedPricingTierId;
         if (!pricingTierId) {
           toast({
             title: "Select a ticket",
@@ -389,7 +395,6 @@ export function JoinEventButton({
           eventSlug: event?.slug || eventId,
           eventName: event?.event_name || eventName,
           pricingTierId,
-          role,
         });
 
         router.push(`/checkout?${searchParams.toString()}`);
@@ -905,7 +910,7 @@ export function JoinEventButton({
                 pricingTiers={pricingTiers}
                 selectedTierId={selectedPricingTierId}
                 onTierSelect={setSelectedPricingTierId}
-                onContinue={handlePricingTierContinue}
+                onContinue={() => handlePricingTierContinue()}
                 isLoading={isLoading}
               />
             </div>
@@ -1005,7 +1010,7 @@ export function JoinEventButton({
                   pricingTiers={pricingTiers}
                   selectedTierId={selectedPricingTierId}
                   onTierSelect={setSelectedPricingTierId}
-                  onContinue={handlePricingTierContinue}
+                  onContinue={() => handlePricingTierContinue()}
                   isLoading={isLoading}
                 />
               </div>
@@ -1018,18 +1023,11 @@ export function JoinEventButton({
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={EventRole.Participant}>
-                      {getRoleLabel(EventRole.Participant, roleLabels)}
-                    </SelectItem>
-                    <SelectItem value={EventRole.Mentor}>
-                      {getRoleLabel(EventRole.Mentor, roleLabels)}
-                    </SelectItem>
-                    <SelectItem value={EventRole.Judge}>
-                      {getRoleLabel(EventRole.Judge, roleLabels)}
-                    </SelectItem>
-                    <SelectItem value={EventRole.Organizer}>
-                      {getRoleLabel(EventRole.Organizer, roleLabels)}
-                    </SelectItem>
+                    {getSelfJoinableRoles(passwordProtectedRoles).map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {getRoleLabel(role, roleLabels)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -1086,4 +1084,18 @@ export function JoinEventButton({
       </Dialog>
     </>
   );
+}
+
+/**
+ * Roles a visitor may pick when joining (MENT-017 / ORG-013): organizer access
+ * is invitation-only and never offered; mentor/judge are offered only when the
+ * organizer configured a role password for them on this event.
+ */
+export function getSelfJoinableRoles(
+  passwordProtectedRoles: Partial<Record<string, boolean>>
+): EventRole[] {
+  return [
+    EventRole.Participant,
+    ...PASSWORD_REQUIRED_ROLES.filter((role) => passwordProtectedRoles[role]),
+  ];
 }

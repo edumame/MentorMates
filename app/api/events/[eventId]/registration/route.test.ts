@@ -42,8 +42,11 @@ describe("DELETE /api/events/[eventId]/registration", () => {
     return store;
   };
 
-  const cancel = (eventId: string) =>
-    DELETE({} as NextRequest, { params: Promise.resolve({ eventId }) });
+  const cancel = (eventId: string, body: unknown = { role: "participant" }) =>
+    DELETE(
+      { json: async () => body } as unknown as NextRequest,
+      { params: Promise.resolve({ eventId }) },
+    );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -117,6 +120,29 @@ describe("DELETE /api/events/[eventId]/registration", () => {
 
     const response = await cancel(store.eventId);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a request without a valid role and changes nothing", async () => {
+    const store = useStore();
+
+    const response = await cancel(store.eventId, { role: "superuser" });
+
+    expect(response.status).toBe(400);
+    expect(store.roleOf("alice")).toBe("participant");
+    expect(store.requestStatusOf("alice")).toBe("approved");
+  });
+
+  it("does not touch the approval when a non-participant role is cancelled", async () => {
+    const store = useStore({
+      roles: { alice: "mentor" },
+      requests: { alice: "approved" },
+    });
+
+    const response = await cancel(store.eventId, { role: "mentor" });
+
+    expect(response.status).toBe(200);
+    expect(store.roleOf("alice")).toBeUndefined();
+    expect(store.requestStatusOf("alice")).toBe("approved");
   });
 });

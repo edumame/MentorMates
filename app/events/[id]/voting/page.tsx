@@ -1,10 +1,10 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { VotingContent } from "@/components/voting/voting-content";
 import { VotingResultsPanel } from "@/components/voting/voting-results-panel";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -15,7 +15,6 @@ export default async function VotingPage({ params, searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const supabase = await createSupabaseClient();
 
-  const isUUID = isValidUUID(id);
 
   let query = supabase.from("events").select(`
     event_id,
@@ -29,11 +28,10 @@ export default async function VotingPage({ params, searchParams }: PageProps) {
     owner_id
   `);
 
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  query = query.eq("event_id", routeEventId);
 
   const { data: eventData, error: eventError } = await query.single();
 

@@ -41,6 +41,7 @@ jest.mock("@/lib/supabase", () => ({
         data: { session: { user: { id: "bob" } } },
       })),
     },
+    rpc: jest.fn(async () => ({ data: [], error: null })),
     from: jest.fn((table: string) => {
       const result = { error: null, ...mockTables[table] };
       const builder: Record<string, unknown> = {
@@ -106,7 +107,7 @@ describe("JoinEventButton for an approved user who has not paid", () => {
     expect(screen.queryByText("Pay Now - Approved!")).not.toBeInTheDocument();
   });
 
-  it("offers Pay Now and sends the role to checkout while a seat is free", async () => {
+  it("offers Pay Now and goes to checkout while a seat is free", async () => {
     mockApprovedUnpaidUser(0);
     const user = userEvent.setup();
 
@@ -119,6 +120,7 @@ describe("JoinEventButton for an approved user who has not paid", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalled());
-    expect(mockPush.mock.calls[0][0]).toContain("role=participant");
+    expect(mockPush.mock.calls[0][0]).toMatch(/^\/checkout\?/);
+    expect(mockPush.mock.calls[0][0]).toContain("pricingTierId=tier-1");
   });
 });

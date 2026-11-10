@@ -4,7 +4,6 @@ import { fetchClientSecret } from "./stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { stripe } from "@/lib/stripe/stripe";
-import { EventRole } from "@/lib/types";
 import { releaseParticipantSeatReservation } from "@/lib/events/participant-access";
 import { createSeatStore } from "@/lib/events/__fixtures__/seat-store";
 
@@ -54,8 +53,15 @@ function clientWith(tables: Record<string, QueryResult>) {
       }
       return query(tables[table]);
     }),
+    rpc: jest.fn(async () => ({ data: "payment-1", error: null })),
   };
 }
+
+// fetchClientSecret reads the Stripe customer and registers the checkout with
+// the service client; seat checks share that client.
+const serviceBaseTables: Record<string, QueryResult> = {
+  user_profiles: { data: { stripe_customer_id: "cus_1" }, error: null },
+};
 
 const checkoutOptions = {
   eventId: "event-1",
@@ -71,15 +77,18 @@ describe("fetchClientSecret capacity check", () => {
     capacity,
     roles,
     approved,
+    otherRoles = {},
     eventError = null,
   }: {
     capacity: number | null;
     roles: string[];
     approved: string[];
+    otherRoles?: Record<string, string>;
     eventError?: unknown;
   }) => {
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(
       clientWith({
+        ...serviceBaseTables,
         events: {
           data: eventError
             ? null
@@ -87,7 +96,13 @@ describe("fetchClientSecret capacity check", () => {
           error: eventError,
         },
         user_event_roles: {
-          data: roles.map((user_id) => ({ user_id, role: "participant" })),
+          data: [
+            ...roles.map((user_id) => ({ user_id, role: "participant" })),
+            ...Object.entries(otherRoles).map(([user_id, role]) => ({
+              user_id,
+              role,
+            })),
+          ],
           error: null,
         },
         participant_approval_requests: {
@@ -103,7 +118,6 @@ describe("fetchClientSecret capacity check", () => {
 
     (createSupabaseClient as jest.Mock).mockResolvedValue({
       ...clientWith({
-        user_profiles: { data: { stripe_customer_id: "cus_1" }, error: null },
         pricing_tiers: {
           data: { stripe_price_id: "price_1", available_until: null },
           error: null,
@@ -154,8 +168,12 @@ describe("fetchClientSecret capacity check", () => {
       participantCapacity: 1,
       paid: true,
       requests: { alice: "approved" },
+      extraTables: { user_profiles: [{ uid: "bob", stripe_customer_id: "cus_1" }] },
     });
-    (createSupabaseServiceClient as jest.Mock).mockReturnValue(store.client);
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+      ...store.client,
+      rpc: jest.fn(async () => ({ data: "payment-1", error: null })),
+    });
 
     await expect(
       fetchClientSecret({ ...checkoutOptions, eventId: store.eventId }),
@@ -177,12 +195,15 @@ describe("fetchClientSecret capacity check", () => {
     await expect(fetchClientSecret(checkoutOptions)).resolves.toBe("secret_1");
   });
 
-  it("does not apply the participant limit to paying mentors", async () => {
-    mockSeats({ capacity: 1, roles: ["alice"], approved: [] });
+  it("does not apply the participant limit to a user who already holds another role", async () => {
+    mockSeats({
+      capacity: 1,
+      roles: ["alice"],
+      approved: [],
+      otherRoles: { bob: "mentor" },
+    });
 
-    await expect(
-      fetchClientSecret({ ...checkoutOptions, role: EventRole.Mentor }),
-    ).resolves.toBe("secret_1");
+    await expect(fetchClientSecret(checkoutOptions)).resolves.toBe("secret_1");
   });
 
   it("does not take payment when capacity cannot be verified", async () => {
