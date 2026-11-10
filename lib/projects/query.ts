@@ -6,6 +6,7 @@ import {
 } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
 
@@ -39,6 +40,19 @@ export type ProjectBaseRow = {
   submitted_at?: string | null;
   project_tracks?: Array<{ event_tracks: EventTrack | null }> | null;
 };
+
+/**
+ * Reads every page via the shared fetchAllRows (PostgREST silently caps each
+ * response at max_rows) and throws on a failed read, so callers cannot mistake
+ * it for "no rows" and render or export blanks.
+ */
+async function fetchAllPagesOrThrow<Row, Err>(
+  fetchPage: Parameters<typeof fetchAllRows<Row, Err>>[0],
+): Promise<Row[]> {
+  const { data, error } = await fetchAllRows(fetchPage);
+  if (error) throw error;
+  return data as Row[];
+}
 
 export async function fetchSubmissionFieldsByEventIds(
   supabase: ServiceSupabaseClient,
@@ -80,15 +94,15 @@ export async function fetchSubmissionAnswersByProjectIds(
     return new Map<string, ProjectSubmissionAnswer[]>();
   }
 
-  const { data, error } = await supabase
-    .from("project_submission_answers")
-    .select("id, project_id, event_submission_field_id, answer")
-    .in("project_id", uniqueProjectIds)
-    .overrideTypes<ProjectSubmissionAnswer[]>();
-
-  if (error || !data) {
-    return new Map<string, ProjectSubmissionAnswer[]>();
-  }
+  const data = await fetchAllPagesOrThrow((from, to) =>
+    supabase
+      .from("project_submission_answers")
+      .select("id, project_id, event_submission_field_id, answer")
+      .in("project_id", uniqueProjectIds)
+      .order("id", { ascending: true })
+      .range(from, to)
+      .overrideTypes<ProjectSubmissionAnswer[]>(),
+  );
 
   const map = new Map<string, ProjectSubmissionAnswer[]>();
   for (const row of data) {
@@ -109,18 +123,18 @@ export async function fetchArtifactsByProjectIds(
     return new Map<string, ProjectArtifactRow[]>();
   }
 
-  const { data, error } = await supabase
-    .from("project_artifacts")
-    .select(
-      "id, project_id, kind, label, url, sort_order, is_primary, metadata",
-    )
-    .in("project_id", uniqueProjectIds)
-    .order("sort_order", { ascending: true })
-    .overrideTypes<ProjectArtifactRow[]>();
-
-  if (error || !data) {
-    return new Map<string, ProjectArtifactRow[]>();
-  }
+  const data = await fetchAllPagesOrThrow((from, to) =>
+    supabase
+      .from("project_artifacts")
+      .select(
+        "id, project_id, kind, label, url, sort_order, is_primary, metadata",
+      )
+      .in("project_id", uniqueProjectIds)
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+      .overrideTypes<ProjectArtifactRow[]>(),
+  );
 
   const map = new Map<string, ProjectArtifactRow[]>();
   for (const row of data) {
