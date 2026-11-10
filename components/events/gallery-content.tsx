@@ -21,14 +21,27 @@ interface GalleryContentProps {
   eventId: string;
   slug: string;
   hasJoined: boolean;
+  /** Signed-out viewers must use the public listing; the default one is 401 for them (NEW-005). */
+  isSignedIn: boolean;
   userRole?: string | null;
   currentRole?: EventRole | null;
+}
+
+/**
+ * Signed-in viewers use the authenticated listing (RLS decides what they see,
+ * organizers also get drafts); signed-out viewers use the public listing,
+ * which only serves submitted projects of public events.
+ */
+export function galleryProjectsUrl(eventId: string, isSignedIn: boolean) {
+  const base = `/api/projects?eventId=${encodeURIComponent(eventId)}`;
+  return isSignedIn ? base : `${base}&public=true`;
 }
 
 export function GalleryContent({
   eventId,
   slug,
   hasJoined,
+  isSignedIn,
   userRole,
   currentRole,
 }: GalleryContentProps) {
@@ -48,15 +61,7 @@ export function GalleryContent({
       setIsLoading(true);
       setLoadFailed(false);
       try {
-        let response = await fetch(`/api/projects?eventId=${eventId}`);
-        // This page is shared as a public link, so a visitor with no session
-        // gets the public view. Members keep the view above: it also covers
-        // private events, which the public view refuses.
-        if (response.status === 401) {
-          response = await fetch(
-            `/api/projects?eventId=${eventId}&public=true`
-          );
-        }
+        const response = await fetch(galleryProjectsUrl(eventId, isSignedIn));
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
         }
@@ -65,13 +70,15 @@ export function GalleryContent({
       } catch (error) {
         console.error("Error fetching projects:", error);
         setProjects([]);
+        // Show an error rather than the empty board: a failed load (e.g. a
+        // signed-out visitor of a private event gets 404) is not "no projects".
         setLoadFailed(true);
       }
       setIsLoading(false);
     };
 
     fetchProjects();
-  }, [eventId]);
+  }, [eventId, isSignedIn]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {

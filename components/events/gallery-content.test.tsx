@@ -1,124 +1,79 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { GalleryContent } from "./gallery-content";
 
-jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock("@/features/projects/components/displays/ProjectBoard/ProjectBoard", () => ({
+  __esModule: true,
+  default: ({ projectList }: { projectList: Array<{ project_name: string }> }) => (
+    <ul>
+      {projectList.map((p) => (
+        <li key={p.project_name}>{p.project_name}</li>
+      ))}
+    </ul>
+  ),
+}));
+jest.mock("@/lib/hooks/use-toast", () => ({ useToast: () => ({ toast: jest.fn() }) }));
 
-const MEMBER_URL = "/api/projects?eventId=event-1";
-const PUBLIC_URL = "/api/projects?eventId=event-1&public=true";
+import { GalleryContent, galleryProjectsUrl } from "./gallery-content";
 
-const project = {
-  id: "project-1",
-  project_name: "Booth demo",
-  project_description: "Description",
-  lead_name: "Project lead",
-  event_id: "event-1",
-  track_ids: [],
-  created_at: "2026-01-01T00:00:00Z",
-  submitted: true,
-  teammates: [],
-};
-
-const jsonResponse = (status: number, body: unknown) =>
-  ({ ok: status >= 200 && status < 300, status, json: async () => body }) as Response;
-
-const mockFetch = (responses: Record<string, Response>) => {
-  const fetchMock = jest.fn(async (url: string) => {
-    const response = responses[url];
-    if (!response) throw new Error(`Unexpected fetch: ${url}`);
-    return response;
+describe("galleryProjectsUrl (NEW-005)", () => {
+  it("uses the public listing for signed-out viewers", () => {
+    expect(galleryProjectsUrl("ev-1", false)).toBe("/api/projects?eventId=ev-1&public=true");
   });
-  global.fetch = fetchMock as unknown as typeof fetch;
-  return fetchMock;
-};
+  it("uses the authenticated listing for signed-in viewers", () => {
+    expect(galleryProjectsUrl("ev-1", true)).toBe("/api/projects?eventId=ev-1");
+  });
+  it("encodes the event id", () => {
+    expect(galleryProjectsUrl("a&b", false)).toBe("/api/projects?eventId=a%26b&public=true");
+  });
+});
 
-const renderGallery = () =>
-  render(<GalleryContent eventId="event-1" slug="demo" hasJoined={false} />);
-
-describe("GalleryContent project loading", () => {
+describe("GalleryContent", () => {
   const originalFetch = global.fetch;
-
-  beforeEach(() => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-
   afterEach(() => {
     global.fetch = originalFetch;
     jest.restoreAllMocks();
   });
 
-  it("shows submitted projects to a logged-out visitor of a public event", async () => {
-    const fetchMock = mockFetch({
-      [MEMBER_URL]: jsonResponse(401, { error: "Unauthorized" }),
-      [PUBLIC_URL]: jsonResponse(200, { projects: [project] }),
+  function mockFetch(response: { ok: boolean; body?: unknown }) {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: response.ok,
+      json: async () => response.body,
     });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  }
 
-    renderGallery();
+  it("lists projects for a signed-out visitor via public=true", async () => {
+    const fetchMock = mockFetch({ ok: true, body: { projects: [{ project_name: "QA Gallery Project" }] } });
+    render(<GalleryContent eventId="ev-1" slug="ev" hasJoined={false} isSignedIn={false} />);
+    expect(await screen.findByText("QA Gallery Project")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/projects?eventId=ev-1&public=true");
+  });
 
-    // The card shows the name on both its cover and its body.
-    expect((await screen.findAllByText("Booth demo")).length).toBeGreaterThan(0);
-    expect(fetchMock).toHaveBeenCalledWith(PUBLIC_URL);
-    expect(screen.queryByText("No project yet")).not.toBeInTheDocument();
+  it("uses the authenticated listing for a signed-in member", async () => {
+    const fetchMock = mockFetch({ ok: true, body: { projects: [] } });
+    render(<GalleryContent eventId="ev-1" slug="ev" hasJoined isSignedIn userRole="participant" />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/projects?eventId=ev-1"));
+  });
+
+  it("shows an error, not the empty board, when the listing fails", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockFetch({ ok: false });
+    render(<GalleryContent eventId="ev-1" slug="ev" hasJoined={false} isSignedIn={false} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/may be private or unavailable/i);
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("shows an error when the network request fails", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    global.fetch = jest.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
+    render(<GalleryContent eventId="ev-1" slug="ev" hasJoined isSignedIn />);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("keeps the empty board (no alert) when an event genuinely has no projects", async () => {
+    mockFetch({ ok: true, body: { projects: [] } });
+    render(<GalleryContent eventId="ev-1" slug="ev" hasJoined={false} isSignedIn={false} />);
+    expect(await screen.findByRole("list")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("keeps a signed-in visitor on the member view", async () => {
-    const fetchMock = mockFetch({
-      [MEMBER_URL]: jsonResponse(200, { projects: [project] }),
-    });
-
-    renderGallery();
-
-    // The card shows the name on both its cover and its body.
-    expect((await screen.findAllByText("Booth demo")).length).toBeGreaterThan(0);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith(MEMBER_URL);
-  });
-
-  it("does not switch a signed-in visitor to the public view when the member view fails", async () => {
-    const fetchMock = mockFetch({
-      [MEMBER_URL]: jsonResponse(500, { error: "Failed to fetch projects" }),
-    });
-
-    renderGallery();
-
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows an error, not the empty board, to a logged-out visitor of a private event", async () => {
-    mockFetch({
-      [MEMBER_URL]: jsonResponse(401, { error: "Unauthorized" }),
-      [PUBLIC_URL]: jsonResponse(404, { error: "Event not found" }),
-    });
-
-    renderGallery();
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /may be private or unavailable/i
-    );
-    expect(screen.queryByText("No project yet")).not.toBeInTheDocument();
-  });
-
-  it("shows an error, not the empty board, when the network request fails", async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error("offline"));
-
-    renderGallery();
-
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(screen.queryByText("No project yet")).not.toBeInTheDocument();
-  });
-
-  it("keeps the empty board when an event genuinely has no projects", async () => {
-    mockFetch({
-      [MEMBER_URL]: jsonResponse(401, { error: "Unauthorized" }),
-      [PUBLIC_URL]: jsonResponse(200, { projects: [] }),
-    });
-
-    renderGallery();
-
-    expect(await screen.findByText("No project yet")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument()
-    );
   });
 });
