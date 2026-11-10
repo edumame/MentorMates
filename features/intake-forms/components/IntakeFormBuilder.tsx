@@ -198,6 +198,13 @@ function QuestionCard({
   });
 
   const selectableShowIfFields = allFields.filter((item) => item.id !== field.id);
+  // A rule whose source question is gone is ignored for participants, so show
+  // it here as "Always show" rather than as a live rule.
+  const activeShowIf = selectableShowIfFields.some(
+    (item) => item.key === field.showIf?.fieldKey
+  )
+    ? field.showIf
+    : null;
 
   const currentOptions = field.options ?? [];
 
@@ -229,12 +236,9 @@ function QuestionCard({
           <div className="flex-1 space-y-2">
             <Input
               value={field.label}
-              onChange={(event) =>
-                onUpdate({
-                  label: event.target.value,
-                  key: buildFieldKey(event.target.value, field.id),
-                })
-              }
+              // The key is fixed at creation: showIf rules and stored answers
+              // reference it by value, so a label edit must not change it.
+              onChange={(event) => onUpdate({ label: event.target.value })}
               placeholder="Untitled question"
               className="border-0 border-b border-black/20 rounded-none px-0 focus-visible:ring-0"
             />
@@ -365,7 +369,7 @@ function QuestionCard({
               <div className="space-y-1">
                 <label className="text-xs text-black/60">Show this question only if</label>
                 <select
-                  value={field.showIf?.fieldKey ?? ""}
+                  value={activeShowIf?.fieldKey ?? ""}
                   className="h-9 w-full rounded-md border border-black/20 bg-white px-2 text-sm"
                   onChange={(event) => {
                     if (!event.target.value) {
@@ -376,7 +380,7 @@ function QuestionCard({
                     onUpdate({
                       showIf: {
                         fieldKey: event.target.value,
-                        equals: field.showIf?.equals ?? "",
+                        equals: activeShowIf?.equals ?? "",
                       },
                     });
                   }}
@@ -390,15 +394,15 @@ function QuestionCard({
                 </select>
               </div>
 
-              {field.showIf ? (
+              {activeShowIf ? (
                 <div className="space-y-1">
                   <label className="text-xs text-black/60">Value equals</label>
                   <Input
-                    value={field.showIf.equals}
+                    value={activeShowIf.equals}
                     onChange={(event) =>
                       onUpdate({
                         showIf: {
-                          fieldKey: field.showIf?.fieldKey ?? "",
+                          fieldKey: activeShowIf.fieldKey,
                           equals: event.target.value,
                         },
                       })
@@ -512,10 +516,20 @@ export function IntakeFormBuilder({
   }
 
   function removeField(id: string) {
-    setSchema((current) => ({
-      ...current,
-      fields: current.fields.filter((field) => field.id !== id),
-    }));
+    setSchema((current) => {
+      const removedKey = current.fields.find((field) => field.id === id)?.key;
+
+      return {
+        ...current,
+        fields: current.fields
+          .filter((field) => field.id !== id)
+          .map((field) =>
+            field.showIf?.fieldKey === removedKey
+              ? { ...field, showIf: null }
+              : field
+          ),
+      };
+    });
 
     if (selectedFieldId === id) {
       const remaining = schema.fields.filter((field) => field.id !== id);

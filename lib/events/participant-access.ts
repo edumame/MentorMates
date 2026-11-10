@@ -1,4 +1,4 @@
-import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
+import { EventRole, EventVisibility } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 
@@ -26,20 +26,24 @@ interface JoinParticipantEventOptions {
   channel: "web" | "agent";
 }
 
-export const EVENT_UNAVAILABLE_MESSAGE = "This event is no longer available.";
+export const EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE =
+  "This event is not open for enrollment.";
 
 /**
- * Approval gates the public listing, not whether an event can operate, so a
- * rejected private event was only denied a listing and keeps working. Any
- * other rejected event has been taken down and must refuse joins and checkouts.
+ * Private events are intentionally usable before public-listing approval.
+ * Draft/rejected events, unapproved public listings and archived (read-only,
+ * XL-001) events are not open enrollment. Shared by the web and agent joins
+ * and by checkout, so nobody is charged for an event they could not join.
  */
-export function isEventTakenDown(event: {
+export function isEventClosedForEnrollment(event: {
   visibility: string | null;
   approval_status: string | null;
 }) {
   return (
-    event.approval_status === ApprovalStatus.Rejected &&
-    event.visibility !== EventVisibility.Private
+    event.visibility === EventVisibility.Draft ||
+    event.visibility === EventVisibility.Archived ||
+    event.approval_status === "rejected" ||
+    (event.visibility === EventVisibility.Public && event.approval_status !== "approved")
   );
 }
 
@@ -86,14 +90,23 @@ export async function joinParticipantEvent(
     return failure(404, { error: "Event not found" });
   }
 
-  if (isEventTakenDown(event)) {
-    return failure(403, { error: EVENT_UNAVAILABLE_MESSAGE });
+  if (isEventClosedForEnrollment(event)) {
+    return failure(403, { error: EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE });
   }
 
   if (channel === "agent" && event.paid) {
     return failure(403, {
       error: "Paid events cannot be joined through the agent API.",
     });
+  }
+
+  if (channel === "agent") {
+    const { data: protectedRole, error: passwordError } = await supabase
+      .from("role_passwords").select("role").eq("event_id", eventId)
+      .eq("role", EventRole.Participant).maybeSingle()
+      .overrideTypes<{ role: string } | null>();
+    if (passwordError) return failure(500, { error: "Failed to verify enrollment requirements" });
+    if (protectedRole) return failure(403, { error: "Join this password-protected event through the website." });
   }
 
   const { data: existingRole, error: existingRoleError } = await supabase
@@ -152,13 +165,13 @@ export async function joinParticipantEvent(
     const { data: questionnaireSubmission, error: questionnaireError } =
       await supabase
         .from("intake_form_submissions")
-        .select("id")
+        .select("id, form_version_id")
         .eq("event_id", eventId)
         .eq("context", "registration")
         .eq("submitter_user_id", userId)
         .eq("status", "submitted")
         .maybeSingle()
-        .overrideTypes<{ id: string } | null>();
+        .overrideTypes<{ id: string; form_version_id: string | null } | null>();
 
     if (questionnaireError) {
       return failure(500, {
@@ -171,6 +184,20 @@ export async function joinParticipantEvent(
         error:
           "Please complete the registration questionnaire before joining this event.",
         requires_registration_questionnaire: true,
+      });
+    }
+
+    // ORG-010: an answer to an older version of the form does not satisfy the
+    // current one (intake submission validation returns 409 for stale versions).
+    if (
+      questionnaireSubmission.form_version_id !==
+      activeRegistrationBinding.form_version_id
+    ) {
+      return failure(412, {
+        error:
+          "The registration questionnaire has changed. Please complete the updated questionnaire before joining this event.",
+        requires_registration_questionnaire: true,
+        questionnaire_outdated: true,
       });
     }
   }
@@ -197,33 +224,7 @@ export async function joinParticipantEvent(
       });
     }
 
-    if (existingRequest?.status === "approved") {
-      if (event.paid && channel === "web") {
-        const { data: payment, error: paymentError } = await supabase
-          .from("user_event_payments")
-          .select("payment_status")
-          .eq("user_id", userId)
-          .eq("event_id", eventId)
-          .eq("payment_status", "paid")
-          .maybeSingle()
-          .overrideTypes<{
-            payment_status: Database["public"]["Tables"]["user_event_payments"]["Row"]["payment_status"];
-          } | null>();
-
-        if (paymentError) {
-          return failure(500, { error: "Failed to verify payment status" });
-        }
-
-        if (!payment) {
-          return failure(402, {
-            error:
-              "Payment required. Your request has been approved, but payment is still needed.",
-            requires_approval: false,
-            request_status: "approved_pending_payment",
-          });
-        }
-      }
-    } else if (!existingRequest) {
+    if (!existingRequest) {
       const { data: newRequest, error: requestError } = await supabase
         .from("participant_approval_requests")
         .insert({
@@ -248,7 +249,7 @@ export async function joinParticipantEvent(
         message:
           "Your request has been submitted and is pending organizer approval",
       };
-    } else {
+    } else if (existingRequest.status !== "approved") {
       return failure(403, {
         error:
           "Your previous request was not approved. Please contact the organizers.",
@@ -258,17 +259,36 @@ export async function joinParticipantEvent(
     }
   }
 
-  const { error: roleError } = await supabase.from("user_event_roles").upsert(
+  if (event.paid && channel === "web") {
+    const { data: payment, error: paymentError } = await supabase
+      .from("user_event_payments")
+      .select("payment_status")
+      .eq("user_id", userId)
+      .eq("event_id", eventId)
+      .eq("payment_status", "paid")
+      .limit(1)
+      .maybeSingle()
+      .overrideTypes<{ payment_status: string } | null>();
+    if (paymentError) return failure(500, { error: "Failed to verify payment status" });
+    if (!payment) return failure(402, {
+      error: "Payment required before joining this event.",
+      requires_approval: false,
+      request_status: "approved_pending_payment",
+    });
+  }
+
+  const { error: roleError } = await supabase.from("user_event_roles").insert(
     {
       user_id: userId,
       event_id: eventId,
       role: EventRole.Participant,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "user_id,event_id" },
   );
 
   if (roleError) {
+    if (roleError.code === "23505") return failure(409, { error: "You already have a role in this event" });
+    if (roleError.code === "45000") return failure(409, { error: "Event is full. No seats available." });
     return failure(500, { error: "Failed to join event" });
   }
 

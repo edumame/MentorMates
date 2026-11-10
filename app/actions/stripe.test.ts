@@ -2,6 +2,7 @@
 
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { fetchClientSecret } from "./stripe";
 
 jest.mock("next/headers", () => ({
@@ -13,7 +14,7 @@ jest.mock("next/headers", () => ({
 jest.mock("@/lib/stripe/stripe", () => ({
   stripe: {
     customers: { create: jest.fn() },
-    checkout: { sessions: { create: jest.fn() } },
+    checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
   },
 }));
 
@@ -21,30 +22,27 @@ jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
 }));
 
+jest.mock("@/lib/supabase/service", () => ({
+  createSupabaseServiceClient: jest.fn(),
+}));
+
 const chain = (result: { data: unknown; error: unknown }) => {
   const builder: Record<string, unknown> = {
     select: jest.fn(() => builder),
     eq: jest.fn(() => builder),
-    upsert: jest.fn(() => builder),
     single: jest.fn().mockResolvedValue(result),
     maybeSingle: jest.fn().mockResolvedValue(result),
-    then: (resolve: (value: typeof result) => void) => resolve(result),
   };
   return builder;
 };
 
 const mockSupabase = (event: Record<string, unknown> | null) => {
   const tables: Record<string, ReturnType<typeof chain>> = {
-    user_profiles: chain({
-      data: { stripe_customer_id: "cus_1" },
-      error: null,
-    }),
     events: chain({ data: event, error: null }),
     pricing_tiers: chain({
       data: { stripe_price_id: "price_1", current_quantity: 0 },
       error: null,
     }),
-    user_event_payments: chain({ data: { id: "payment-1" }, error: null }),
   };
 
   (createSupabaseClient as jest.Mock).mockResolvedValue({
@@ -54,6 +52,12 @@ const mockSupabase = (event: Record<string, unknown> | null) => {
       }),
     },
     from: jest.fn((table: string) => tables[table]),
+  });
+  (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+    from: jest.fn(() =>
+      chain({ data: { stripe_customer_id: "cus_1" }, error: null }),
+    ),
+    rpc: jest.fn().mockResolvedValue({ data: "payment-1", error: null }),
   });
 };
 
@@ -68,31 +72,35 @@ describe("fetchClientSecret", () => {
     createSession.mockResolvedValue({ id: "cs_1", client_secret: "secret_1" });
   });
 
-  it.each(["public", "draft"])(
-    "refuses a new checkout for a rejected %s event",
-    async (visibility) => {
-      mockSupabase({ visibility, approval_status: "rejected" });
+  it.each([
+    { visibility: "public", approval_status: "rejected" },
+    { visibility: "private", approval_status: "rejected" },
+    { visibility: "draft", approval_status: "rejected" },
+    { visibility: "draft", approval_status: "approved" },
+    { visibility: "archived", approval_status: "approved" },
+    { visibility: "public", approval_status: "submitted" },
+  ])("refuses a checkout for an event closed to enrollment: %o", async (event) => {
+    mockSupabase(event);
 
-      await expect(checkout()).rejects.toThrow(
-        "This event is no longer available.",
-      );
-      expect(createSession).not.toHaveBeenCalled();
-    },
-  );
+    await expect(checkout()).rejects.toThrow(
+      "This event is not open for enrollment.",
+    );
+    expect(createSession).not.toHaveBeenCalled();
+  });
 
   it("refuses a checkout for an event the buyer cannot read", async () => {
     // A rejected event moved to draft is hidden from non-members by RLS.
     mockSupabase(null);
 
     await expect(checkout()).rejects.toThrow(
-      "This event is no longer available.",
+      "This event is not open for enrollment.",
     );
     expect(createSession).not.toHaveBeenCalled();
   });
 
   it.each([
     { visibility: "public", approval_status: "approved" },
-    { visibility: "private", approval_status: "rejected" },
+    { visibility: "private", approval_status: "not_submitted" },
   ])("allows checkout for %o", async (event) => {
     mockSupabase(event);
 

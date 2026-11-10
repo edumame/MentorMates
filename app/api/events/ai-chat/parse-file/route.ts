@@ -73,8 +73,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    // A non-multipart body makes formData() throw: that is a client error (PUB-015).
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return NextResponse.json(
+        { error: "Expected multipart/form-data with a file" },
+        { status: 400 }
+      );
+    }
+    const fileEntry = formData.get("file");
+    const file = fileEntry instanceof File ? fileEntry : null;
 
     if (!file) {
       return NextResponse.json(

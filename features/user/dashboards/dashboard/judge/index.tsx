@@ -24,10 +24,15 @@ import { CoverImageWithFallback } from "@/features/projects/components/displays/
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import {
+  getCardNavigationDirection,
   getNextProjectId,
   isProjectFullyScored,
+  removeTrackScores,
+  setTrackScores,
   truncateWithEllipsis,
+  type ScoreValuesByProject,
 } from "./utils";
+import { computeWeightedScore } from "@/lib/judging/weighted-score";
 import { getActiveRound } from "@/lib/judging/rounds";
 import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
 import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
@@ -64,7 +69,7 @@ type NavigatorSort = "default" | "score_high" | "score_low" | "unscored_first";
 
 /**
  * Compute the weighted average of a judge's scores for a single track.
- * Returns null if no scores exist or weights sum to zero.
+ * Returns null if no valid scores exist or weights sum to zero.
  */
 function computeTrackAverage(
   scores: Record<string, number> | null,
@@ -85,18 +90,8 @@ function computeTrackAverage(
   const criteria = resolvedTrackConfig?.criteria || [];
   if (criteria.length === 0) return null;
 
-  let weightedSum = 0;
-  let totalWeight = 0;
-  for (const criterion of criteria) {
-    const score = scores[criterion.id];
-    if (typeof score !== "number") continue;
-    const weight = criterion.weight || 0;
-    weightedSum += score * weight;
-    totalWeight += weight;
-  }
-
-  if (totalWeight === 0) return null;
-  return weightedSum / totalWeight;
+  // Shared with the organizer leaderboard (JUDGE-007).
+  return computeWeightedScore(scores, criteria).score;
 }
 
 /**
@@ -131,9 +126,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     Map<string, Set<string>>
   >(new Map());
   // Stores actual numeric scores per project per track: Map<projectId, Map<trackId, scoresObject>>
-  const [scoreValues, setScoreValues] = useState<
-    Map<string, Map<string, Record<string, number>>>
-  >(new Map());
+  const [scoreValues, setScoreValues] = useState<ScoreValuesByProject>(
+    new Map()
+  );
   const [navigatorSort, setNavigatorSort] = useState<NavigatorSort>("default");
   const [judgeId, setJudgeId] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -304,11 +299,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") {
-        navigateCards(-1);
-      } else if (event.key === "ArrowRight") {
-        navigateCards(1);
-      }
+      const direction = getCardNavigationDirection(event);
+      if (direction !== null) navigateCards(direction);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -342,13 +334,26 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
         return updated;
       });
+      setScoreValues((prev) => removeTrackScores(prev, projectId, trackId));
     },
     []
   );
 
   const advanceAfterTrackSubmit = useCallback(
-    (project: Project, submittedTrackId: string) => {
+    (
+      project: Project,
+      submittedTrackId: string,
+      scores: Record<string, number | string>
+    ) => {
       const updatedTrackIds = markTrackAsScored(project.id, submittedTrackId);
+      setScoreValues((prev) =>
+        setTrackScores(
+          prev,
+          project.id,
+          submittedTrackId,
+          scores as Record<string, number>
+        )
+      );
 
       const nextUnscoredTrackId = project.track_ids.find(
         (trackId) => !updatedTrackIds.has(trackId)
@@ -473,6 +478,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             .eq("user_id", session.user.id)
             .eq("event_id", eventId)
             .eq("role", "judge")
+            // Soft-revoked when the judge role is removed (A1, JUDGE-017).
+            .is("revoked_at", null)
             .overrideTypes<ProjectAssignmentRow[]>(),
         ]);
 
@@ -1237,8 +1244,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                       roundNumber={activeRound}
                                       finalistFeatureEnabled={finalistFeatureEnabled}
                                       hideProjectHeader
-                                      onScoreSaved={() =>
-                                        advanceAfterTrackSubmit(currentProject, trackId)
+                                      onScoreSaved={(scores) =>
+                                        advanceAfterTrackSubmit(currentProject, trackId, scores)
                                       }
                                       onScoreDeleted={() =>
                                         markTrackAsUnscored(currentProject.id, trackId)
@@ -1353,8 +1360,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                 roundNumber={activeRound}
                                 finalistFeatureEnabled={finalistFeatureEnabled}
                                 hideProjectHeader
-                                onScoreSaved={() =>
-                                  advanceAfterTrackSubmit(currentProject, trackId)
+                                onScoreSaved={(scores) =>
+                                  advanceAfterTrackSubmit(currentProject, trackId, scores)
                                 }
                                 onScoreDeleted={() =>
                                   markTrackAsUnscored(currentProject.id, trackId)

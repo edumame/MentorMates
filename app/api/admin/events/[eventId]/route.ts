@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventVisibility } from "@/lib/types";
 
+import { EVENT_ROW_COLUMNS } from "@/lib/events/event-columns";
+import { deleteEvent } from "@/app/api/events/[eventId]/delete-event";
 const updateEventStatusSchema = z.object({
   featured: z.boolean().optional(),
   approval_status: z.enum(["not_submitted", "submitted", "approved", "rejected"]).optional(),
@@ -117,7 +119,7 @@ export async function PATCH(
       .from("events")
       .update(updateData)
       .eq("event_id", eventId)
-      .select()
+      .select(EVENT_ROW_COLUMNS)
       .single();
 
     if (error) {
@@ -183,20 +185,9 @@ export async function DELETE(
 
     const { eventId } = await params;
 
-    const { error } = await supabase
-      .from("events")
-      .delete()
-      .eq("event_id", eventId);
-
-    if (error) {
-      console.error("Error deleting event:", error);
-      return NextResponse.json(
-        { error: "Failed to delete event" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
+    // Same atomic path as organizers (ORG-006): public.delete_event() also
+    // accepts global admins and refuses events with payments.
+    return await deleteEvent(supabase, eventId);
   } catch (error) {
     console.error("Error in DELETE /api/admin/events/[eventId]:", error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTRPC } from "@/trpc/client";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -41,13 +42,20 @@ export function MentorCards() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const { data: allData } = useQuery(trpc.meetings.getMany.queryOptions({}));
-  const { data, refetch, isPending, isError } = useQuery(
-    trpc.meetings.getMany.queryOptions({
+  // meetings.getMany is a protected procedure: don't fire it (and log 401s)
+  // for signed-out visitors of /learn.
+  const { isAuthenticated } = useAuth();
+  const { data: allData } = useQuery({
+    ...trpc.meetings.getMany.queryOptions({}),
+    enabled: isAuthenticated,
+  });
+  const { data, refetch, isPending, isError } = useQuery({
+    ...trpc.meetings.getMany.queryOptions({
       eventId: selectedEventId ?? undefined,
       projectId: selectedProjectId ?? undefined,
-    })
-  );
+    }),
+    enabled: isAuthenticated,
+  });
 
   const [eventOptions, setEventOptions] = useState<{ id: string; name: string }[]>([]);
   const [projectOptions, setProjectOptions] = useState<{ id: string; name: string }[]>([]);
@@ -277,7 +285,7 @@ export function MentorCards() {
             </div>
             <div>
               <div className="-mt-px flex divide-x divide-gray-200">
-                {(meeting.status === "upcoming") && (meeting.project_id || !((meeting.agent as { requires_project?: boolean })?.requires_project === true)) && (
+                {(meeting.status === "upcoming") && (meeting.project_id || !(meeting.agent?.requires_project === true)) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <Link
                       href={`/chat/${meeting.id}`}
@@ -288,7 +296,7 @@ export function MentorCards() {
                     </Link>
                   </div>
                 )}
-                {(meeting.status === "upcoming" || meeting.status === "active") && (meeting.project_id || !((meeting.agent as { requires_project?: boolean })?.requires_project === true)) && (
+                {(meeting.status === "upcoming" || meeting.status === "active") && (meeting.project_id || !(meeting.agent?.requires_project === true)) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <Link
                       href={`/call/${meeting.id}`}
@@ -299,7 +307,7 @@ export function MentorCards() {
                     </Link>
                   </div>
                 )}
-                {(meeting.status === "upcoming" || meeting.status === "active") && !meeting.project_id && ((meeting.agent as { requires_project?: boolean })?.requires_project === true) && (
+                {(meeting.status === "upcoming" || meeting.status === "active") && !meeting.project_id && (meeting.agent?.requires_project === true) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <div className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-br-lg border border-transparent py-4 text-sm font-semibold text-gray-900">
                       Please select a project to start the session
