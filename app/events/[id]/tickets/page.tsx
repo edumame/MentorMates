@@ -2,10 +2,10 @@ import { EventTicket } from "@/components/events/event-ticket";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { EventPageSidebar } from "@/components/events/event-page-sidebar";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventDetails } from "@/lib/types";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -16,7 +16,6 @@ export default async function TicketsPage({ params }: PageProps) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const isUUID = isValidUUID(id);
   let query = supabase.from("events").select(`
     event_id,
     event_name,
@@ -29,11 +28,10 @@ export default async function TicketsPage({ params }: PageProps) {
     slug
   `);
 
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  query = query.eq("event_id", routeEventId);
 
   const { data: eventData, error: eventError } = await query.single();
 

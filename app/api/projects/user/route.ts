@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { Prize } from "@/lib/types";
+import { getTeamEmails, getUserProjectIds } from "@/lib/projects/membership";
+import { PROJECT_CLIENT_COLUMNS } from "@/lib/projects/columns";
 
 export async function GET() {
   try {
@@ -23,58 +25,48 @@ export async function GET() {
       );
     }
 
-    // Get projects where user is lead
-    const { data: leadProjects, error: leadError } = await supabase
-      .from("projects")
-      .select(
-        `
-        *,
+    // Membership via my_project_ids (the email columns are not client-readable).
+    const { ids: myIds, error: idsError } = await getUserProjectIds(supabase);
+    if (idsError || !myIds) {
+      console.error("Error fetching user projects:", idsError);
+      return NextResponse.json(
+        { error: "Failed to fetch projects" },
+        { status: 500 }
+      );
+    }
+
+    const { data: projectRows, error: projectsError } = myIds.length
+      ? await supabase
+          .from("projects")
+          .select(
+            `
+        ${PROJECT_CLIENT_COLUMNS},
         project_tracks (
           event_tracks (
             track_id,
             name
           )
         )`
-      )
-      .eq("lead_email", user.email);
-
-    if (leadError) {
-      console.error("Error fetching lead projects:", leadError);
-      return NextResponse.json(
-        { error: "Failed to fetch lead projects" },
-        { status: 500 }
-      );
-    }
-
-    // Get projects where user is teammate
-    const { data: teamProjects, error: teamError } = await supabase
-      .from("projects")
-      .select(
-        `
-        *,
-        project_tracks (
-          event_tracks (
-            track_id,
-            name
           )
-        )`
-      )
-      .contains("teammates", [user.email]);
+          .in("id", myIds)
+      : { data: [], error: null };
 
-    if (teamError) {
-      console.error("Error fetching team projects:", teamError);
+    if (projectsError) {
+      console.error("Error fetching user projects:", projectsError);
       return NextResponse.json(
-        { error: "Failed to fetch team projects" },
+        { error: "Failed to fetch projects" },
         { status: 500 }
       );
     }
 
-    // Combine and deduplicate
-    const allProjects = [
-      ...(leadProjects || []),
-      ...(teamProjects || []),
-    ].filter(
-      (proj, idx, arr) => idx === arr.findIndex((p) => p.id === proj.id)
+    // The caller is on every one of these teams, so team emails are allowed.
+    const teamEmails = await getTeamEmails(supabase, myIds);
+    const allProjects = ((projectRows ?? []) as unknown as Array<{ id: string } & Record<string, unknown>>).map(
+      (project): { id: string; prizes_won?: Prize[] } & Record<string, unknown> => ({
+        ...project,
+        lead_email: teamEmails.get(project.id)?.lead_email ?? "",
+        teammates: teamEmails.get(project.id)?.teammates ?? [],
+      })
     );
 
     // Fetch prizes and winners for all projects

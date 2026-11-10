@@ -1,64 +1,60 @@
-/**
- * @jest-environment node
- */
+/** @jest-environment node */
+import { NextRequest } from 'next/server';
+import { DELETE } from './route';
 
-import { NextRequest } from "next/server";
-import { cappedQuery } from "@/lib/supabase/capped-query.test-helper";
-
-const EVENT_ID = "event-1";
-
-const project = {
-  id: "project-a",
-  project_name: "Project A",
-  lead_name: "Lead",
-  cover_image_url: null,
-};
-
-const voteRows = Array.from({ length: 1200 }, (_, index) => ({
-  id: `vote-${index}`,
-  project_id: project.id,
-  user_id: `voter-${index}`,
-  created_at: "2026-01-01T00:00:00Z",
-  projects: project,
+const mockRpc = jest.fn();
+const mockGetUser = jest.fn();
+jest.mock('@/app/utils/supabase/server', () => ({
+  createSupabaseClient: async () => ({ auth: { getUser: mockGetUser }, rpc: mockRpc }),
 }));
 
-const singleRow = (data: unknown) => ({
-  select: () => ({
-    eq: () => ({
-      eq: () => ({ maybeSingle: async () => ({ data, error: null }) }),
-      single: async () => ({ data, error: null }),
-    }),
-  }),
+const context = { params: Promise.resolve({ eventId: 'event' }) };
+const del = (body: unknown) =>
+  new NextRequest('http://localhost/results', { method: 'DELETE', body: typeof body === 'string' ? body : JSON.stringify(body) });
+
+beforeEach(() => {
+  mockRpc.mockReset();
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'org' } }, error: null });
 });
 
-const supabaseMock = {
-  auth: {
-    getUser: async () => ({ data: { user: { id: "owner" } }, error: null }),
-  },
-  from: (table: string) => {
-    if (table === "project_votes") return cappedQuery(voteRows);
-    if (table === "events") return singleRow({ owner_id: "owner" });
-    return singleRow({ role: "organizer" });
-  },
-};
-
-jest.mock("@/app/utils/supabase/server", () => ({
-  createSupabaseClient: jest.fn(async () => supabaseMock),
-}));
-
-import { GET } from "./route";
-
-describe("GET /api/events/[eventId]/votes/results", () => {
-  it("totals votes beyond the PostgREST row cap", async () => {
-    const response = await GET(
-      new NextRequest(`http://localhost/api/events/${EVENT_ID}/votes/results`),
-      { params: Promise.resolve({ eventId: EVENT_ID }) }
-    );
-    const body = await response.json();
-
+describe('DELETE (void vote)', () => {
+  it('voids through the audited RPC', async () => {
+    mockRpc.mockResolvedValue({ data: 1, error: null });
+    const response = await DELETE(del({ projectId: 'p', voterId: 'v', reason: 'self vote' }), context);
     expect(response.status).toBe(200);
-    expect(body.totalVotes).toBe(1200);
-    expect(body.totalVoters).toBe(1200);
-    expect(body.results[0].voteCount).toBe(1200);
+    expect(await response.json()).toEqual({ success: true, voided: 1 });
+    expect(mockRpc).toHaveBeenCalledWith('void_project_vote', { p_event_id: 'event', p_project_id: 'p', p_voter_id: 'v', p_reason: 'self vote' });
+  });
+
+  it('returns 404 when no vote matched', async () => {
+    mockRpc.mockResolvedValue({ data: 0, error: null });
+    expect((await DELETE(del({ projectId: 'p', voterId: 'v' }), context)).status).toBe(404);
+  });
+
+  it('returns 403 for non-organizers', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'Only organizers can void votes' } });
+    expect((await DELETE(del({ projectId: 'p', voterId: 'v' }), context)).status).toBe(403);
+  });
+
+  it('maps bad ids to 400 and hides other errors', async () => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: '22P02', message: 'invalid uuid' } });
+    expect((await DELETE(del({ projectId: 'p', voterId: 'v' }), context)).status).toBe(400);
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: 'XX000', message: 'detail' } });
+    const response = await DELETE(del({ projectId: 'p', voterId: 'v' }), context);
+    expect(response.status).toBe(500);
+    expect((await response.json()).error).toBe('Failed to void vote');
+  });
+
+  it.each([['malformed JSON', '{'], ['missing voter', { projectId: 'p' }], ['missing project', { voterId: 'v' }], ['non-string', { projectId: 1, voterId: 'v' }]])(
+    'returns 400 for %s',
+    async (_label, body) => {
+      expect((await DELETE(del(body), context)).status).toBe(400);
+      expect(mockRpc).not.toHaveBeenCalled();
+    }
+  );
+
+  it('requires sign-in', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    expect((await DELETE(del({ projectId: 'p', voterId: 'v' }), context)).status).toBe(401);
   });
 });

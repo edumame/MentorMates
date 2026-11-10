@@ -159,3 +159,15 @@ describe("buildParticipantsCsv", () => {
     expect(parsed.data[0]?.["Team Name"]).toBe("Solo Squad");
   });
 });
+
+describe("buildParticipantsCsv spreadsheet safety (ORG-001)", () => {
+  it("neutralises formula-leading cells", () => {
+    const csv = buildParticipantsCsv(
+      [{ display_name: "=HYPERLINK(\"http://x\")", email: "a@example.test", role: "participant", affiliation: "+1" }],
+      new Map()
+    );
+    expect(csv).not.toMatch(/(^|,)"?=HYPERLINK/m);
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'+1");
+  });
+});

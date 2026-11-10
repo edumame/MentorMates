@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 
 // GET: Get detailed voting results (organizer only)
 export async function GET(
@@ -50,78 +49,73 @@ export async function GET(
       return NextResponse.json({ error: "Only organizers can view voting results" }, { status: 403 });
     }
 
-    // Get all votes with project details
-    const { data: votes, error: votesError } = await fetchAllRows((from, to) =>
-      supabase
-        .from("project_votes")
-        .select(`
-          id,
-          project_id,
-          user_id,
-          created_at,
-          projects!inner (
-            id,
-            project_name,
-            lead_name,
-            cover_image_url
-          )
-        `)
-        .eq("event_id", eventId)
-        .order("id")
-        .range(from, to)
-    );
-
-    if (votesError) {
-      console.error("Error fetching votes:", votesError);
-      return NextResponse.json({ error: "Failed to fetch voting results" }, { status: 500 });
-    }
-
-    // Aggregate results
-    const projectVotes: Record<string, {
-      projectId: string;
-      projectName: string;
-      leadName: string;
-      coverImageUrl: string | null;
-      voteCount: number;
-      voters: string[];
-    }> = {};
-
-    for (const vote of votes || []) {
-      const project = vote.projects as unknown as {
-        id: string;
-        project_name: string;
-        lead_name: string;
-        cover_image_url: string | null;
-      };
-      
-      if (!projectVotes[vote.project_id]) {
-        projectVotes[vote.project_id] = {
-          projectId: project.id,
-          projectName: project.project_name || "Untitled Project",
-          leadName: project.lead_name || "Unknown",
-          coverImageUrl: project.cover_image_url,
-          voteCount: 0,
-          voters: [],
-        };
-      }
-      projectVotes[vote.project_id].voteCount++;
-      projectVotes[vote.project_id].voters.push(vote.user_id);
-    }
-
-    // Convert to array and sort by vote count
-    const results = Object.values(projectVotes).sort((a, b) => b.voteCount - a.voteCount);
-
-    // Get total unique voters
-    const uniqueVoters = new Set((votes || []).map(v => v.user_id));
-
-    return NextResponse.json({
-      results,
-      totalVotes: votes?.length || 0,
-      totalVoters: uniqueVoters.size,
-      eventId,
-    });
+    const { data: results, error } = await supabase.rpc("project_vote_results", { p_event_id: eventId });
+    if (error) return NextResponse.json({ error: "Failed to fetch voting results" }, { status: 500 });
+    return NextResponse.json(results);
   } catch (error) {
     console.error("GET /events/[eventId]/votes/results error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+// DELETE: void a fraudulent vote (organizers/owner only; audited in project_vote_voids).
+// Body: { projectId: string, voterId: string, reason?: string }
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  try {
+    const supabase = await createSupabaseClient();
+    const { eventId } = await params;
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const projectId = typeof body?.projectId === "string" ? body.projectId.trim() : "";
+    const voterId = typeof body?.voterId === "string" ? body.voterId.trim() : "";
+    const reason = typeof body?.reason === "string" ? body.reason.slice(0, 500) : null;
+    if (!eventId || !projectId || !voterId) {
+      return NextResponse.json(
+        { error: "projectId and voterId are required" },
+        { status: 400 }
+      );
+    }
+
+    // void_project_vote checks organizer/owner itself and writes the audit row.
+    const { data: voided, error } = await supabase.rpc("void_project_vote", {
+      p_event_id: eventId,
+      p_project_id: projectId,
+      p_voter_id: voterId,
+      p_reason: reason,
+    });
+    if (error) {
+      if (error.code === "42501") {
+        return NextResponse.json({ error: "Only organizers can void votes" }, { status: 403 });
+      }
+      if (error.code === "22P02") {
+        return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+      }
+      console.error("Error voiding vote:", error);
+      return NextResponse.json({ error: "Failed to void vote" }, { status: 500 });
+    }
+    if (!voided) {
+      return NextResponse.json({ error: "Vote not found" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, voided });
+  } catch (error) {
+    console.error("DELETE /events/[eventId]/votes/results error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

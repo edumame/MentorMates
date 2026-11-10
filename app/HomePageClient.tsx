@@ -7,6 +7,7 @@ import { AuthHero } from "@/components/heroes/AuthHero";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { ensureUserProfile } from "@/features/user/profiles/ensure-user-profile";
 
 /**
  * Client-side wrapper that handles authenticated user routing.
@@ -33,18 +34,7 @@ export function HomePageClient({ children }: { children: React.ReactNode }) {
       try {
         const user = session.user;
 
-        const profileData = {
-          uid: user.id,
-          email: user.email,
-          display_name: user.user_metadata.full_name,
-        };
-
-        const { error } = await supabase
-          .from("user_profiles")
-          .upsert(profileData, {
-            onConflict: "email",
-          })
-          .select();
+        const error = await ensureUserProfile(supabase, user);
 
         if (error) {
           const msg = error.message ?? String(error);
