@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
       .from("agent_api_keys")
       .insert({
         user_id: user.id,
+        // ORG-023: the key installed from an event is scoped to that event.
+        event_id,
         key_hash: hash,
         key_prefix: prefix,
         label: `auto-install-${new Date().toISOString().slice(0, 10)}`,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PROJECT_CLIENT_COLUMNS } from "@/lib/projects/columns";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
@@ -11,7 +12,11 @@ import {
   TrackScoringConfig,
 } from "@/lib/types";
 import { QuestionFactory } from "./question-types/question-factory";
-import { getDefaultScores } from "./scoring-defaults";
+import {
+  buildScoresPayload,
+  getDefaultScores,
+  getScoreSaveErrorMessage,
+} from "./scoring-defaults";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -92,12 +97,13 @@ export function DefaultScoring({
         // Fetch project details
         const { data: projectData, error: projectError } = await supabase
           .from("projects")
-          .select("*")
+          // Explicit client-readable columns (team emails are not readable).
+          .select(PROJECT_CLIENT_COLUMNS)
           .eq("id", projectId)
           .single();
 
         if (projectError) throw projectError;
-        setProject(projectData);
+        setProject(projectData as unknown as Project);
 
         const [trackResponse, eventResponse] = await Promise.all([
           supabase
@@ -190,6 +196,8 @@ export function DefaultScoring({
 
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
+    // Only send the current rubric's criteria (the DB rejects stale/unknown keys).
+    const scoresPayload = buildScoresPayload(criteria, values.scores);
 
     try {
       // Check if a score already exists
@@ -209,7 +217,7 @@ export function DefaultScoring({
         const { error: updateError } = await supabase
           .from("project_scores")
           .update({
-            scores: values.scores,
+            scores: scoresPayload,
             comments: values.comments,
             finalist_recommendation: !!values.finalist_recommendation,
             updated_at: new Date().toISOString(),
@@ -227,7 +235,7 @@ export function DefaultScoring({
             judge_id: judgeId,
             event_id: eventId,
             round_number: currentRoundNumber,
-            scores: values.scores,
+            scores: scoresPayload,
             comments: values.comments,
             finalist_recommendation: !!values.finalist_recommendation,
           });
@@ -245,7 +253,7 @@ export function DefaultScoring({
       console.error("Error submitting score:", error);
       toast({
         title: "Error",
-        description: "Failed to save your evaluation",
+        description: getScoreSaveErrorMessage(error),
         variant: "destructive",
       });
     } finally {
