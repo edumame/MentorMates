@@ -53,7 +53,7 @@ def main():
     checks = Checks()
     with Database('project-event-awards') as db:
         db.sql(SCHEMA)
-        db.migrate('202611090201_guard_project_move_with_advancements.sql')
+        db.migrate('202611091102_guard_project_move_with_advancements.sql')
         # The trigger comes from 202611080105, whose full file needs the whole
         # schema; recreate just the trigger here.
         db.sql("""
@@ -61,7 +61,7 @@ def main():
           FOR EACH ROW EXECUTE FUNCTION guard_project_event_change();
         """)
         # Re-running must be safe.
-        db.migrate('202611090201_guard_project_move_with_advancements.sql')
+        db.migrate('202611091102_guard_project_move_with_advancements.sql')
 
         ok, out = db.attempt('authenticated', ORGANIZER_B, move(ADVANCED, EVENT_B))
         checks.expect('advanced project cannot move to another event', ok, False)

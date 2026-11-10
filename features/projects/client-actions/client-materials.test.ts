@@ -2,7 +2,10 @@ import { buildMaterialsUpdate, saveProjectMaterials } from './client-materials';
 import type { Project } from '@/lib/types';
 const project = {
   id: 'p1', has_submission_field_config: true,
-  submission_fields: [{ id: 'deck', key: 'additional_materials', field_type: 'file' }],
+  submission_fields: [
+    { id: 'name', key: 'project_name', field_type: 'short_text' },
+    { id: 'deck', key: 'additional_materials', field_type: 'file' },
+  ],
   submission_answers: [
     { event_submission_field_id: 'name', answer: 'My project' },
     { event_submission_field_id: 'deck', answer: 'https://example.com/old.pdf' },
@@ -16,8 +19,18 @@ describe('deck replacement persistence', () => {
       { eventSubmissionFieldId: 'deck', answer: 'https://example.com/new.pdf' },
     ] });
   });
+  it('drops answers left over from fields outside the current event', () => {
+    const moved = { ...project, submission_answers: [
+      { event_submission_field_id: 'old-event-field', answer: 'https://example.com/repo' },
+      ...project.submission_answers!,
+    ] } as Project;
+    expect(buildMaterialsUpdate(moved, 'https://example.com/new.pdf')).toEqual({ submission_answers: [
+      { eventSubmissionFieldId: 'name', answer: 'My project' },
+      { eventSubmissionFieldId: 'deck', answer: 'https://example.com/new.pdf' },
+    ] });
+  });
   it('preserves secondary files when replacing a multi-file primary', () => {
-    const multi = { ...project, submission_fields: [{ ...project.submission_fields![0], field_type: 'multi_file' as const }],
+    const multi = { ...project, submission_fields: [{ ...project.submission_fields![1], field_type: 'multi_file' as const }],
       submission_answers: [{ event_submission_field_id: 'deck', answer: ['old', 'appendix'] }] } as Project;
     expect(buildMaterialsUpdate(multi, 'new').submission_answers).toEqual([{ eventSubmissionFieldId: 'deck', answer: ['new', 'appendix'] }]);
   });

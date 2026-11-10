@@ -63,6 +63,10 @@ jobs:
         run: python3 scripts/test_ticket_claim.py
       - name: Test project event move guard for round advancements
         run: python3 scripts/test_project_event_awards.py
+      - name: Test internal API reservation in disposable PostgreSQL
+        run: python3 scripts/test_internal_api_reservation.py
+      - name: Test meeting_screen_context RLS in disposable PostgreSQL
+        run: python3 scripts/test_meeting_screen_context_rls.py
 
   promo-code-view:
     runs-on: ubuntu-latest
