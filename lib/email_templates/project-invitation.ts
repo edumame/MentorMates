@@ -1,3 +1,5 @@
+import { escapeHtml, escapeUrl, plainTextSubject } from "./escape-html";
+
 export interface ProjectInvitationEmailTemplate {
   subject: string;
   html: string;
@@ -9,13 +11,21 @@ export function getProjectInvitationEmailTemplate(
   inviterName: string,
   eventName?: string,
   token?: string,
+  expiresInDays?: number,
 ): ProjectInvitationEmailTemplate {
   const claimUrl = token 
     ? `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}&token=${token}`
     : `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}`;
+  // Every interpolated value is escaped (project/inviter/event names are user data).
+  const h = {
+    projectName: escapeHtml(projectName),
+    inviterName: escapeHtml(inviterName),
+    eventName: eventName ? escapeHtml(eventName) : "",
+    claimUrl: escapeUrl(claimUrl),
+  };
 
   return {
-    subject: `You've been invited to join "${projectName}" - MentorMates`,
+    subject: plainTextSubject(`You've been invited to join "${projectName}" - MentorMates`),
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
@@ -26,12 +36,12 @@ export function getProjectInvitationEmailTemplate(
 
         <div style="padding: 40px 20px;">
           <h2 style="color: #2563eb; margin-bottom: 20px; font-size: 24px;">
-            ${inviterName} has invited you to join "${projectName}"
+            ${h.inviterName} has invited you to join "${h.projectName}"
           </h2>
 
           <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 20px;">
-            Great news! You've been invited to join <strong>${projectName}</strong> as a teammate.
-            ${eventName ? `This project is part of <strong>${eventName}</strong>.` : ''}
+            Great news! You've been invited to join <strong>${h.projectName}</strong> as a teammate.
+            ${eventName ? `This project is part of <strong>${h.eventName}</strong>.` : ''}
           </p>
 
           <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 20px; margin: 30px 0;">
@@ -44,15 +54,19 @@ export function getProjectInvitationEmailTemplate(
           </div>
 
           <div style="text-align: center; margin: 40px 0;">
-            <a href="${claimUrl}"
+            <a href="${h.claimUrl}"
                style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
               🚀 Join Project
             </a>
           </div>
 
+          ${expiresInDays ? `<p style="font-size: 14px; line-height: 1.5; color: #374151; text-align: center;">
+            This invitation expires in ${expiresInDays} ${expiresInDays === 1 ? 'day' : 'days'}. If it has expired, ask your teammate to send a new one.
+          </p>` : ''}
+
           <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 30px;">
             If the button doesn't work, you can copy and paste this link into your browser:<br>
-            <a href="${claimUrl}" style="color: #2563eb; word-break: break-all;">${claimUrl}</a>
+            <a href="${h.claimUrl}" style="color: #2563eb; word-break: break-all;">${h.claimUrl}</a>
           </p>
 
           <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb;">
@@ -67,7 +81,7 @@ export function getProjectInvitationEmailTemplate(
 
         <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="font-size: 12px; color: #6b7280; margin: 0;">
-            This invitation was sent by ${inviterName} through MentorMates.
+            This invitation was sent by ${h.inviterName} through MentorMates.
             If you believe this was sent in error, please contact the project lead.
           </p>
         </div>
