@@ -13,6 +13,7 @@ import { toast } from "@/lib/hooks/use-toast";
 type ActiveIntakeForm = {
   formVersionId: string;
   schema: IntakeFormSchema;
+  answers?: IntakeFormAnswers;
 };
 
 type IntakeFormDialogCopy = {
@@ -79,7 +80,11 @@ export function IntakeFormDialog({
   const copy = DIALOG_COPY[context];
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setActiveForm(null);
+      return;
+    }
+    let active = true;
 
     const load = async () => {
       try {
@@ -101,8 +106,9 @@ export function IntakeFormDialog({
           throw new Error(copy.missingFormError);
         }
 
-        setActiveForm(data.form);
+        if (active) setActiveForm(data.form);
       } catch (error) {
+        if (!active) return;
         toast({
           title: copy.loadErrorTitle,
           description:
@@ -114,6 +120,7 @@ export function IntakeFormDialog({
     };
 
     load();
+    return () => { active = false; };
   }, [open, eventId, context, copy, onClose]);
 
   const handleSubmit = async (answers: IntakeFormAnswers) => {
@@ -165,8 +172,10 @@ export function IntakeFormDialog({
 
   return (
     <ParticipantIntakeDialog
+      key={activeForm.formVersionId}
       open={open}
       schema={activeForm.schema}
+      initialAnswers={activeForm.answers}
       submitting={isSubmitting}
       onClose={onClose}
       onSubmit={handleSubmit}
