@@ -1,74 +1,91 @@
-import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { listJoinableParticipantAgentEvents } from "./event-access";
+import { createCappedQuery } from "@/lib/supabase/capped-query.test-helper";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 jest.mock("@/lib/supabase/service", () => ({
   createSupabaseServiceClient: jest.fn(),
 }));
 
-type Rows = Record<string, unknown>[];
-
-// Thenable query stub: every filter returns itself, awaiting yields the rows.
-function query(rows: Rows, error: unknown = null) {
-  const result = { data: rows, error };
-  const chain = {
-    select: jest.fn((): unknown => chain),
-    eq: jest.fn((): unknown => chain),
-    or: jest.fn((): unknown => chain),
-    in: jest.fn((): unknown => chain),
-    order: jest.fn((): unknown => chain),
-    then: (resolve: (value: typeof result) => unknown) => resolve(result),
+function mockTables({
+  events,
+  participants,
+}: {
+  events: { event_id: string; participant_capacity: number | null }[];
+  participants: ReturnType<typeof createCappedQuery>;
+}) {
+  // The first role query reads the user's own roles; every later one is a page
+  // of participant rows.
+  let existingRolesRead = false;
+  const tables: Record<string, () => unknown> = {
+    events: () => createCappedQuery(events),
+    user_event_roles: () => {
+      if (existingRolesRead) return participants;
+      existingRolesRead = true;
+      return createCappedQuery([]);
+    },
+    event_intake_form_bindings: () => createCappedQuery([]),
+    intake_form_submissions: () => createCappedQuery([]),
+    role_passwords: () => createCappedQuery([]),
   };
-  return chain;
+
+  (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+    from: jest.fn((table: string) => tables[table]()),
+  });
 }
 
+const participantRows = (eventId: string, count: number) =>
+  Array.from({ length: count }, () => ({ event_id: eventId }));
+
 describe("listJoinableParticipantAgentEvents", () => {
-  const event = (event_id: string) => ({
-    event_id,
-    event_name: event_id,
-    event_date: "2026-11-04",
-    visibility: "public",
-    approval_status: "approved",
-    participant_capacity: null,
-    paid: false,
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  const mockTables = (
-    rolePasswords: ReturnType<typeof query>,
-  ): void => {
-    (createSupabaseServiceClient as jest.Mock).mockReturnValue({
-      from: jest.fn((table: string) => {
-        switch (table) {
-          case "events":
-            return query([event("open-event"), event("locked-event")]);
-          case "user_event_roles":
-          case "event_intake_form_bindings":
-          case "intake_form_submissions":
-            return query([]);
-          case "role_passwords":
-            return rolePasswords;
-          default:
-            throw new Error(`Unexpected table ${table}`);
-        }
-      }),
+  it("excludes a full event whose participants fall past the row cap", async () => {
+    mockTables({
+      events: [
+        { event_id: "open", participant_capacity: 2000 },
+        { event_id: "full", participant_capacity: 300 },
+      ],
+      participants: createCappedQuery([
+        ...participantRows("open", 1000),
+        ...participantRows("full", 300),
+      ]),
     });
-  };
-
-  it("omits events whose participant role has a password", async () => {
-    const rolePasswords = query([{ event_id: "locked-event" }]);
-    mockTables(rolePasswords);
 
     const events = await listJoinableParticipantAgentEvents("user-1");
 
-    expect(events.map((row) => row.event_id)).toEqual(["open-event"]);
-    expect(rolePasswords.eq).toHaveBeenCalledWith("role", "participant");
+    expect(events.map((event) => event.event_id)).toEqual(["open"]);
   });
 
-  it("throws when the role password lookup fails", async () => {
-    const lookupError = new Error("boom");
-    mockTables(query([], lookupError));
+  it("only reads participant rows for events that have a capacity", async () => {
+    const participants = createCappedQuery(participantRows("capped", 1));
+    mockTables({
+      events: [
+        { event_id: "uncapped", participant_capacity: null },
+        { event_id: "capped", participant_capacity: 10 },
+      ],
+      participants,
+    });
 
-    await expect(
-      listJoinableParticipantAgentEvents("user-1"),
-    ).rejects.toBe(lookupError);
+    const events = await listJoinableParticipantAgentEvents("user-1");
+
+    expect(events.map((event) => event.event_id)).toEqual([
+      "uncapped",
+      "capped",
+    ]);
+    expect(participants.in).toHaveBeenCalledWith("event_id", ["capped"]);
+  });
+
+  it("throws when the participant query fails", async () => {
+    const failure = { message: "boom" };
+    mockTables({
+      events: [{ event_id: "capped", participant_capacity: 10 }],
+      participants: createCappedQuery([], { error: failure }),
+    });
+
+    await expect(listJoinableParticipantAgentEvents("user-1")).rejects.toBe(
+      failure,
+    );
   });
 });

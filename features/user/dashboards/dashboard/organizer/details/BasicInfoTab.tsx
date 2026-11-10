@@ -53,6 +53,7 @@ import {
   Upload,
 } from "lucide-react";
 import { getFileNameFromUrl } from "@/lib/utils/file";
+import { scrapedEventFields } from "./scrapedEventFields";
 import { ArchiveEventDialog, DeleteEventDialog } from "./EventLifecycleDialogs";
 import {
   EVENT_COVER_ACCEPT,
@@ -79,38 +80,6 @@ export function BasicInfoTab({
   router,
   registerSaveHandler,
 }: BasicInfoTabProps) {
-  type ImportedPrize = { prize_amount: string; prize_description: string };
-  type ImportedCriterion = {
-    name: string;
-    description?: string;
-    weight?: number;
-    min?: number;
-    max?: number;
-    type?: "numeric" | "multiplechoice";
-    options?: string[];
-  };
-  type ImportedTrack = {
-    name: string;
-    description?: string;
-    label?: string;
-    prizes?: ImportedPrize[];
-    criteria?: ImportedCriterion[];
-  };
-  type ImportedPayload = {
-    slug?: string;
-    event_name?: string;
-    event_date?: string;
-    location?: string;
-    event_blurb?: string;
-    event_description?: string;
-    submission_time_start?: string;
-    submission_time_cutoff?: string;
-    event_schedule?: EventDetails["event_schedule"];
-    rules?: EventDetails["rules"];
-    event_resources?: EventDetails["event_resources"];
-    faq?: string;
-    tracks?: ImportedTrack[];
-  };
   const [selectedCoverImage, setSelectedCoverImage] = useState<File | null>(
     null
   );
@@ -804,7 +773,8 @@ export function BasicInfoTab({
             className="h-[44px] font-mono text-sm bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
           />
           <p className="text-xs text-gray-500">
-            URL-friendly identifier for your event (lowercase, hyphens only)
+            URL-friendly identifier for your event (lowercase, hyphens only).
+            Changing it breaks links already shared with the old URL.
           </p>
         </div>
 
@@ -884,66 +854,25 @@ export function BasicInfoTab({
                 if (!event?.event_id) return;
                 try {
                   setImporting(true);
-                  const res = await fetch("/api/devpost/import", {
+                  const res = await fetch("/api/scrape", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ eventId: event.event_id, url: devpostUrl }),
+                    body: JSON.stringify({ url: devpostUrl.trim(), browserProfile: "lite" }),
                   });
-                  if (!res.ok) {
-                    const body = await res.json().catch(() => ({}));
+                  const body = await res.json().catch(() => ({}));
+                  if (!res.ok || !body?.success || !body?.data) {
                     throw new Error(body?.error || "Failed to import Devpost data");
                   }
-                  const data = await res.json();
-                  const imported = data?.import || {};
-                  const merged = {
-                    ...event,
-                    slug: imported.slug ?? event.slug,
-                    event_name: imported.event_name ?? event.event_name,
-                    event_date: imported.event_date ?? event.event_date,
-                    location: imported.location ?? event.location,
-                    event_blurb: imported.event_blurb ?? event.event_blurb,
-                    event_description: imported.event_description ?? event.event_description,
-                    submission_time_start: imported.submission_time_start ?? event.submission_time_start,
-                    submission_time_cutoff: imported.submission_time_cutoff ?? event.submission_time_cutoff,
-                    event_schedule: imported.event_schedule ?? event.event_schedule,
-                    rules: imported.rules ?? event.rules,
-                    event_resources: imported.event_resources ?? event.event_resources,
-                    faq: imported.faqs ?? imported.faq ?? event.faq,
-                  } as typeof event;
-                  if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
-                    const newTracks = imported.tracks.map((t: ImportedTrack) => {
-                      const trackId = crypto.randomUUID();
-                      const prizes = Array.isArray(t?.prizes)
-                        ? t.prizes.map((p: ImportedPrize) => ({
-                            id: `local-${crypto.randomUUID()}`,
-                            track_id: trackId,
-                            prize_amount: String(p?.prize_amount || ""),
-                            prize_description: String(p?.prize_description || ""),
-                          }))
-                        : [];
-                      return {
-                        track_id: trackId,
-                        event_id: event.event_id,
-                        name: String(t?.name || ""),
-                        description: String(t?.description || t?.name || ""),
-                        label: t?.label ? String(t.label) : undefined,
-                        prizes,
-                        scoring_criteria: t?.criteria
-                          ? {
-                              name: String(t.name || "Track"),
-                              criteria: t.criteria,
-                            }
-                          : { name: String(t.name || "Track"), criteria: [] },
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                      };
-                    });
-                    (merged as EventDetails).event_tracks = newTracks;
+                  const imported = scrapedEventFields(body.data);
+                  if (Object.keys(imported).length === 0) {
+                    throw new Error("No event details were found on that page");
                   }
-                  setEvent(merged);
+                  // A scrape can take minutes, so merge into the latest state.
+                  setEvent((current) => (current ? { ...current, ...imported } : current));
                   toast({
                     title: "Imported",
-                    description: "Devpost details imported. Review and save your changes.",
+                    description:
+                      "Devpost details imported. Review and save this tab, then save the Schedule, Resources, Rules and FAQs tabs. Tracks and prizes are not imported.",
                   });
                 } catch (err) {
                   console.error(err);
@@ -983,8 +912,18 @@ export function BasicInfoTab({
           </div>
           <ArchiveEventDialog
             event={event}
-            onVisibilityChange={(visibility) =>
-              setEvent((prev) => (prev ? { ...prev, visibility } : prev))
+            onVisibilityChange={(visibility, approvalStatus) =>
+              setEvent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      visibility,
+                      ...(approvalStatus !== undefined
+                        ? { approval_status: approvalStatus }
+                        : {}),
+                    }
+                  : prev
+              )
             }
             trigger={({ busy, isArchived: archived }) => (
               <Button

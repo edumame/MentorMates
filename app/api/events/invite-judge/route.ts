@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
   const { data: eventData } = await supabase
     .from("events")
-    .select("event_name, slug, visibility")
+    .select("event_name, visibility")
     .eq("event_id", eventId)
     .single();
 
@@ -109,7 +109,6 @@ export async function POST(request: Request) {
     appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin,
     eventId,
     eventName: eventData.event_name,
-    eventSlug: eventData.slug,
     inviterName,
     visibility:
       (eventData.visibility as EventVisibility | null) ?? EventVisibility.Draft,

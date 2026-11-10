@@ -13,6 +13,7 @@ const defaultEventRow = {
   approval_status: "approved",
 };
 let mockEventRow: Record<string, unknown> = { ...defaultEventRow };
+let mockRejectionReason: string | null = null;
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush, refresh: mockRefresh }),
   usePathname: () => "/events/sample/overview",
@@ -98,6 +99,13 @@ jest.mock("@/lib/hooks/use-toast", () => ({
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: { getSession: async () => ({ data: { session: null } }) },
+    rpc: async (name: string) =>
+      name === "get_event_rejection_reasons" && mockRejectionReason
+        ? {
+            data: [{ event_id: "sample", rejection_reason: mockRejectionReason }],
+            error: null,
+          }
+        : { data: [], error: null },
     from: () => {
       const query = {
         select: () => query,
@@ -117,6 +125,7 @@ beforeEach(() => {
   mockToast.mockClear();
   mockEventRow = { ...defaultEventRow };
   localStorage.clear();
+  mockRejectionReason = null;
 });
 
 afterEach(() => {
@@ -157,6 +166,38 @@ it("exposes Forms from the default People view and preserves unrelated URL param
     "/events/sample/overview?view=organizer&tab=forms",
     { scroll: false },
   );
+});
+
+describe("rejection reason", () => {
+  const reason = "Missing venue details";
+
+  beforeEach(() => {
+    mockSearchParams = new URLSearchParams({ view: "organizer" });
+  });
+
+  it("shows the admin's reason next to the Rejected status", async () => {
+    mockEventRow = { ...defaultEventRow, approval_status: "rejected" };
+    mockRejectionReason = reason;
+    render(<OrganizerEditOverview eventId="sample" />);
+    expect(await screen.findByText("REJECTED")).toBeVisible();
+    expect(screen.getByText(reason)).toBeVisible();
+  });
+
+  it("hides a stale reason once the event has been resubmitted", async () => {
+    // The reason stays on the row after resubmission.
+    mockEventRow = { ...defaultEventRow, approval_status: "submitted" };
+    mockRejectionReason = reason;
+    render(<OrganizerEditOverview eventId="sample" />);
+    expect(await screen.findByText("SUBMITTED")).toBeVisible();
+    expect(screen.queryByText(reason)).not.toBeInTheDocument();
+  });
+
+  it("renders no reason banner for a rejected event without a reason", async () => {
+    mockEventRow = { ...defaultEventRow, approval_status: "rejected" };
+    render(<OrganizerEditOverview eventId="sample" />);
+    expect(await screen.findByText("REJECTED")).toBeVisible();
+    expect(screen.queryByText(/rejection reason/i)).not.toBeInTheDocument();
+  });
 });
 
 describe("header actions", () => {

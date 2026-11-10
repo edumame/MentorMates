@@ -3,6 +3,7 @@ import type {
   IntakeFormField,
   IntakeFormSchema,
 } from "./types";
+import { isSelectFieldWithoutOptions } from "./fieldOptions";
 
 /**
  * Shared intake-form answer validation, used by the participant dialog
@@ -70,9 +71,18 @@ export function hasAnswer(field: IntakeFormField, value: unknown): boolean {
   return value !== null && value !== undefined;
 }
 
+/**
+ * Whether the field must be answered. A required select with no usable
+ * (non-blank) options cannot be answered, so requiring it would trap the
+ * participant; forms published before blank options were rejected may hold one.
+ */
+export function isEffectivelyRequired(field: IntakeFormField): boolean {
+  return field.required && !isSelectFieldWithoutOptions(field);
+}
+
 /** Required-field check used for the dialog's inline errors. */
 export function satisfiesRequired(field: IntakeFormField, value: unknown): boolean {
-  return !field.required || hasAnswer(field, value);
+  return !isEffectivelyRequired(field) || hasAnswer(field, value);
 }
 
 function checkTextLength(field: IntakeFormField, value: string): string | null {
@@ -165,7 +175,7 @@ export function validateIntakeAnswers(
   for (const field of getVisibleFields(schema, answers)) {
     const value = answers[field.key];
     if (!hasAnswer(field, value)) {
-      if (field.required) {
+      if (isEffectivelyRequired(field)) {
         errors[field.key] = "This field is required";
       } else if (value !== undefined) {
         // Keep explicit "empty" answers (e.g. unchecked optional checkbox) if well-typed.

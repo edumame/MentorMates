@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +55,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { TrackDeleteDialog } from "./TrackDeleteDialog";
+import { withoutTrack } from "./classify-track-entries";
 
 // ── Templates ─────────────────────────────────────────────────────────
 
@@ -127,6 +129,7 @@ interface CompactScoringFormProps {
   isArchived: boolean;
   eventId: string;
   tracks?: EventTrack[];
+  onTrackDeleted: (trackId: string) => void;
 }
 
 // ── Main Component ────────────────────────────────────────────────────
@@ -138,6 +141,7 @@ export function CompactScoringForm({
   isArchived,
   eventId,
   tracks: savedTracks = [],
+  onTrackDeleted,
 }: CompactScoringFormProps) {
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
@@ -146,8 +150,24 @@ export function CompactScoringForm({
   // Sync external config changes (from AI sidebar) into the internal state.
   // Uses a ref to avoid re-syncing when the user edits the form locally.
   const lastExternalConfig = useRef(initialConfig);
+  const deletedTrackIds = useRef(new Set<string>());
   useEffect(() => {
+    // A delete also removes the track from the parent's config. The form has
+    // already dropped it, and syncing would discard unsaved edits to other tracks.
+    const previousConfig = lastExternalConfig.current;
+    const isOwnDelete =
+      deletedTrackIds.current.size > 0 &&
+      !!previousConfig &&
+      JSON.stringify(
+        [...deletedTrackIds.current].reduce(
+          (remaining, trackId) => withoutTrack(remaining, trackId),
+          previousConfig
+        )
+      ) === JSON.stringify(initialConfig);
+    deletedTrackIds.current.clear();
+
     if (
+      !isOwnDelete &&
       initialConfig &&
       initialConfig !== lastExternalConfig.current &&
       JSON.stringify(initialConfig) !== JSON.stringify(config)
@@ -414,32 +434,22 @@ export function CompactScoringForm({
 
   const removeTrack = async (id: string) => {
     setTrackPendingDelete(null);
-    const { error } = await supabase.from("event_tracks").delete().eq("track_id", id);
-    if (error) {
+    const { data: deletedRows, error } = await supabase
+      .from("event_tracks")
+      .delete()
+      .eq("track_id", id)
+      // A config key can be another event's track id; never delete that row.
+      .eq("event_id", eventId)
+      .select("track_id");
+    // A delete matching no rows is not an error, so check a saved track really
+    // went. A track that was never saved has no row to remove.
+    const savedRowRemains =
+      savedTracks.some((track) => track.track_id === id) && !deletedRows?.length;
+    if (error || savedRowRemains) {
       toast({ title: "Error", description: "Failed to delete track", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Track deleted" });
-      setConfig((prev) => {
-        const newTracks = { ...prev.tracks };
-        delete newTracks[id];
-        return {
-          ...prev,
-          tracks: newTracks,
-          rounds: (prev.rounds || []).map((round) => {
-            if (!round.tracks?.[id]) {
-              return round;
-            }
-
-            const nextTracks = { ...round.tracks };
-            delete nextTracks[id];
-
-            return {
-              ...round,
-              tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
-            };
-          }),
-        };
-      });
+      setConfig((prev) => withoutTrack(prev, id));
       setSelectedRubricScopeByTrack((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -450,6 +460,9 @@ export function CompactScoringForm({
         next.delete(id);
         return next;
       });
+      setSelectedTrackForBulkAssign((prev) => (prev === id ? "" : prev));
+      deletedTrackIds.current.add(id);
+      onTrackDeleted(id);
     }
   };
 
@@ -790,11 +803,11 @@ export function CompactScoringForm({
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500">Weight</label>
-                                    <Input
-                                      type="number" min={0} step={0.01}
-                                      value={criterion.weight}
+                                    <NumberInput
+                                      min={0} step={0.01}
+                                      value={criterion.weight ?? 1}
                                       disabled={isArchived}
-                                      onChange={(e) => updateCriterion(trackId, idx, { weight: parseFloat(e.target.value) || 1 })}
+                                      onValueChange={(weight) => updateCriterion(trackId, idx, { weight })}
                                       className="h-9 text-center"
                                     />
                                   </div>
@@ -872,19 +885,19 @@ export function CompactScoringForm({
                                   ) : (
                                     <div className="flex items-center gap-2">
                                       <span className="text-xs text-gray-500 w-24 shrink-0">Score range</span>
-                                      <Input
-                                        type="number" min={0}
+                                      <NumberInput
+                                        integer min={0}
                                         value={criterion.min ?? 0}
                                         disabled={isArchived}
-                                        onChange={(e) => updateCriterion(trackId, idx, { min: parseInt(e.target.value) || 0 })}
+                                        onValueChange={(min) => updateCriterion(trackId, idx, { min })}
                                         className="w-14 h-7 text-xs text-center"
                                       />
                                       <span className="text-xs text-gray-300">to</span>
-                                      <Input
-                                        type="number" min={1}
+                                      <NumberInput
+                                        integer min={1}
                                         value={criterion.max ?? 10}
                                         disabled={isArchived}
-                                        onChange={(e) => updateCriterion(trackId, idx, { max: parseInt(e.target.value) || 10 })}
+                                        onValueChange={(max) => updateCriterion(trackId, idx, { max })}
                                         className="w-14 h-7 text-xs text-center"
                                       />
                                     </div>
