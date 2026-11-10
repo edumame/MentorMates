@@ -1,62 +1,21 @@
-import { rankProjectsForAdvancement } from "@/lib/judging/rounds";
+import { getActiveRound } from "@/lib/judging/rounds";
 
-describe("rankProjectsForAdvancement", () => {
-  it("ranks projects by their average score across all submitted scorecards", () => {
-    expect(
-      rankProjectsForAdvancement([
-        {
-          project_id: "p1",
-          project_name: "Alpha",
-          lead_name: "Alice",
-          scores: { impact: 8, polish: 6 },
-        },
-        {
-          project_id: "p1",
-          project_name: "Alpha",
-          lead_name: "Alice",
-          scores: { impact: 10, polish: 8 },
-        },
-        {
-          project_id: "p2",
-          project_name: "Beta",
-          lead_name: "Bob",
-          scores: { impact: 9, polish: 9 },
-        },
-      ])
-    ).toEqual([
-      {
-        projectId: "p2",
-        projectName: "Beta",
-        leadName: "Bob",
-        score: 9,
-        judgeCount: 1,
-      },
-      {
-        projectId: "p1",
-        projectName: "Alpha",
-        leadName: "Alice",
-        score: 8,
-        judgeCount: 2,
-      },
-    ]);
+describe("getActiveRound", () => {
+  const cfg = (activeRound: unknown) => ({ tracks: {}, activeRound } as never);
+
+  it("returns a positive integer activeRound", () => {
+    expect(getActiveRound(cfg(2))).toBe(2);
+    expect(getActiveRound(cfg(1))).toBe(1);
   });
 
-  it("ignores rows without numeric scores", () => {
-    expect(
-      rankProjectsForAdvancement([
-        {
-          project_id: "p1",
-          project_name: "Alpha",
-          lead_name: "Alice",
-          scores: { recommendation: "yes" },
-        },
-        {
-          project_id: "p2",
-          project_name: "Beta",
-          lead_name: "Bob",
-          scores: null,
-        },
-      ])
-    ).toEqual([]);
+  it("falls back to round 1 for missing, non-positive or non-integer values (matches DB)", () => {
+    expect(getActiveRound(null)).toBe(1);
+    expect(getActiveRound(undefined)).toBe(1);
+    expect(getActiveRound(cfg(undefined))).toBe(1);
+    expect(getActiveRound(cfg(0))).toBe(1);
+    expect(getActiveRound(cfg(-3))).toBe(1);
+    expect(getActiveRound(cfg(1.5))).toBe(1);
+    expect(getActiveRound(cfg("2"))).toBe(1);
+    expect(getActiveRound(cfg(Number.NaN))).toBe(1);
   });
 });
