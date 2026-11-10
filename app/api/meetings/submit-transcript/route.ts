@@ -48,14 +48,16 @@ export async function POST(req: NextRequest) {
 
     try {
       await inngest.send({
-        id: `meeting-transcript-${meeting.id}`,
+        // Scoped to this claim: a resubmission after a failed job needs a new ID,
+        // or Inngest deduplicates it and the meeting never leaves processing.
+        id: `meeting-transcript-${meeting.id}-${claimedAt}`,
         name: "meetings/processing",
         data: { meetingId: meeting.id, transcriptText, agentId: meeting.agent_id },
       });
     } catch {
       // Delivery may have succeeded despite a transport error. Retain the claim
       // for reconciliation instead of enabling duplicate work with a rollback.
-      // Operators must inspect the deterministic event ID in Inngest before
+      // Operators must inspect the event ID (meeting ID + updated_at) in Inngest before
       // retrying delivery or resetting status; event deduplication is time-limited.
       return NextResponse.json({ error: "Processing delivery is uncertain; reconciliation required" }, { status: 503 });
     }

@@ -142,6 +142,8 @@ const query = (data: unknown) => {
 };
 
 const fakeSupabase = {
+  // project_team_emails: team emails are not client-readable columns.
+  rpc: async () => ({ data: [], error: null }),
   from: (table: string) => {
     switch (table) {
       case "events":
@@ -153,11 +155,14 @@ const fakeSupabase = {
       case "projects":
         return {
           select: () => query(db.project),
+          // main reads the updated row back to detect RLS no-ops (PUB-011).
           update: (patch: Record<string, unknown>) => ({
-            eq: async () => {
-              Object.assign(db.project, patch);
-              return { error: null };
-            },
+            eq: () => ({
+              select: async () => {
+                Object.assign(db.project, patch);
+                return { data: [{ id: db.project.id }], error: null };
+              },
+            }),
           }),
         };
       case "project_tracks":
@@ -400,9 +405,8 @@ describe("NewProjectSubmissionFormSinglePage Save draft and exit", () => {
 
     await clickSaveAndExit();
 
+    // Since #1005 the save waits for the pending draft creation instead of
+    // failing, so the user is kept on the page until it settles.
     expect(push).not.toHaveBeenCalled();
-    expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Unable to save draft" })
-    );
   });
 });

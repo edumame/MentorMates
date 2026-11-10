@@ -1,4 +1,6 @@
 "use client";
+
+import { ProjectSaveStatus } from "./components/ProjectSaveStatus";
 import { SoloSubmissionConfirmation, needsSoloConfirmation } from "./components/SoloSubmissionConfirmation";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
@@ -28,6 +30,7 @@ import { EventCard } from "@/components/events/event-card";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
+import { useProjectDraftCreation } from "./hooks/useProjectDraftCreation";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
 import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
@@ -88,16 +91,20 @@ type PublishPayload = {
 
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
+  isSessionActive = true,
   leadName,
   eventId,
   onProjectSubmitted,
+  onDraftSaved,
   onContextusLinked,
   contextusId: initialContextusId,
 }: {
   userEmail?: string;
+  isSessionActive?: boolean;
   leadName?: string;
   eventId?: string;
   onProjectSubmitted?: () => void;
+  onDraftSaved?: (projectId: string) => void;
   onContextusLinked?: (ctxId: string) => void;
   contextusId?: string | null;
 }) {
@@ -105,15 +112,11 @@ export function NewProjectSubmissionFormSinglePage({
   const [isUploading, setIsUploading] = useState(false);
   const isAdmin = useAdmin();
 
-  // Ref to track if draft creation has been attempted
-  const draftCreationAttempted = useRef(false);
-
   // Lets publish flush any multi-entry field drafts the submitter typed
   // but didn't explicitly add.
   const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
 
   // State
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
   );
@@ -458,59 +461,28 @@ export function NewProjectSubmissionFormSinglePage({
     formData.teammates.length > 0 ||
     selectedTrackIds.length > 0;
 
-  // Create a draft as soon as the user enters anything (only once)
-  useEffect(() => {
-    // Skip if no content, already have a projectId, or already attempted to create a draft
-    if (!hasDraftContent || projectId || draftCreationAttempted.current) return;
-
-    const createDraft = async () => {
-      // Mark that we've attempted to create a draft
-      draftCreationAttempted.current = true;
-
-      try {
-        const resp = await fetch("/api/projects", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            eventId,
-            leadName: formData.leadName,
-            leadEmail: formData.leadEmail,
-            contextus: isAdmin,
-          }),
-        });
-        if (resp.ok) {
-          const json = await resp.json();
-          setProjectId(json.id);
-          if (json.contextus_project_id && onContextusLinked && isAdmin) {
-            setContextusId(json.contextus_project_id as string);
-            onContextusLinked?.(json.contextus_project_id as string);
-          }
-        } else {
-          // Reset the flag if the request failed so it can be retried
-          draftCreationAttempted.current = false;
-        }
-      } catch (e) {
-        // Reset the flag if there was an error so it can be retried
-        draftCreationAttempted.current = false;
-      }
-    };
-
-    createDraft();
-  }, [
-    hasDraftContent,
-    // Every input is listed so that further edits retry a failed draft creation.
-    submissionFieldValues,
-    extraProjectUrls,
-    extraVideoUrls,
-    formData.teammates,
-    selectedTrackIds,
-    projectId,
+  const { projectId, ensureProjectId } = useProjectDraftCreation({
     eventId,
-    formData.leadName,
-    formData.leadEmail,
-    onContextusLinked,
-    isAdmin,
-  ]);
+    leadName: formData.leadName,
+    leadEmail: formData.leadEmail,
+    contextus: isAdmin,
+    onCreated: (linkedContextusId) => {
+      if (linkedContextusId && isAdmin) {
+        setContextusId(linkedContextusId);
+        onContextusLinked?.(linkedContextusId);
+      }
+    },
+  });
+
+  // Create a draft as soon as the user enters anything, tracks included.
+  // Explicit saves share the same request.
+  useEffect(() => {
+    if (hasDraftContent) {
+      void ensureProjectId().catch(() => {
+        // An explicit save retries and surfaces the server error if it still fails.
+      });
+    }
+  }, [hasDraftContent, ensureProjectId]);
 
   const participantEmails = useMemo(
     () => participants.map((participant) => participant.email.toLowerCase()),
@@ -524,9 +496,11 @@ export function NewProjectSubmissionFormSinglePage({
     [formData.teammates, participantEmails]
   );
 
-  const { lastSaved, flushSave } = useProjectSubmissionAutosave({
-    enabled: !isLoading,
+  const { lastSaved, flushSave, isSaving, saveError, hasUnsavedChanges } = useProjectSubmissionAutosave({
+    enabled: isSessionActive && !isLoading && Boolean(projectId || hasDraftContent),
     projectId,
+    ensureProjectId,
+    onSaved: (savedProject) => { if (savedProject?.id) onDraftSaved?.(savedProject.id); },
     fields: effectiveSubmissionFields,
     values: submissionFieldValues,
     hasConfiguredSubmissionFields,
@@ -706,7 +680,7 @@ export function NewProjectSubmissionFormSinglePage({
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
       const payload = {
-        projectId,
+        projectId: await ensureProjectId(),
         projectName: formData.projectName,
         leadName: formData.leadName,
         leadEmail: formData.leadEmail,
@@ -958,40 +932,14 @@ export function NewProjectSubmissionFormSinglePage({
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="px-6 py-3.5 flex items-center justify-between flex-wrap">
-          <div className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              viewBox="0 0 24 24"
-              width="24px"
-              fill="#1f1f1f"
-            >
-              <g>
-                <rect fill="none" height="24" width="24" />
-                <path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" />
-              </g>
-            </svg>
-            <p className="text-[#4c4c4c] text-base font-medium tracking-[-0.06em]">
-              Your project is automatically saved as you edit
-            </p>
-          </div>
-          {lastSaved && (
-            <div className="bg-transparent px-2.5 py-1 ml-6 sm:m-0">
-              <p className="text-[#7f7f7f] text-sm font-medium">
-                Saved at{" "}
-                {lastSaved.toLocaleDateString("en-US", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}{" "}
-                {lastSaved.toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </p>
-            </div>
-          )}
+          <ProjectSaveStatus
+            isSaving={isSaving}
+            saveError={saveError}
+            hasUnsavedChanges={hasUnsavedChanges}
+            lastSaved={lastSaved}
+            onRetry={flushSave}
+            isSessionActive={isSessionActive}
+          />
         </div>
       </div>
 

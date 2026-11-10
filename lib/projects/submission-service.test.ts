@@ -117,7 +117,9 @@ describe("saveProjectSubmission", () => {
       }),
     };
 
-    const projectUpdateEq = jest.fn().mockResolvedValue({ error: null });
+    const projectUpdateEq = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [{ id: "project-1" }], error: null }),
+    });
     const projectsTable = {
       select: jest
         .fn()
@@ -138,6 +140,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -256,7 +259,9 @@ describe("saveProjectSubmission", () => {
       }),
     };
 
-    const projectUpdateEq = jest.fn().mockResolvedValue({ error: null });
+    const projectUpdateEq = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [{ id: "project-1" }], error: null }),
+    });
     const projectsTable = {
       select: jest.fn().mockReturnValue(existingProjectQuery),
       update: jest.fn().mockReturnValue({
@@ -273,6 +278,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -348,6 +354,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -409,6 +416,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") {
           return projectsTable;
@@ -443,6 +451,7 @@ describe("saveProjectSubmission", () => {
   it("rejects create when locked project_name is missing", async () => {
     const projectsTable = { insert: jest.fn() };
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -467,6 +476,7 @@ describe("saveProjectSubmission", () => {
   it("rejects create when locked project_description is missing", async () => {
     const projectsTable = { insert: jest.fn() };
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -511,6 +521,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -556,8 +567,13 @@ describe("saveProjectSubmission", () => {
       };
       const projectsTable = {
         select: jest.fn(() => resolvedQuery({ data: row, error: null })),
+        // main checks the updated row count (PUB-011).
         update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
         }),
       };
       const projectTracksTable = {
@@ -590,6 +606,7 @@ describe("saveProjectSubmission", () => {
         }),
       };
       const supabase = {
+        rpc: jest.fn(async () => ({ data: [], error: null })),
         from: jest.fn((table: string) => {
           if (!tables[table]) throw new Error(`Unexpected table ${table}`);
           return tables[table];
