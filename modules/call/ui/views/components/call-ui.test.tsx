@@ -5,13 +5,21 @@ import { CallUI } from "./call-ui";
 const mockJoin = jest.fn();
 
 jest.mock("@stream-io/video-react-sdk", () => ({
+  CallingState: { JOINED: "joined", LEFT: "left", RECONNECTING_FAILED: "reconnecting-failed" },
   DefaultVideoPlaceholder: () => null,
   StreamTheme: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   ToggleAudioPreviewButton: () => null,
   ToggleVideoPreviewButton: () => null,
   VideoPreview: () => null,
-  useCall: () => ({ join: mockJoin, endCall: jest.fn() }),
+  useCall: () => ({
+    join: mockJoin,
+    endCall: jest.fn(),
+    // A failed join re-reads the call to tell an ended call from a network error.
+    get: jest.fn().mockResolvedValue({}),
+    state: { endedAt: undefined },
+  }),
   useCallStateHooks: () => ({
+    useCallCallingState: () => "joined",
     useCameraState: () => ({ hasBrowserPermission: true }),
     useMicrophoneState: () => ({ hasBrowserPermission: true }),
   }),
@@ -27,7 +35,7 @@ jest.mock("./call-active", () => ({
   CallActive: () => <div>active call</div>,
 }));
 
-const renderCallUI = () => render(<CallUI meetingId="meeting-1" meetingName="Mentor sync" />);
+const renderCallUI = () => render(<CallUI meetingId="meeting-1" meetingName="Mentor sync" isOwner={false} />);
 
 const joinButton = () => screen.getByRole("button", { name: /join/i });
 

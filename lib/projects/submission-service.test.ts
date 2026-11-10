@@ -867,4 +867,299 @@ describe("saveProjectSubmission", () => {
       expect(serviceClient.from).not.toHaveBeenCalled();
     });
   });
+
+  describe("locked fields on existing projects", () => {
+    function buildUpdateSupabase(existingProject: {
+      project_name: string | null;
+      project_description: string | null;
+      submitted: boolean | null;
+      project_url?: string | null;
+    }) {
+      const buildProjectRowQuery = (data: Record<string, unknown>) => ({
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({ data, error: null }),
+      });
+      const row = {
+        id: projectId,
+        event_id: null,
+        contextus_project_id: null,
+        ...existingProject,
+      };
+      const projectsTable = {
+        select: jest
+          .fn()
+          .mockReturnValueOnce(buildProjectRowQuery(row))
+          .mockReturnValueOnce(
+            buildProjectRowQuery({ ...row, project_tracks: [] }),
+          ),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
+        }),
+      };
+      const eventsQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            event_id: eventId,
+            event_name: "Demo Day",
+            submission_time_start: null,
+            submission_time_cutoff: null,
+          },
+          error: null,
+        }),
+      };
+      const submissionFieldsQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (table === "projects") return projectsTable;
+          if (table === "events") return eventsQuery;
+          if (table === "event_submission_fields") {
+            return submissionFieldsQuery;
+          }
+          throw new Error(`Unexpected table ${table}`);
+        }),
+        rpc: jest.fn(async () => ({ data: [], error: null })),
+      };
+
+      return { projectsTable, supabase };
+    }
+
+    const emptyDraft = {
+      project_name: null,
+      project_description: null,
+      submitted: false,
+    };
+
+    it("saves a draft with only a name", async () => {
+      const { projectsTable, supabase } = buildUpdateSupabase(emptyDraft);
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { projectName: "Only a name" },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ project_name: "Only a name" }),
+      );
+    });
+
+    it("saves a draft with only a description", async () => {
+      const { projectsTable, supabase } = buildUpdateSupabase(emptyDraft);
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { projectDescription: "Only a description" },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ project_description: "Only a description" }),
+      );
+    });
+
+    it("saves an event change on a draft with no name or description", async () => {
+      const { projectsTable, supabase } = buildUpdateSupabase(emptyDraft);
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { eventId },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ event_id: eventId }),
+      );
+    });
+
+    it("lets a draft clear a field it already saved", async () => {
+      const { projectsTable, supabase } = buildUpdateSupabase({
+        project_name: "Old name",
+        project_description: null,
+        submitted: false,
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { projectName: "" },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(projectsTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ project_name: "" }),
+      );
+    });
+
+    it("does not create a Contextus project while saving a draft", async () => {
+      const { supabase } = buildUpdateSupabase(emptyDraft);
+
+      await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { projectName: "Only a name" },
+      });
+
+      expect(createContextusProject).not.toHaveBeenCalled();
+    });
+
+    it("creates the Contextus project from saved values when a draft is published", async () => {
+      (createContextusProject as jest.Mock).mockResolvedValue("ctx-new");
+      const { supabase } = buildUpdateSupabase({
+        project_name: "Saved name",
+        project_description: "Saved description",
+        submitted: false,
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(createContextusProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "Saved name",
+          artifacts: { type: "doc", title: "Saved description" },
+        }),
+      );
+    });
+
+    it("keeps the saved repository link when a draft is published with only the submitted flag", async () => {
+      (createContextusProject as jest.Mock).mockResolvedValue("ctx-new");
+      const { supabase } = buildUpdateSupabase({
+        project_name: "Saved name",
+        project_description: "Saved description",
+        project_url: "https://github.com/a/b",
+        submitted: false,
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(createContextusProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          artifacts: {
+            type: "link",
+            title: "Project Repository",
+            url: "https://github.com/a/b",
+          },
+        }),
+      );
+    });
+
+    it("prefers the repository link in the request over the saved one on publish", async () => {
+      (createContextusProject as jest.Mock).mockResolvedValue("ctx-new");
+      const { supabase } = buildUpdateSupabase({
+        project_name: "Saved name",
+        project_description: "Saved description",
+        project_url: "https://github.com/a/old",
+        submitted: false,
+      });
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { submitted: true, projectUrl: "https://github.com/a/new" },
+      });
+
+      expect(result).toMatchObject({ status: 200 });
+      expect(createContextusProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          artifacts: expect.objectContaining({
+            type: "link",
+            url: "https://github.com/a/new",
+          }),
+        }),
+      );
+    });
+
+    it.each([
+      ["an explicit submitted flag", { submitted: true }, undefined],
+      ["the submit route default", {}, true],
+    ])(
+      "rejects publishing an incomplete draft via %s",
+      async (_label, submittedInput, defaultSubmitted) => {
+        const { projectsTable, supabase } = buildUpdateSupabase(emptyDraft);
+
+        const result = await saveProjectSubmission(supabase as never, {
+          mode: "update",
+          projectId,
+          defaultSubmitted,
+          input: { projectName: "Only a name", ...submittedInput },
+        });
+
+        expect(result).toMatchObject({
+          code: "locked_field_missing",
+          status: 400,
+          error: expect.stringContaining("project_description"),
+        });
+        expect(projectsTable.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([[true], [null]])(
+      "rejects an update that leaves a required field empty when submitted is %s",
+      async (submitted) => {
+        const { projectsTable, supabase } = buildUpdateSupabase({
+          project_name: "Existing name",
+          project_description: null,
+          submitted,
+        });
+
+        const result = await saveProjectSubmission(supabase as never, {
+          mode: "update",
+          projectId,
+          input: { projectName: "New name" },
+        });
+
+        expect(result).toMatchObject({
+          code: "locked_field_missing",
+          status: 400,
+        });
+        expect(projectsTable.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it("rejects create with submitted false and no description", async () => {
+      const projectsTable = { insert: jest.fn() };
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (table === "projects") return projectsTable;
+          throw new Error(`Unexpected table ${table}`);
+        }),
+      };
+
+      const result = await saveProjectSubmission(supabase as never, {
+        mode: "create",
+        input: { leadName: "Lead", projectName: "A", submitted: false },
+      });
+
+      expect(result).toMatchObject({
+        code: "locked_field_missing",
+        status: 400,
+      });
+      expect(projectsTable.insert).not.toHaveBeenCalled();
+    });
+  });
 });
