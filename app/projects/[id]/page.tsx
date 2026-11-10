@@ -330,43 +330,6 @@ export default function ProjectPage() {
     }
   };
 
-  const handleSubmitToEvent = async (): Promise<void> => {
-    setIsUpdating(true);
-    try {
-      const response = await fetch("/api/projects/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, submitted: true }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        toast({
-          title: "Submission failed",
-          description: errorData?.error || "Could not submit project to event.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data } = await response.json();
-      setProjectWithArtifacts(data as Project);
-      toast({
-        title: "Submitted to event",
-        description: "Your project is now visible to judges.",
-      });
-    } catch (err) {
-      toast({
-        title: "Submission failed",
-        description:
-          err instanceof Error ? err.message : "Unknown error. Try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   const handleUpdateProjectUrl = async (newUrl: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
@@ -1143,16 +1106,18 @@ export default function ProjectPage() {
                         Draft — not yet submitted to the event
                       </p>
                       <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
-                        Your project is saved but hasn&apos;t been submitted. Publishing
-                        a project is not the same as submitting it to an event —
-                        click &quot;Submit to event&quot; for judges to see it.
+                        Your project is saved but hasn&apos;t been submitted. Click
+                        &quot;Submit to event&quot; to review it, then choose
+                        &quot;Publish project&quot; for judges to see it.
                       </p>
                       <Button
                         className="mt-2.5 bg-[#4B89EF] hover:bg-[#3E7EEA] text-white rounded-[12px] h-8 px-4 text-[13px] font-semibold shadow-[inset_0_2px_1px_0_rgba(255,255,255,0.25),0_1px_2px_0_rgba(0,0,0,0.05)]"
-                        onClick={handleSubmitToEvent}
+                        // The edit form owns the required-field and intake
+                        // form checks, so every submission goes through it.
+                        onClick={() => router.push(`/projects/${projectId}/edit`)}
                         disabled={isUpdating}
                       >
-                        {isUpdating ? "Submitting…" : "Submit to event"}
+                        Submit to event
                       </Button>
                     </div>
                   </div>
