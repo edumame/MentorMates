@@ -61,9 +61,16 @@ export default function SubmitTranscriptButton({ meetingId }: { meetingId: strin
   }, [meetingId]);
 
   const isUpcoming = meetingData?.status === "upcoming";
+  const isProcessing = done || meetingData?.status === "processing";
   const displayDone = done || !isUpcoming;
   const disabled = loading || displayDone;
-  const label = loading ? "Getting review..." : displayDone ? "Review ready" : "Get review";
+  const label = loading
+    ? "Getting review..."
+    : isProcessing
+      ? "Review processing"
+      : displayDone
+        ? "Review ready"
+        : "Get review";
 
   async function handleSubmit() {
     if (loading || !isUpcoming) return;
@@ -104,7 +111,7 @@ export default function SubmitTranscriptButton({ meetingId }: { meetingId: strin
       className="!h-9 !px-3 !py-1 text-xs sm:!h-10 sm:!px-4 sm:!py-2 sm:text-base"
     >
       <span className="whitespace-nowrap sm:hidden">
-        {loading ? "Loading" : displayDone ? "Reviewed" : "Review"}
+        {loading ? "Loading" : isProcessing ? "Processing" : displayDone ? "Reviewed" : "Review"}
       </span>
       <span className="hidden whitespace-nowrap sm:inline">{label}</span>
     </Button>
