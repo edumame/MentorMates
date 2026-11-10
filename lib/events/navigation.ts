@@ -1,4 +1,4 @@
-import { EventRole } from "@/lib/types";
+import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { isApprovedApprovalStatus, safeExternalHref } from "./approval";
 
 // Set by middleware: layouts cannot otherwise see the path being requested.
@@ -22,6 +22,22 @@ export type EventNavigationItem = {
   userRole?: EventNavigationRole;
   canManageEvent?: boolean | null;
 };
+
+export type EventReviewState = {
+  visibility?: string | null;
+  approval_status?: string | null;
+};
+
+// Awaiting review or turned down. Private events go live before review, and
+// public events that never entered review (not_submitted) stay reachable by
+// direct link, so only submitted/rejected public events are hidden.
+export function isPublicEventHiddenByReview({ visibility, approval_status }: EventReviewState) {
+  return (
+    visibility === EventVisibility.Public &&
+    (approval_status === ApprovalStatus.Submitted ||
+      approval_status === ApprovalStatus.Rejected)
+  );
+}
 
 export function isEventManagerRole(role: EventNavigationRole) {
   return role === EventRole.Organizer || role === EventRole.Admin;

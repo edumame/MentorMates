@@ -5,6 +5,10 @@ import { headers } from "next/headers";
 import { getAppBaseUrl } from "@/lib/utils/app-url";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import {
+  EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE,
+  isEventClosedForEnrollment,
+} from "@/lib/events/participant-access";
 
 interface CheckoutOptions {
   eventId?: string | null;
@@ -64,6 +68,19 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   let lineItems;
 
   if (options?.pricingTierId) {
+    // pricing_tiers stay readable whatever the event's state, so check the event
+    // itself with the join rule. RLS hides a taken-down draft from non-members,
+    // hence the null case.
+    const { data: event } = await supabase
+      .from("events")
+      .select("visibility, approval_status")
+      .eq("event_id", options.eventId)
+      .maybeSingle();
+
+    if (!event || isEventClosedForEnrollment(event)) {
+      throw new Error(EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE);
+    }
+
     // Query the pricing_tiers table for the specific tier
     const { data: pricingTierData } = await supabase
       .from("pricing_tiers")

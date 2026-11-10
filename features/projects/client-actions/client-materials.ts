@@ -9,10 +9,13 @@ export function buildMaterialsUpdate(project: Project, url: string) {
     const previous = project.submission_answers?.find((answer) => answer.event_submission_field_id === field.id)?.answer;
     const remaining = Array.isArray(previous) ? previous.slice(1) : [];
     const answer = normalizeSubmissionValue(field, url ? [url, ...remaining] : remaining);
+    // Answers from another event's fields stay stored after a move, and the
+    // server rejects any answer outside the current event's fields.
+    const otherFieldIds = new Set(project.submission_fields?.map((item) => item.id).filter((id) => id !== field.id));
     return {
       submission_answers: [
         ...(project.submission_answers || [])
-          .filter((item) => item.event_submission_field_id !== field.id)
+          .filter((item) => otherFieldIds.has(item.event_submission_field_id))
           .map((item) => ({ eventSubmissionFieldId: item.event_submission_field_id, answer: item.answer })),
         { eventSubmissionFieldId: field.id, answer },
       ],
