@@ -410,4 +410,89 @@ describe("CompactScoringForm", () => {
       expect(screen.queryByText(/No prizes added yet/)).toBeNull();
     });
   });
+
+  describe("criterion editor with ids shared across tracks", () => {
+    const sharedCriterion = (name: string) => ({
+      id: "technical",
+      name,
+      description: "",
+      type: "numeric" as const,
+      weight: 1,
+      min: 1,
+      max: 10,
+      options: [],
+    });
+
+    const sharedIdConfig: EventScoringConfig = {
+      tracks: {
+        "track-1": { name: "AI Track", criteria: [sharedCriterion("First Technical")] },
+        "track-2": { name: "Web Track", criteria: [sharedCriterion("Second Technical")] },
+      },
+      defaultMin: 1,
+      defaultMax: 10,
+      defaultWeight: 1,
+    };
+
+    const renderForm = (onSave = jest.fn()) =>
+      render(
+        <CompactScoringForm
+          initialConfig={sharedIdConfig}
+          onSave={onSave}
+          isArchived={false}
+          eventId="event-1"
+        />
+      );
+
+    it("opens only the clicked track's editor and focuses it", () => {
+      renderForm();
+
+      fireEvent.click(screen.getByText("First Technical"));
+
+      expect(screen.getAllByText("Editing Criterion")).toHaveLength(1);
+      expect(screen.getByText("Second Technical")).toBeInTheDocument();
+      expect(document.activeElement).toBe(
+        screen.getByDisplayValue("First Technical")
+      );
+    });
+
+    it("opens the later track's editor alone when that one is clicked", () => {
+      renderForm();
+
+      fireEvent.click(screen.getByText("Second Technical"));
+
+      expect(screen.getAllByText("Editing Criterion")).toHaveLength(1);
+      expect(screen.getByText("First Technical")).toBeInTheDocument();
+      expect(document.activeElement).toBe(
+        screen.getByDisplayValue("Second Technical")
+      );
+    });
+
+    it("moves the editor when another track's matching criterion is clicked", () => {
+      renderForm();
+
+      fireEvent.click(screen.getByText("First Technical"));
+      fireEvent.click(screen.getByText("Second Technical"));
+
+      expect(screen.getAllByText("Editing Criterion")).toHaveLength(1);
+      expect(screen.getByText("First Technical")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Second Technical")).toBeInTheDocument();
+    });
+
+    it("saves edits only to the clicked track", () => {
+      const onSave = jest.fn();
+      renderForm(onSave);
+
+      fireEvent.click(screen.getByText("First Technical"));
+      fireEvent.change(document.activeElement as HTMLInputElement, {
+        target: { value: "Renamed" },
+      });
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save Scoring Configuration" })
+      );
+
+      const saved = onSave.mock.calls[0][0] as EventScoringConfig;
+      expect(saved.tracks["track-1"].criteria[0].name).toBe("Renamed");
+      expect(saved.tracks["track-2"].criteria[0].name).toBe("Second Technical");
+    });
+  });
 });
