@@ -120,7 +120,7 @@ export function EventPageHeader({
               {/* Left: Event Info */}
               <div className="flex flex-col gap-[8px] items-start w-full min-w-0 md:max-w-[747px]">
                 <div className="flex flex-col items-start text-black w-full">
-                  <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full">
+                  <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full break-words [overflow-wrap:anywhere]">
                     {eventName}
                   </h1>
                   <p className="font-normal text-sm md:text-base leading-[1.5] text-black w-full break-words">

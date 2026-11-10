@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { fromZonedTime } from "date-fns-tz";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,9 @@ const LOCATION_OPTIONS = [
 ];
 
 const BLURB_MAX = 1000;
+
+// The Start/End fields are labelled PT, whatever zone the submitter's browser is in.
+const EVENT_TIME_ZONE = "America/Los_Angeles";
 
 type FormValues = {
   submitterName: string;
@@ -88,7 +92,10 @@ const STEPS: Step[] = [
     validate: (v) => {
       if (!v.startDt) return "Please pick a start date and time.";
       if (!v.endDt) return "Please pick an end date and time.";
-      if (new Date(v.endDt).getTime() < new Date(v.startDt).getTime())
+      if (
+        fromZonedTime(v.endDt, EVENT_TIME_ZONE).getTime() <
+        fromZonedTime(v.startDt, EVENT_TIME_ZONE).getTime()
+      )
         return "End must be on or after start.";
       if (!v.location.trim()) return "Please enter a location.";
       if (v.expectedAttendance.trim()) {
@@ -181,8 +188,8 @@ export function SubmitEventForm() {
           affiliation: values.affiliation.trim() || undefined,
           event_name: values.eventName.trim(),
           event_blurb: values.blurb.trim() || undefined,
-          start_datetime: new Date(values.startDt).toISOString(),
-          end_datetime: new Date(values.endDt).toISOString(),
+          start_datetime: fromZonedTime(values.startDt, EVENT_TIME_ZONE).toISOString(),
+          end_datetime: fromZonedTime(values.endDt, EVENT_TIME_ZONE).toISOString(),
           location: values.location.trim(),
           link: values.link.trim(),
           expected_attendance: values.expectedAttendance.trim()
@@ -563,13 +570,14 @@ function ReviewScreen({
 }) {
   const formatDt = (v: string) =>
     v
-      ? new Date(v).toLocaleString("en-US", {
+      ? `${fromZonedTime(v, EVENT_TIME_ZONE).toLocaleString("en-US", {
+          timeZone: EVENT_TIME_ZONE,
           month: "short",
           day: "numeric",
           year: "numeric",
           hour: "numeric",
           minute: "2-digit",
-        })
+        })} PT`
       : "—";
 
   const sections: { step: number; title: string; rows: [string, string][] }[] = [
