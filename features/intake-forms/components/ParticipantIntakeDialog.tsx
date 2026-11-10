@@ -39,15 +39,18 @@ import { cn } from "@/lib/utils";
 
 import type {
   IntakeFormAnswers,
-  IntakeFormField,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
-import { isFieldVisible } from "@/features/user/dashboards/dashboard/organizer/registration/intake-responses-utils";
+import {
+  getVisibleFields,
+  satisfiesRequired,
+} from "@/features/intake-forms/validation";
 
 // Trigger mode: dialog manages its own open state via DialogTrigger.
 // Controlled mode: caller controls open/close (for programmatic flows).
 type ParticipantIntakeDialogProps = {
   schema: IntakeFormSchema;
+  initialAnswers?: IntakeFormAnswers;
   submitting?: boolean;
   onSubmit: (answers: IntakeFormAnswers) => Promise<void>;
 } & (
@@ -55,10 +58,14 @@ type ParticipantIntakeDialogProps = {
   | { trigger?: never; open: boolean; onClose: () => void }
 );
 
-function initializeAnswers(schema: IntakeFormSchema): IntakeFormAnswers {
+function initializeAnswers(schema: IntakeFormSchema, saved: IntakeFormAnswers = {}): IntakeFormAnswers {
   const initial: IntakeFormAnswers = {};
 
   for (const field of schema.fields) {
+    if (Object.prototype.hasOwnProperty.call(saved, field.key)) {
+      initial[field.key] = saved[field.key];
+      continue;
+    }
     if (field.type === "multi_select") {
       initial[field.key] = [];
       continue;
@@ -97,22 +104,6 @@ function renderWithLinks(text: string) {
   );
 }
 
-function validateRequired(field: IntakeFormField, value: unknown): boolean {
-  if (!field.required) return true;
-
-  if (field.type === "checkbox") {
-    return value === true;
-  }
-
-  if (field.type === "multi_select") {
-    return Array.isArray(value) && value.length > 0;
-  }
-
-  return typeof value === "string"
-    ? value.trim().length > 0
-    : value !== null && value !== undefined;
-}
-
 export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
   const { schema, submitting = false, onSubmit } = props;
 
@@ -128,24 +119,23 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
   };
 
   const [answers, setAnswers] = useState<IntakeFormAnswers>(() =>
-    initializeAnswers(schema)
+    initializeAnswers(schema, props.initialAnswers)
   );
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [openComboboxKey, setOpenComboboxKey] = useState<string | null>(null);
   const [comboboxSearch, setComboboxSearch] = useState("");
 
-  const visibleFields = useMemo(() => {
-    return schema.fields.filter((field) =>
-      isFieldVisible(field, answers, schema.fields)
-    );
-  }, [answers, schema.fields]);
+  const visibleFields = useMemo(
+    () => getVisibleFields(schema, answers),
+    [answers, schema]
+  );
 
   const invalidFieldKeys = useMemo(
     () =>
       new Set(
         visibleFields
-          .filter((field) => !validateRequired(field, answers[field.key]))
+          .filter((field) => !satisfiesRequired(field, answers[field.key]))
           .map((field) => field.key)
       ),
     [visibleFields, answers]
@@ -223,21 +213,37 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                     field.type === "email" ||
                     field.type === "number" ||
                     field.type === "date") && (
-                    <Input
-                      type={
-                        field.type === "short_text"
-                          ? "text"
-                          : field.type === "email"
-                            ? "email"
-                            : field.type
-                      }
-                      value={typeof value === "string" ? value : ""}
-                      placeholder={field.placeholder}
-                      onChange={(event) =>
-                        handleAnswerChange(field.key, event.target.value)
-                      }
-                      className={cn("h-10", hasError && "border-red-400 focus-visible:ring-red-400/30")}
-                    />
+                    <>
+                      <Input
+                        type={
+                          field.type === "short_text"
+                            ? "text"
+                            : field.type === "email"
+                              ? "email"
+                              : field.type
+                        }
+                        value={typeof value === "string" ? value : ""}
+                        placeholder={field.placeholder}
+                        // Options on a short_text field are suggestions only.
+                        list={
+                          field.type === "short_text" && options.length > 0
+                            ? `intake-suggestions-${field.id}`
+                            : undefined
+                        }
+                        aria-label={field.label}
+                        onChange={(event) =>
+                          handleAnswerChange(field.key, event.target.value)
+                        }
+                        className={cn("h-10", hasError && "border-red-400 focus-visible:ring-red-400/30")}
+                      />
+                      {field.type === "short_text" && options.length > 0 ? (
+                        <datalist id={`intake-suggestions-${field.id}`}>
+                          {options.map((option) => (
+                            <option key={option} value={option} />
+                          ))}
+                        </datalist>
+                      ) : null}
+                    </>
                   )}
 
                   {field.type === "long_text" && (

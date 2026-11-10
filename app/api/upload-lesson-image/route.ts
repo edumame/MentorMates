@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Allowed image MIME types
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -41,31 +43,33 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.error('Authentication error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const eventId = formData.get('eventId') as string;
+    // A non-multipart body makes formData() throw: that is a client error (PUB-015).
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return NextResponse.json({ error: 'Expected multipart/form-data with a file' }, { status: 400 });
+    }
+    const fileEntry = formData.get('file');
+    const eventIdEntry = formData.get('eventId');
+    const file = fileEntry instanceof File ? fileEntry : null;
+    const eventId = typeof eventIdEntry === 'string' ? eventIdEntry.trim() : '';
 
     if (!file) {
-      console.error('No file provided in request');
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     if (!eventId) {
-      console.error('No event ID provided in request');
       return NextResponse.json({ error: 'No event ID provided' }, { status: 400 });
     }
 
-    console.log('Upload request:', {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      eventId,
-      userId: user.id,
-    });
+    if (!UUID_PATTERN.test(eventId)) {
+      return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
+    }
+
 
     // Check if user is organizer/admin for this event
     const { data: roleData, error: roleError } = await supabase
@@ -73,26 +77,16 @@ export async function POST(request: NextRequest) {
       .select('role')
       .eq('user_id', user.id)
       .eq('event_id', eventId)
-      .single();
+      .maybeSingle();
 
     if (roleError) {
       console.error('Error checking user role:', roleError);
     }
 
     if (!roleData || !['organizer', 'admin'].includes(roleData.role)) {
-      console.warn('User authorization failed:', {
-        userId: user.id,
-        eventId,
-        role: roleData?.role,
-      });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    console.log('User authorized:', {
-      userId: user.id,
-      role: roleData.role,
-      eventId,
-    });
 
     // Server-side MIME type validation
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
@@ -129,12 +123,6 @@ export async function POST(request: NextRequest) {
     const fileName = `${eventId}/${timestamp}-${sanitizedFileName}`;
 
     // Upload to Supabase Storage with validated content type
-    console.log('Attempting upload to storage:', {
-      bucket: 'lesson-images',
-      fileName,
-      fileSize: buffer.length,
-      contentType: file.type,
-    });
 
     const { data, error } = await supabase.storage
       .from('lesson-images')
@@ -158,17 +146,12 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    console.log('Upload successful:', {
-      path: data.path,
-      fileName,
-    });
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('lesson-images')
       .getPublicUrl(data.path);
 
-    console.log('Generated public URL:', publicUrl);
 
     return NextResponse.json({ url: publicUrl }, { status: 200 });
   } catch (error) {
