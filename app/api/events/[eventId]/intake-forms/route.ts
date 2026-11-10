@@ -6,6 +6,7 @@ import {
   type IntakeFormContext,
   type IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { getBlankOptionError } from "@/features/intake-forms/fieldOptions";
 import {
   getAuthContext,
   getOrCreateTemplateId,
@@ -186,6 +187,11 @@ export async function PUT(
 
     if (!auth.isOrganizer && !auth.isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const blankOptionError = getBlankOptionError(schema);
+    if (blankOptionError) {
+      return NextResponse.json({ error: blankOptionError }, { status: 400 });
     }
 
     const templateId = await getOrCreateTemplateId({
