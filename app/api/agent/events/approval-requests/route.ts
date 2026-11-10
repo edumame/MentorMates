@@ -7,7 +7,6 @@ import {
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
-import { EventRole } from "@/lib/types";
 import { z } from "zod";
 
 // GET: List pending/all approval requests
