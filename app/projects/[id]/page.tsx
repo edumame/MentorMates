@@ -4,6 +4,7 @@ import { ProjectDetailTabs } from "@/features/projects/components/displays/Proje
 import { ProjectLoadError } from "@/features/projects/components/displays/ProjectLoadError";
 
 import { saveProjectMaterials } from "@/features/projects/client-actions/client-materials";
+import { saveProjectField } from "@/features/projects/client-actions/client-project-fields";
 import { keepSubmissionConfig } from "@/features/projects/utils/effectiveSubmission";
 import { useEffect, useState, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -264,20 +265,10 @@ export default function ProjectPage() {
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      const { data, error } = await updateProjectClient(projectId, {
-        project_name: newTitle,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "project_name", newTitle);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update project title",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: "Project title updated successfully",
@@ -286,7 +277,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update project title",
+        description:
+          error instanceof Error ? error.message : "Failed to update project title",
         variant: "destructive",
       });
       return false;
@@ -300,20 +292,10 @@ export default function ProjectPage() {
   ): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      const { data, error } = await updateProjectClient(projectId, {
-        project_description: newDescription,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "project_description", newDescription);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update project description",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: "Project description updated successfully",
@@ -322,7 +304,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update project description",
+        description:
+          error instanceof Error ? error.message : "Failed to update project description",
         variant: "destructive",
       });
       return false;
@@ -356,20 +339,10 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
-        project_url: newUrl.trim() || undefined,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "project_url", newUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update project URL",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -380,7 +353,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update project URL",
+        description:
+          error instanceof Error ? error.message : "Failed to update project URL",
         variant: "destructive",
       });
       return false;
@@ -415,20 +389,10 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
-        cover_image_url: newUrl.trim() || undefined,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "cover_image", newUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update cover image",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -439,7 +403,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update cover image",
+        description:
+          error instanceof Error ? error.message : "Failed to update cover image",
         variant: "destructive",
       });
       return false;
@@ -472,20 +437,10 @@ export default function ProjectPage() {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      const { data, error } = await updateProjectClient(projectId, {
-        cover_image_url: publicUrl,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "cover_image", publicUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update cover image",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: "Cover image uploaded and updated successfully",
@@ -494,7 +449,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to upload cover image",
+        description:
+          error instanceof Error ? error.message : "Failed to upload cover image",
         variant: "destructive",
       });
       return false;
@@ -579,20 +535,10 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
-        video_url: newUrl.trim() || null,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "video_url", newUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update video URL",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -603,7 +549,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update video URL",
+        description:
+          error instanceof Error ? error.message : "Failed to update video URL",
         variant: "destructive",
       });
       return false;
@@ -789,7 +736,12 @@ export default function ProjectPage() {
         return;
       }
 
-      setProjectWithArtifacts(data as Project);
+      // Merge only the stored team into hydrated state; the raw row lacks
+      // submission answers and artifacts.
+      setProject(
+        (prev) =>
+          prev && { ...prev, teammates: data?.teammates ?? prev.teammates }
+      );
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -819,7 +771,12 @@ export default function ProjectPage() {
         return;
       }
 
-      setProjectWithArtifacts(data as Project);
+      // Merge only the stored team into hydrated state; the raw row lacks
+      // submission answers and artifacts.
+      setProject(
+        (prev) =>
+          prev && { ...prev, teammates: data?.teammates ?? prev.teammates }
+      );
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,
@@ -867,7 +824,7 @@ export default function ProjectPage() {
         return;
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
+      const { error } = await updateProjectClient(projectId, {
         contextus_project_id: contextusId,
       });
 
@@ -880,7 +837,9 @@ export default function ProjectPage() {
         return;
       }
 
-      setProjectWithArtifacts(data as Project);
+      setProject(
+        (prev) => prev && { ...prev, contextus_project_id: contextusId }
+      );
       toast({
         title: "Success",
         description: "Project linked to Contextus successfully",

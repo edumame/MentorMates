@@ -503,6 +503,60 @@ describe("saveProjectSubmission", () => {
     expect(projectsTable.insert).not.toHaveBeenCalled();
   });
 
+  it("rejects an update after the submission deadline before writing", async () => {
+    const existingProjectQuery = {
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({
+        data: {
+          id: projectId,
+          event_id: eventId,
+          contextus_project_id: null,
+          project_name: "Existing Name",
+          project_description: "Existing Description",
+        },
+        error: null,
+      }),
+    };
+    const eventsQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({
+        data: {
+          event_id: eventId,
+          event_name: "Demo Day",
+          submission_time_start: null,
+          submission_time_cutoff: "2020-01-01T00:00:00.000Z",
+        },
+        error: null,
+      }),
+    };
+    const projectsTable = {
+      select: jest.fn().mockReturnValueOnce(existingProjectQuery),
+      update: jest.fn(),
+    };
+    const supabase = {
+      from: jest.fn((table: string) => {
+        if (table === "projects") return projectsTable;
+        if (table === "events") return eventsQuery;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    const result = await saveProjectSubmission(supabase as never, {
+      mode: "update",
+      projectId,
+      input: { projectName: "Late edit" },
+    });
+
+    expect(result).toMatchObject({
+      error: "Project submission deadline has passed",
+      status: 400,
+    });
+    expect(projectsTable.update).not.toHaveBeenCalled();
+  });
+
   describe("project lead on update", () => {
     const buildUpdateSupabase = (contextusProjectId: string | null) => {
       const existingProjectQuery = {
