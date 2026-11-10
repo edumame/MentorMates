@@ -11,7 +11,7 @@ import uuid
 
 from test_scraper_quota import CONTAINER, docker, sql
 
-MIGRATION = Path(__file__).resolve().parents[1] / "supabase/migrations/202611050098_record_event_checkins.sql"
+MIGRATION = Path(__file__).resolve().parents[1] / "supabase/migrations/202611090098_record_event_checkins.sql"
 
 # Only the columns the migration touches, from the repo's table definitions.
 SCHEMA = """

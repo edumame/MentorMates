@@ -11,35 +11,46 @@ import { ArrowLeft } from "lucide-react";
 export default function Ticket() {
   const [qrCodeSrc, setQRCodeSrc] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // PUB-007: the ticket is always the signed-in user's own, issued by the
+  // server. A `usr` query parameter (still present in older emails) is ignored.
   const eventId = searchParams.get("evt");
-  const userId = searchParams.get("usr");
-  const signature = searchParams.get("sig");
 
   useEffect(() => {
+    if (!eventId) return;
+    let active = true;
     const fetchQRCode = async () => {
-      if (!eventId || !userId || !signature) {
-        return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/checkin/ticket?eventId=${encodeURIComponent(eventId)}`);
+        const data = (await res.json().catch(() => ({}))) as { token?: string; error?: string };
+        if (!res.ok || !data.token) {
+          throw new Error(data.error || "Could not load your ticket.");
+        }
+        const qrCode = await generateQRCode(data.token, 256);
+        if (active) setQRCodeSrc(qrCode);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Could not load your ticket.");
+      } finally {
+        if (active) setIsLoading(false);
       }
-
-      const qrCode = await getCheckinQRCode(eventId, userId, signature);
-      setQRCodeSrc(qrCode);
-      setIsLoading(false);
     };
     fetchQRCode();
-  }, [eventId, userId, signature]);
+    return () => {
+      active = false;
+    };
+  }, [eventId]);
 
-  if (!eventId || !userId || !signature) {
+  if (!eventId || error) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-blue-50">
-        <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="text-gray-700">
-            This ticket link is incomplete or out of date. Ask the event
-            organizer to send your ticket again.
-          </p>
+        <div className="bg-white p-8 rounded-lg shadow-lg" role="alert">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Ticket unavailable</h1>
+          <p className="text-gray-700">{error || "No event provided."}</p>
           <Button
             variant="outline"
             className="mt-4"
@@ -86,18 +97,4 @@ export default function Ticket() {
       </div>
     </div>
   );
-}
-
-async function getCheckinQRCode(
-  eventId: string,
-  userId: string,
-  signature: string
-) {
-  const checkInToken = new URLSearchParams({
-    evt: eventId,
-    usr: userId,
-    sig: signature,
-  }).toString();
-  const qrCode = await generateQRCode(checkInToken, 128);
-  return qrCode;
 }

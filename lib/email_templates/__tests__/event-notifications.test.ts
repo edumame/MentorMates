@@ -1,48 +1,42 @@
-/**
- * @jest-environment node
- */
+import {
+  getCheckinQRCodeEmail,
+  getEventScheduleUpdateNotificationEmail,
+  getEventUpdateNotificationEmail,
+} from "../event-notifications";
+import { escapeHtml, plainTextSubject } from "../escape-html";
+import type { EventDetails } from "@/lib/types";
 
-import { isValidCheckinQRSignature } from "@/lib/checkin/qr-signature";
-import { getCheckinQRCodeEmail } from "../event-notifications";
+const hostile = '<a href="https://phish.example.test/x">Claim prize</a>';
 
-jest.mock("server-only", () => ({}), { virtual: true });
-
-const EVENT_ID = "11111111-1111-4111-8111-111111111111";
-const USER_ID = "22222222-2222-4222-8222-222222222222";
-
-describe("getCheckinQRCodeEmail", () => {
-  const originalSecret = process.env.CHECKIN_QR_SECRET;
-  const originalOrigin = process.env.NEXT_PUBLIC_APP_URL;
-
-  beforeEach(() => {
-    process.env.CHECKIN_QR_SECRET = "test-checkin-secret";
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.test";
+describe("event notification templates escape interpolated values (ORG-019/PUB-004)", () => {
+  it("escapes the event name in update emails and keeps a safe link", () => {
+    const email = getEventUpdateNotificationEmail(hostile, "evt-1", { slug: 'x"><script>' } as unknown as EventDetails);
+    expect(email.html).not.toContain("<a href=\"https://phish");
+    expect(email.html).toContain("&lt;a href=&quot;https://phish.example.test/x&quot;&gt;");
+    expect(email.html).not.toContain("<script>");
+    expect(email.html).toContain('href="https://mentormates.ai/events/x%22%3E%3Cscript%3E/overview"');
   });
 
-  afterAll(() => {
-    process.env.CHECKIN_QR_SECRET = originalSecret;
-    process.env.NEXT_PUBLIC_APP_URL = originalOrigin;
+  it("escapes schedule entries and tolerates a missing schedule", () => {
+    const withSchedule = getEventScheduleUpdateNotificationEmail("Hack", "evt-1", {
+      event_schedule: [{ time: "<b>Fri</b>", events: [{ name: "<img src=x>", time: "9" }] }],
+    } as unknown as EventDetails);
+    expect(withSchedule.html).toContain("&lt;b&gt;Fri&lt;/b&gt;");
+    expect(withSchedule.html).not.toContain("<img src=x>");
+    expect(() => getEventScheduleUpdateNotificationEmail("Hack", "evt-1", {} as EventDetails)).not.toThrow();
   });
 
-  it("links to a ticket the check-in route will accept", async () => {
-    const { html } = await getCheckinQRCodeEmail("Hack", USER_ID, EVENT_ID);
-
-    const href = html.match(/href="([^"]+)"/)?.[1];
-    const link = new URL(href ?? "");
-
-    expect(link.origin + link.pathname).toBe("https://app.test/ticket");
-    expect(link.searchParams.get("evt")).toBe(EVENT_ID);
-    expect(link.searchParams.get("usr")).toBe(USER_ID);
-    expect(
-      isValidCheckinQRSignature(EVENT_ID, USER_ID, link.searchParams.get("sig"))
-    ).toBe(true);
+  it("escapes check-in emails and strips newlines from subjects", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://mentormates.ai";
+    const email = await getCheckinQRCodeEmail(`${hostile}\r\nBcc: x`, "evt-1");
+    expect(email.html).not.toContain("<a href=\"https://phish");
+    expect(email.subject).not.toMatch(/[\r\n]/);
+    expect(email.html).toContain("/ticket?evt=evt-1");
+    expect(email.html).not.toContain("usr=");
   });
 
-  it("refuses to send an unsigned ticket when the secret is unset", async () => {
-    delete process.env.CHECKIN_QR_SECRET;
-
-    await expect(
-      getCheckinQRCodeEmail("Hack", USER_ID, EVENT_ID)
-    ).rejects.toThrow("CHECKIN_QR_SECRET is not configured");
+  it("escapeHtml and plainTextSubject handle all special characters", () => {
+    expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
+    expect(plainTextSubject("a\n\tb")).toBe("a b");
   });
 });

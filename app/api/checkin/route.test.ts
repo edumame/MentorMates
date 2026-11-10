@@ -1,309 +1,193 @@
 /**
  * @jest-environment node
  */
-
+import { GET, POST } from "./route";
+import { GET as GET_TICKET } from "./ticket/route";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { signCheckinQR } from "@/lib/checkin/qr-signature";
-import { EventRole } from "@/lib/types";
-import * as checkinRoute from "./route";
+import { generateEventCheckinToken, generateEventRoleInviteToken } from "@/lib/utils/jwt";
 
-jest.mock("server-only", () => ({}), { virtual: true });
-
-jest.mock("@/app/utils/supabase/server", () => ({
-  createSupabaseClient: jest.fn(),
-}));
-
-jest.mock("@/lib/supabase/service", () => ({
-  createSupabaseServiceClient: jest.fn(),
-}));
-
-const mockCreateSupabaseClient = createSupabaseClient as jest.Mock;
-const mockCreateSupabaseServiceClient =
-  createSupabaseServiceClient as jest.Mock;
+jest.mock("@/app/utils/supabase/server", () => ({ createSupabaseClient: jest.fn() }));
+jest.mock("@/lib/supabase/service", () => ({ createSupabaseServiceClient: jest.fn() }));
 
 const EVENT_ID = "11111111-1111-4111-8111-111111111111";
-const ATTENDEE_ID = "22222222-2222-4222-8222-222222222222";
-const STAFF_ID = "33333333-3333-4333-8333-333333333333";
-const FIRST_SCAN_AT = "2026-11-04T09:00:00.000Z";
+const ATTENDEE = "22222222-2222-4222-8222-222222222222";
 
-const OTHER_ID = "44444444-4444-4444-8444-444444444444";
-const SECRET = "test-checkin-secret";
+function query(result: { data: unknown; error?: unknown }) {
+  const q: Record<string, unknown> = {};
+  for (const m of ["select", "eq"]) q[m] = jest.fn(() => q);
+  q.maybeSingle = jest.fn(async () => ({ error: null, ...result }));
+  return q;
+}
 
-const signedQuery = (eventId = EVENT_ID, userId = ATTENDEE_ID) =>
-  `evt=${eventId}&usr=${userId}&sig=${signCheckinQR(eventId, userId)}`;
-
-const scan = (query = signedQuery()) =>
-  checkinRoute.POST(
-    new Request(`http://localhost/api/checkin?${query}`, { method: "POST" })
-  );
-
-function mockCaller({
-  user = { id: STAFF_ID },
-  role = EventRole.Organizer,
+function setup({
+  user = { id: "org-1" } as { id: string } | null,
+  isOrganizer = false,
   isAdmin = false,
-}: {
-  user?: { id: string } | null;
-  role?: EventRole | null;
-  isAdmin?: boolean;
-}) {
-  const roleQuery = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    maybeSingle: jest
-      .fn()
-      .mockResolvedValue({ data: role ? { role } : null, error: null }),
-  };
-
-  mockCreateSupabaseClient.mockResolvedValue({
-    auth: { getUser: jest.fn().mockResolvedValue({ data: { user } }) },
-    from: jest.fn(() => roleQuery),
-    rpc: jest.fn().mockResolvedValue({ data: isAdmin, error: null }),
-  });
-
-  return roleQuery;
+  attendeeRole = { role: "participant" } as { role: string } | null,
+  ownRole = { role: "participant" } as { role: string } | null,
+  checkin = { data: [{ outcome: "checked_in", recorded_at: "2026-11-09T10:00:00Z" }], error: null } as {
+    data: unknown;
+    error: unknown;
+  },
+} = {}) {
+  const rpc = jest.fn(async (name: string) => ({
+    data: name === "is_admin_user" ? isAdmin : isOrganizer,
+    error: null,
+  }));
+  jest.mocked(createSupabaseClient).mockResolvedValue({
+    auth: { getUser: async () => ({ data: { user } }) },
+    rpc,
+    from: () => query({ data: ownRole }),
+  } as never);
+  const serviceRpc = jest.fn(async () => checkin);
+  jest.mocked(createSupabaseServiceClient).mockReturnValue({
+    from: (table: string) =>
+      query({ data: table === "user_event_roles" ? attendeeRole : { display_name: "Ada" } }),
+    rpc: serviceRpc,
+  } as never);
+  return { rpc, serviceRpc };
 }
 
-function mockRecord(result: { data: unknown; error: unknown }) {
-  const rpc = jest.fn().mockResolvedValue(result);
-  mockCreateSupabaseServiceClient.mockReturnValue({ rpc });
-  return rpc;
-}
+const post = (body: unknown) =>
+  POST(new Request("http://localhost/api/checkin", { method: "POST", body: JSON.stringify(body) }));
 
-describe("/api/checkin", () => {
-  let recordCheckin: jest.Mock;
-  const originalSecret = process.env.CHECKIN_QR_SECRET;
+beforeAll(() => {
+  process.env.JWT_SECRET = "test-secret-for-checkin-tokens";
+});
 
-  afterAll(() => {
-    process.env.CHECKIN_QR_SECRET = originalSecret;
+describe("POST /api/checkin (PUB-007)", () => {
+  it("rejects the old unauthenticated GET query-string check-in", async () => {
+    const res = await GET();
+    expect(res.status).toBe(405);
   });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    process.env.CHECKIN_QR_SECRET = SECRET;
-    recordCheckin = mockRecord({
-      data: [{ outcome: "checked_in", recorded_at: FIRST_SCAN_AT }],
-      error: null,
+  it("requires a signed-in user", async () => {
+    setup({ user: null });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(401);
+  });
+
+  it.each([
+    ["missing", {}],
+    ["raw evt/usr string", { token: `evt=${EVENT_ID}&usr=${ATTENDEE}` }],
+  ])("rejects a %s token", async (_label, body) => {
+    setup({ isOrganizer: true });
+    expect((await post(body)).status).toBe(400);
+  });
+
+  it("rejects a validly signed token of another purpose", async () => {
+    setup({ isOrganizer: true });
+    const token = await generateEventRoleInviteToken({ email: "a@example.test", eventId: EVENT_ID, role: "organizer" });
+    expect((await post({ token })).status).toBe(400);
+  });
+
+  it("forbids non-organizers without revealing registration", async () => {
+    const { rpc } = setup({ isOrganizer: false, isAdmin: false });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    const res = await post({ token });
+    expect(res.status).toBe(403);
+    expect(rpc).toHaveBeenCalledWith("is_event_organizer_or_owner", { p_event_id: EVENT_ID, p_user_id: "org-1" });
+  });
+
+  it("records the check-in for an organizer", async () => {
+    const { serviceRpc } = setup({ isOrganizer: true });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    const res = await post({ token });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      verified: true,
+      recorded: true,
+      timestamp: "2026-11-09T10:00:00Z",
+      attendee: { name: "Ada", role: "participant" },
     });
-  });
-
-  it("does not change state on GET, which links and prefetches can trigger", () => {
-    expect(checkinRoute).not.toHaveProperty("GET");
-  });
-
-  it("rejects a caller who is not signed in", async () => {
-    mockCaller({ user: null });
-
-    const response = await scan();
-
-    expect(response.status).toBe(401);
-    expect(recordCheckin).not.toHaveBeenCalled();
-  });
-
-  it.each([EventRole.Participant, EventRole.Mentor, EventRole.Judge])(
-    "rejects a %s of the event",
-    async (role) => {
-      mockCaller({ role });
-
-      const response = await scan();
-
-      expect(response.status).toBe(403);
-      expect(recordCheckin).not.toHaveBeenCalled();
-    }
-  );
-
-  it("rejects a signed-in user with no role in the scanned event", async () => {
-    const roleQuery = mockCaller({ role: null });
-
-    const response = await scan();
-
-    expect(response.status).toBe(403);
-    expect(recordCheckin).not.toHaveBeenCalled();
-    expect(roleQuery.eq).toHaveBeenCalledWith("event_id", EVENT_ID);
-    expect(roleQuery.eq).toHaveBeenCalledWith("user_id", STAFF_ID);
-  });
-
-  it("records the first scan by an event organizer", async () => {
-    mockCaller({ role: EventRole.Organizer });
-
-    const response = await scan();
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      message: "Successfully checked in",
-      timestamp: FIRST_SCAN_AT,
-    });
-    expect(recordCheckin).toHaveBeenCalledTimes(1);
-    expect(recordCheckin).toHaveBeenCalledWith("record_event_checkin", {
+    expect(serviceRpc).toHaveBeenCalledWith("record_event_checkin", {
       p_event_id: EVENT_ID,
-      p_user_id: ATTENDEE_ID,
-      p_checked_in_by: STAFF_ID,
+      p_user_id: ATTENDEE,
+      p_checked_in_by: "org-1",
     });
   });
 
-  it("lets a platform admin with no event role check people in", async () => {
-    mockCaller({ role: null, isAdmin: true });
-
-    const response = await scan();
-
-    expect(response.status).toBe(200);
-    expect(recordCheckin).toHaveBeenCalledTimes(1);
+  it("records the check-in for a platform admin", async () => {
+    const { serviceRpc } = setup({ isAdmin: true });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(200);
+    expect(serviceRpc).toHaveBeenCalledWith("record_event_checkin", expect.objectContaining({ p_checked_in_by: "org-1" }));
   });
 
-  it("flags a repeat scan with the time of the first scan", async () => {
-    mockCaller({});
-    recordCheckin = mockRecord({
-      data: [{ outcome: "already_checked_in", recorded_at: FIRST_SCAN_AT }],
-      error: null,
+  it("returns 409 with the first scan time on a repeat scan", async () => {
+    setup({
+      isOrganizer: true,
+      checkin: { data: [{ outcome: "already_checked_in", recorded_at: "2026-11-09T09:00:00Z" }], error: null },
     });
-
-    const response = await scan();
-
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    const res = await post({ token });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
       error: "Already checked in",
-      timestamp: FIRST_SCAN_AT,
+      alreadyCheckedIn: true,
+      timestamp: "2026-11-09T09:00:00Z",
     });
   });
 
-  it("rejects an attendee who is not registered for the event", async () => {
-    mockCaller({});
-    recordCheckin = mockRecord({
-      data: [{ outcome: "not_registered", recorded_at: null }],
-      error: null,
-    });
-
-    const response = await scan();
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "User is not registered for this event",
-    });
+  it("returns 404 if the registration disappears before the record is written", async () => {
+    setup({ isOrganizer: true, checkin: { data: [{ outcome: "not_registered", recorded_at: null }], error: null } });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(404);
   });
 
   it.each([
-    ["no ids", ""],
-    ["a missing user id", `evt=${EVENT_ID}`],
-    ["a malformed event id", `evt=not-a-uuid&usr=${ATTENDEE_ID}`],
-    ["a malformed user id", `evt=${EVENT_ID}&usr=not-a-uuid`],
-  ])("rejects a QR code with %s", async (_label, query) => {
-    mockCaller({});
-
-    const response = await scan(query);
-
-    expect(response.status).toBe(400);
-    expect(recordCheckin).not.toHaveBeenCalled();
+    ["an RPC error", { data: null, error: { message: "boom" } }],
+    ["no outcome row", { data: [], error: null }],
+  ])("returns 500 and never claims success on %s", async (_label, checkin) => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setup({ isOrganizer: true, checkin });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    const res = await post({ token });
+    expect(res.status).toBe(500);
+    expect(await res.json()).not.toHaveProperty("recorded", true);
   });
 
-  describe("forged QR codes", () => {
-    const flipLastCharacter = (value: string) =>
-      `${value.slice(0, -1)}${value.endsWith("0") ? "1" : "0"}`;
-
-    it.each<[string, () => string]>([
-      ["no signature", () => `evt=${EVENT_ID}&usr=${ATTENDEE_ID}`],
-      ["an empty signature", () => `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=`],
-      [
-        "a tampered signature",
-        () =>
-          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${flipLastCharacter(
-            signCheckinQR(EVENT_ID, ATTENDEE_ID)
-          )}`,
-      ],
-      [
-        "a truncated signature",
-        () =>
-          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${signCheckinQR(
-            EVENT_ID,
-            ATTENDEE_ID
-          ).slice(0, 32)}`,
-      ],
-      [
-        "a non-ASCII signature of the same length",
-        () =>
-          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${encodeURIComponent(
-            "é".repeat(64)
-          )}`,
-      ],
-      [
-        "another attendee's signature",
-        () =>
-          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${signCheckinQR(
-            EVENT_ID,
-            OTHER_ID
-          )}`,
-      ],
-      [
-        "the attendee's signature from another event",
-        () =>
-          `evt=${EVENT_ID}&usr=${ATTENDEE_ID}&sig=${signCheckinQR(
-            OTHER_ID,
-            ATTENDEE_ID
-          )}`,
-      ],
-      [
-        "the ids swapped under a valid signature",
-        () =>
-          `evt=${ATTENDEE_ID}&usr=${EVENT_ID}&sig=${signCheckinQR(
-            EVENT_ID,
-            ATTENDEE_ID
-          )}`,
-      ],
-    ])("rejects valid ids with %s", async (_label, buildQuery) => {
-      mockCaller({ role: EventRole.Organizer });
-
-      const response = await scan(buildQuery());
-
-      expect(response.status).toBe(400);
-      await expect(response.json()).resolves.toEqual({
-        error: "Invalid check-in QR code",
-      });
-      expect(recordCheckin).not.toHaveBeenCalled();
-    });
-
-    it("rejects a signature made with a different secret", async () => {
-      mockCaller({ role: EventRole.Organizer });
-      process.env.CHECKIN_QR_SECRET = "attacker-guess";
-      const query = signedQuery();
-      process.env.CHECKIN_QR_SECRET = SECRET;
-
-      const response = await scan(query);
-
-      expect(response.status).toBe(400);
-      expect(recordCheckin).not.toHaveBeenCalled();
-    });
-
-    it("reports a server error, not a bad ticket, when the secret is unset", async () => {
-      const consoleError = jest
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined);
-      mockCaller({ role: EventRole.Organizer });
-      const query = signedQuery();
-      delete process.env.CHECKIN_QR_SECRET;
-
-      const response = await scan(query);
-
-      expect(response.status).toBe(500);
-      expect(recordCheckin).not.toHaveBeenCalled();
-      consoleError.mockRestore();
-    });
+  it("does not record anything for a non-organizer", async () => {
+    const { serviceRpc } = setup({ isOrganizer: false, isAdmin: false });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(403);
+    expect(serviceRpc).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["the write fails", { data: null, error: { message: "boom" } }],
-    ["the write returns nothing", { data: [], error: null }],
-  ])("never reports success when %s", async (_label, result) => {
-    const consoleError = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-    mockCaller({});
-    mockRecord(result);
+  it("reports when the ticket holder is no longer registered", async () => {
+    setup({ isAdmin: true, attendeeRole: null });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(404);
+  });
+});
 
-    const response = await scan();
+describe("GET /api/checkin/ticket", () => {
+  const get = (eventId: string) => GET_TICKET(new Request(`http://localhost/api/checkin/ticket?eventId=${eventId}`));
 
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "Failed to process check-in",
-    });
-    consoleError.mockRestore();
+  it("requires a valid event id", async () => {
+    setup();
+    expect((await get("not-a-uuid")).status).toBe(400);
+  });
+
+  it("requires sign-in", async () => {
+    setup({ user: null });
+    expect((await get(EVENT_ID)).status).toBe(401);
+  });
+
+  it("refuses users who are not registered for the event", async () => {
+    setup({ user: { id: ATTENDEE }, ownRole: null });
+    expect((await get(EVENT_ID)).status).toBe(403);
+  });
+
+  it("issues a token for the signed-in user only, accepted by check-in", async () => {
+    setup({ user: { id: ATTENDEE } });
+    const res = await get(EVENT_ID);
+    expect(res.status).toBe(200);
+    const { token } = await res.json();
+
+    setup({ isOrganizer: true });
+    const checkin = await post({ token });
+    expect(checkin.status).toBe(200);
   });
 });
