@@ -17,9 +17,9 @@ export function normalizeCriterion(
 ): ScoringCriterion {
   return {
     ...criterion,
-    weight: criterion.weight || 1,
-    min: criterion.min || 1,
-    max: criterion.max || 10,
+    weight: criterion.weight ?? 1,
+    min: criterion.min ?? 1,
+    max: criterion.max ?? 10,
     type: criterion.type || "numeric",
     options: criterion.options || [],
   };

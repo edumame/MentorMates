@@ -42,6 +42,10 @@ export type IntakeFormField = {
   description?: string;
   placeholder?: string;
   required: boolean;
+  /**
+   * Allowed values for single_select / multi_select. On short_text fields the
+   * options are type-ahead suggestions only (any text is accepted).
+   */
   options?: string[];
   searchable?: boolean;
   popularOptions?: string[];
