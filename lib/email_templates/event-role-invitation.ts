@@ -1,3 +1,5 @@
+import { escapeHtml, escapeUrl, plainTextSubject } from "./escape-html";
+
 export type EventInviteRole = "participant" | "judge";
 
 export interface EventRoleInvitationEmailTemplate {
@@ -46,9 +48,16 @@ export function getEventRoleInvitationEmailTemplate({
   eventUrl: string;
 }): EventRoleInvitationEmailTemplate {
   const copy = ROLE_COPY[role];
+  // Every interpolated value is escaped (eventName/inviterName are user data).
+  const h = {
+    eventName: escapeHtml(eventName),
+    inviterName: escapeHtml(inviterName),
+    actionUrl: escapeUrl(actionUrl),
+    eventUrl: escapeUrl(eventUrl),
+  };
 
   return {
-    subject: `You've been invited as a ${copy.label} for "${eventName}" - MentorMates`,
+    subject: plainTextSubject(`You've been invited as a ${copy.label} for "${eventName}" - MentorMates`),
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb; margin-bottom: 24px;">${copy.heading}</h1>
@@ -58,7 +67,7 @@ export function getEventRoleInvitationEmailTemplate({
         </p>
 
         <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
-          ${inviterName} invited you to "${eventName}" on MentorMates.
+          ${h.inviterName} invited you to "${h.eventName}" on MentorMates.
         </p>
 
         <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
@@ -70,7 +79,7 @@ export function getEventRoleInvitationEmailTemplate({
             Ready to get started?
           </p>
           <p style="margin-bottom: 16px;">
-            <a href="${actionUrl}"
+            <a href="${h.actionUrl}"
                style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
               Accept Invitation
             </a>
@@ -85,7 +94,7 @@ export function getEventRoleInvitationEmailTemplate({
         </p>
 
         <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-bottom: 16px;">
-          Prefer to review the event first? <a href="${eventUrl}" style="color: #2563eb;">Open the event overview</a>.
+          Prefer to review the event first? <a href="${h.eventUrl}" style="color: #2563eb;">Open the event overview</a>.
         </p>
 
         <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">

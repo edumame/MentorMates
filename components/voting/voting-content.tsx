@@ -9,6 +9,9 @@ import { useEventVotes } from "@/features/voting/hooks/use-event-votes";
 import { Project } from "@/lib/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EventSearchInput } from "@/components/ui/event-search-input";
+import { sortProjectsForVoting } from "@/features/voting/utils/sort-voting-projects";
+import { OWN_PROJECT_VOTE_BLOCK_MESSAGE } from "@/features/voting/utils/voting-permissions";
+import { formatVotingTime } from "@/features/voting/utils/voting-window";
 
 interface VotingContentProps {
   eventId: string;
@@ -28,10 +31,12 @@ export function VotingContent({
     maxVotes,
     canVote: canPopularVote,
     blockedReason,
+    votingStatus,
+    votingClosesAt,
     isLoading: isLoadingVotes,
     error: voteError,
     hasVoted,
-    getVoteCount,
+    isOwnProject,
     toggleVote,
   } = useEventVotes(eventId);
 
@@ -66,13 +71,8 @@ export function VotingContent({
       project.lead_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Sort projects: user's voted projects first, then by vote count
-  const sortedProjects = [...filteredProjects].sort((a, b) => {
-    const aVoted = hasVoted(a.id) ? 1 : 0;
-    const bVoted = hasVoted(b.id) ? 1 : 0;
-    if (aVoted !== bVoted) return bVoted - aVoted;
-    return getVoteCount(b.id) - getVoteCount(a.id);
-  });
+  // Voted projects first, then by name (never by hidden vote totals).
+  const sortedProjects = sortProjectsForVoting(filteredProjects, hasVoted);
 
   const isLoading = isLoadingProjects || isLoadingVotes;
 
@@ -88,8 +88,13 @@ export function VotingContent({
             Choose your favorite {maxVotes} projects to vote for
           </p>
           <p className="text-sm text-black/60 mt-2">
-            Individual vote totals stay hidden until organizers publish results.
+            Vote totals are only visible to organizers.
           </p>
+          {votingStatus === "open" && votingClosesAt && (
+            <p className="text-sm text-black/60 mt-1">
+              Voting closes {formatVotingTime(votingClosesAt)}.
+            </p>
+          )}
         </div>
         {hasJoined && canPopularVote && (
           <VoteCounter
@@ -153,10 +158,12 @@ export function VotingContent({
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sortedProjects.map((project) => {
                 const userHasVotedForProject = hasVoted(project.id);
+                const ownProject = isOwnProject(project.id);
+                // A vote already cast (e.g. legacy self-vote) can still be withdrawn.
                 const canToggleVote =
                   hasJoined &&
                   canPopularVote &&
-                  (remainingVotes > 0 || userHasVotedForProject);
+                  (userHasVotedForProject || (!ownProject && remainingVotes > 0));
 
                 return (
                   <VotableProjectCard
@@ -165,6 +172,11 @@ export function VotingContent({
                     hasVoted={userHasVotedForProject}
                     toggleVoteAction={() => toggleVote(project.id)}
                     canVote={canToggleVote}
+                    disabledReason={
+                      ownProject && !userHasVotedForProject && hasJoined && canPopularVote
+                        ? OWN_PROJECT_VOTE_BLOCK_MESSAGE
+                        : null
+                    }
                   />
                 );
               })}

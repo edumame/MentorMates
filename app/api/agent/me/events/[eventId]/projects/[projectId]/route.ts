@@ -40,7 +40,9 @@ export async function PATCH(
     const resolvedAuth = await resolveAgentPathEvent(auth, eventId);
     if (resolvedAuth instanceof NextResponse) return resolvedAuth;
 
-    const access = await authorizeAgentEventAccess(resolvedAuth, EventRole.Participant);
+    const access = await authorizeAgentEventAccess(resolvedAuth, EventRole.Participant, {
+      intent: "write",
+    });
     if (access instanceof NextResponse) return access;
 
     const { data: profile, error: profileError } = await fetchAgentUserEmail(
