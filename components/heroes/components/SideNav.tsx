@@ -26,11 +26,10 @@ import {
   NotificationPopoverContent,
 } from "@/components/layout/NotificationPopoverContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
-import type { UserProfile } from "@/lib/types";
-import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
 import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 
 const HomeIcon = (
@@ -158,13 +157,6 @@ const bottomLinksBase = [
   { name: "Support", href: "/support", icon: SupportIcon },
 ];
 
-interface ExtendedUserProfile extends UserProfile {
-  onboarding_metadata: Record<string, unknown> | null;
-  affiliation: string | null;
-  phone_number?: string | null;
-  links?: Record<string, string> | null;
-}
-
 interface SideNavProps {
   /** When true, show MentorMates logo at top of sidebar (e.g. event pages with no top header) */
   showLogoAtTop?: boolean;
@@ -173,14 +165,12 @@ interface SideNavProps {
 export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
-  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(null);
   const pathname = usePathname();
   const { clearReturnUrl } = useRedirect();
   const { needsProfileCompletion } = useNotificationData();
   const isAdmin = useAdmin();
-  const showProfileCompletionWarning = Boolean(
-    session && profileNeedsCompletion(userProfile)
-  );
+  // Same source as the bell (includes user_phone_numbers) - MENT-019.
+  const showProfileCompletionWarning = needsProfileCompletion;
 
   useEffect(() => {
     const client = createClient();
@@ -195,24 +185,13 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("uid", session?.user?.id)
-        .single();
-      setUserProfile(data);
-    };
-    if (session) fetchUserProfile();
-  }, [session]);
-
   const handleSignOut = async () => {
     clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
-    router.push("/");
-    window.location.reload();
+    // Full navigation, not push + reload: reload can fire before the push lands,
+    // and reloading a protected page signed out would redirect to login.
+    window.location.assign("/");
   };
 
   // Helper to determine if path is active
@@ -369,24 +348,30 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                 <p className="mt-2 text-sm text-gray-700 break-all">
                   {session.user.email}
                 </p>
-                {profileNeedsCompletion(userProfile) ? (
-                  <Button
-                    variant="defaultGray"
-                    onClick={() =>
+                {needsProfileCompletion ? (
+                  <DropdownMenuItem
+                    onSelect={() =>
                       router.push(`/profile/${session?.user?.id}?edit=1`)
                     }
-                    className="mt-4 w-full text-base"
+                    className={cn(
+                      buttonVariants({ variant: "defaultGray" }),
+                      "mt-4 w-full text-base"
+                    )}
                   >
                     Set up profile
-                  </Button>
+                  </DropdownMenuItem>
                 ) : (
-                  <Button
-                    variant="defaultGray"
-                    onClick={() => router.push(`/profile/${session?.user?.id}`)}
-                    className="mt-4 w-full text-base"
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      router.push(`/profile/${session?.user?.id}`)
+                    }
+                    className={cn(
+                      buttonVariants({ variant: "defaultGray" }),
+                      "mt-4 w-full text-base"
+                    )}
                   >
                     View profile
-                  </Button>
+                  </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator className="my-4" />
                 <div className="flex flex-col gap-0.5 pb-0.5">

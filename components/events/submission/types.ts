@@ -139,6 +139,114 @@ export function createLockedStarterSubmissionFields(): SubmissionField[] {
   }));
 }
 
+// ── AI chat patches ──────────────────────────────────────────────────
+
+/** Reduce a model-supplied id or label to a key the save route accepts. */
+function toFieldId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+}
+
+/** Rebuild one model-supplied field within the save route's limits; null if unusable. */
+function sanitizeAiField(
+  id: string,
+  entry: Record<string, unknown>
+): SubmissionField | null {
+  const label = typeof entry.label === "string" ? entry.label.trim() : "";
+  const { type } = entry;
+  if (!id || !label || typeof type !== "string" || !Object.keys(EDITOR_TO_DB).includes(type)) {
+    return null;
+  }
+
+  const field: SubmissionField = {
+    id,
+    label: label.slice(0, 160),
+    type: type as SubmissionField["type"],
+    required: entry.required === true,
+    placeholder:
+      typeof entry.placeholder === "string" ? entry.placeholder.slice(0, 250) : "",
+  };
+  if (typeof entry.helperText === "string" && entry.helperText) {
+    field.helperText = entry.helperText.slice(0, 500);
+  }
+  if (Array.isArray(entry.options)) {
+    field.options = entry.options
+      .filter((option): option is string => typeof option === "string")
+      .map((option) => option.trim())
+      .filter((option) => option.length > 0);
+  }
+  if (entry.multiple === true) field.multiple = true;
+  if (
+    typeof entry.maxFiles === "number" &&
+    Number.isInteger(entry.maxFiles) &&
+    entry.maxFiles >= 2 &&
+    entry.maxFiles <= 20
+  ) {
+    field.maxFiles = entry.maxFiles;
+  }
+  if (entry.allowsMultipleEntries === true) field.allowsMultipleEntries = true;
+  return field;
+}
+
+/**
+ * Turn an AI `submission_fields` patch into a list that is safe to apply.
+ *
+ * Locked definitions always come from the editor, never from the model (MLH
+ * relabels them), and the canonical one is used when the editor has none. A
+ * locked entry keeps its place in the patch, so adding or removing a field
+ * around it cannot shift the rest of the form. A locked field the patch omitted
+ * goes back right after its nearest surviving predecessor.
+ * Returns null, so the caller applies nothing, if any other entry is unusable:
+ * dropping just that entry could silently delete a field the organizer has.
+ */
+export function normalizeAiSubmissionFields(
+  patchFields: unknown[],
+  currentFields: SubmissionField[]
+): SubmissionField[] | null {
+  const lockedFields = createLockedStarterSubmissionFields();
+  const lockedById = new Map(
+    lockedFields.map((canonical) => [
+      canonical.id,
+      currentFields.find((field) => field.id === canonical.id) ?? canonical,
+    ]),
+  );
+  const seenIds = new Set<string>();
+  const fields: SubmissionField[] = [];
+
+  for (const raw of patchFields) {
+    if (!raw || typeof raw !== "object") return null;
+    const entry = raw as Record<string, unknown>;
+    const rawId =
+      typeof entry.id === "string" && entry.id ? entry.id : entry.label;
+    const id = typeof rawId === "string" ? toFieldId(rawId) : "";
+
+    const field = lockedById.get(id) ?? sanitizeAiField(id, entry);
+    if (!field) return null;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+    fields.push(field);
+  }
+
+  for (const [id, field] of lockedById) {
+    if (seenIds.has(id)) continue;
+    const order = currentFields.includes(field) ? currentFields : lockedFields;
+    const predecessor = order
+      .slice(0, order.findIndex((candidate) => candidate.id === id))
+      .reverse()
+      .find((candidate) => seenIds.has(candidate.id));
+    const position = predecessor
+      ? fields.findIndex((candidate) => candidate.id === predecessor.id) + 1
+      : 0;
+    fields.splice(position, 0, field);
+    seenIds.add(id);
+  }
+
+  return fields;
+}
+
 // ── MLH compliance template ───────────────────────────────────────────
 
 /**

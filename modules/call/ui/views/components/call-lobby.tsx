@@ -13,6 +13,8 @@ import "@stream-io/video-react-sdk/dist/css/styles.css";
 
 interface Props {
     onJoin: () => void;
+    isJoining: boolean;
+    joinFailed: boolean;
 };
 
 const DisabledVideoPreview = () => {
@@ -36,7 +38,7 @@ const AllowBrowserPermissions = () => {
     )
 }
 
-export const CallLobby = ({ onJoin }: Props) => {
+export const CallLobby = ({ onJoin, isJoining, joinFailed }: Props) => {
     const { useCameraState, useMicrophoneState } = useCallStateHooks();
 
     const { hasBrowserPermission: hasMicPermission } = useMicrophoneState();
@@ -61,14 +63,19 @@ export const CallLobby = ({ onJoin }: Props) => {
                         <ToggleAudioPreviewButton />
                         <ToggleVideoPreviewButton />
                     </div>
+                    {joinFailed && (
+                        <p role="alert" className="text-sm text-destructive text-center">
+                            We couldn&apos;t join this call. It may have ended, or your connection may have dropped. Please try again.
+                        </p>
+                    )}
                     <div className="flex gap-x-2 justify-between w-full">
                         <Button asChild variant="ghost">
                             <Link href="/learn">
                                 Cancel
                             </Link>
                         </Button>
-                        <Button onClick={onJoin}>
-                            Join Call
+                        <Button onClick={onJoin} disabled={isJoining}>
+                            {isJoining ? "Joining..." : "Join Call"}
                         </Button>
                     </div>
                 </div>

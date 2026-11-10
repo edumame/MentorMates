@@ -22,6 +22,10 @@ function queryFor(table: string) {
       rows = rows.filter((row) => values.includes(row[column]));
       return query;
     },
+    is: (column: string, value: unknown) => {
+      rows = rows.filter((row) => (row[column] ?? null) === value);
+      return query;
+    },
     limit: () => query,
     overrideTypes: () => query,
     single: async () => ({
@@ -193,7 +197,15 @@ describe("public project page judge scoring", () => {
 
   it("hides scoring for a judge who is not assigned to the project", async () => {
     seed({ assigned: false });
-    await renderJudgeView();
+    // An unassigned judge gets the visitor view (canShowProjectScoring), so
+    // wait for the page and the role lookup instead of the judge banner.
+    render(<PublicProjectPage />);
+    await screen.findByText("Alpha");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(screen.queryByText("Judge View")).not.toBeInTheDocument();
 
     expect(
       screen.queryByRole("tab", { name: "Judge Scoring" })

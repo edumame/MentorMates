@@ -31,23 +31,11 @@ export function getActiveRound(
   scoringConfig: EventScoringConfig | null | undefined
 ): number {
   const active = scoringConfig?.activeRound;
-  if (typeof active === "number" && active > 0) return active;
+  // Positive integers only — same rule as public.event_active_round (DB).
+  if (typeof active === "number" && Number.isInteger(active) && active > 0) {
+    return active;
+  }
   return 1;
-}
-
-export interface AdvancementScoreRow {
-  project_id: string;
-  scores: Record<string, unknown> | null;
-  project_name?: string | null;
-  lead_name?: string | null;
-}
-
-export interface AdvancementCandidate {
-  projectId: string;
-  projectName: string;
-  leadName: string;
-  score: number | null;
-  judgeCount: number;
 }
 
 /**
@@ -118,23 +106,14 @@ export async function filterScoresToRoundEligibleProjects<
 }
 
 /**
- * Whether a user may score a project in the event's active round. Mirrors the
- * validate_score_round_eligibility trigger on project_scores, which is what
- * actually enforces this; callers use it to decide whether to offer scoring.
+ * Whether a project is in the event's active round (advanced to it, or
+ * submitted for round 1). The project_scores trigger
+ * (202611080101 / 202611080105, JUDGE-016) is what enforces this; callers use
+ * it to decide whether to offer scoring at all.
  */
-export async function canScoreProjectInActiveRound(
+export async function isProjectInActiveRound(
   supabase: SupabaseClient,
-  {
-    eventId,
-    projectId,
-    userId,
-    requireAssignment,
-  }: {
-    eventId: string;
-    projectId: string;
-    userId: string;
-    requireAssignment: boolean;
-  }
+  { eventId, projectId }: { eventId: string; projectId: string }
 ): Promise<boolean> {
   const { data: event, error: eventErr } = await supabase
     .from("events")
@@ -151,77 +130,37 @@ export async function canScoreProjectInActiveRound(
     eventId,
     activeRound
   );
-  if (!eligibleProjectIds.includes(projectId)) return false;
-  if (!requireAssignment) return true;
-
-  const { data: assignments, error: assignmentErr } = await supabase
-    .from("project_assignments")
-    .select("project_id")
-    .eq("event_id", eventId)
-    .eq("project_id", projectId)
-    .eq("user_id", userId)
-    .eq("role", "judge")
-    .limit(1);
-  if (assignmentErr) throw assignmentErr;
-
-  return (assignments?.length ?? 0) > 0;
+  return eligibleProjectIds.includes(projectId);
 }
 
-export function rankProjectsForAdvancement(
-  rows: AdvancementScoreRow[]
-): AdvancementCandidate[] {
-  const bucket = new Map<string, { total: number; count: number }>();
-  const projectMeta = new Map<
-    string,
-    { projectName: string; leadName: string }
-  >();
-
-  for (const row of rows) {
-    if (!projectMeta.has(row.project_id)) {
-      projectMeta.set(row.project_id, {
-        projectName: row.project_name ?? "",
-        leadName: row.lead_name ?? "",
-      });
+/**
+ * project_scores rows outlive project_tracks membership, so keep only rows
+ * whose (project, track) pair is current: a track the project has left must
+ * not affect its advancement rank. Unlike the Scores tab's
+ * filterScoresToCurrentTracks, an unknown pair is dropped, because
+ * currentProjectTracks is the full membership of the projects being ranked.
+ */
+export function filterScoresToCurrentProjectTracks<
+  T extends { project_id: string; track_id: string | null },
+>(
+  scoreRows: T[],
+  currentProjectTracks: Array<{ project_id: string; track_id: string }>
+): T[] {
+  const trackIdsByProject = new Map<string, Set<string>>();
+  for (const { project_id, track_id } of currentProjectTracks) {
+    if (!trackIdsByProject.has(project_id)) {
+      trackIdsByProject.set(project_id, new Set());
     }
-
-    if (!row.scores) continue;
-    let sum = 0;
-    let n = 0;
-    for (const v of Object.values(row.scores)) {
-      const num = typeof v === "number" ? v : Number(v);
-      if (Number.isFinite(num)) {
-        sum += num;
-        n += 1;
-      }
-    }
-    if (n === 0) continue;
-    const avg = sum / n;
-    const existing = bucket.get(row.project_id);
-    if (existing) {
-      existing.total += avg;
-      existing.count += 1;
-    } else {
-      bucket.set(row.project_id, { total: avg, count: 1 });
-    }
+    trackIdsByProject.get(project_id)?.add(track_id);
   }
 
-  return Array.from(bucket.entries())
-    .map(([projectId, { total, count }]) => {
-      const meta = projectMeta.get(projectId);
-      return {
-        projectId,
-        projectName: meta?.projectName ?? "",
-        leadName: meta?.leadName ?? "",
-        score: total / count,
-        judgeCount: count,
-      };
-    })
-    .sort((a, b) => {
-      if ((b.score ?? -Infinity) !== (a.score ?? -Infinity)) {
-        return (b.score ?? -Infinity) - (a.score ?? -Infinity);
-      }
-      return a.projectName.localeCompare(b.projectName);
-    });
+  return scoreRows.filter(
+    (row) =>
+      // Legacy rows with no track predate track scoring; they cannot belong to
+      // a removed track, so they keep counting as before.
+      row.track_id == null ||
+      (trackIdsByProject.get(row.project_id)?.has(row.track_id) ?? false)
+  );
 }
 
 export async function replaceAdvancements(

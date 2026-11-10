@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { SubmissionsTab } from "./index";
 
 const toast = jest.fn();
@@ -25,8 +25,20 @@ jest.mock("./export", () => ({
   formatSubmissionValue: jest.requireActual("./export").formatSubmissionValue,
 }));
 
+const profilesIn = jest.fn();
+const csvRows: unknown[] = [];
+jest.mock("@/lib/utils/csv", () => ({
+  toSpreadsheetSafeCsv: (rows: unknown) => {
+    csvRows.push(rows);
+    return "csv";
+  },
+}));
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
+    from: jest.fn(() => ({
+      select: () => ({ in: (...args: unknown[]) => profilesIn(...args) }),
+    })),
     channel: jest.fn(() => ({
       on: jest.fn().mockReturnThis(),
       subscribe: jest.fn(() => ({
@@ -308,5 +320,211 @@ describe("SubmissionsTab", () => {
 
     expect(screen.queryByText("More compute")).not.toBeInTheDocument();
     expect(screen.getByText("AI | Accessibility")).toBeInTheDocument();
+  });
+
+  describe("deleting projects", () => {
+    const baseProject = {
+      lead_name: "Alice",
+      lead_email: "alice@example.com",
+      project_description: "Desc",
+      teammates: [],
+      project_url: null,
+      additional_materials_url: null,
+      cover_image_url: null,
+      event_id: "event-1",
+      created_at: "2026-04-01T00:00:00.000Z",
+      submitted: true,
+      project_tracks: [],
+      feedback: [],
+    };
+    const projects = [
+      { ...baseProject, id: "project-1", project_name: "Project One" },
+      { ...baseProject, id: "project-2", project_name: "Project Two" },
+    ];
+
+    // The mocked realtime channel never fires, which matches a filtered DELETE
+    // event that is not delivered, so rows can only go through local state.
+    const mockFetch = (failingDeleteIds: string[] = []) => {
+      global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "DELETE") {
+          const failed = failingDeleteIds.some((id) => url.endsWith(`/${id}`));
+          return failed
+            ? { ok: false, json: async () => ({ error: "Delete failed" }) }
+            : { ok: true, json: async () => ({ success: true }) };
+        }
+        return { ok: true, json: async () => ({ projects }) };
+      }) as unknown as typeof fetch;
+    };
+
+    const renderLoaded = async () => {
+      render(<SubmissionsTab eventId="event-1" />);
+      await screen.findByText("Project One");
+      await screen.findByText("Project Two");
+    };
+
+    const confirmSingleDelete = (projectName: string) => {
+      const row = screen.getByText(projectName).closest("tr") as HTMLElement;
+      fireEvent.click(within(row).getByRole("button", { name: "Delete" }));
+    };
+
+    const toggle = (name: string) =>
+      fireEvent.click(screen.getByRole("checkbox", { name }));
+
+    it("removes a deleted project from the table without a realtime event", async () => {
+      mockFetch();
+      await renderLoaded();
+
+      confirmSingleDelete("Project One");
+
+      await waitFor(() =>
+        expect(screen.queryByText("Project One")).not.toBeInTheDocument()
+      );
+      expect(screen.getByText("Project Two")).toBeInTheDocument();
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Project deleted" })
+      );
+    });
+
+    it("keeps the row when a single delete fails", async () => {
+      mockFetch(["project-1"]);
+      await renderLoaded();
+
+      confirmSingleDelete("Project One");
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Error",
+            description: "Delete failed",
+          })
+        )
+      );
+      expect(screen.getByText("Project One")).toBeInTheDocument();
+    });
+
+    it("drops a singly deleted project from the selection", async () => {
+      mockFetch();
+      await renderLoaded();
+
+      toggle("Select Project One");
+      toggle("Select Project Two");
+      expect(
+        screen.getByRole("button", { name: "Delete Selected (2)" })
+      ).toBeInTheDocument();
+
+      confirmSingleDelete("Project One");
+
+      await screen.findByRole("button", { name: "Delete Selected (1)" });
+      expect(
+        screen.getByRole("checkbox", { name: "Select all projects" })
+      ).toBeChecked();
+    });
+
+    it("clears the selection when the only selected project is deleted", async () => {
+      mockFetch();
+      await renderLoaded();
+
+      toggle("Select Project One");
+      confirmSingleDelete("Project One");
+
+      await waitFor(() =>
+        expect(screen.queryByText("Project One")).not.toBeInTheDocument()
+      );
+      expect(
+        screen.queryByRole("button", { name: /Delete Selected/ })
+      ).not.toBeInTheDocument();
+    });
+
+    it("removes every bulk-deleted project from the table", async () => {
+      mockFetch();
+      await renderLoaded();
+
+      toggle("Select all projects");
+      fireEvent.click(screen.getByRole("button", { name: "Delete 2 Projects" }));
+
+      await waitFor(() => {
+        expect(screen.queryByText("Project One")).not.toBeInTheDocument();
+        expect(screen.queryByText("Project Two")).not.toBeInTheDocument();
+      });
+      expect(
+        screen.queryByRole("button", { name: /Delete Selected/ })
+      ).not.toBeInTheDocument();
+    });
+
+    it("keeps only the projects that failed in a partial bulk delete", async () => {
+      mockFetch(["project-2"]);
+      await renderLoaded();
+
+      toggle("Select all projects");
+      fireEvent.click(screen.getByRole("button", { name: "Delete 2 Projects" }));
+
+      await waitFor(() =>
+        expect(screen.queryByText("Project One")).not.toBeInTheDocument()
+      );
+      expect(screen.getByText("Project Two")).toBeInTheDocument();
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Projects deleted",
+          description: "Successfully deleted 1 project. Failed to delete 1.",
+        })
+      );
+    });
+
+    it("keeps every row when a bulk delete fails entirely", async () => {
+      mockFetch(["project-1", "project-2"]);
+      await renderLoaded();
+
+      toggle("Select all projects");
+      fireEvent.click(screen.getByRole("button", { name: "Delete 2 Projects" }));
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "Error" })
+        )
+      );
+      expect(screen.getByText("Project One")).toBeInTheDocument();
+      expect(screen.getByText("Project Two")).toBeInTheDocument();
+    });
+  });
+
+  it("exports feedback with mentor names resolved from mentor_id and no mentor emails", async () => {
+    profilesIn.mockResolvedValue({ data: [{ uid: "mentor-2", display_name: "Grace Mentor" }], error: null });
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        projects: [
+          {
+            id: "project-1",
+            project_name: "Project One",
+            lead_name: "Alice",
+            lead_email: "alice@example.com",
+            teammates: [],
+            project_url: null,
+            event_id: "event-1",
+            created_at: "2026-04-01T00:00:00.000Z",
+            submitted: true,
+            project_tracks: [],
+            feedback: [
+              { feedback_text: "Nice", mentor_name: "Ada Mentor", mentor_id: "mentor-1" },
+              { feedback_text: "Ship it", mentor_name: null, mentor_id: "mentor-2" },
+            ],
+          },
+        ],
+      }),
+    });
+    const createObjectURL = jest.fn(() => "blob:x");
+    Object.assign(window.URL, { createObjectURL, revokeObjectURL: jest.fn() });
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    render(<SubmissionsTab eventId="event-1" />);
+    await waitFor(() => expect(screen.getByText("Project One")).toBeInTheDocument());
+    csvRows.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: /Export Feedback/ }));
+
+    await waitFor(() => expect(csvRows).toHaveLength(1));
+    const rows = csvRows[0] as Array<Record<string, string>>;
+    expect(profilesIn).toHaveBeenCalledWith("uid", ["mentor-2"]);
+    expect(rows.map((r) => r["Mentor Name"])).toEqual(["Ada Mentor", "Grace Mentor"]);
+    expect(Object.keys(rows[0])).not.toContain("Mentor Email");
   });
 });

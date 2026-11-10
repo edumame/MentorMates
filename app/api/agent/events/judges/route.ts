@@ -1,12 +1,14 @@
+import { Resend } from "resend";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import { NextRequest, NextResponse } from "next/server";
+import { EventRole } from "@/lib/types";
 import {
   authenticateAgentRequest,
   authorizeAgentEventAccess,
   requireScope,
 } from "@/lib/agent/auth";
-import { sendHtmlEmail } from "@/lib/email/send-html-email";
-import { escapeHtml } from "@/lib/email_templates/welcome-profile";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { z } from "zod";
 
 // GET: List judges and their scoring progress
@@ -54,11 +56,15 @@ export async function GET(request: NextRequest) {
     let scoreCounts: { judge_id: string }[] = [];
 
     if (judgeIds.length > 0) {
-      const { data: scores } = await supabase
-        .from("project_scores")
-        .select("judge_id")
-        .eq("event_id", auth.eventId)
-        .in("judge_id", judgeIds);
+      const { data: scores } = await fetchAllRows((from, to) =>
+        supabase
+          .from("project_scores")
+          .select("judge_id")
+          .eq("event_id", auth.eventId)
+          .in("judge_id", judgeIds)
+          .order("id")
+          .range(from, to)
+      );
 
       scoreCounts = scores || [];
     }
@@ -96,7 +102,9 @@ export async function POST(request: NextRequest) {
     const scopeError = requireScope(auth, "participants:write");
     if (scopeError) return scopeError;
 
-    const access = await authorizeAgentEventAccess(auth);
+    const access = await authorizeAgentEventAccess(auth, EventRole.Organizer, {
+      intent: "write",
+    });
     if (access instanceof NextResponse) return access;
 
     const body = await request.json();
@@ -145,9 +153,7 @@ export async function POST(request: NextRequest) {
       .eq("event_id", auth.eventId)
       .single();
 
-    const eventName = event?.event_name || "MentorMates";
-    const safeMessage = escapeHtml(message).replace(/\n/g, "<br>");
-
+    // Send emails via the internal email API
     const results = await Promise.allSettled(
       judges.map(async (judge) => {
         const profile = judge.user_profiles as unknown as {
@@ -156,14 +162,13 @@ export async function POST(request: NextRequest) {
         };
         if (!profile?.email) return { skipped: true, user_id: judge.user_id };
 
-        const sent = await sendHtmlEmail({
-          to: profile.email,
-          from: "hello@mentormates.ai",
-          subject: `[${eventName}] ${subject}`,
-          html: `<p>Hi ${escapeHtml(profile.display_name || "")},</p><p>${safeMessage}</p><p>— ${escapeHtml(eventName)} Team</p>`,
+        const { error: sendError } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+          to: profile.email, from: NOTIFICATIONS_EMAIL_FROM,
+          subject: `[${event?.event_name || "MentorMates"}] ${subject}`,
+          text: `Hi ${profile.display_name || ""},\n\n${message}\n\n— ${event?.event_name || "MentorMates"} Team`,
         });
 
-        return { sent, email: profile.email };
+        return { sent: !sendError, email: profile.email };
       })
     );
 

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-// Dynamic imports to avoid pdf-parse loading test fixtures at build time
-// (pdf-parse v1 has a known bug where it tries to read ./test/data/*.pdf on import)
-const getPdfParse = () => import("pdf-parse").then((m) => m.default);
+// Import the library file, not the package entry: pdf-parse v1's index.js reads
+// ./test/data/*.pdf on load when module.parent is unset, as it is in the bundle.
+const getPdfParse = () => import("pdf-parse/lib/pdf-parse.js").then((m) => m.default);
 const getMammoth = () => import("mammoth").then((m) => m.default);
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
@@ -73,8 +73,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    // A non-multipart body makes formData() throw: that is a client error (PUB-015).
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return NextResponse.json(
+        { error: "Expected multipart/form-data with a file" },
+        { status: 400 }
+      );
+    }
+    const fileEntry = formData.get("file");
+    const file = fileEntry instanceof File ? fileEntry : null;
 
     if (!file) {
       return NextResponse.json(
@@ -112,22 +122,23 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     if (ext === ".pdf" || file.type === "application/pdf") {
+      let pdfText = "";
       try {
         const pdfParse = await getPdfParse();
-        const pdf = await pdfParse(buffer);
-        textContent = pdf.text;
-      } catch {
-        // Fallback: extract any readable text from the PDF binary.
-        // GPT-5 is surprisingly good at making sense of partial text.
-        const rawText = buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, "\n");
-        if (rawText.trim().length < 20) {
-          return NextResponse.json(
-            { error: "Failed to parse PDF. The file may be image-only or corrupted.", success: false },
-            { status: 400 }
-          );
-        }
-        textContent = rawText;
+        // Pass a plain Uint8Array: pdf.js copies a Buffer through Node's shared
+        // pool, then reads the pool from offset 0, so PDFs under ~4KB fail.
+        const pdf = await pdfParse(new Uint8Array(buffer));
+        pdfText = pdf.text;
+      } catch (error) {
+        console.error("PDF parse error:", error);
       }
+      if (!pdfText.trim()) {
+        return NextResponse.json(
+          { error: "Failed to parse PDF. The file may be image-only or corrupted.", success: false },
+          { status: 400 }
+        );
+      }
+      textContent = pdfText;
     } else if (
       ext === ".docx" ||
       file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -196,7 +207,12 @@ export async function POST(request: NextRequest) {
       const parsed = JSON.parse(content);
 
       // Validate the structure has tracks
-      if (!parsed.tracks || typeof parsed.tracks !== "object") {
+      if (
+        !parsed.tracks ||
+        typeof parsed.tracks !== "object" ||
+        Array.isArray(parsed.tracks) ||
+        Object.keys(parsed.tracks).length === 0
+      ) {
         return NextResponse.json({
           success: false,
           error: "Could not extract tracks from the document. Try a clearer format.",

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import Papa from "papaparse";
+import { toSpreadsheetSafeCsv } from "@/lib/utils/csv";
 import type { EventScoringConfig } from "@/lib/types";
 import { ScoresTab } from "./index";
 
@@ -24,6 +24,11 @@ function queryFor(table: string) {
     in: () => query,
     not: () => query,
     order: () => query,
+    // Paged reads (fetchAllRows) stop on an empty page.
+    range: (from: number, to: number) => {
+      rows = rows.slice(from, to + 1);
+      return query;
+    },
     maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
     single: async () => ({ data: rows[0] ?? null, error: null }),
     then: (resolve: (value: { data: Row[]; error: null }) => unknown) =>
@@ -35,6 +40,8 @@ function queryFor(table: string) {
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     from: (table: string) => queryFor(table),
+    // Lead emails come from the project_team_emails RPC.
+    rpc: async () => ({ data: [], error: null }),
     channel: (topic: string) => {
       mockChannel(topic);
       return {
@@ -61,9 +68,8 @@ jest.mock("@/components/events/rounds-editor", () => ({
 jest.mock("@/components/voting/voting-results-panel", () => ({
   VotingResultsPanel: () => null,
 }));
-jest.mock("papaparse", () => ({
-  __esModule: true,
-  default: { unparse: jest.fn(() => "csv") },
+jest.mock("@/lib/utils/csv", () => ({
+  toSpreadsheetSafeCsv: jest.fn(() => "csv"),
 }));
 
 const EVENT_ID = "event-1";
@@ -160,11 +166,11 @@ function seed() {
 }
 
 function exportAll() {
-  (Papa.unparse as jest.Mock).mockClear();
+  (toSpreadsheetSafeCsv as jest.Mock).mockClear();
   for (const button of screen.getAllByRole("button", { name: /export/i })) {
     fireEvent.click(button);
   }
-  return (Papa.unparse as jest.Mock).mock.calls.map(([rows]) =>
+  return (toSpreadsheetSafeCsv as jest.Mock).mock.calls.map(([rows]) =>
     JSON.stringify(rows)
   );
 }
