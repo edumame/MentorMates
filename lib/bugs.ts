@@ -1,3 +1,4 @@
+import { escapeHtml } from "@/lib/email_templates/escape-html";
 // Bug-report vocab shared by the API route and the UI.
 // Mirrors the Stanford Founders hub report system, adapted to MentorMates.
 
@@ -88,14 +89,6 @@ export function buildReportBody(input: ReportBodyInput): string {
     `Page: ${input.pageUrl}`,
     `Browser: ${input.userAgent}`,
   ].join("\n");
-}
-
-function escapeHtml(v: string): string {
-  return v
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 export interface ReportEmailInput {

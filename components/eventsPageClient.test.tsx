@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { EventsPageClient } from "./eventsPageClient";
+import { EventsPageClient, matchesEventSearch } from "./eventsPageClient";
 import type { EventWithRole } from "@/components/events/event-row";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 
@@ -18,6 +18,12 @@ jest.mock("@/components/events/events-list", () => ({
   EventsList: ({ events }: { events: Array<{ event_name: string }> }) => (
     <div data-testid="events-list">{events.map((event) => event.event_name).join(",")}</div>
   ),
+}));
+
+// The desktop rows duplicate the EventsList content; the list mock is what
+// these tests read.
+jest.mock("@/components/events/event-row", () => ({
+  EventRow: () => null,
 }));
 
 jest.mock("@/components/events/create-event-modal", () => ({
@@ -231,5 +237,16 @@ describe("EventsPageClient", () => {
 
       expect(listedEvents()).toEqual(["Public hackathon"]);
     });
+  });
+});
+
+describe("event search (PUB-018)", () => {
+  it("matches name or location, case-insensitively, ignoring surrounding spaces", () => {
+    const event = { event_name: "Spring Hack Night", location: "San Francisco" };
+    expect(matchesEventSearch(event, "  hack ")).toBe(true);
+    expect(matchesEventSearch(event, "francisco")).toBe(true);
+    expect(matchesEventSearch(event, "tokyo")).toBe(false);
+    expect(matchesEventSearch({ event_name: "Online Jam", location: null }, "jam")).toBe(true);
+    expect(matchesEventSearch(event, "")).toBe(true);
   });
 });

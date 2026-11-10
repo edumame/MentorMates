@@ -1,11 +1,18 @@
+import type { Metadata } from "next";
 import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { isEventManagerRole } from "@/lib/events/navigation";
+import { EVENT_CARD_COLUMNS } from "@/lib/events/event-card-columns";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Events | MentorMates",
+  description: "Browse upcoming hackathons and events on MentorMates.",
+};
 
 export default async function EventsPage() {
   const supabase = await createSupabaseClient();
@@ -36,7 +43,7 @@ export default async function EventsPage() {
 
       const isAdmin = isAdminGlobal;
       
-      let query = supabase.from("events").select("*");
+      let query = supabase.from("events").select(EVENT_CARD_COLUMNS);
 
       if (isAdmin) {
         // Admins can see all events regardless of approval status
@@ -60,7 +67,7 @@ export default async function EventsPage() {
       if (!isAdmin && roleEventIds.length > 0) {
         const { data, error: roleEventsError } = await supabase
           .from("events")
-          .select("*")
+          .select(EVENT_CARD_COLUMNS)
           .in("event_id", roleEventIds);
 
         if (roleEventsError) throw roleEventsError;
@@ -102,7 +109,7 @@ export default async function EventsPage() {
       // Fetch only public events
       const { data: events, error } = await supabase
         .from("events")
-        .select("*")
+        .select(EVENT_CARD_COLUMNS)
         .in("visibility", [EventVisibility.Public])
         .eq("approval_status", ApprovalStatus.Approved)
         .order("event_date", { ascending: false });
