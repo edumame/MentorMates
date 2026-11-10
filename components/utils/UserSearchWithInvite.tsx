@@ -38,10 +38,9 @@ const UserSearchWithInvite = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [filteredTags, setFilteredTags] = useState<string[]>([]);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
-
-  // Read after awaiting the invite request, when the closure may be out of date.
-  const latestSelectedTags = useRef(selectedTags);
-  latestSelectedTags.current = selectedTags;
+  // Invited emails shown as chips. They are not team members until the invitee
+  // accepts, so they must never reach onTagsChange.
+  const [pendingInvites, setPendingInvites] = useState<string[]>([]);
 
   // Compared by value because several callers build initialTags on every render.
   const initialTagsKey = JSON.stringify(initialTags);
@@ -64,6 +63,12 @@ const UserSearchWithInvite = ({
         (tag) => !previousTags.includes(tag) && !nextTags.includes(tag)
       ),
     ]);
+    // An invitee who accepted is now a real teammate, so their chip is no
+    // longer pending (removing it must reach the parent).
+    const acceptedEmails = new Set(nextTags.map((tag) => extractEmail(tag).toLowerCase()));
+    setPendingInvites((invites) =>
+      invites.filter((invite) => !acceptedEmails.has(invite.toLowerCase()))
+    );
   }, [initialTagsKey]);
 
   useEffect(() => {
@@ -92,20 +97,32 @@ const UserSearchWithInvite = ({
     setFilteredTags(filtered.slice(0, 5));
   };
 
+  const withoutPendingInvites = (tags: string[]): string[] =>
+    tags.filter((tag) => !pendingInvites.includes(tag));
+
   const addTag = (tag: string): void => {
     if (!selectedTags.includes(tag)) {
       const newSelectedTags = [...selectedTags, tag];
       setSelectedTags(newSelectedTags);
       setTagInput("");
       setFilteredTags([]);
-      onTagsChange(newSelectedTags, { added: [extractEmail(tag)], removed: [] });
+      onTagsChange(withoutPendingInvites(newSelectedTags), {
+        added: [extractEmail(tag)],
+        removed: [],
+      });
     }
   };
 
   const removeTag = (tagToRemove: string): void => {
     const newSelectedTags = selectedTags.filter((tag) => tag !== tagToRemove);
     setSelectedTags(newSelectedTags);
-    onTagsChange(newSelectedTags, {
+
+    if (pendingInvites.includes(tagToRemove)) {
+      setPendingInvites(pendingInvites.filter((tag) => tag !== tagToRemove));
+      return;
+    }
+
+    onTagsChange(withoutPendingInvites(newSelectedTags), {
       added: [],
       removed: [extractEmail(tagToRemove)],
     });
@@ -147,10 +164,10 @@ const UserSearchWithInvite = ({
         description: `An invitation has been sent to ${email}. They will receive an email to join the project.`,
       });
 
-      // Add the invited email to selected tags so it shows up in the UI
-      const newSelectedTags = [...latestSelectedTags.current, email.trim()];
-      setSelectedTags(newSelectedTags);
-      onTagsChange(newSelectedTags, { added: [email.trim()], removed: [] });
+      // Show the invited email in the UI; it joins the team only on acceptance
+      const invitedEmail = email.trim();
+      setSelectedTags((tags) => [...tags, invitedEmail]);
+      setPendingInvites((invites) => [...invites, invitedEmail]);
 
       setTagInput("");
       setFilteredTags([]);
@@ -337,9 +354,10 @@ const UserSearchWithInvite = ({
     return selectedTags.map((tag, index) => getTagMarkup(tag, index));
   };
 
-  // Extract email from formatted tag "Name (email)" or return the tag itself
+  // Extract email from formatted tag "Name (email)" or return the tag itself.
+  // Takes the last group because display names can contain parentheses.
   const extractEmail = (tag: string): string => {
-    const emailMatch = tag.match(/\((.+?)\)$/);
+    const emailMatch = tag.match(/\(([^()]+)\)$/);
     return emailMatch ? emailMatch[1] : tag;
   };
 

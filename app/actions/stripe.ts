@@ -118,7 +118,9 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     line_items: lineItems,
     mode: "payment",
     return_url: `${origin}/return?session_id={CHECKOUT_SESSION_ID}${options?.eventSlug ? `&eventSlug=${encodeURIComponent(options.eventSlug)}` : ""}`,
-    metadata: { product_type: "event", event_id: options?.eventId || "" },
+    // user_id + event_id let /return find the payment row even before the
+    // webhook records this session on it (newer checkouts share the row).
+    metadata: { product_type: "event", event_id: options?.eventId || "", user_id: user.id },
     // automatic_tax: { enabled: true },
     allow_promotion_codes: true,
   });

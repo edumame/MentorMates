@@ -43,6 +43,11 @@ interface UseEventVotesResult {
   refresh: () => Promise<void>;
 }
 
+function readRemainingVotes(body: unknown): number | null {
+  const value = (body as { remainingVotes?: unknown } | null)?.remainingVotes;
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : null;
+}
+
 export function useEventVotes(eventId: string): UseEventVotesResult {
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>({});
   const [userVotes, setUserVotes] = useState<string[]>([]);
@@ -136,17 +141,26 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
           return false;
         }
 
+        // Local vote state may be stale after a rejection, for example when
+        // another card's vote took the last slot. refresh() clears the error,
+        // so it has to finish before the rejection message is set.
         if (res.status === 403) {
           const data = await res.json();
+          await refresh();
           setError(data.error || "You cannot vote in this event");
           return false;
         }
 
         if (!res.ok) {
           const data = await res.json();
+          await refresh();
           setError(data.error || "Failed to cast vote");
           return false;
         }
+
+        // cast_project_vote returns the authoritative remaining count; fall
+        // back to a floored local decrement if the body lacks it.
+        const serverRemaining = readRemainingVotes(await res.json().catch(() => null));
 
         // Optimistic update
         setUserVotes((prev) => [...prev, projectId]);
@@ -154,7 +168,7 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
           ...prev,
           [projectId]: (prev[projectId] || 0) + 1,
         }));
-        setRemainingVotes((prev) => prev - 1);
+        setRemainingVotes((prev) => serverRemaining ?? Math.max(0, prev - 1));
         setError(null);
 
         return true;
@@ -201,13 +215,15 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
           return false;
         }
 
+        const serverRemaining = readRemainingVotes(await res.json().catch(() => null));
+
         // Optimistic update
         setUserVotes((prev) => prev.filter((id) => id !== projectId));
         setVoteCounts((prev) => ({
           ...prev,
           [projectId]: Math.max(0, (prev[projectId] || 1) - 1),
         }));
-        setRemainingVotes((prev) => prev + 1);
+        setRemainingVotes((prev) => serverRemaining ?? Math.min(maxVotes, prev + 1));
         setError(null);
 
         return true;
@@ -217,7 +233,7 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
         return false;
       }
     },
-    [eventId, hasVoted, canVote, blockedReason, refresh]
+    [eventId, hasVoted, canVote, blockedReason, maxVotes, refresh]
   );
 
   const toggleVote = useCallback(
