@@ -71,6 +71,29 @@ function normalizeText(value: unknown): string {
 
 type AgentWithLinkedEvents = AgentGetOne & { linkedEventIds?: string[] };
 
+// Availability lives in two places: agents.event_id (home event, or null for a
+// global agent) and agent_events (linked events). A global agent stays available
+// everywhere whatever it is linked to, so links never replace "Global" here.
+function getAvailabilityLabel(
+  agent: AgentWithLinkedEvents,
+  eventNameById: Map<string, string>
+): string {
+  const homeEventIds = agent.event_id == null ? [] : [String(agent.event_id)];
+  const eventIds = new Set([
+    ...homeEventIds,
+    ...(agent.linkedEventIds || []).map(String),
+  ]);
+  const eventNames = Array.from(eventIds)
+    .map((id) => eventNameById.get(id) || `Event ${id.slice(0, 8)}`)
+    .sort((a, b) => a.localeCompare(b))
+    .join(", ");
+
+  if (agent.event_id != null) return eventNames;
+  return eventNames
+    ? `Global (all events), also linked to ${eventNames}`
+    : "Global (all events)";
+}
+
 function cleanText(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.replace(/\s+/g, " ").trim();
@@ -526,9 +549,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   };
 
   const openApplyDialog = (agent: AgentGetOne) => {
+    // The home event comes from agents.event_id and may have no agent_events row.
+    // Treating it as already applied keeps it out of the link and unlink diffs.
+    const homeEventIds = agent.event_id == null ? [] : [String(agent.event_id)];
     setApplyAgent(agent);
-    setAlreadyAppliedEventIds([]);
-    setSelectedEventIds([]);
+    setAlreadyAppliedEventIds(homeEventIds);
+    setSelectedEventIds(homeEventIds);
     setSelectedEventCaps({});
     setInitialSelectedEventCaps({});
     setApplySearch("");
@@ -544,7 +570,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
           .eq("agent_id", agent.id);
         if (linkedErr) throw linkedErr;
 
-        const applied = (linkedRows || []).map((r: { event_id: string }) => r.event_id);
+        const applied = Array.from(
+          new Set([
+            ...homeEventIds,
+            ...(linkedRows || []).map((r: { event_id: string }) => r.event_id),
+          ])
+        );
         setAlreadyAppliedEventIds(applied);
         setSelectedEventIds(applied);
 
@@ -1104,6 +1135,13 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
           <p className="text-xs text-gray-600">
             Cap is per user for this agent in that event. Leave blank to use the event default.
           </p>
+          {applyAgent && applyAgent.event_id == null && (
+            <p className="text-xs text-gray-600">
+              This agent is global, so it stays available in every event. Ticking an event
+              adds it to that event&apos;s Agents tab and lets you set a cap there, but does
+              not restrict who can use it.
+            </p>
+          )}
           {isLoadingEventCaps && (
             <p className="text-xs text-gray-500">Loading existing caps...</p>
           )}
@@ -1116,6 +1154,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
               {applyDialogEvents.map((event) => {
                 const alreadyExists = alreadyAppliedEventIds.includes(event.event_id);
                 const isSelected = selectedEventIds.includes(event.event_id);
+                const isHomeEvent =
+                  applyAgent?.event_id != null &&
+                  String(applyAgent.event_id) === event.event_id;
                 return (
                   <label
                     key={event.event_id}
@@ -1124,7 +1165,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={isSelected}
-                        disabled={isApplying}
+                        disabled={isApplying || isHomeEvent}
                         onCheckedChange={(checked) =>
                           toggleTargetEvent(event.event_id, Boolean(checked))
                         }
@@ -1147,8 +1188,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                           className="w-24 rounded border px-2 py-1 text-sm"
                         />
                       </div>
-                      {alreadyExists && (
-                        <span className="text-xs text-gray-500">already applied</span>
+                      {isHomeEvent ? (
+                        <span className="text-xs text-gray-500">home event</span>
+                      ) : (
+                        alreadyExists && (
+                          <span className="text-xs text-gray-500">already applied</span>
+                        )
                       )}
                     </div>
                   </label>
@@ -1208,17 +1253,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
       <div className="space-y-4">
         {filteredOwnedAgents.map((agent: AgentWithLinkedEvents) => {
-          const linked = agent.linkedEventIds || [];
-          const appliedEventNames = linked
-            .map((id: string) => eventNameById.get(String(id)) || `Event ${String(id).slice(0, 8)}`)
-            .sort((a: string, b: string) => a.localeCompare(b));
-          const appliedEventsLabel =
-            appliedEventNames.length > 0
-              ? appliedEventNames.join(", ")
-              : agent.event_id == null
-                ? "Global (all events)"
-                : eventNameById.get(String(agent.event_id)) ||
-                  `Event ${String(agent.event_id).slice(0, 8)}`;
+          const appliedEventsLabel = getAvailabilityLabel(agent, eventNameById);
 
           const instructions = normalizeText(agent.instructions);
           const feedbackPrompt = cleanText(agent.feedback_prompt);
