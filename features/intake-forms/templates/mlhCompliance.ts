@@ -305,7 +305,7 @@ function makeField(
 // Disclaimer text shown on forms before official MLH membership is confirmed.
 // Per MLH guidance, remove this once you have moved into the official Membership Stage.
 export const MLH_PRE_MEMBERSHIP_DISCLAIMER =
-  "This form collects the information required by Major League Hacking (MLH) for affiliated hackathons. All required fields must be completed before submission.";
+  "We are currently in the process of partnering with MLH. The following 3 checkboxes are for this partnership. If we do not end up partnering with MLH, your information will not be shared.";
 
 /**
  * Builds a fresh IntakeFormSchema pre-populated with all MLH-required
@@ -326,11 +326,14 @@ export function createMLHComplianceTemplate(): IntakeFormSchema {
         placeholder: "+1 (555) 000-0000",
       }),
       makeField("Email", "email", { placeholder: "name@example.com" }),
-      makeField("School", "single_select", {
+      // CLAUDE.md: School is Short text that should match the MLH verified
+      // schools list. The list is offered as type-ahead suggestions (options on
+      // a short_text field) so students of unlisted schools can still register.
+      makeField("School", "short_text", {
         options: SCHOOL_OPTIONS,
-        searchable: true,
+        placeholder: "Start typing your school",
         description:
-          "Search and select your school from the MLH verified schools list.",
+          "Pick your school from the MLH verified schools list as you type. If it isn't listed, enter its full name.",
       }),
       makeField("Level of Study", "single_select", {
         options: LEVEL_OF_STUDY_OPTIONS,

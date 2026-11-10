@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { parseUtcTimestamp } from "@/lib/utils/parse-utc-timestamp";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -15,7 +16,6 @@ interface FeedbackWithProject {
   project_name: string;
   feedback_text: string;
   mentor_name: string;
-  mentor_email: string;
   created_at: string;
 }
 
@@ -125,7 +125,7 @@ export default function GivenFeedbackPage() {
                       {item.project_name}
                     </CardTitle>
                     <span className="text-sm text-gray-500">
-                      {formatDistanceToNow(new Date(item.created_at), {
+                      {formatDistanceToNow(parseUtcTimestamp(item.created_at) ?? new Date(), {
                         addSuffix: true,
                       })}
                     </span>
