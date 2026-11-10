@@ -25,11 +25,11 @@ const X = '<a href="https://phish.example.test">x</a>';
 const URL_X = 'javascript:alert(1)';
 
 const cases: Array<[string, () => { subject: string; html: string }]> = [
-  ["organizer-invitation", () => getOrganizerInvitationEmailTemplate(X, "e1", X, "slug", true, "https://mentormates.ai/a?x=1&y=2", "https://mentormates.ai/e")],
+  ["organizer-invitation", () => getOrganizerInvitationEmailTemplate(X, "e1", X, true, "https://mentormates.ai/a?x=1&y=2", "https://mentormates.ai/e")],
   ["event-role-invitation", () => getEventRoleInvitationEmailTemplate({ eventName: X, inviterName: X, role: "judge", actionUrl: URL_X, eventUrl: "https://mentormates.ai/e" })],
   ["project-invitation", () => getProjectInvitationEmailTemplate(X, "p1", X, X, "tok")],
   ["claim-ticket", () => getClaimTicketEmailTemplate(X, "t1", X)],
-  ["guest-invitation", () => getGuestInvitationEmailTemplate(X, "e1", X, "slug", { dayTitle: X, eventName: X, time: X })],
+  ["guest-invitation", () => getGuestInvitationEmailTemplate(X, "e1", X, { dayTitle: X, eventName: X, time: X })],
   ["organizer-custom", () => getOrganizerCustomEmailTemplate(X, `${X}\nline2`)],
   ["event-approval-request", () => getEventApprovalRequestEmailTemplate({ eventName: X, organizerName: X, organizerEmail: X, eventDate: X, location: X, eventId: "e1" })],
   ["guide-free-access", () => getGuideFreeAccessEmailTemplate({ email: X, linkedinUrl: URL_X })],
@@ -61,7 +61,7 @@ describe("escapeUrl", () => {
 
 describe("organizer invitation copy", () => {
   it("no longer claims access was already granted", () => {
-    const { html } = getOrganizerInvitationEmailTemplate("E", "e1", "I", "s", false, "https://mentormates.ai/a");
+    const { html } = getOrganizerInvitationEmailTemplate("E", "e1", "I", false, "https://mentormates.ai/a");
     expect(html).not.toMatch(/already been activated/);
     expect(html).toMatch(/starts once you accept/);
   });

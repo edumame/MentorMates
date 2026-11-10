@@ -925,16 +925,6 @@ export default function AdminPage() {
                                           ...prev,
                                           [event.event_id]: reason,
                                         }));
-                                        
-                                        // If status is already rejected, update immediately
-                                        if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
-                                          updateEventStatus(
-                                            event.event_id,
-                                            "approval_status",
-                                            ApprovalStatus.Rejected,
-                                            reason
-                                          );
-                                        }
                                       }}
                                       disabled={updatingEventId === event.event_id}
                                       className="min-h-[100px]"
@@ -1577,16 +1567,6 @@ export default function AdminPage() {
                                                       ...prev,
                                                       [event.event_id]: reason,
                                                     }));
-                                                    
-                                                    // If status is already rejected, update immediately
-                                                    if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
-                                                      updateEventStatus(
-                                                        event.event_id,
-                                                        "approval_status",
-                                                        ApprovalStatus.Rejected,
-                                                        reason
-                                                      );
-                                                    }
                                                   }}
                                                   disabled={updatingEventId === event.event_id}
                                                   className="min-h-[100px]"
