@@ -166,7 +166,9 @@ async function pickCoverImage() {
   fireEvent.click(screen.getByRole("button", { name: "Upload" }));
   createElement.mockRestore();
 
-  const file = new File(["cover"], "cover.png", { type: "image/png" });
+  // Uploads sniff magic bytes (ORG-022), so the file needs a real PNG header.
+  const pngHeader = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const file = new File([pngHeader], "cover.png", { type: "image/png" });
   await act(async () => {
     input!.onchange?.({ target: { files: [file] } } as unknown as Event);
   });
@@ -198,7 +200,11 @@ it("saves a new cover image without any other field being edited", async () => {
   fireEvent.click(updateEventButton());
 
   await waitFor(() => expect(mockEventUpdate).toHaveBeenCalledTimes(1));
-  expect(mockStorageUpload).toHaveBeenCalledWith(expect.any(String), file);
+  expect(mockStorageUpload).toHaveBeenCalledWith(
+    expect.any(String),
+    file,
+    expect.objectContaining({ contentType: "image/png" }),
+  );
   expect(mockEventUpdate).toHaveBeenCalledWith(
     expect.objectContaining({
       cover_image_url: "https://cdn.test/new-cover.png",
