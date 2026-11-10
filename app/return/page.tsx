@@ -25,6 +25,8 @@ export default async function Return({ searchParams }: { searchParams: Promise<{
       sessionId={session_id}
       eventId={eventSlug}
       customerEmail={customerEmail}
+      paymentUserId={session.metadata?.user_id}
+      paymentEventId={session.metadata?.event_id}
     />
   )
 }

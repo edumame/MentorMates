@@ -6,15 +6,18 @@ import {
   EventTrack,
   Prize,
   ProjectFromDatabase,
-  ProjectSubmissionAnswer,
   ProjectWithPrizes,
 } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
+import {
+  fetchArtifactsByProjectIds,
+  fetchSubmissionAnswersByProjectIds,
+  fetchSubmissionFieldsByEventIds as fetchSubmissionFieldsWithServiceClient,
+} from "@/lib/projects/query";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { fetchSubmissionFieldsByEventIds as fetchSubmissionFieldsWithServiceClient } from "@/lib/projects/query";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
 import {
   buildProjectTeamMembers,
@@ -22,17 +25,6 @@ import {
 } from "@/lib/projects/team-members";
 import { getTeamEmails } from "@/lib/projects/membership";
 import { PROJECT_CLIENT_COLUMNS } from "@/lib/projects/columns";
-
-type ArtifactRow = {
-  project_id: string;
-  id: string;
-  kind: "project_link" | "video_link" | "additional_material";
-  label: string;
-  url: string;
-  sort_order: number;
-  is_primary: boolean;
-  metadata: Record<string, unknown> | null;
-};
 
 type OrganizerProjectRow = {
   id: string;
@@ -42,8 +34,6 @@ type OrganizerProjectRow = {
   video_url?: string | null;
   [key: string]: unknown;
 };
-
-type SubmissionAnswerRow = ProjectSubmissionAnswer;
 
 async function fetchSubmissionFieldsByEventIds(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
@@ -91,62 +81,6 @@ async function fetchSubmissionFieldsByEventIds(
   return map;
 }
 
-async function fetchSubmissionAnswersByProjectIds(
-  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-  projectIds: string[]
-) {
-  if (projectIds.length === 0) {
-    return new Map<string, SubmissionAnswerRow[]>();
-  }
-
-  const { data, error } = await supabase
-    .from("project_submission_answers")
-    .select("id, project_id, event_submission_field_id, answer")
-    .in("project_id", projectIds);
-
-  if (error || !data) {
-    return new Map<string, SubmissionAnswerRow[]>();
-  }
-
-  const map = new Map<string, SubmissionAnswerRow[]>();
-  for (const row of data as SubmissionAnswerRow[]) {
-    const existing = map.get(row.project_id) || [];
-    existing.push(row);
-    map.set(row.project_id, existing);
-  }
-
-  return map;
-}
-
-async function fetchArtifactsByProjectIds(
-  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-  projectIds: string[]
-) {
-  if (projectIds.length === 0) {
-    return new Map<string, ArtifactRow[]>();
-  }
-
-  const { data, error } = await supabase
-    .from("project_artifacts")
-    .select(
-      "id, project_id, kind, label, url, sort_order, is_primary, metadata"
-    )
-    .in("project_id", projectIds)
-    .order("sort_order", { ascending: true });
-
-  if (error || !data) {
-    return new Map<string, ArtifactRow[]>();
-  }
-
-  const map = new Map<string, ArtifactRow[]>();
-  for (const row of data as ArtifactRow[]) {
-    const existing = map.get(row.project_id) || [];
-    existing.push(row);
-    map.set(row.project_id, existing);
-  }
-  return map;
-}
-
 async function fetchTeammateProfiles(
   emails: string[]
 ): Promise<Map<string, ExportMemberProfile>> {
@@ -171,7 +105,8 @@ async function fetchTeammateProfiles(
 // client — it only ever leaks a boolean.
 async function fetchCertificateExtras(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-  projectId: string
+  projectId: string,
+  eventId: string
 ): Promise<{ prizes_won: Prize[]; is_finalist: boolean }> {
   const { data: prizeRows } = await supabase
     .from("prize_winners")
@@ -207,16 +142,20 @@ async function fetchCertificateExtras(
     winning_project_id: row.project_id,
   })) as Prize[];
 
-  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId) };
+  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId, eventId) };
 }
 
-async function fetchIsFinalist(projectId: string): Promise<boolean> {
+async function fetchIsFinalist(
+  projectId: string,
+  eventId: string
+): Promise<boolean> {
   try {
     const serviceClient = createSupabaseServiceClient();
     const { data: advancements } = await serviceClient
       .from("project_round_advancements")
       .select("id")
       .eq("project_id", projectId)
+      .eq("event_id", eventId)
       .limit(1);
     return (advancements?.length ?? 0) > 0;
   } catch {
@@ -371,7 +310,7 @@ export async function GET(request: NextRequest) {
         );
 
         const [extras, rosters] = await Promise.all([
-          fetchCertificateExtras(supabase, project.id),
+          fetchCertificateExtras(supabase, project.id, project.event_id),
           fetchPublicTeamRosters([project.id]),
         ]);
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
@@ -756,7 +695,7 @@ export async function GET(request: NextRequest) {
       }
 
       const [isFinalist, rosters] = await Promise.all([
-        fetchIsFinalist(transformedProject.id),
+        fetchIsFinalist(transformedProject.id, project.event_id),
         fetchPublicTeamRosters([project.id]),
       ]);
       (

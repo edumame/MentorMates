@@ -1703,10 +1703,16 @@ export default function ProjectPage() {
                                     )
                                     .forEach((email) => handleAddTeammate(email));
 
-                                  // Handle removals
-                                  removed.forEach((email) =>
-                                    handleRemoveTeammate(email)
+                                  // Handle removals. A pending invite's chip is not a
+                                  // teammate yet, so removing it writes nothing.
+                                  const teammateEmails = (project?.teammates || []).map(
+                                    (email) => email.toLowerCase()
                                   );
+                                  removed
+                                    .filter((email) =>
+                                      teammateEmails.includes(email.toLowerCase())
+                                    )
+                                    .forEach((email) => handleRemoveTeammate(email));
                                 }}
                                 initialTags={(project?.teammates || []).map((email) => {
                                   const participant = participants.find(
