@@ -1,9 +1,9 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { TeamFormationPanel } from "@/features/teams/components/TeamFormationPanel";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -12,7 +12,6 @@ export default async function EventTeamPage({ params }: PageProps) {
   const supabase = await createSupabaseClient();
   const { id } = await params;
 
-  const isUUID = isValidUUID(id);
 
   let eventQuery = supabase.from("events").select(`
     event_id,
@@ -26,11 +25,10 @@ export default async function EventTeamPage({ params }: PageProps) {
     team_formation_enabled
   `);
 
-  if (isUUID) {
-    eventQuery = eventQuery.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    eventQuery = eventQuery.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  eventQuery = eventQuery.eq("event_id", routeEventId);
 
   const { data: eventData, error: eventError } = await eventQuery.single();
 

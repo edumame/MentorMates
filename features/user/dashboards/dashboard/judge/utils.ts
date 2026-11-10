@@ -88,3 +88,50 @@ export function truncateWithEllipsis(text: string, maxLength: number): string {
 
   return `${text.slice(0, maxLength).trimEnd()}...`;
 }
+
+// Elements whose own arrow-key behaviour must win over card navigation
+// (text cursor movement, slider value, select/radio choice, menus).
+const ARROW_KEY_OWNER_SELECTOR = [
+  "input",
+  "textarea",
+  "select",
+  "button",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[role=slider]",
+  "[role=radiogroup]",
+  "[role=radio]",
+  "[role=combobox]",
+  "[role=listbox]",
+  "[role=option]",
+  "[role=menu]",
+  "[role=menuitem]",
+  "[role=tablist]",
+  "[role=tab]",
+  "[role=spinbutton]",
+  "[role=textbox]",
+].join(", ");
+
+/**
+ * Returns the card-navigation direction for a window keydown, or null when the
+ * key should be left alone (JUDGE-003): non-arrow keys, modified keys, events a
+ * component already handled, or keys pressed inside a form control or widget
+ * that uses arrow keys itself (e.g. the rubric sliders or the Comments box).
+ */
+export function getCardNavigationDirection(event: {
+  key: string;
+  defaultPrevented: boolean;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  target: EventTarget | null;
+}): 1 | -1 | null {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return null;
+  if (event.defaultPrevented) return null;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null;
+  const target = event.target as Element | null;
+  if (target && typeof target.closest === "function" && target.closest(ARROW_KEY_OWNER_SELECTOR)) {
+    return null;
+  }
+  return event.key === "ArrowLeft" ? -1 : 1;
+}
