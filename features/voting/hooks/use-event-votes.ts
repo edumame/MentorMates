@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { VotingWindowStatus } from "@/features/voting/utils/voting-window";
+import { OWN_PROJECT_VOTE_BLOCK_MESSAGE } from "@/features/voting/utils/voting-permissions";
 
 interface UseEventVotesResult {
   // Vote counts per project: { projectId: count }
@@ -15,13 +17,21 @@ interface UseEventVotesResult {
   canVote: boolean;
   // Reason voting is blocked (if blocked)
   blockedReason: string | null;
+  // Projects the current user is on (cannot be voted for by them)
+  ownProjectIds: string[];
+  // Voting window state from the server
+  votingStatus: VotingWindowStatus;
+  votingOpensAt: string | null;
+  votingClosesAt: string | null;
   // Loading state
   isLoading: boolean;
   // Error message
   error: string | null;
   // Check if user has voted for a specific project
   hasVoted: (projectId: string) => boolean;
-  // Get vote count for a specific project
+  // Whether the project is the current user's own project
+  isOwnProject: (projectId: string) => boolean;
+  // Get vote count for a specific project (always 0 unless organizer/owner)
   getVoteCount: (projectId: string) => number;
   // Cast a vote for a project
   vote: (projectId: string) => Promise<boolean>;
@@ -33,6 +43,11 @@ interface UseEventVotesResult {
   refresh: () => Promise<void>;
 }
 
+function readRemainingVotes(body: unknown): number | null {
+  const value = (body as { remainingVotes?: unknown } | null)?.remainingVotes;
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : null;
+}
+
 export function useEventVotes(eventId: string): UseEventVotesResult {
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>({});
   const [userVotes, setUserVotes] = useState<string[]>([]);
@@ -40,6 +55,10 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
   const [maxVotes, setMaxVotes] = useState(3);
   const [canVote, setCanVote] = useState(false);
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
+  const [ownProjectIds, setOwnProjectIds] = useState<string[]>([]);
+  const [votingStatus, setVotingStatus] = useState<VotingWindowStatus>("open");
+  const [votingOpensAt, setVotingOpensAt] = useState<string | null>(null);
+  const [votingClosesAt, setVotingClosesAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +79,10 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
       setMaxVotes(data.maxVotes ?? 3);
       setCanVote(Boolean(data.canVote));
       setBlockedReason(data.blockedReason ?? null);
+      setOwnProjectIds(Array.isArray(data.ownProjectIds) ? data.ownProjectIds : []);
+      setVotingStatus(data.votingStatus ?? "open");
+      setVotingOpensAt(data.votingOpensAt ?? null);
+      setVotingClosesAt(data.votingClosesAt ?? null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -76,6 +99,11 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
     [userVotes]
   );
 
+  const isOwnProject = useCallback(
+    (projectId: string) => ownProjectIds.includes(projectId),
+    [ownProjectIds]
+  );
+
   const getVoteCount = useCallback(
     (projectId: string) => voteCounts[projectId] || 0,
     [voteCounts]
@@ -85,6 +113,11 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
     async (projectId: string): Promise<boolean> => {
       if (!eventId || !projectId) return false;
       if (hasVoted(projectId)) return false;
+
+      if (isOwnProject(projectId)) {
+        setError(OWN_PROJECT_VOTE_BLOCK_MESSAGE);
+        return false;
+      }
 
       if (!canVote) {
         setError(blockedReason || "You cannot vote in this event");
@@ -125,13 +158,17 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
           return false;
         }
 
+        // cast_project_vote returns the authoritative remaining count; fall
+        // back to a floored local decrement if the body lacks it.
+        const serverRemaining = readRemainingVotes(await res.json().catch(() => null));
+
         // Optimistic update
         setUserVotes((prev) => [...prev, projectId]);
         setVoteCounts((prev) => ({
           ...prev,
           [projectId]: (prev[projectId] || 0) + 1,
         }));
-        setRemainingVotes((prev) => Math.max(0, prev - 1));
+        setRemainingVotes((prev) => serverRemaining ?? Math.max(0, prev - 1));
         setError(null);
 
         return true;
@@ -141,7 +178,7 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
         return false;
       }
     },
-    [eventId, hasVoted, canVote, blockedReason, remainingVotes, maxVotes, refresh]
+    [eventId, hasVoted, isOwnProject, canVote, blockedReason, remainingVotes, maxVotes, refresh]
   );
 
   const unvote = useCallback(
@@ -178,13 +215,15 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
           return false;
         }
 
+        const serverRemaining = readRemainingVotes(await res.json().catch(() => null));
+
         // Optimistic update
         setUserVotes((prev) => prev.filter((id) => id !== projectId));
         setVoteCounts((prev) => ({
           ...prev,
           [projectId]: Math.max(0, (prev[projectId] || 1) - 1),
         }));
-        setRemainingVotes((prev) => prev + 1);
+        setRemainingVotes((prev) => serverRemaining ?? Math.min(maxVotes, prev + 1));
         setError(null);
 
         return true;
@@ -194,7 +233,7 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
         return false;
       }
     },
-    [eventId, hasVoted, canVote, blockedReason, refresh]
+    [eventId, hasVoted, canVote, blockedReason, maxVotes, refresh]
   );
 
   const toggleVote = useCallback(
@@ -215,9 +254,14 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
     maxVotes,
     canVote,
     blockedReason,
+    ownProjectIds,
+    votingStatus,
+    votingOpensAt,
+    votingClosesAt,
     isLoading,
     error,
     hasVoted,
+    isOwnProject,
     getVoteCount,
     vote,
     unvote,

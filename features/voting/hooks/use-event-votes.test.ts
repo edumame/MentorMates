@@ -64,6 +64,21 @@ describe("useEventVotes", () => {
     expect(result.current.remainingVotes).toBe(0);
   });
 
+  it("uses the remaining count returned by the server after a vote", async () => {
+    mockFetch(
+      [votesPayload({ remainingVotes: 3 })],
+      // Another tab already used a vote: the server says 1 left, not 2.
+      [jsonResponse({ success: true, remainingVotes: 1 })]
+    );
+    const { result } = await renderLoadedHook();
+
+    await act(async () => {
+      await result.current.vote("a");
+    });
+
+    expect(result.current.remainingVotes).toBe(1);
+  });
+
   it("resyncs with the server and keeps the message when a concurrent vote is rejected", async () => {
     const capMessage = "You can only vote for 3 projects per event";
     mockFetch(

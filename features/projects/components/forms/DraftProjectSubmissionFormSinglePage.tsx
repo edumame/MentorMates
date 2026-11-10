@@ -1,4 +1,6 @@
 "use client";
+
+import { ProjectSaveStatus } from "./components/ProjectSaveStatus";
 import { SoloSubmissionConfirmation, needsSoloConfirmation } from "./components/SoloSubmissionConfirmation";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
@@ -23,7 +25,9 @@ import { toast } from "@/lib/hooks/use-toast";
 import { EventSubmissionField, Project } from "@/lib/types";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
-import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
+import UserSearchWithInvite, {
+  type TeamTagChange,
+} from "@/components/utils/UserSearchWithInvite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +48,7 @@ import {
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import {
   buildDraftArtifactsPayload,
+  getInitialAdditionalMaterialUrls,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
 import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
@@ -127,17 +132,20 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [isPrivate, setIsPrivate] = useState(Boolean(initialProject.is_private));
 
   // Form state
+  const initialMaterialUrls = getInitialAdditionalMaterialUrls(initialProject);
   const [formData, setFormData] = useState({
     project_name: initialProject.project_name || "",
     project_description: initialProject.project_description || "",
     project_url: initialProject.project_url || "",
     video_url: initialProject.video_url || "",
     cover_image_url: initialProject.cover_image_url || "",
-    additional_materials_url: initialProject.additional_materials_url || "",
+    additional_materials_url: initialMaterialUrls[0] || "",
   });
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
-  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
+  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>(
+    initialMaterialUrls.slice(1)
+  );
   const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
     initialProject.has_submission_field_config
       ? initialProject.submission_fields || []
@@ -576,7 +584,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     setIsPrivate(Boolean(project.is_private));
   }, [project.is_private]);
 
-  const { lastSaved, flushSave } = useProjectSubmissionAutosave({
+  const { lastSaved, flushSave, isSaving, saveError, hasUnsavedChanges } = useProjectSubmissionAutosave({
     enabled: true,
     projectId,
     fields: effectiveSubmissionFields,
@@ -683,19 +691,29 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleTeammatesChange = async (emails: string[]) => {
+  const handleTeammatesChange = async (
+    _tags: string[],
+    { added, removed }: TeamTagChange
+  ) => {
     if (!project) return;
 
     try {
       // Filter out the lead email
-      const validEmails = emails.filter(
+      const add = added.filter(
         (email) => email.toLowerCase() !== project.lead_email?.toLowerCase()
       );
+      if (add.length === 0 && removed.length === 0) return;
 
-      const { data } = await updateProjectTeamClient(projectId, validEmails);
+      const { data } = await updateProjectTeamClient(projectId, {
+        add,
+        remove: removed,
+      });
 
       if (data) {
-        setProject(data);
+        // `data` is a raw projects row (`private`, no `is_private` or hydrated
+        // submission fields). Storing it whole would flip isPrivate to false
+        // and autosave the project as public, so merge only the team.
+        setProject((prev) => ({ ...prev, teammates: data.teammates }));
       }
     } catch {
       toast({
@@ -708,17 +726,13 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   const handleRemoveTeammate = async (teammateEmail: string) => {
     try {
-      const currentTeammates = project?.teammates || [];
-      const updatedTeammates = currentTeammates.filter(
-        (email) => email !== teammateEmail
-      );
-      const { data } = await updateProjectTeamClient(
-        projectId,
-        updatedTeammates
-      );
+      const { data } = await updateProjectTeamClient(projectId, {
+        remove: [teammateEmail],
+      });
 
       if (data) {
-        setProject(data);
+        // Same raw row as handleTeammatesChange: merge only the team.
+        setProject((prev) => ({ ...prev, teammates: data.teammates }));
         toast({
           title: "Team member removed",
           description: `${teammateEmail} has been removed from the team`,
@@ -1062,40 +1076,13 @@ export default function DraftProjectSubmissionFormSinglePage({
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap">
-          <div className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              viewBox="0 0 24 24"
-              width="24px"
-              fill="#1f1f1f"
-            >
-              <g>
-                <rect fill="none" height="24" width="24" />
-                <path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" />
-              </g>
-            </svg>
-            <p className="text-[#4c4c4c] text-base font-medium tracking-[-0.06em]">
-              Your project is automatically saved as you edit
-            </p>
-          </div>
-          {lastSaved && (
-            <div className="bg-transparent px-2.5 py-1 ml-6 sm:m-0">
-              <p className="text-[#7f7f7f] text-sm font-medium">
-                Saved at{" "}
-                {lastSaved.toLocaleDateString("en-US", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}{" "}
-                {lastSaved.toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </p>
-            </div>
-          )}
+          <ProjectSaveStatus
+            isSaving={isSaving}
+            saveError={saveError}
+            hasUnsavedChanges={hasUnsavedChanges}
+            lastSaved={lastSaved}
+            onRetry={flushSave}
+          />
         </div>
       </div>
 

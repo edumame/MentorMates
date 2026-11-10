@@ -14,17 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAdmin } from "@/lib/hooks/use-admin";
-import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
+import { useNotificationData } from "@/components/layout/NotificationPopoverContent";
 import posthog from "posthog-js";
-import { UserProfile } from "@/lib/types";
 import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
-
-interface ExtendedUserProfile extends UserProfile {
-  onboarding_metadata: Record<string, unknown> | null;
-  affiliation: string | null;
-  phone_number?: string | null;
-  links?: Record<string, string> | null;
-}
 
 interface AuthNavbarRightProps {
   className?: string;
@@ -34,10 +26,8 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
   const router = useRouter();
   const { clearReturnUrl, setReturnUrlFromCurrentLocation } = useRedirect();
   const [session, setSession] = useState<Session | null>(null);
+  const { needsProfileCompletion } = useNotificationData();
   const isAdmin = useAdmin();
-  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(
-    null
-  );
 
   useEffect(() => {
     supabase.auth
@@ -49,18 +39,6 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("uid", session?.user?.id)
-        .single();
-      setUserProfile(data);
-    };
-    if (session) fetchUserProfile();
-  }, [session]);
-
   const handleLogin = () => {
     setReturnUrlFromCurrentLocation();
     router.push("/login");
@@ -70,8 +48,9 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
     clearReturnUrl();
     await supabase.auth.signOut();
     posthog.reset();
-    router.push("/");
-    window.location.reload();
+    // Full navigation, not push + reload: reload can fire before the push lands,
+    // and reloading a protected page signed out would redirect to login.
+    window.location.assign("/");
   };
 
   return (
@@ -104,7 +83,7 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
                 <p className="text-base text-gray-700 mt-1">
                   {session.user.email}
                 </p>
-                {profileNeedsCompletion(userProfile) ? (
+                {needsProfileCompletion ? (
                   <Button
                     variant="defaultGray"
                     onClick={() =>

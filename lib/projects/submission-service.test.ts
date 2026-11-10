@@ -117,7 +117,9 @@ describe("saveProjectSubmission", () => {
       }),
     };
 
-    const projectUpdateEq = jest.fn().mockResolvedValue({ error: null });
+    const projectUpdateEq = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [{ id: "project-1" }], error: null }),
+    });
     const projectsTable = {
       select: jest
         .fn()
@@ -138,6 +140,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -256,7 +259,9 @@ describe("saveProjectSubmission", () => {
       }),
     };
 
-    const projectUpdateEq = jest.fn().mockResolvedValue({ error: null });
+    const projectUpdateEq = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [{ id: "project-1" }], error: null }),
+    });
     const projectsTable = {
       select: jest.fn().mockReturnValue(existingProjectQuery),
       update: jest.fn().mockReturnValue({
@@ -273,6 +278,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -348,6 +354,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -409,6 +416,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") {
           return projectsTable;
@@ -443,6 +451,7 @@ describe("saveProjectSubmission", () => {
   it("rejects create when locked project_name is missing", async () => {
     const projectsTable = { insert: jest.fn() };
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -467,6 +476,7 @@ describe("saveProjectSubmission", () => {
   it("rejects create when locked project_description is missing", async () => {
     const projectsTable = { insert: jest.fn() };
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -510,6 +520,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -529,5 +540,71 @@ describe("saveProjectSubmission", () => {
       status: 400,
     });
     expect(projectsTable.update).not.toHaveBeenCalled();
+  });
+
+  describe("team changes", () => {
+    async function saveTeamChanges(input: {
+      addTeammates?: string[];
+      removeTeammates?: string[];
+    }) {
+      const existingProjectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        overrideTypes: jest.fn().mockResolvedValue({
+          data: {
+            id: projectId,
+            event_id: null,
+            contextus_project_id: null,
+            project_name: "Existing Name",
+            project_description: "Existing Description",
+            teammates: ["joined@x.com", "gone@x.com"],
+          },
+          error: null,
+        }),
+      };
+      const projectsTable = {
+        select: jest.fn().mockReturnValue(existingProjectQuery),
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
+        }),
+      };
+      const supabase = {
+        from: jest.fn((table: string) => {
+          if (table === "projects") return projectsTable;
+          throw new Error(`Unexpected table ${table}`);
+        }),
+        rpc: jest.fn(async () => ({ data: [], error: null })),
+      };
+
+      await saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { projectName: "Renamed", ...input },
+      });
+
+      return projectsTable.update.mock.calls[0][0];
+    }
+
+    it("applies changes to the stored team, keeping people who joined by invite", async () => {
+      const update = await saveTeamChanges({
+        addTeammates: ["pat@x.com"],
+        removeTeammates: ["gone@x.com"],
+      });
+
+      expect(update.teammates).toEqual(["joined@x.com", "pat@x.com"]);
+    });
+
+    it("leaves the team alone when there is nothing to change", async () => {
+      const update = await saveTeamChanges({
+        addTeammates: [],
+        removeTeammates: [],
+      });
+
+      expect(update).not.toHaveProperty("teammates");
+    });
   });
 });

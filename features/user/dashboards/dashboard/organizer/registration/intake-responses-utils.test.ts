@@ -68,8 +68,27 @@ describe("intake-responses-utils", () => {
         key: "company",
         showIf: { fieldKey: "role", equals: "professional" },
       };
-      expect(isFieldVisible(visibleField, answers)).toBe(true);
-      expect(isFieldVisible(hiddenField, answers)).toBe(false);
+      const sourceField: IntakeFormField = {
+        ...visibleField,
+        id: "3",
+        key: "role",
+        showIf: null,
+      };
+      const fields = [sourceField, visibleField, hiddenField];
+      expect(isFieldVisible(visibleField, answers, fields)).toBe(true);
+      expect(isFieldVisible(hiddenField, answers, fields)).toBe(false);
+    });
+
+    it("shows a field whose showIf source is not in the schema", () => {
+      const field: IntakeFormField = {
+        id: "1",
+        key: "school",
+        type: "short_text",
+        label: "School",
+        required: true,
+        showIf: { fieldKey: "old_key", equals: "student" },
+      };
+      expect(isFieldVisible(field, { old_key: "professional" }, [field])).toBe(true);
     });
   });
 
@@ -311,6 +330,138 @@ describe("intake-responses-utils", () => {
         "orphan",
       ]);
       expect(row.orphan).toBe("x");
+    });
+
+    describe("column header collisions", () => {
+      it("exports both answers when two fields share a label", () => {
+        const rows = buildIntakeExportRows(
+          [
+            makeSubmission({
+              answers: [
+                { fieldKey: "a", value: "one" },
+                { fieldKey: "b", value: "two" },
+              ],
+            }),
+            makeSubmission({
+              id: "sub-2",
+              answers: [{ fieldKey: "b", value: "three" }],
+            }),
+          ],
+          makeSchema([field("a", "Dup"), field("b", "Dup"), field("c", "Other")])
+        );
+
+        expect(Object.keys(rows[0]).slice(4)).toEqual([
+          "Dup (a)",
+          "Dup (b)",
+          "Other",
+        ]);
+        expect(rows[0]["Dup (a)"]).toBe("one");
+        expect(rows[0]["Dup (b)"]).toBe("two");
+        // Papa.unparse takes headers from the first row, so every row must
+        // use the same columns.
+        expect(Object.keys(rows[1])).toEqual(Object.keys(rows[0]));
+        expect(rows[1]["Dup (a)"]).toBe("-");
+        expect(rows[1]["Dup (b)"]).toBe("three");
+      });
+
+      it("keeps the account email when a field is labelled Email", () => {
+        const [row] = buildIntakeExportRows(
+          [
+            makeSubmission({
+              submitterProfile: { display_name: "Ada", email: "acct@x.io" },
+              answers: [{ fieldKey: "email_x", value: "typed@x.io" }],
+            }),
+          ],
+          makeSchema([field("email_x", "Email", "email")])
+        );
+
+        expect(row.Email).toBe("acct@x.io");
+        expect(row["Email (email_x)"]).toBe("typed@x.io");
+      });
+
+      it("keeps the account email when an Email field is unanswered", () => {
+        const [row] = buildIntakeExportRows(
+          [
+            makeSubmission({
+              submitterProfile: { display_name: "Ada", email: "acct@x.io" },
+            }),
+          ],
+          makeSchema([field("email_x", "Email", "email")])
+        );
+
+        expect(row.Email).toBe("acct@x.io");
+        expect(row["Email (email_x)"]).toBe("-");
+      });
+
+      it.each(["Submitter Name", "Submitted At", "Submission ID"])(
+        "does not overwrite the fixed %s column",
+        (label) => {
+          const [baseline] = buildIntakeExportRows(
+            [makeSubmission()],
+            makeSchema([])
+          );
+          const [row] = buildIntakeExportRows(
+            [makeSubmission({ answers: [{ fieldKey: "q", value: "typed" }] })],
+            makeSchema([field("q", label)])
+          );
+
+          expect(row[label]).toBe(baseline[label]);
+          expect(row[`${label} (q)`]).toBe("typed");
+        }
+      );
+
+      it("does not let an orphan key overwrite a field label", () => {
+        const [row] = buildIntakeExportRows(
+          [
+            makeSubmission({
+              answers: [
+                { fieldKey: "q", value: "current" },
+                { fieldKey: "School", value: "legacy" },
+              ],
+            }),
+          ],
+          makeSchema([field("q", "School")])
+        );
+
+        expect(row["School (q)"]).toBe("current");
+        expect(row["School (School)"]).toBe("legacy");
+      });
+
+      it("does not let an orphan key overwrite a fixed column", () => {
+        const [row] = buildIntakeExportRows(
+          [
+            makeSubmission({
+              submitterProfile: { display_name: "Ada", email: "acct@x.io" },
+              answers: [{ fieldKey: "Email", value: "legacy@x.io" }],
+            }),
+          ],
+          makeSchema([])
+        );
+
+        expect(row.Email).toBe("acct@x.io");
+        expect(row["Email (Email)"]).toBe("legacy@x.io");
+      });
+
+      it("keeps every answer when a label matches a disambiguated header", () => {
+        const [row] = buildIntakeExportRows(
+          [
+            makeSubmission({
+              answers: [
+                { fieldKey: "a", value: "one" },
+                { fieldKey: "b", value: "two" },
+                { fieldKey: "c", value: "three" },
+              ],
+            }),
+          ],
+          makeSchema([
+            field("a", "Dup"),
+            field("b", "Dup"),
+            field("c", "Dup (a)"),
+          ])
+        );
+
+        expect(Object.values(row).slice(4)).toEqual(["one", "two", "three"]);
+      });
     });
   });
 });

@@ -1,19 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { getPopularVotePermission } from "@/features/voting/utils/voting-permissions";
+import { getVotingWindowState } from "@/features/voting/utils/voting-window";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// The database enforces this same limit in enforce_project_vote_rules().
 const MAX_VOTES_PER_USER = 3;
 
-// SQLSTATEs raised by the enforce_project_vote_rules() trigger, whose messages
-// are written for voters. The checks in POST below only give earlier feedback:
-// the trigger is what holds under concurrent requests and direct table inserts.
-const VOTE_RULE_ERROR_STATUS: Record<string, number> = {
-  VT001: 403, // Voter is not eligible in this event
-  VT002: 400, // Project is not a submitted project in this event
-  VT003: 400, // Vote limit reached
-};
+interface VoteSummary {
+  voteCounts?: Record<string, number>;
+  userVotes?: string[];
+  ownProjectIds?: string[];
+  votingOpensAt?: string | null;
+  votingClosesAt?: string | null;
+}
+
+async function readProjectId(request: NextRequest): Promise<string | null> {
+  try {
+    const body = await request.json();
+    return typeof body?.projectId === "string" && body.projectId.trim()
+      ? body.projectId.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+// Maps vote RPC errors (cast_project_vote / remove_project_vote) to HTTP.
+function voteErrorResponse(
+  error: { code?: string; message?: string },
+  fallback: string
+) {
+  const status =
+    error.code === "42501"
+      ? 403
+      : error.code === "P0002"
+        ? 404
+        : ["23514", "22023", "22P02"].includes(error.code ?? "")
+          ? 400
+          : 500;
+  return NextResponse.json(
+    { error: status === 500 ? fallback : error.message || fallback },
+    { status }
+  );
+}
 
 async function getUserRoleForEvent(
   supabase: SupabaseClient,
@@ -70,38 +99,33 @@ export async function GET(
 
     const permission = getPopularVotePermission(userRole);
 
-    // Get all votes for this event grouped by project
-    const { data: votes, error: votesError } = await supabase
-      .from("project_votes")
-      .select("project_id, user_id")
-      .eq("event_id", eventId);
-
-    if (votesError) {
-      console.error("Error fetching votes:", votesError);
-      return NextResponse.json({ error: "Failed to fetch votes" }, { status: 500 });
-    }
-
-    // Count votes per project
-    const voteCounts: Record<string, number> = {};
-    const userVotes: string[] = [];
-
-    for (const vote of votes || []) {
-      voteCounts[vote.project_id] = (voteCounts[vote.project_id] || 0) + 1;
-      if (user && vote.user_id === user.id) {
-        userVotes.push(vote.project_id);
-      }
-    }
+    // project_vote_summary only returns live totals (voteCounts) to organizers/owner;
+    // everyone else gets their own ballot only (JUDGE-002).
+    const { data, error: votesError } = await supabase.rpc("project_vote_summary", { p_event_id: eventId });
+    if (votesError) return NextResponse.json({ error: "Failed to fetch votes" }, { status: 500 });
+    const summary = (data ?? {}) as VoteSummary;
+    const voteCounts: Record<string, number> = summary.voteCounts ?? {};
+    const userVotes: string[] = summary.userVotes ?? [];
+    const votingOpensAt = summary.votingOpensAt ?? null;
+    const votingClosesAt = summary.votingClosesAt ?? null;
+    const windowState = getVotingWindowState({ opensAt: votingOpensAt, closesAt: votingClosesAt });
+    const canVote = Boolean(user) && permission.canVote && windowState.status === "open";
 
     return NextResponse.json({
       voteCounts,
       userVotes,
-      remainingVotes:
-        user && permission.canVote
-          ? Math.max(0, MAX_VOTES_PER_USER - userVotes.length)
-          : 0,
+      ownProjectIds: summary.ownProjectIds ?? [],
+      remainingVotes: canVote
+        ? Math.max(0, MAX_VOTES_PER_USER - userVotes.length)
+        : 0,
       maxVotes: MAX_VOTES_PER_USER,
-      canVote: Boolean(user) && permission.canVote,
-      blockedReason: permission.blockedReason,
+      canVote,
+      blockedReason:
+        permission.blockedReason ??
+        (windowState.status === "open" ? null : windowState.message),
+      votingOpensAt,
+      votingClosesAt,
+      votingStatus: windowState.status,
       userRole,
     });
   } catch (error) {
@@ -153,73 +177,18 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
-    const { projectId } = body;
-
+    const projectId = await readProjectId(request);
     if (!projectId) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }
 
-    // Check if project belongs to this event
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("id, event_id, submitted")
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !project) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
-
-    if (project.event_id !== eventId) {
-      return NextResponse.json({ error: "Project does not belong to this event" }, { status: 400 });
-    }
-
-    if (project.submitted !== true) {
-      return NextResponse.json({ error: "Only submitted projects can receive votes" }, { status: 400 });
-    }
-
-    // Check user's current vote count for this event
-    const { count: currentVoteCount, error: countError } = await supabase
-      .from("project_votes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("event_id", eventId);
-
-    if (countError) {
-      console.error("Error counting votes:", countError);
-      return NextResponse.json({ error: "Failed to check vote count" }, { status: 500 });
-    }
-
-    if ((currentVoteCount || 0) >= MAX_VOTES_PER_USER) {
-      return NextResponse.json(
-        { error: `You can only vote for ${MAX_VOTES_PER_USER} projects per event` },
-        { status: 400 }
-      );
-    }
-
-    // Insert the vote
-    const { error: insertError } = await supabase
-      .from("project_votes")
-      .insert({
-        project_id: projectId,
-        user_id: user.id,
-        event_id: eventId,
-      });
-
-    if (insertError) {
-      if (insertError.message.includes("duplicate key") || insertError.code === "23505") {
-        return NextResponse.json({ error: "You have already voted for this project" }, { status: 400 });
-      }
-      const ruleErrorStatus = VOTE_RULE_ERROR_STATUS[insertError.code];
-      if (ruleErrorStatus) {
-        return NextResponse.json({ error: insertError.message }, { status: ruleErrorStatus });
-      }
-      console.error("Error inserting vote:", insertError);
-      return NextResponse.json({ error: "Failed to cast vote" }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, remainingVotes: MAX_VOTES_PER_USER - (currentVoteCount || 0) - 1 });
+    // cast_project_vote enforces eligibility, own-project, submitted/public project,
+    // the voting window and the per-user cap atomically.
+    const { data: remainingVotes, error: voteError } = await supabase.rpc("cast_project_vote", {
+      p_event_id: eventId, p_project_id: projectId,
+    });
+    if (voteError) return voteErrorResponse(voteError, "Failed to cast vote");
+    return NextResponse.json({ success: true, remainingVotes });
   } catch (error) {
     console.error("POST /events/[eventId]/votes error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -248,55 +217,19 @@ export async function DELETE(
       return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
     }
 
-    const { role: userRole, error: roleError } = await getUserRoleForEvent(
-      supabase,
-      user.id,
-      eventId
-    );
-    if (roleError) {
-      console.error("Error fetching user role:", roleError);
-      return NextResponse.json(
-        { error: "Failed to verify voting permissions" },
-        { status: 500 }
-      );
-    }
-
-    const permission = getPopularVotePermission(userRole);
-    if (!permission.canVote) {
-      return NextResponse.json(
-        { error: permission.blockedReason || "You cannot vote in this event" },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const { projectId } = body;
-
+    // No role check: anyone may withdraw their own ballot (e.g. a voter whose role
+    // later changed). remove_project_vote only touches the caller's own row and
+    // enforces the voting window.
+    const projectId = await readProjectId(request);
     if (!projectId) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }
 
-    // Delete the vote
-    const { error: deleteError } = await supabase
-      .from("project_votes")
-      .delete()
-      .eq("project_id", projectId)
-      .eq("user_id", user.id)
-      .eq("event_id", eventId);
-
-    if (deleteError) {
-      console.error("Error deleting vote:", deleteError);
-      return NextResponse.json({ error: "Failed to remove vote" }, { status: 500 });
-    }
-
-    // Get updated vote count
-    const { count: currentVoteCount } = await supabase
-      .from("project_votes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("event_id", eventId);
-
-    return NextResponse.json({ success: true, remainingVotes: MAX_VOTES_PER_USER - (currentVoteCount || 0) });
+    const { data: remainingVotes, error: removeError } = await supabase.rpc("remove_project_vote", {
+      p_event_id: eventId, p_project_id: projectId,
+    });
+    if (removeError) return voteErrorResponse(removeError, "Failed to remove vote");
+    return NextResponse.json({ success: true, remainingVotes });
   } catch (error) {
     console.error("DELETE /events/[eventId]/votes error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
