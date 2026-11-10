@@ -25,8 +25,20 @@ jest.mock("./export", () => ({
   formatSubmissionValue: jest.requireActual("./export").formatSubmissionValue,
 }));
 
+const profilesIn = jest.fn();
+const csvRows: unknown[] = [];
+jest.mock("@/lib/utils/csv", () => ({
+  toSpreadsheetSafeCsv: (rows: unknown) => {
+    csvRows.push(rows);
+    return "csv";
+  },
+}));
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
+    from: jest.fn(() => ({
+      select: () => ({ in: (...args: unknown[]) => profilesIn(...args) }),
+    })),
     channel: jest.fn(() => ({
       on: jest.fn().mockReturnThis(),
       subscribe: jest.fn(() => ({
@@ -308,5 +320,46 @@ describe("SubmissionsTab", () => {
 
     expect(screen.queryByText("More compute")).not.toBeInTheDocument();
     expect(screen.getByText("AI | Accessibility")).toBeInTheDocument();
+  });
+
+  it("exports feedback with mentor names resolved from mentor_id and no mentor emails", async () => {
+    profilesIn.mockResolvedValue({ data: [{ uid: "mentor-2", display_name: "Grace Mentor" }], error: null });
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        projects: [
+          {
+            id: "project-1",
+            project_name: "Project One",
+            lead_name: "Alice",
+            lead_email: "alice@example.com",
+            teammates: [],
+            project_url: null,
+            event_id: "event-1",
+            created_at: "2026-04-01T00:00:00.000Z",
+            submitted: true,
+            project_tracks: [],
+            feedback: [
+              { feedback_text: "Nice", mentor_name: "Ada Mentor", mentor_id: "mentor-1" },
+              { feedback_text: "Ship it", mentor_name: null, mentor_id: "mentor-2" },
+            ],
+          },
+        ],
+      }),
+    });
+    const createObjectURL = jest.fn(() => "blob:x");
+    Object.assign(window.URL, { createObjectURL, revokeObjectURL: jest.fn() });
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    render(<SubmissionsTab eventId="event-1" />);
+    await waitFor(() => expect(screen.getByText("Project One")).toBeInTheDocument());
+    csvRows.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: /Export Feedback/ }));
+
+    await waitFor(() => expect(csvRows).toHaveLength(1));
+    const rows = csvRows[0] as Array<Record<string, string>>;
+    expect(profilesIn).toHaveBeenCalledWith("uid", ["mentor-2"]);
+    expect(rows.map((r) => r["Mentor Name"])).toEqual(["Ada Mentor", "Grace Mentor"]);
+    expect(Object.keys(rows[0])).not.toContain("Mentor Email");
   });
 });

@@ -74,11 +74,36 @@ export async function GET(
       return NextResponse.json({ form: null });
     }
 
+    let answers: Record<string, unknown> = {};
+    // Project questionnaires need a project ID; only per-user contexts can
+    // restore answers from this endpoint. Never use another user's submission.
+    if (context !== "project_submission") {
+      const { data: submission, error: submissionError } = await auth.supabase
+        .from("intake_form_submissions")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("context", context)
+        .eq("submitter_user_id", auth.user.id)
+        .eq("form_version_id", version.id)
+        .eq("status", "submitted")
+        .maybeSingle();
+      if (submissionError) throw submissionError;
+      if (submission) {
+        const { data: rows, error: answersError } = await auth.supabase
+          .from("intake_form_submission_answers")
+          .select("field_key, value_json")
+          .eq("submission_id", submission.id);
+        if (answersError) throw answersError;
+        answers = Object.fromEntries((rows || []).map(row => [row.field_key, row.value_json]));
+      }
+    }
+
     return NextResponse.json({
       form: {
         formVersionId: version.id,
         versionNumber: version.version_number,
         schema: version.schema_json as IntakeFormSchema,
+        answers,
       },
       context: context as IntakeFormContext,
     });
