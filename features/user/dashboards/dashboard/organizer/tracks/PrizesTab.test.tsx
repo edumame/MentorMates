@@ -1,195 +1,160 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { PrizesTab } from "./PrizesTab";
 import type { EventDetails } from "@/lib/types";
 
-const PRIZE_ID = "prize-1";
-
-const winner = {
-  id: "winner-1",
-  project_id: "project-1",
-  assigned_at: "2026-01-01T00:00:00.000Z",
-  assigned_by: "user-1",
-  projects: { id: "project-1", project_name: "Solar Scout", lead_name: "Ada" },
-};
-
-const buildEvent = (prizeId = PRIZE_ID) =>
-  ({
-    event_id: "event-1",
-    event_tracks: [
-      {
-        track_id: "track-1",
-        name: "Main Track",
-        prizes: [
-          {
-            id: prizeId,
-            track_id: "track-1",
-            prize_amount: "$500",
-            prize_description: "Grand prize",
-          },
-        ],
-      },
-    ],
-  }) as unknown as EventDetails;
-
-type MockResponse = { ok: boolean; status: number; body: unknown };
-
-const json = ({ ok, status, body }: MockResponse) => ({
-  ok,
-  status,
-  json: async () => body,
+// Radix accordion content is unmounted until opened; render it inline.
+jest.mock("@/components/ui/accordion", () => {
+  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  );
+  return {
+    Accordion: Passthrough,
+    AccordionContent: Passthrough,
+    AccordionItem: Passthrough,
+    AccordionTrigger: Passthrough,
+  };
 });
 
-function mockFetch({
-  listedPrizes,
-  deleteResponse = { ok: true, status: 200, body: { success: true } },
-}: {
-  listedPrizes: () => unknown[];
-  deleteResponse?: MockResponse;
-}) {
-  const fetchMock = jest.fn(async (url: string, init?: RequestInit) => {
-    if (init?.method === "DELETE") return json(deleteResponse);
-    if (url.startsWith("/api/projects")) {
-      return json({ ok: true, status: 200, body: { projects: [] } });
-    }
-    return json({ ok: true, status: 200, body: { prizes: listedPrizes() } });
-  });
-  global.fetch = fetchMock as unknown as typeof fetch;
-  return fetchMock;
-}
+jest.mock("@/components/ui/select", () => {
+  const Nothing = () => null;
+  return {
+    Select: Nothing,
+    SelectContent: Nothing,
+    SelectItem: Nothing,
+    SelectTrigger: Nothing,
+    SelectValue: Nothing,
+  };
+});
 
-const deleteCalls = (fetchMock: jest.Mock) =>
-  fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE");
+const PRIZE_ID = "prize-1";
+const TRACK_ID = "track-1";
 
-const toast = jest.fn();
-const setEvent = jest.fn();
+const winner = (projectId: string, projectName: string) => ({
+  id: `winner-${projectId}`,
+  project_id: projectId,
+  assigned_at: "2026-01-01T00:00:00.000Z",
+  assigned_by: "organizer-1",
+  projects: { id: projectId, project_name: projectName, lead_name: "Lead" },
+});
 
-async function renderTab(event = buildEvent()) {
-  render(
-    <PrizesTab
-      event={event}
-      setEvent={setEvent}
-      saving={false}
-      setSaving={jest.fn()}
-      toast={toast}
-      isArchived={false}
-    />
-  );
-  fireEvent.click(screen.getByRole("button", { name: /Main Track/ }));
-  return screen.findByRole("button", { name: "Delete prize" });
-}
+const event = {
+  event_id: "event-1",
+  event_tracks: [
+    {
+      track_id: TRACK_ID,
+      name: "Main",
+      prizes: [
+        { id: PRIZE_ID, track_id: TRACK_ID, prize_amount: "100" },
+      ],
+    },
+  ],
+} as unknown as EventDetails;
 
-describe("PrizesTab prize deletion", () => {
+const jsonResponse = (body: unknown, ok = true) =>
+  ({ ok, json: async () => body }) as Response;
+
+describe("PrizesTab remove winner", () => {
+  const toast = jest.fn();
+  const fetchMock = jest.fn();
+  const originalFetch = global.fetch;
+
+  const mockApi = (removeResponse: Response) => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith("/api/projects")) {
+        return jsonResponse({ projects: [] });
+      }
+      if (url.startsWith("/api/prizes/assign")) {
+        return removeResponse;
+      }
+      return jsonResponse({
+        prizes: [
+          {
+            id: PRIZE_ID,
+            prize_winners: [
+              winner("project/1", "Alpha"),
+              winner("project-2", "Beta"),
+            ],
+          },
+        ],
+      });
+    });
+  };
+
+  const renderTab = () =>
+    render(
+      <PrizesTab
+        event={event}
+        setEvent={jest.fn()}
+        saving={false}
+        setSaving={jest.fn()}
+        toast={toast}
+        isArchived={false}
+      />
+    );
+
+  const clickRemove = (projectName: RegExp) => {
+    const row = screen.getByText(projectName).parentElement!.parentElement!;
+    fireEvent.click(within(row).getByTitle("Remove winner"));
+  };
+
+  const assignCalls = () =>
+    fetchMock.mock.calls.filter(([url]) =>
+      String(url).startsWith("/api/prizes/assign")
+    );
+
   beforeEach(() => {
-    toast.mockClear();
-    setEvent.mockClear();
+    jest.clearAllMocks();
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    jest.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
-  it("names the winners and sends nothing until the organizer confirms", async () => {
-    const fetchMock = mockFetch({
-      listedPrizes: () => [
-        { id: PRIZE_ID, track_id: "track-1", prize_winners: [winner] },
-      ],
-    });
-    await renderTab();
-    await screen.findByText(/Solar Scout/);
-
-    fireEvent.click(screen.getByRole("button", { name: "Delete prize" }));
-
-    const dialog = await screen.findByRole("alertdialog");
-    expect(within(dialog).getByText(/Solar Scout/)).toBeInTheDocument();
-    expect(deleteCalls(fetchMock)).toHaveLength(0);
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm Delete" }));
-
-    await waitFor(() => expect(deleteCalls(fetchMock)).toHaveLength(1));
-    expect(deleteCalls(fetchMock)[0][0]).toBe(
-      `/api/prizes?prizeId=${PRIZE_ID}&force=true`
-    );
-    await waitFor(() => expect(setEvent).toHaveBeenCalledTimes(1));
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
   });
 
-  it("deletes nothing when the organizer cancels", async () => {
-    const fetchMock = mockFetch({
-      listedPrizes: () => [
-        { id: PRIZE_ID, track_id: "track-1", prize_winners: [winner] },
-      ],
-    });
-    await renderTab();
-    await screen.findByText(/Solar Scout/);
+  it("removes only the clicked winner through the scoped DELETE endpoint", async () => {
+    mockApi(jsonResponse({ success: true }));
+    renderTab();
+    await screen.findByText(/Alpha/);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete prize" }));
-    const dialog = await screen.findByRole("alertdialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    clickRemove(/Alpha/);
 
-    await waitFor(() =>
-      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
-    );
-    expect(deleteCalls(fetchMock)).toHaveLength(0);
-    expect(setEvent).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText(/Alpha/)).toBeNull());
+    expect(screen.getByText(/Beta/)).toBeTruthy();
+
+    expect(assignCalls()).toHaveLength(1);
+    const [url, init] = assignCalls()[0];
+    expect(init).toEqual({ method: "DELETE" });
+    const params = new URL(url, "http://localhost").searchParams;
+    expect(params.get("prizeId")).toBe(PRIZE_ID);
+    expect(params.get("projectId")).toBe("project/1");
   });
 
-  it("confirms a saved prize with no winners without overriding the server check", async () => {
-    const fetchMock = mockFetch({
-      listedPrizes: () => [
-        { id: PRIZE_ID, track_id: "track-1", prize_winners: [] },
-      ],
-    });
-    const trash = await renderTab();
+  it("keeps the winner on screen and reports the error when removal fails", async () => {
+    mockApi(jsonResponse({ error: "Failed to remove winner" }, false));
+    renderTab();
+    await screen.findByText(/Alpha/);
 
-    fireEvent.click(trash);
-    const dialog = await screen.findByRole("alertdialog");
-    expect(deleteCalls(fetchMock)).toHaveLength(0);
+    clickRemove(/Alpha/);
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm Delete" }));
-
-    await waitFor(() => expect(deleteCalls(fetchMock)).toHaveLength(1));
-    expect(deleteCalls(fetchMock)[0][0]).toBe(`/api/prizes?prizeId=${PRIZE_ID}`);
-  });
-
-  it("shows winners the tab did not know about when the server refuses the delete", async () => {
-    let prizes: unknown[] = [
-      { id: PRIZE_ID, track_id: "track-1", prize_winners: [] },
-    ];
-    const listedPrizes = jest.fn(() => prizes);
-    const fetchMock = mockFetch({
-      listedPrizes,
-      deleteResponse: {
-        ok: false,
-        status: 409,
-        body: { error: "This prize has winners." },
-      },
-    });
-    const trash = await renderTab();
-    await waitFor(() => expect(listedPrizes).toHaveBeenCalledTimes(1));
-
-    prizes = [{ id: PRIZE_ID, track_id: "track-1", prize_winners: [winner] }];
-    fireEvent.click(trash);
-    const dialog = await screen.findByRole("alertdialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm Delete" }));
-
-    await waitFor(() => expect(deleteCalls(fetchMock)).toHaveLength(1));
-    expect(deleteCalls(fetchMock)[0][0]).toBe(`/api/prizes?prizeId=${PRIZE_ID}`);
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
         expect.objectContaining({
-          description: "This prize has winners.",
+          description: "Failed to remove winner",
           variant: "destructive",
         })
       )
     );
-    expect(await screen.findByText(/Solar Scout/)).toBeInTheDocument();
-    expect(setEvent).not.toHaveBeenCalled();
-  });
-
-  it("removes an unsaved prize immediately because nothing is stored yet", async () => {
-    const fetchMock = mockFetch({ listedPrizes: () => [] });
-    const trash = await renderTab(buildEvent("local-1"));
-
-    fireEvent.click(trash);
-
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(deleteCalls(fetchMock)).toHaveLength(0);
-    expect(setEvent).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Alpha/)).toBeTruthy();
+    expect(screen.getByText(/Beta/)).toBeTruthy();
   });
 });

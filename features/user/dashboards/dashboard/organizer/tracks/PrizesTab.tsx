@@ -188,10 +188,9 @@ export function PrizesTab({
     try {
       setSaving(true);
 
-      const response = await fetch("/api/prizes/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prizeId, projectId: null }),
+      const params = new URLSearchParams({ prizeId, projectId });
+      const response = await fetch(`/api/prizes/assign?${params}`, {
+        method: "DELETE",
       });
 
       const data = await response.json();
