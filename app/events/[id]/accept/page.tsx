@@ -1,10 +1,10 @@
 import { JoinEventButton } from "@/components/events/join-event-button";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { notFound, redirect } from "next/navigation";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import { CommunityButtons } from "./community-buttons";
 import { Resource } from "@/lib/types";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -13,15 +13,13 @@ export default async function AcceptInvitePage({ params }: PageProps) {
   const { id } = await Promise.resolve(params);
   const supabase = await createSupabaseClient();
 
-  const isUUID = isValidUUID(id);
 
   let query = supabase.from("events").select("event_id, event_name, event_blurb, slug, event_resources");
 
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  query = query.eq("event_id", routeEventId);
 
   const { data: eventData, error } = await query.single();
 

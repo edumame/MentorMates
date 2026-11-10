@@ -1,3 +1,4 @@
+import { browserTimeZone, zonedLocalToUtc } from "@/lib/utils/zoned-time";
 /**
  * Wizard Event Data — unified state for the 4-step event creation wizard.
  *
@@ -210,6 +211,66 @@ export function slugify(name: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Event name / submission window helpers (ORG-015, ORG-016)
+// ---------------------------------------------------------------------------
+
+/** Same limit is enforced by POST /api/events. */
+export const EVENT_NAME_MAX_LENGTH = 120;
+
+const NAIVE_LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/;
+
+type SubmissionWindowValue = { iso: string | null; error: string | null };
+
+/**
+ * Convert a submission-window value to an absolute ISO-8601 instant.
+ *
+ * `<input type="datetime-local">` yields a naive "YYYY-MM-DDTHH:mm" string;
+ * it is read in the organizer's time zone (the browser's by default) through
+ * the shared zonedLocalToUtc helper, which rejects DST-gap times and picks the
+ * earlier instant for ambiguous ones. Values that already carry an offset
+ * (e.g. scraped imports) keep their instant.
+ */
+function convertSubmissionWindowValue(
+  value: string | null | undefined,
+  timeZone: string
+): SubmissionWindowValue {
+  const trimmed = value?.trim();
+  if (!trimmed) return { iso: null, error: null };
+  if (NAIVE_LOCAL_DATE_TIME.test(trimmed)) {
+    const result = zonedLocalToUtc(trimmed.slice(0, 19), timeZone);
+    return result.ok ? { iso: result.iso, error: null } : { iso: null, error: result.error };
+  }
+  if (/(Z|[+-]\d{2}:?\d{2})$/i.test(trimmed)) {
+    const time = Date.parse(trimmed);
+    if (!Number.isNaN(time)) return { iso: new Date(time).toISOString(), error: null };
+  }
+  return { iso: null, error: "invalid" };
+}
+
+export function toSubmissionWindowIso(
+  value: string | null | undefined,
+  timeZone: string = browserTimeZone()
+): string | null {
+  return convertSubmissionWindowValue(value, timeZone).iso;
+}
+
+/** Returns a user-facing error, or null when the window is valid. */
+export function validateSubmissionWindow(
+  start: string | null | undefined,
+  cutoff: string | null | undefined,
+  timeZone: string = browserTimeZone()
+): string | null {
+  const s = convertSubmissionWindowValue(start, timeZone);
+  const c = convertSubmissionWindowValue(cutoff, timeZone);
+  if (s.error) return s.error === "invalid" ? "Submission opening time is invalid." : `Opens: ${s.error}`;
+  if (c.error) return c.error === "invalid" ? "Submission closing time is invalid." : `Closes: ${c.error}`;
+  if (s.iso && c.iso && Date.parse(c.iso) <= Date.parse(s.iso)) {
+    return "Submissions must close after they open.";
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // buildApiPayload — convert wizard state → POST /api/events body
 // ---------------------------------------------------------------------------
 
@@ -272,7 +333,7 @@ export interface EventApiPayload {
 export function buildApiPayload(event: WizardEventData): EventApiPayload {
   const payload: EventApiPayload = {
     event: {
-      event_name: event.event_name,
+      event_name: event.event_name.trim(),
       event_date: event.event_date,
       location: event.location,
       visibility: event.visibility,
@@ -282,16 +343,18 @@ export function buildApiPayload(event: WizardEventData): EventApiPayload {
   const e = payload.event;
 
   // Optional string fields — only include if non-empty
-  if (event.slug) e.slug = event.slug;
+  // Normalise (collapse/trim hyphens) so the API's slug rules accept it.
+  const slug = slugify(event.slug);
+  if (slug) e.slug = slug;
   if (event.cover_image_url) e.cover_image_url = event.cover_image_url;
   if (event.event_blurb) e.event_blurb = event.event_blurb;
   if (event.event_description) e.event_description = event.event_description;
   if (event.external_url) e.external_url = event.external_url.trim();
   e.external_redirect_enabled = event.external_redirect_enabled;
-  if (event.submission_time_start)
-    e.submission_time_start = event.submission_time_start;
-  if (event.submission_time_cutoff)
-    e.submission_time_cutoff = event.submission_time_cutoff;
+  const submissionStart = toSubmissionWindowIso(event.submission_time_start);
+  const submissionCutoff = toSubmissionWindowIso(event.submission_time_cutoff);
+  if (submissionStart) e.submission_time_start = submissionStart;
+  if (submissionCutoff) e.submission_time_cutoff = submissionCutoff;
   if (event.participant_capacity)
     e.participant_capacity = event.participant_capacity;
   if (event.event_type) e.event_type = event.event_type;
@@ -410,8 +473,11 @@ export function applyScrapedData(
     updated.event_date = scraped.event_date;
   if (typeof scraped.location === "string") updated.location = scraped.location;
   if (typeof scraped.slug === "string") updated.slug = scraped.slug;
-  if (typeof scraped.cover_image_url === "string")
+  if (typeof scraped.cover_image_url === "string") {
     updated.cover_image_url = scraped.cover_image_url;
+    // An imported URL replaces any picked file, matching CoverImageInput.
+    updated.cover_image_file = undefined;
+  }
   if (typeof scraped.event_blurb === "string")
     updated.event_blurb = scraped.event_blurb;
   if (typeof scraped.event_description === "string")

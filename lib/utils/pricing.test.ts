@@ -1,9 +1,12 @@
 import {
   DEFAULT_PAYMENT_CURRENCY,
   PAYMENT_CURRENCY_OPTIONS,
+  formatCouponAmount,
   formatPrice,
   getCheapestPricingTier,
   getPaidEventJoinLabel,
+  isZeroDecimalCurrency,
+  toMinorUnits,
 } from "./pricing";
 import type { PricingTier } from "@/lib/types";
 
@@ -77,5 +80,49 @@ describe("getPaidEventJoinLabel", () => {
 
   it("falls back when a paid event has no pricing tiers", () => {
     expect(getPaidEventJoinLabel([])).toBe("Join Event - Paid Event");
+  });
+});
+
+describe("zero-decimal coupon amounts", () => {
+  it.each(["jpy", "krw", "vnd", "JPY", " jpy "])(
+    "treats %j as zero-decimal",
+    (currency) => {
+      expect(isZeroDecimalCurrency(currency)).toBe(true);
+    }
+  );
+
+  it.each(["usd", "eur", "idr", "", undefined, null])(
+    "treats %j as two-decimal",
+    (currency) => {
+      expect(isZeroDecimalCurrency(currency)).toBe(false);
+    }
+  );
+
+  it("does not scale zero-decimal amounts for Stripe", () => {
+    expect(toMinorUnits(500, "jpy")).toBe(500);
+    expect(toMinorUnits(500, "krw")).toBe(500);
+    expect(toMinorUnits(500, "vnd")).toBe(500);
+  });
+
+  it("scales two-decimal amounts to cents", () => {
+    expect(toMinorUnits(10, "usd")).toBe(1000);
+    expect(toMinorUnits(10)).toBe(1000);
+  });
+
+  it("always returns the integer Stripe requires", () => {
+    expect(toMinorUnits(19.99, "usd")).toBe(1999);
+    expect(toMinorUnits(1.1, "usd")).toBe(110);
+    expect(toMinorUnits(500.6, "jpy")).toBe(501);
+  });
+
+  it("renders the amount Stripe will actually discount", () => {
+    expect(formatCouponAmount(500, "jpy")).toBe("\u00a5500");
+    expect(formatCouponAmount(50000, "jpy")).toBe("\u00a550,000");
+    expect(formatCouponAmount(1000, "usd")).toBe("$10.00");
+    expect(formatCouponAmount(1000)).toBe("$10.00");
+  });
+
+  it("leaves formatPrice unchanged for x100 tier prices", () => {
+    expect(formatPrice(300000, "jpy")).toBe("\u00a53,000");
   });
 });

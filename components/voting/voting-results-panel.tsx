@@ -6,6 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import { VotingWindowControl } from "./voting-window-control";
+import { toSpreadsheetSafeCsv } from "@/lib/utils/csv";
+
+/** Rows for the voting results CSV (header row first). */
+export function buildVotingResultsCsvRows(results: VotingResult[]): unknown[][] {
+  return [
+    ["Rank", "Project Name", "Lead Name", "Vote Count"],
+    ...results.map((result, index) => [
+      index + 1,
+      result.projectName,
+      result.leadName,
+      result.voteCount,
+    ]),
+  ];
+}
 
 interface VotingResultsPanelProps {
   eventId: string;
@@ -16,18 +31,8 @@ export function VotingResultsPanel({ eventId }: VotingResultsPanelProps) {
     useVotingResults(eventId);
 
   const exportToCSV = () => {
-    const headers = ["Rank", "Project Name", "Lead Name", "Vote Count"];
-    const rows = results.map((result, index) => [
-      index + 1,
-      result.projectName,
-      result.leadName,
-      result.voteCount,
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-    ].join("\n");
+    // Shared helper: proper quoting and formula neutralisation (ORG-001).
+    const csvContent = toSpreadsheetSafeCsv(buildVotingResultsCsvRows(results));
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -81,6 +86,8 @@ export function VotingResultsPanel({ eventId }: VotingResultsPanelProps) {
           </Button>
         </div>
       </div>
+
+      <VotingWindowControl eventId={eventId} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
