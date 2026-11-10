@@ -334,6 +334,9 @@ describe("Agent API Key Auth", () => {
         isAdmin: false,
         isOwner: false,
         userRole: EventRole.Organizer,
+        visibility: null,
+        approvalStatus: null,
+        featured: null,
       });
     });
 
@@ -364,6 +367,9 @@ describe("Agent API Key Auth", () => {
         isAdmin: false,
         isOwner: false,
         userRole: EventRole.Participant,
+        visibility: null,
+        approvalStatus: null,
+        featured: null,
       });
     });
 
@@ -391,6 +397,9 @@ describe("Agent API Key Auth", () => {
         isAdmin: false,
         isOwner: true,
         userRole: null,
+        visibility: null,
+        approvalStatus: null,
+        featured: null,
       });
     });
 
@@ -420,6 +429,89 @@ describe("Agent API Key Auth", () => {
           error: "The API key owner no longer has permission to access this event",
         });
       }
+    });
+    it("refuses write intent on an archived event for a non-admin organizer (409)", async () => {
+      const { eventQuery, roleQuery, rpc } = mockSupabase();
+      eventQuery.maybeSingle.mockResolvedValue({
+        data: { owner_id: "user-1", visibility: "archived", approval_status: "approved", featured: false },
+        error: null,
+      });
+      roleQuery.maybeSingle.mockResolvedValue({ data: { role: EventRole.Organizer }, error: null });
+      rpc.mockResolvedValue({ data: false, error: null });
+
+      const result = await authorizeAgentEventAccess(
+        { userId: "user-1", eventId: "event-1", scopes: [], keyId: "key-1" },
+        EventRole.Organizer,
+        { intent: "write" }
+      );
+
+      expect(result).toMatchObject({ status: 409 });
+      if ("status" in result) {
+        await expect(result.json()).resolves.toEqual({
+          error: "archived events are read-only; unarchive first",
+        });
+      }
+    });
+
+    it("still allows read intent on an archived event and returns its state", async () => {
+      const { eventQuery, roleQuery, rpc } = mockSupabase();
+      eventQuery.maybeSingle.mockResolvedValue({
+        data: { owner_id: "user-1", visibility: "archived", approval_status: "not_submitted", featured: false },
+        error: null,
+      });
+      roleQuery.maybeSingle.mockResolvedValue({ data: { role: EventRole.Organizer }, error: null });
+      rpc.mockResolvedValue({ data: false, error: null });
+
+      const result = await authorizeAgentEventAccess({
+        userId: "user-1",
+        eventId: "event-1",
+        scopes: [],
+        keyId: "key-1",
+      });
+
+      expect(result).toMatchObject({
+        visibility: "archived",
+        approvalStatus: "not_submitted",
+        featured: false,
+      });
+    });
+
+    it("allows write intent on an archived event for an admin", async () => {
+      const { eventQuery, roleQuery, rpc } = mockSupabase();
+      eventQuery.maybeSingle.mockResolvedValue({
+        data: { owner_id: "owner-1", visibility: "archived", approval_status: "approved", featured: false },
+        error: null,
+      });
+      roleQuery.maybeSingle.mockResolvedValue({ data: null, error: null });
+      rpc.mockImplementation((name: string) =>
+        Promise.resolve({ data: name === "is_admin_user", error: null })
+      );
+
+      const result = await authorizeAgentEventAccess(
+        { userId: "admin-1", eventId: "event-1", scopes: [], keyId: "key-1" },
+        EventRole.Organizer,
+        { intent: "write" }
+      );
+
+      expect(result).toMatchObject({ isAdmin: true, visibility: "archived" });
+    });
+
+    it("allows write intent on a non-archived event", async () => {
+      const { eventQuery, roleQuery, rpc } = mockSupabase();
+      eventQuery.maybeSingle.mockResolvedValue({
+        data: { owner_id: "user-1", visibility: "private", approval_status: "not_submitted", featured: false },
+        error: null,
+      });
+      roleQuery.maybeSingle.mockResolvedValue({ data: { role: EventRole.Organizer }, error: null });
+      rpc.mockResolvedValue({ data: false, error: null });
+
+      const result = await authorizeAgentEventAccess(
+        { userId: "user-1", eventId: "event-1", scopes: [], keyId: "key-1" },
+        EventRole.Organizer,
+        { intent: "write" }
+      );
+
+      expect(result).toMatchObject({ eventId: "event-1", visibility: "private" });
     });
   });
 });
