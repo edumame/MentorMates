@@ -138,6 +138,8 @@ export async function POST(
         project_id,
         user_id,
         role,
+        // Re-activate soft-revoked rows for the same pair (A1, JUDGE-017).
+        revoked_at: null,
       }))
     );
 
@@ -146,7 +148,7 @@ export async function POST(
       .from("project_assignments")
       .upsert(rows, {
         onConflict: "project_id,user_id,role",
-        ignoreDuplicates: true,
+        ignoreDuplicates: false,
         count: "exact",
       });
 

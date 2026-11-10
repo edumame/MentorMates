@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { getUserProjectIds } from "@/lib/projects/membership";
+import { parseUtcTimestamp } from "@/lib/utils/parse-utc-timestamp";
 
 export async function GET(request: Request) {
   const supabase = await createSupabaseClient();
@@ -20,24 +22,17 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
 
   try {
-    // Get user's email to find their projects
-    const userEmail = user.email;
 
     // Get user's projects to find feedback for them (using lead_email and teammates)
-    const { data: userProjects, error: projectsError } = await supabase
-      .from("projects")
-      .select("id")
-      .or(`lead_email.eq.${userEmail},teammates.cs.{"${userEmail}"}`);
+    const { ids: projectIds, error: projectsError } = await getUserProjectIds(supabase);
 
-    if (projectsError) {
+    if (projectsError || !projectIds) {
       console.error("Error fetching user projects:", projectsError);
       return NextResponse.json(
         { error: "Error fetching projects" },
         { status: 500 }
       );
     }
-
-    const projectIds = userProjects?.map((p) => p.id) || [];
 
     if (projectIds.length === 0) {
       return NextResponse.json({
@@ -50,7 +45,7 @@ export async function GET(request: Request) {
     // Get feedback for user's projects
     const { data: feedbackData, error: feedbackError } = await supabase
       .from("feedback")
-      .select("id, feedback_text, created_at, mentor_name, mentor_email, mentor_id, project_id")
+      .select("id, feedback_text, created_at, mentor_name, mentor_id, project_id")
       .in("project_id", projectIds)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -124,16 +119,14 @@ export async function GET(request: Request) {
         id: f.id,
         sender: {
           name: mentor?.name || f.mentor_name || "Anonymous",
-          avatar: mentor?.avatar || "/placeholder-avatar.png",
+          // null -> the inbox renders the sender's initials (AvatarFallback).
+          avatar: mentor?.avatar || null,
           role: "Mentor",
         },
         projectName: projectMap.get(f.project_id || "") || "Unknown Project",
         message: f.feedback_text || "",
-        date: new Date(f.created_at || "").toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        }),
+        // ISO (UTC); the client formats it in the viewer's time zone.
+        date: parseUtcTimestamp(f.created_at)?.toISOString() ?? "",
         isRead: !!readAt,
       };
     });
