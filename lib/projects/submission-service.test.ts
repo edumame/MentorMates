@@ -574,7 +574,11 @@ describe("saveProjectSubmission", () => {
           .mockReturnValueOnce(buildQuery(row))
           .mockReturnValueOnce(buildQuery(row)),
         update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
         }),
       };
       const answersTable = {
@@ -611,6 +615,7 @@ describe("saveProjectSubmission", () => {
             if (!tables[table]) throw new Error(`Unexpected table ${table}`);
             return tables[table];
           }),
+          rpc: jest.fn(async () => ({ data: [], error: null })),
         },
       };
     }
