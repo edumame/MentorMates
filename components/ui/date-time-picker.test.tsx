@@ -1,3 +1,7 @@
+// Pin the browser zone so the DST cases below are deterministic; the
+// display-day cases pick a disagreeing zone from whatever this is.
+process.env.TZ = "America/Los_Angeles";
+
 import * as React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
@@ -158,5 +162,32 @@ describe("DateTimePicker", () => {
     expect(onChange).toHaveBeenLastCalledWith(
       fromZonedTime(`${zoneDay(INSTANT, zone)} 15:00`, zone).toISOString()
     );
+  });
+});
+
+// ORG-015: the Edit Event picker shares the wizard's conversion rules.
+describe("DateTimePicker DST handling", () => {
+  function openPicker(onChange: jest.Mock) {
+    render(
+      <DateTimePicker value="2026-03-08T18:00:00.000Z" timezone="America/Los_Angeles" showTimezone={false} onChange={onChange} />
+    );
+    fireEvent.click(screen.getByPlaceholderText("Select date and time"));
+    return document.querySelector('input[type="time"]') as HTMLInputElement;
+  }
+
+  it("rejects a time inside the spring-forward gap without emitting a value", () => {
+    const onChange = jest.fn();
+    const input = openPicker(onChange);
+    fireEvent.change(input, { target: { value: "02:30" } });
+    expect(screen.getByRole("alert")).toHaveTextContent(/does not exist/);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("emits the UTC instant for a valid local time", () => {
+    const onChange = jest.fn();
+    const input = openPicker(onChange);
+    fireEvent.change(input, { target: { value: "09:15" } });
+    expect(onChange).toHaveBeenLastCalledWith("2026-03-08T16:15:00.000Z");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

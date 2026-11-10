@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTeamEmails, getUserProjectIds } from "@/lib/projects/membership";
 import { createClient } from "@/app/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,11 +86,16 @@ export function TeamFormationPanel({ eventId }: TeamFormationPanelProps) {
       setUserId(uid);
       const email = data.user?.email;
       if (email) {
-        const { data: projects } = await supabase
-          .from("projects")
-          .select("id, project_name")
-          .eq("event_id", eventId)
-          .eq("lead_email", email);
+        // Team email columns are not client-readable: find the caller's
+        // projects via my_project_ids, then keep the ones they lead.
+        const { ids } = await getUserProjectIds(supabase, eventId);
+        const teamEmails = await getTeamEmails(supabase, ids ?? []);
+        const ledIds = (ids ?? []).filter(
+          (id) => teamEmails.get(id)?.lead_email.toLowerCase() === email.toLowerCase()
+        );
+        const { data: projects } = ledIds.length
+          ? await supabase.from("projects").select("id, project_name").in("id", ledIds)
+          : { data: [] };
         setLeadProjects(projects ?? []);
       }
     });
