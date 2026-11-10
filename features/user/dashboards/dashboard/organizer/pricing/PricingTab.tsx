@@ -26,6 +26,7 @@ import {
   DEFAULT_PAYMENT_CURRENCY,
   PAYMENT_CURRENCY_OPTIONS,
 } from "@/lib/utils/pricing";
+import { toDateTimeLocalValue } from "@/lib/utils/date";
 
 interface PricingTabProps {
   event: EventDetails;
@@ -579,9 +580,7 @@ export function PricingTab({
                                 type="datetime-local"
                                 value={
                                   tier.available_until
-                                    ? new Date(tier.available_until)
-                                        .toISOString()
-                                        .slice(0, 16)
+                                    ? toDateTimeLocalValue(tier.available_until)
                                     : ""
                                 }
                                 onChange={(e) =>
