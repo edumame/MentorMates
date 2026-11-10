@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTRPC } from "@/trpc/client";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -41,13 +42,20 @@ export function MentorCards() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const { data: allData } = useQuery(trpc.meetings.getMany.queryOptions({}));
-  const { data, refetch, isPending, isError } = useQuery(
-    trpc.meetings.getMany.queryOptions({
+  // meetings.getMany is a protected procedure: don't fire it (and log 401s)
+  // for signed-out visitors of /learn.
+  const { isAuthenticated } = useAuth();
+  const { data: allData } = useQuery({
+    ...trpc.meetings.getMany.queryOptions({}),
+    enabled: isAuthenticated,
+  });
+  const { data, refetch, isPending, isError } = useQuery({
+    ...trpc.meetings.getMany.queryOptions({
       eventId: selectedEventId ?? undefined,
       projectId: selectedProjectId ?? undefined,
-    })
-  );
+    }),
+    enabled: isAuthenticated,
+  });
 
   const [eventOptions, setEventOptions] = useState<{ id: string; name: string }[]>([]);
   const [projectOptions, setProjectOptions] = useState<{ id: string; name: string }[]>([]);

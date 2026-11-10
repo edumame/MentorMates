@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Papa from "papaparse";
+import { toSpreadsheetSafeCsv } from "@/lib/utils/csv";
 import { supabase } from "@/lib/supabase";
 import {
   Table,
@@ -91,8 +91,8 @@ interface ProjectData {
   }[];
   feedback: {
     feedback_text: string;
-    mentor_name: string;
-    mentor_email: string;
+    mentor_name: string | null;
+    mentor_id: string | null;
   }[];
   artifacts?: {
     kind: "project_link" | "video_link" | "additional_material";
@@ -384,7 +384,7 @@ export function SubmissionsTab({
 
   const exportSubmissions = async () => {
     if (projects.length > 0) {
-      const csv = Papa.unparse(buildSubmissionExportRows(projects));
+      const csv = toSpreadsheetSafeCsv(buildSubmissionExportRows(projects));
 
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
@@ -396,6 +396,31 @@ export function SubmissionsTab({
   };
 
   const exportFeedback = async () => {
+    // feedback.mentor_email is no longer stored (lane A2, MENT-002); the
+    // mentor is identified by name, resolved from mentor_id when missing.
+    const mentorIdsWithoutName = Array.from(
+      new Set(
+        projects.flatMap((project) =>
+          (project.feedback ?? [])
+            .filter((fb) => !fb.mentor_name?.trim() && fb.mentor_id)
+            .map((fb) => fb.mentor_id as string)
+        )
+      )
+    );
+    const mentorNames = new Map<string, string>();
+    if (mentorIdsWithoutName.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from("user_profiles")
+        .select("uid, display_name")
+        .in("uid", mentorIdsWithoutName);
+      if (profilesError) {
+        console.error("Error loading mentor names:", profilesError);
+      }
+      (profiles ?? []).forEach((profile) => {
+        if (profile.display_name) mentorNames.set(profile.uid, profile.display_name);
+      });
+    }
+
     // Create a flattened array where each feedback gets its own row
     const feedbackRows = projects.flatMap((project) => {
       // If no feedback, do not include the project in the export
@@ -417,12 +442,14 @@ export function SubmissionsTab({
             .filter(Boolean)
             .join(", ") || "",
         "Feedback Text": fb.feedback_text,
-        "Mentor Name": fb.mentor_name,
-        "Mentor Email": fb.mentor_email,
+        "Mentor Name":
+          fb.mentor_name?.trim() ||
+          (fb.mentor_id ? mentorNames.get(fb.mentor_id) : undefined) ||
+          "",
       }));
     });
 
-    const csv = Papa.unparse(feedbackRows);
+    const csv = toSpreadsheetSafeCsv(feedbackRows);
 
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
