@@ -1,9 +1,20 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { OrganizerEditOverview } from "./organizer-edit-overview";
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
+const mockRefresh = jest.fn();
+const mockToast = jest.fn();
 let mockSearchParams = new URLSearchParams();
+const defaultEventRow = {
+  event_id: "sample",
+  event_name: "QA Sample Event",
+  event_tracks: [],
+  visibility: "public",
+  approval_status: "approved",
+};
+let mockEventRow: Record<string, unknown> = { ...defaultEventRow };
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: mockReplace }),
+  useRouter: () => ({ replace: mockReplace, push: mockPush, refresh: mockRefresh }),
   usePathname: () => "/events/sample/overview",
   useSearchParams: () => mockSearchParams,
 }));
@@ -82,7 +93,7 @@ jest.mock("@/features/intake-forms/components/IntakeFormBuilder", () => ({
   IntakeFormBuilder: () => null,
 }));
 jest.mock("@/lib/hooks/use-toast", () => ({
-  useToast: () => ({ toast: jest.fn() }),
+  useToast: () => ({ toast: mockToast }),
 }));
 jest.mock("@/lib/supabase", () => ({
   supabase: {
@@ -91,14 +102,7 @@ jest.mock("@/lib/supabase", () => ({
       const query = {
         select: () => query,
         eq: () => query,
-        single: async () => ({
-          data: {
-            event_id: "sample",
-            event_tracks: [],
-            visibility: "public",
-            approval_status: "approved",
-          },
-        }),
+        single: async () => ({ data: mockEventRow }),
         then: (resolve: (value: unknown) => void) =>
           Promise.resolve({ count: 0 }).then(resolve),
       };
@@ -109,7 +113,15 @@ jest.mock("@/lib/supabase", () => ({
 
 beforeEach(() => {
   mockReplace.mockClear();
+  mockPush.mockClear();
+  mockToast.mockClear();
+  mockEventRow = { ...defaultEventRow };
   localStorage.clear();
+});
+
+afterEach(() => {
+  // Only the action tests below install a fetch mock.
+  delete (global as { fetch?: unknown }).fetch;
 });
 
 it.each(["forms", "intake-forms"])(
@@ -145,4 +157,113 @@ it("exposes Forms from the default People view and preserves unrelated URL param
     "/events/sample/overview?view=organizer&tab=forms",
     { scroll: false },
   );
+});
+
+describe("header actions", () => {
+  function mockFetch(response: { ok: boolean; status?: number; body: unknown }) {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: response.ok,
+      status: response.status ?? (response.ok ? 200 : 500),
+      json: async () => response.body,
+    });
+    (global as { fetch?: unknown }).fetch = fetchMock;
+    return fetchMock;
+  }
+
+  async function openDeleteDialog() {
+    mockSearchParams = new URLSearchParams({ tab: "overview" });
+    render(<OrganizerEditOverview eventId="sample" />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Delete$/ }));
+    return screen.findByRole("alertdialog");
+  }
+
+  it("ORG-007: requires typing the event name before Confirm Delete is enabled", async () => {
+    const fetchMock = mockFetch({ ok: true, body: { success: true } });
+    await openDeleteDialog();
+    const confirm = screen.getByRole("button", { name: "Confirm Delete" });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(/no longer belong to any event/);
+
+    const input = screen.getByLabelText(/to confirm/);
+    fireEvent.change(input, { target: { value: "QA Sample" } });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: "QA Sample Event" } });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/events/sample", { method: "DELETE" }),
+    );
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/events"));
+  });
+
+  it("ORG-006: shows the server's message and stays on the page when delete is refused", async () => {
+    mockFetch({
+      ok: false,
+      status: 409,
+      body: { error: "This event has payment records and cannot be deleted. Archive it instead." },
+    });
+    await openDeleteDialog();
+    fireEvent.change(screen.getByLabelText(/to confirm/), {
+      target: { value: "QA Sample Event" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Delete" }));
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: "destructive",
+          description: expect.stringMatching(/Archive it instead/),
+        }),
+      ),
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ error: "Failed to delete event. Nothing was changed." }, "Failed to delete event. Nothing was changed."],
+    [{}, "Failed to delete event"],
+  ])("ORG-007: a failed delete shows a clear toast (%p)", async (body, message) => {
+    mockFetch({ ok: false, status: 500, body });
+    await openDeleteDialog();
+    fireEvent.change(screen.getByLabelText(/to confirm/), { target: { value: "QA Sample Event" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Delete" }));
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ variant: "destructive", description: message }),
+      ),
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("ORG-005: an archived event offers an enabled Unarchive action", async () => {
+    mockEventRow = { ...defaultEventRow, visibility: "archived" };
+    const fetchMock = mockFetch({
+      ok: true,
+      body: { success: true, action: "unarchive", newVisibility: "private" },
+    });
+    mockSearchParams = new URLSearchParams({ tab: "overview" });
+    render(<OrganizerEditOverview eventId="sample" />);
+    const button = await screen.findByRole("button", { name: "Unarchive" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm Unarchive" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/events/sample",
+        expect.objectContaining({ method: "PATCH", body: JSON.stringify({ action: "unarchive" }) }),
+      ),
+    );
+  });
+
+  it("ORG-020: the submit-for-approval dialog has no decorative visibility selector", async () => {
+    mockEventRow = { ...defaultEventRow, visibility: "private", approval_status: "not_submitted" };
+    mockSearchParams = new URLSearchParams({ tab: "overview" });
+    render(<OrganizerEditOverview eventId="sample" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Submit" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent(/request approval now/);
+    expect(dialog.querySelector("[role=combobox]")).toBeNull();
+  });
 });

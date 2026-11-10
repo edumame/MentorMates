@@ -1,5 +1,6 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { loginRedirectFor } from "@/modules/meetings/server/login-redirect";
 import KeysPageClient, { type AgentKeyRecord, type KeyEventOption } from "./keys-page-client";
 import { listManagedAgentEvents, listParticipantAgentEvents } from "@/lib/agent/event-access";
 
@@ -32,7 +33,7 @@ export default async function KeysPage() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    redirect("/sign-in");
+    redirect(loginRedirectFor("/keys"));
   }
 
   let keys: AgentKeyRecord[] = [];

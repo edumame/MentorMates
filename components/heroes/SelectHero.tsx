@@ -55,7 +55,9 @@ export function SelectHero() {
               variant="outline"
               className="px-8 py-6 text-lg"
               onClick={() => {
-                router.push("/mentor/login");
+                // /mentor/login never existed (MENT-020). Mentors and judges
+                // sign in normally and join their event from the events list.
+                router.push(`/login?returnUrl=${encodeURIComponent("/events")}`);
               }}
             >
               <UserCheck className="mr-2" /> Mentor/ Judge
