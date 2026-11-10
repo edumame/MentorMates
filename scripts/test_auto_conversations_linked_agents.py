@@ -14,7 +14,7 @@ from test_scraper_quota import CONTAINER, docker, sql
 MIGRATIONS = Path(__file__).resolve().parents[1] / "supabase/migrations"
 ORIGINAL = MIGRATIONS / "20260206_add_auto_conversations_on_join.sql"
 AGENT_EVENTS = MIGRATIONS / "20260211_agent_events.sql"
-FIX = MIGRATIONS / "202611050115_auto_conversations_linked_agents.sql"
+FIX = MIGRATIONS / "202611090303_auto_conversations_linked_agents.sql"
 
 # Only the columns the migrations under test read or write.
 FIXTURE = """
