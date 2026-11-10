@@ -26,6 +26,7 @@ import {
   DEFAULT_PAYMENT_CURRENCY,
   PAYMENT_CURRENCY_OPTIONS,
 } from "@/lib/utils/pricing";
+import { toDateTimeLocalValue } from "@/lib/utils/date";
 
 interface PricingTabProps {
   event: EventDetails;
@@ -150,6 +151,11 @@ export function PricingTab({
         setPricingTiers((prev) =>
           prev.map((tier) => ({ ...tier, is_active: false }))
         );
+        // Already persisted, so it is not a pending edit. Without this, turning
+        // a tier back on would compare equal to the stale baseline and look saved.
+        setOriginalPricingTiers((prev) =>
+          prev.map((tier) => ({ ...tier, is_active: false }))
+        );
 
         // Update event paid status
         const { error: eventError } = await supabase
@@ -176,7 +182,9 @@ export function PricingTab({
         setSaving(false);
       }
     } else {
-      // When making event paid, just update the event
+      // When making event paid, just update the event. Deactivated tiers stay
+      // inactive until the organizer turns them back on, so nothing goes on sale
+      // without an explicit choice.
       setSaving(true);
       try {
         const { error } = await supabase
@@ -188,7 +196,11 @@ export function PricingTab({
 
         toast({
           title: "Success",
-          description: "Event set to paid",
+          description: pricingTiers.some(
+            (tier) => tier.is_active === false && !tier._markedForDeletion
+          )
+            ? "Event set to paid. Turn on the pricing tiers you want to offer, then save."
+            : "Event set to paid",
         });
       } catch (error) {
         console.error("Error updating event:", error);
@@ -428,7 +440,7 @@ export function PricingTab({
                 <Inventory className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
                 <p>Loading pricing tiers...</p>
               </div>
-             ) : pricingTiers.filter(tier => tier.is_active !== false && !tier._markedForDeletion).length === 0 ? (
+             ) : pricingTiers.filter(tier => !tier._markedForDeletion).length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Inventory className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No pricing tiers configured</p>
@@ -438,7 +450,7 @@ export function PricingTab({
               </div>
             ) : (
               <div className="space-y-4">
-                 {pricingTiers.filter(tier => tier.is_active !== false && !tier._markedForDeletion).map((tier, displayIndex) => {
+                 {pricingTiers.filter(tier => !tier._markedForDeletion).map((tier, displayIndex) => {
                   // Find the actual index in the original array
                   const actualIndex = pricingTiers.findIndex(t => t.id === tier.id);
                   return (
@@ -448,16 +460,34 @@ export function PricingTab({
                           <CardTitle className="text-lg">
                             Tier {displayIndex + 1}
                           </CardTitle>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removePricingTier(actualIndex)}
-                            className="text-red-600 hover:text-red-700"
-                            disabled={isArchived}
-                          >
-                            <Delete className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center space-x-2">
+                              <Switch
+                                id={`tier-active-${actualIndex}`}
+                                checked={tier.is_active !== false}
+                                onCheckedChange={(checked) =>
+                                  updatePricingTier(actualIndex, { is_active: checked })
+                                }
+                                disabled={isArchived}
+                              />
+                              <Label htmlFor={`tier-active-${actualIndex}`}>Active</Label>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removePricingTier(actualIndex)}
+                              className="text-red-600 hover:text-red-700"
+                              disabled={isArchived}
+                            >
+                              <Delete className="h-4 w-4" />
+                            </Button>
+                          </div>
                       </div>
+                      {tier.is_active === false && (
+                        <p className="text-sm text-gray-600">
+                          Inactive tiers are not available to participants. Turn this on and save to offer it.
+                        </p>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,180px)_minmax(0,140px)] gap-4">
@@ -550,9 +580,7 @@ export function PricingTab({
                                 type="datetime-local"
                                 value={
                                   tier.available_until
-                                    ? new Date(tier.available_until)
-                                        .toISOString()
-                                        .slice(0, 16)
+                                    ? toDateTimeLocalValue(tier.available_until)
                                     : ""
                                 }
                                 onChange={(e) =>

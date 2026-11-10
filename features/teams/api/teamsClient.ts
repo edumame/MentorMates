@@ -75,15 +75,18 @@ export async function patchTeam(
 }
 
 // Removes a single member (or, when userId is omitted, dissolves the team).
+// `dissolved` is also true when the removed member was the lead.
 export async function deleteTeamOrMember(
   eventId: string,
   teamId: string,
   userId?: string
-): Promise<void> {
+): Promise<{ dissolved: boolean }> {
   const params = new URLSearchParams({ teamId });
   if (userId) params.set("userId", userId);
   const res = await fetch(`/api/events/${eventId}/teams?${params.toString()}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(await parseError(res));
+  const body = await res.json();
+  return { dissolved: body?.dissolved === true };
 }
