@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -680,17 +680,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="judges-per-project">Judges per Project</Label>
-                <Input
+                <NumberInput
                   id="judges-per-project"
-                  type="number"
-                  min="1"
+                  integer
+                  min={1}
                   max={Math.max(1, judges.length)}
                   value={judgesPerProject}
-                  onChange={(e) =>
-                    setJudgesPerProject(
-                      clampPerProject(parseInt(e.target.value, 10), judges.length)
-                    )
-                  }
+                  onValueChange={setJudgesPerProject}
                 />
               </div>
               <AlertDialog>
@@ -723,17 +719,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="mentors-per-project">Mentors per Project</Label>
-                <Input
+                <NumberInput
                   id="mentors-per-project"
-                  type="number"
-                  min="1"
+                  integer
+                  min={1}
                   max={Math.max(1, mentors.length)}
                   value={mentorsPerProject}
-                  onChange={(e) =>
-                    setMentorsPerProject(
-                      clampPerProject(parseInt(e.target.value, 10), mentors.length)
-                    )
-                  }
+                  onValueChange={setMentorsPerProject}
                 />
               </div>
               <AlertDialog>
