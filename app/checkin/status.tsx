@@ -7,6 +7,9 @@ type CheckinResponse = {
   message?: string
   timestamp?: string
   error?: string
+  verified?: boolean
+  recorded?: boolean
+  attendee?: { name: string; role: string }
 }
 
 interface CheckinStatusProps {
@@ -25,8 +28,15 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
     }
 
     setIsLoading(true)
-    fetch(`/api/checkin?${token}`)
-      .then((res) => res.json())
+    fetch('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as CheckinResponse
+        return res.ok ? data : { error: data.error || 'Failed to process check-in' }
+      })
       .then((data: CheckinResponse) => {
         setStatus(data)
       })
@@ -62,14 +72,21 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
         ) : status?.error ? (
           <div className="text-center py-4">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <p className="font-bold">Check-in Failed</p>
+              <p className="font-bold">Ticket not accepted</p>
               <p className="text-sm">{status.error}</p>
             </div>
           </div>
         ) : (
           <div className="text-center py-4">
             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-              <p className="font-bold">Success!</p>
+              <p className="font-bold">
+                {status?.recorded ? 'Checked in' : 'Ticket verified'}
+              </p>
+              {status?.attendee && (
+                <p className="text-sm font-medium">
+                  {status.attendee.name} ({status.attendee.role})
+                </p>
+              )}
               <p className="text-sm">{status?.message}</p>
               {status?.timestamp && (
                 <p className="text-xs mt-2">

@@ -1,3 +1,4 @@
+import { escapeHtml, escapeUrl } from "./escape-html";
 // On-brand MentorMates email template.
 //
 // Reconstructed from the MentorMates brand spec (app/globals.css Figma tokens):
@@ -54,7 +55,7 @@ function ctaButton(cta?: { label: string; url: string }): string {
   if (!cta) return "";
   return `
         <div style="margin: 28px 0;">
-          <a href="${cta.url}" style="display: inline-block; background-color: ${BRAND.blue}; color: ${BRAND.white}; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+          <a href="${escapeUrl(cta.url)}" style="display: inline-block; background-color: ${BRAND.blue}; color: ${BRAND.white}; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
             ${escapeHtml(cta.label)}
           </a>
         </div>`;
@@ -186,9 +187,3 @@ export function getHackathonAlumniReengagementEmail(
   };
 }
 
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}

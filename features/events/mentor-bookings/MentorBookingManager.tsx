@@ -7,6 +7,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { createClient } from "@/app/utils/supabase/client";
 import { cn } from "@/lib/utils";
 import type { MentorAvailabilityWithBookings } from "@/lib/types/mentor-booking";
+import { formatSlotRange } from "./utils";
 
 interface MentorBookingManagerProps {
   eventId: string;
@@ -71,8 +72,7 @@ export function MentorBookingManager({
 
     for (const slot of slots) {
 
-      const mentorName =
-        slot.mentor?.display_name || slot.mentor?.email || "Mentor";
+      const mentorName = slot.mentor?.display_name?.trim() || "Mentor";
 
       if (!groups.has(slot.mentor_id)) {
         groups.set(slot.mentor_id, { mentorName, rows: [] });
@@ -172,6 +172,7 @@ export function MentorBookingManager({
                   const remaining = slot.max_bookings - slot.booking_count;
                   const viewerBooked = Boolean(slot.viewer_booking_id);
                   const full = remaining <= 0;
+                  const ended = new Date(slot.end_time).getTime() <= Date.now();
 
                   return (
                     <Card
@@ -180,9 +181,7 @@ export function MentorBookingManager({
                     >
                       <div className="text-sm">
                         <div className="font-medium">
-                          {new Date(slot.start_time).toLocaleString()}{" "}
-                          <span className="text-muted-foreground">→</span>{" "}
-                          {new Date(slot.end_time).toLocaleString()}
+                          {formatSlotRange(slot.start_time, slot.end_time)}
                         </div>
                         <div className="text-muted-foreground">
                           {viewerBooked
@@ -208,10 +207,10 @@ export function MentorBookingManager({
                       ) : (
                         <Button
                           size="sm"
-                          disabled={full || busyId === slot.id}
+                          disabled={ended || full || busyId === slot.id}
                           onClick={() => handleBook(slot)}
                         >
-                          {busyId === slot.id ? "Booking..." : "Book"}
+                          {ended ? "Ended" : busyId === slot.id ? "Booking..." : "Book"}
                         </Button>
                       )}
                     </Card>
