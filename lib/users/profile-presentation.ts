@@ -1,3 +1,4 @@
+import { isSafeWebUrl } from "@/lib/users/profile-links";
 const SOCIAL_LINK_KEYS = [
   "linkedin", "github", "twitter", "facebook", "instagram", "youtube", "portfolio",
 ] as const;
@@ -36,14 +37,8 @@ function publicLinks(value: unknown): PublicSocialLinks {
   for (const key of SOCIAL_LINK_KEYS) {
     const link = links[key];
     if (typeof link !== "string") continue;
-    try {
-      const url = new URL(link);
-      if (["http:", "https:"].includes(url.protocol) && !url.username && !url.password) {
-        result[key] = url.href;
-      }
-    } catch {
-      // Invalid or non-web links are not part of the public social-link contract.
-    }
+    // Invalid or non-web links are not part of the public social-link contract.
+    if (isSafeWebUrl(link)) result[key] = new URL(link).href;
   }
   return result;
 }

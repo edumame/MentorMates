@@ -18,6 +18,20 @@ export type DatePickerProps = {
   disabled?: boolean;
 };
 
+function parseCalendarDate(value?: string): Date | undefined {
+  if (!value) return undefined;
+  // Date-only event values are stored by Postgres as UTC midnight. Preserve
+  // their calendar day; retain instant semantics for other legacy timestamps.
+  const calendar = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00(?::00(?:\.0+)?)?(?:Z|\+00:00))?$/.exec(value);
+  if (calendar) {
+    const [, year, month, day] = calendar;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return date.getFullYear() === Number(year) && date.getMonth() === Number(month) - 1 && date.getDate() === Number(day) ? date : undefined;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 export function DatePicker({
   value,
   onChange,
@@ -26,22 +40,15 @@ export function DatePicker({
   disabled = false,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
-    value ? new Date(value) : undefined
-  );
+  const selectedDate = parseCalendarDate(value);
 
   const handleSelect = (date: Date) => {
-    setSelectedDate(date);
-
-    // Format as datetime-local string
+    if (disabled) return;
+    // This input selects a calendar day, not a time or timezone.
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
-    onChange?.(dateTimeString);
+    onChange?.(`${year}-${month}-${day}`);
     setOpen(false);
   };
 
@@ -56,7 +63,7 @@ export function DatePicker({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open && !disabled} onOpenChange={(next) => { if (!disabled) setOpen(next); }}>
       <PopoverTrigger asChild>
         <div
           className={cn(
@@ -70,6 +77,7 @@ export function DatePicker({
             value={formatDisplayDate(selectedDate)}
             placeholder={placeholder}
             readOnly
+            disabled={disabled}
             className={cn(
               "h-[44px] pl-11 w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
               !selectedDate && "text-[rgba(0,0,0,0.6)]",

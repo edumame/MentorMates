@@ -8,8 +8,8 @@ jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
 }));
 
-jest.mock("@/app/utils/supabase/queries", () => ({
-  isValidUUID: () => false,
+jest.mock("@/lib/events/resolve-event-route", () => ({
+  resolveEventRouteId: async () => "event-1",
 }));
 
 jest.mock("next/navigation", () => ({ notFound: jest.fn() }));

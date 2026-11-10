@@ -7,6 +7,15 @@ import type { Database } from "@/lib/database.types";
 
 type DbEventRole = Database["public"]["Enums"]["event_role"];
 
+const MAX_PAGE_SIZE = 500;
+const TEAM_LOOKUP_CHUNK = 100;
+
+function clampInt(raw: string | null, fallback: number, min: number, max: number): number {
+  const value = raw === null || raw.trim() === "" ? fallback : Math.trunc(Number(raw));
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(Math.max(value, min), max);
+}
+
 const VALID_ROLES = new Set<string>([
   EventRole.Participant,
   EventRole.Mentor,
@@ -62,11 +71,11 @@ export async function GET(
       return NextResponse.json({ users: [], count: 0 }, { status: 200 });
     }
 
-    const limit = Math.min(
-      Math.max(Number(searchParams.get("limit") || 100), 1),
-      500
-    );
-    const offset = Math.max(Number(searchParams.get("offset") || 0), 0);
+    // Paging contract (ORG-024): limit 1..500 (default 100), 0-based offset,
+    // stable (created_at, user_id) order, includeCount=true returns the exact
+    // total. Callers needing every row must page until a short page or count.
+    const limit = clampInt(searchParams.get("limit"), 100, 1, MAX_PAGE_SIZE);
+    const offset = clampInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
     const includeCount = searchParams.get("includeCount") === "true";
 
     const isOrganizer =
@@ -100,8 +109,6 @@ export async function GET(
       .eq("event_id", eventId)
       .in("role", requestedRoles)
       .order("created_at", { ascending: true })
-      // Bulk inserts share a created_at; without a unique tiebreaker, rows can
-      // repeat or go missing across offset pages.
       .order("user_id", { ascending: true })
       .range(offset, offset + limit - 1);
 
@@ -114,13 +121,21 @@ export async function GET(
 
     // Team assignments live in team_members/teams (populated by event-day
     // team formation), not on the role rows — join them in per user.
-    const { data: teamRows } = await serviceSupabase
-      .from("team_members")
-      .select("user_id, teams (name)")
-      .eq("event_id", eventId);
+    // Only this page's users; chunked so the id list stays well within URL
+    // length limits for 500-row pages.
+    const pageUserIds = (data || []).map((row) => row.user_id);
+    const teamRows: Array<{ user_id: string; teams: unknown }> = [];
+    for (let i = 0; i < pageUserIds.length; i += TEAM_LOOKUP_CHUNK) {
+      const { data: chunkRows } = await serviceSupabase
+        .from("team_members")
+        .select("user_id, teams (name)")
+        .eq("event_id", eventId)
+        .in("user_id", pageUserIds.slice(i, i + TEAM_LOOKUP_CHUNK));
+      teamRows.push(...(chunkRows || []));
+    }
 
     const teamNameByUserId = new Map<string, string>();
-    (teamRows || []).forEach((row) => {
+    teamRows.forEach((row) => {
       const team = Array.isArray(row.teams) ? row.teams[0] : row.teams;
       const name = (team as { name?: string } | null)?.name?.trim();
       if (name && !teamNameByUserId.has(row.user_id)) {

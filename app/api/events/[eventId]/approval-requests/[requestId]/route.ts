@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, ParticipantRequestStatus } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { isApprovableRole } from "@/lib/roles/approval-requests";
 
 const updateRequestSchema = z.object({
   status: z.enum([
@@ -152,6 +153,21 @@ export async function PATCH(
 
     if (queryError || !approvalRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    // ORG-017: approving must never grant a staff role. Legacy/forged requests
+    // for mentor/judge/organizer/admin can only be rejected.
+    if (
+      status === ParticipantRequestStatus.Approved &&
+      !isApprovableRole(approvalRequest.requested_role)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Only participant requests can be approved. Invite staff (mentors, judges, organizers) from the Access tab.",
+        },
+        { status: 400 }
+      );
     }
 
     // Check state transitions

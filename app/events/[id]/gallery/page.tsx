@@ -1,10 +1,10 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { GalleryContent } from "@/components/events/gallery-content";
 import { EventRole } from "@/lib/types";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -16,7 +16,6 @@ export default async function GalleryPage({ params, searchParams }: PageProps) {
   const supabase = await createSupabaseClient();
   const currentRole = (resolvedSearchParams.view as EventRole | null) || null;
 
-  const isUUID = isValidUUID(id);
 
   let query = supabase.from("events").select(`
     event_id,
@@ -29,11 +28,10 @@ export default async function GalleryPage({ params, searchParams }: PageProps) {
     paid
   `);
 
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  query = query.eq("event_id", routeEventId);
 
   const { data: eventData, error: eventError } = await query.single();
 
@@ -77,6 +75,7 @@ export default async function GalleryPage({ params, searchParams }: PageProps) {
         eventId={eventData.event_id}
         slug={id}
         hasJoined={hasJoined}
+        isSignedIn={Boolean(user)}
         userRole={userRole}
         currentRole={(currentRole || userRole || null) as EventRole | null}
       />

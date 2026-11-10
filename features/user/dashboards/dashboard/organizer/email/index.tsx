@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +17,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Send, Users, Eye, Loader2, LayoutTemplate } from "lucide-react";
 import { EventRole } from "@/lib/types";
+import { fetchAllEventUsers } from "@/features/user/dashboards/dashboard/organizer/participants/fetch-event-users";
 import { EmailTemplates } from "./templates";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
-import { fetchAllEventUsers } from "@/lib/events/fetch-all-event-users";
 
 interface Recipient {
   id: string;
@@ -33,6 +33,7 @@ interface EmailTabProps {
 }
 
 export function EmailTab({ eventId }: EmailTabProps) {
+  const emailRequestId = useRef<string | null>(null);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [recipientFilter, setRecipientFilter] = useState<string>("all");
@@ -48,19 +49,31 @@ export function EmailTab({ eventId }: EmailTabProps) {
   useEffect(() => {
     async function fetchRecipients() {
       try {
-        const users = await fetchAllEventUsers({
-          eventId,
-          roles: "participant,mentor,judge,organizer,admin",
-        });
+        // Page through every member (ORG-024: a single limit=500 call
+        // silently dropped recipients beyond the first 500).
+        const { users } = await fetchAllEventUsers(eventId, [
+          EventRole.Participant,
+          EventRole.Mentor,
+          EventRole.Judge,
+          EventRole.Organizer,
+          EventRole.Admin,
+        ]);
 
         const recipientList: Recipient[] = users
-          .filter((user) => Boolean(user.email))
-          .map((user) => ({
-            id: user.user_id,
-            email: user.email,
-            display_name: user.display_name,
-            role: user.role,
-          }));
+          .filter((user: { email: string }) => Boolean(user.email))
+          .map(
+            (user: {
+              user_id: string;
+              role: EventRole;
+              email: string;
+              display_name: string;
+            }) => ({
+              id: user.user_id,
+              email: user.email,
+              display_name: user.display_name,
+              role: user.role as EventRole,
+            })
+          );
 
         setRecipients(recipientList);
       } catch (error) {
@@ -136,6 +149,8 @@ export function EmailTab({ eventId }: EmailTabProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          requestId: emailRequestId.current ||= crypto.randomUUID(),
+          eventId,
           to: "admin@mentormates.ai",
           from: NOTIFICATIONS_EMAIL_FROM,
           subject,
@@ -152,6 +167,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
         }
       }
 
+      emailRequestId.current = null;
       toast({
         title: "Success",
         description: `Email sent to ${selectedEmails.length} recipients`,

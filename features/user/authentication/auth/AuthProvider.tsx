@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { isUnroutablePath } from "./app-route-segments";
 
 type PathPattern = string | RegExp;
 
@@ -21,12 +22,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // so unauthenticated users keep ?eventId= through sign-in.
       "/projects/submit",
       "/login",
+      // Expired recovery links must show the reset page's session guidance.
+      "/reset-password",
       "/auth/callback",
       "/auth/auth-code-error",
       "/about",
       "/research",
       "/host",
-      "/teams",
       "/privacy",
       "/terms",
       "/confirmation",
@@ -38,6 +40,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/devpost-integration",
       "/faq",
       "/support",
+      "/license",
+      "/learn",
+      "/resources",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
@@ -54,10 +59,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Wrap isPublicPath in useCallback to prevent recreation on each render
+  // Unroutable paths render app/not-found.tsx; treat them as public so the 404
+  // page is shown instead of redirecting signed-out visitors to "/".
   const isPublicPath = useCallback(
     (path: string) => {
-      return PUBLIC_PATH_PATTERNS.some((pattern: PathPattern) =>
-        typeof pattern === "string" ? pattern === path : pattern.test(path)
+      return (
+        isUnroutablePath(path) ||
+        PUBLIC_PATH_PATTERNS.some((pattern: PathPattern) =>
+          typeof pattern === "string" ? pattern === path : pattern.test(path)
+        )
       );
     },
     [PUBLIC_PATH_PATTERNS]
@@ -70,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const applySession = (authenticated: boolean) => {
       if (!active) return;
       setAuthenticatedPath(authenticated ? pathname : null);
-      if (!authenticated && !isPublicPath(pathname)) router.push("/");
+      if (!authenticated && !isPublicPath(pathname)) router.push(getLoginRedirect(pathname));
     };
 
     const checkAuth = async () => {
@@ -100,4 +110,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (!isPublicPath(pathname) && authenticatedPath !== pathname) return null;
 
   return <>{children}</>;
+}
+
+/**
+ * Signed-out visitors on a protected page go to /login and come back after
+ * signing in (same as the server redirect). Only same-origin paths are kept.
+ */
+export function getLoginRedirect(pathname: string, search: string = currentSearch()) {
+  if (!pathname.startsWith("/") || pathname.startsWith("//") || pathname.includes("\\")) return "/login";
+  const query = search && search.startsWith("?") ? search : "";
+  return `/login?returnUrl=${encodeURIComponent(`${pathname}${query}`)}`;
+}
+
+function currentSearch() {
+  return typeof window === "undefined" ? "" : window.location.search;
 }

@@ -1,4 +1,5 @@
 import { createSupabaseClient } from '@/app/utils/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
@@ -29,8 +30,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
   }
 
-  // Fetch project details
-  const { data: project, error: projectError } = await supabase
+  // Fetch project details. Team email columns are not client-readable, so
+  // this read uses the service client; the lead/teammate check below is the
+  // authorization (non-members get 403).
+  const { data: project, error: projectError } = await createSupabaseServiceClient()
     .from('projects')
     .select('id, project_name, lead_email, teammates, event_id')
     .eq('id', projectId)
@@ -41,17 +44,12 @@ export async function POST(request: Request) {
   }
 
   // Check if the user is the project lead or already a teammate
-  const { data: userProfile } = await supabase
-    .from('user_profiles')
-    .select('email')
-    .eq('uid', auth.user.id)
-    .single();
-
-  const userEmail = userProfile?.email;
+  // Authorization uses the verified auth identity, never mutable profile email.
+  const userEmail = auth.user.email?.trim().toLowerCase();
 
   // Verify user has permission (is project lead or teammate)
-  const isProjectLead = project.lead_email === userEmail;
-  const isTeammate = project.teammates?.includes(userEmail || '');
+  const isProjectLead = Boolean(userEmail && project.lead_email?.toLowerCase() === userEmail);
+  const isTeammate = Boolean(userEmail && project.teammates?.some((email: string) => email.toLowerCase() === userEmail));
 
   if (!isProjectLead && !isTeammate) {
     return NextResponse.json({ error: 'Forbidden: Only project lead or teammates can invite others' }, { status: 403 });
