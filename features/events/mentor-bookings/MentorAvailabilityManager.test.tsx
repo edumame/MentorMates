@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MentorAvailabilityManager } from "./MentorAvailabilityManager";
+import { defaultSlotWindow } from "./utils";
 
 const toast = jest.fn();
 
@@ -69,10 +70,14 @@ describe("MentorAvailabilityManager", () => {
     global.fetch = originalFetch;
   });
 
-  it("defaults the form to the hackathon submission window and still lets mentors edit it", async () => {
+  it("defaults to a one-hour slot (not the whole submission window) and still lets mentors edit it", async () => {
     const user = userEvent.setup();
-    const expectedStart = toLocalInputValue("2026-05-01T13:30:00.000Z");
-    const expectedEnd = toLocalInputValue("2026-05-01T21:00:00.000Z");
+    const suggested = defaultSlotWindow({
+      start: "2026-05-01T13:30:00.000Z",
+      end: "2026-05-01T21:00:00.000Z",
+    });
+    const expectedStart = toLocalInputValue(suggested.start.toISOString());
+    const expectedEnd = toLocalInputValue(suggested.end.toISOString());
 
     render(<MentorAvailabilityManager eventId="event-1" />);
 
@@ -80,16 +85,43 @@ describe("MentorAvailabilityManager", () => {
       expect(screen.getByDisplayValue(expectedStart)).toBeInTheDocument();
     });
     expect(screen.getByDisplayValue(expectedEnd)).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /defaulted to the hackathon submission window/i
-      )
-    ).toBeInTheDocument();
+    expect(suggested.end.getTime() - suggested.start.getTime()).toBe(3600_000);
+    expect(screen.getByText(/one-hour slot/i)).toBeInTheDocument();
 
     const startInput = screen.getByLabelText("Start");
     await user.clear(startInput);
     await user.type(startInput, "2026-05-02T09:00");
 
     expect(screen.getByDisplayValue("2026-05-02T09:00")).toBeInTheDocument();
+  });
+
+  it("shows attendees by name, lets the mentor cancel one booking, and confirms before deleting a booked slot", async () => {
+    const user = userEvent.setup();
+    const slot = {
+      id: "slot-1", mentor_id: "mentor-1", event_id: "event-1",
+      start_time: "2030-05-01T15:00:00.000Z", end_time: "2030-05-01T16:00:00.000Z",
+      max_bookings: 2, created_at: "2030-01-01T00:00:00.000Z", booking_count: 1, viewer_booking_id: null,
+      participants: [{ display_name: "Ada", email: "ada@example.test", booking_id: "booking-1" }],
+    };
+    const fetchMock = jest.fn(async (_url: string, init?: RequestInit) => ({
+      ok: true,
+      json: async () => (init?.method === "DELETE" ? { success: true } : { availability: [slot] }),
+    }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    render(<MentorAvailabilityManager eventId="event-1" />);
+    expect(await screen.findByText("Ada")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel booking" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/events/event-1/mentor-bookings?id=booking-1", { method: "DELETE" })
+    );
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(await screen.findByText(/1 participant has booked this slot/i)).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Delete" }).at(-1)!);
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/events/event-1/mentor-availability?id=slot-1&force=true", { method: "DELETE" })
+    );
   });
 });

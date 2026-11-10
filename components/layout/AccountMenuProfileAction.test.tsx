@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthNavbarRight } from "@/components/layout/AuthNavbarRight";
 import { SideNav } from "@/components/heroes/components/SideNav";
-import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
 
 const mockPush = jest.fn();
 const mockAuth = {
@@ -42,12 +41,10 @@ jest.mock("@/features/user/authentication/redirect/RedirectProvider", () => ({
     setReturnUrlFromCurrentLocation: jest.fn(),
   }),
 }));
+const mockNotificationData = { needsProfileCompletion: false };
 jest.mock("@/components/layout/NotificationPopoverContent", () => ({
-  useNotificationData: () => ({ needsProfileCompletion: false }),
+  useNotificationData: () => mockNotificationData,
   NotificationPopoverContent: () => null,
-}));
-jest.mock("@/features/user/profile/profile-completion", () => ({
-  profileNeedsCompletion: jest.fn(),
 }));
 jest.mock("posthog-js", () => ({ reset: jest.fn() }));
 
@@ -84,7 +81,7 @@ describe.each([
   ])(
     "reaches the action by keyboard when needsCompletion=%s",
     async (needsCompletion, label, href) => {
-      (profileNeedsCompletion as jest.Mock).mockReturnValue(needsCompletion);
+      mockNotificationData.needsProfileCompletion = needsCompletion;
       const user = await openMenuWithKeyboard();
 
       const item = screen.getByRole("menuitem", { name: label });
