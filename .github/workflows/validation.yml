@@ -61,3 +61,19 @@ jobs:
         run: python3 scripts/test_payment_fulfillment.py
       - name: Test trusted paid-ticket claims
         run: python3 scripts/test_ticket_claim.py
+
+  promo-code-view:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test promo code view removal in disposable PostgreSQL
+        run: python3 scripts/test_coupons_with_codes_view.py
+
+  agent-global-restriction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test global agent restriction in disposable PostgreSQL
+        run: python3 scripts/test_agent_global_restriction.py

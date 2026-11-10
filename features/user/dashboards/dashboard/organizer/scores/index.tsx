@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import { toSpreadsheetSafeCsv } from "@/lib/utils/csv";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { RoundsEditor } from "@/components/events/rounds-editor";
 import {
   getActiveRound,
@@ -26,6 +27,7 @@ import {
   buildRawScoreExportFiles,
   buildScoreExportFiles,
   buildTrackScores,
+  filterScoresToCurrentTracks,
   getRanksByProjectId,
   type DashboardProjectScore,
   type RawScoreExportData,
@@ -528,30 +530,34 @@ export function ScoresTab({
         }
 
         // Fetch complete raw scores data with all needed fields
-        const { data, error } = await supabase
-          .from("project_scores")
-          .select(
+        const { data, error } = await fetchAllRows((from, to) =>
+          supabase
+            .from("project_scores")
+            .select(
+              `
+              project_id,
+              track_id,
+              judge_id,
+              created_at,
+              scores,
+              comments,
+              round_number,
+              projects:projects!inner (
+                project_name,
+                lead_name,
+                event_id
+              ),
+              event_tracks:event_tracks!fk_project_scores_track (
+                name,
+                track_id
+              )
             `
-            project_id,
-            track_id,
-            judge_id,
-            created_at,
-            scores,
-            comments,
-            round_number,
-            projects:projects!inner (
-              project_name,
-              lead_name,
-              event_id
-            ),
-            event_tracks:event_tracks!fk_project_scores_track (
-              name,
-              track_id
             )
-          `
-          )
-          .eq("projects.event_id", eventId)
-          .order("track_id");
+            .eq("projects.event_id", eventId)
+            .order("track_id")
+            .order("id")
+            .range(from, to)
+        );
 
         if (error) {
           console.error("Error fetching scores:", error);
@@ -613,7 +619,7 @@ export function ScoresTab({
         }
 
         // Transform data for display (existing logic)
-        const allDisplayData = scoreRows.map((item: ProjectScoreQueryRow) => {
+        const allDisplayData = filterScoresToCurrentTracks(scoreRows, trackData || []).map((item: ProjectScoreQueryRow) => {
           const projectData = item.projects as unknown as {
             project_name: string;
             lead_name: string;
@@ -653,7 +659,8 @@ export function ScoresTab({
           (item) => item.round_number === activeRound
         );
 
-        // Store raw data for exports
+        // Store raw data for exports. This keeps scores for tracks a project has
+        // since left, as the record of what judges submitted; only rankings drop them.
         const rawData: RawScoreExportData[] = scoreRows.map((item: ProjectScoreQueryRow) => {
           const projects = Array.isArray(item.projects)
             ? item.projects[0]

@@ -127,6 +127,22 @@ describe("sign-up consent", () => {
     expect(redirectTo.searchParams.get("acceptTerms")).toBe("1");
     expect(redirectTo.searchParams.get("marketingOptIn")).toBe("1");
   });
+
+  it("explains why when the OAuth callback sends a new account back to accept terms", async () => {
+    mockSearchParams = new URLSearchParams("mode=signup&termsRequired=1");
+    render(<LoginPage />);
+    expect(await screen.findByRole("heading", { name: "Sign Up" })).toBeInTheDocument();
+    expect(termsError()).toBeInTheDocument();
+
+    fireEvent.click(termsCheckbox());
+    expect(termsError()).not.toBeInTheDocument();
+  });
+
+  it("shows no terms error on a plain sign-up page", async () => {
+    render(<LoginPage />);
+    expect(await screen.findByRole("heading", { name: "Sign Up" })).toBeInTheDocument();
+    expect(termsError()).not.toBeInTheDocument();
+  });
 });
 
 describe("sign-in", () => {

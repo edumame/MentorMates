@@ -43,6 +43,7 @@ const defaultProps = {
   userId: "user-1",
   userName: "Ada",
   userImage: "",
+  meetingOwnerId: "user-1",
 };
 
 describe("CallConnect", () => {

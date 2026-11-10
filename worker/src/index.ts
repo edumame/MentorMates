@@ -299,6 +299,15 @@ app.post("/session/start", async (req: Request, res: Response) => {
     };
     sessions.set(meetingId, record);
 
+    // A record with a closed socket can only fail, so drop it. The check keeps
+    // the close of a replaced client from removing the session that replaced it.
+    realtimeClient.realtime.on("close", () => {
+      if (sessions.get(meetingId) !== record) return;
+      record.cleanup?.();
+      if (record.intervalId) clearInterval(record.intervalId);
+      sessions.delete(meetingId);
+    });
+
     // Somewhere near session start
     const baseInstructions = `${instructions}
 
@@ -469,9 +478,8 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "realtime client not found" });
 
     try {  
-      record.paused = false;
       if (!captionReady.has(meetingId)) {
-        return res.json({ ok: false, waitingForCaptions: true });
+        return res.status(503).json({ ok: false, waitingForCaptions: true });
       }
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
       realtimeClient.realtime.send("response.create", {});
@@ -482,14 +490,16 @@ app.post("/session/resume", async (req: Request, res: Response) => {
           type: "server_vad",
         }),
       });
+      record.paused = false;
     } catch (err) {
       console.error("/session/resume error on session update", err);
-      res.status(500).json({ error: "internal" });
+      return res.status(500).json({ error: "internal" });
     }
     return res.json({ ok: true, paused: false });
   } catch (err) {
     console.error("/session/resume error", err);
-    res.status(500).json({ error: "internal" });
+    // Express 4 ignores rejected handlers, so throwing here would end the process.
+    if (!res.headersSent) res.status(500).json({ error: "internal" });
   }
 });
 
