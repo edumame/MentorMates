@@ -5,7 +5,7 @@ import { EventRole } from "@/lib/types";
 import { RoleBanner } from "./role-banner";
 import { EventPageHeader } from "./event-page-header";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/lib/hooks/use-toast";
 import { OrganizerEditOverview } from "./organizer-edit-overview";
 import { useActiveRole } from "./ActiveRoleContext";
@@ -55,6 +55,7 @@ export function EventPageClientWrapper({
   const [isLoading, setIsLoading] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
 
   // Initialize activeRole with userRole
@@ -77,6 +78,13 @@ export function EventPageClientWrapper({
     setShowCancelDialog(true);
   };
 
+  // Organizers/admins manage the event and cannot "cancel registration".
+  const canCancelRegistration =
+    userRole !== EventRole.Organizer && userRole !== EventRole.Admin;
+  const cancelRegistrationHandler = canCancelRegistration
+    ? handleCancelRegistration
+    : undefined;
+
   const confirmCancelRegistration = async () => {
     if (isLoading) return;
 
@@ -98,16 +106,22 @@ export function EventPageClientWrapper({
 
       const userId = session.user.id;
 
+      // Only the role this page was rendered for is removed; organizers never
+      // reach this path (EVT-ORG-001).
       const { error: deleteError } = await supabase
         .from("user_event_roles")
         .delete()
         .eq("user_id", userId)
-        .eq("event_id", eventId);
+        .eq("event_id", eventId)
+        .eq("role", userRole);
 
       if (deleteError) {
         toast({
           title: "Error",
-          description: "Failed to cancel registration. Please try again.",
+          description:
+            deleteError.hint === "last_organizer"
+              ? "An event must keep at least one organizer."
+              : "Failed to cancel registration. Please try again.",
           variant: "destructive",
         });
         console.error("Error removing user role:", deleteError.message);
@@ -135,7 +149,13 @@ export function EventPageClientWrapper({
 
   // Show organizer dashboard when viewing as organizer/admin
   const currentRole = activeRole || userRole;
-  if (currentRole === EventRole.Organizer || currentRole === EventRole.Admin) {
+  // The voting route renders its own organizer results view (JUDGE-018), so
+  // organizers get the route's content there instead of the edit dashboard.
+  const isVotingRoute = /\/voting\/?$/.test(pathname ?? "");
+  if (
+    (currentRole === EventRole.Organizer || currentRole === EventRole.Admin) &&
+    !isVotingRoute
+  ) {
     return (
       <div className="flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
         <RoleBanner
@@ -143,7 +163,7 @@ export function EventPageClientWrapper({
           activeRole={currentRole}
           onRoleChange={handleRoleChange}
           eventType="event"
-          onCancelRegistration={handleCancelRegistration}
+          onCancelRegistration={cancelRegistrationHandler}
           eventRoleLabels={eventRoleLabels}
         />
         <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
@@ -182,7 +202,7 @@ export function EventPageClientWrapper({
         activeRole={currentRole}
         onRoleChange={handleRoleChange}
         eventType="event"
-        onCancelRegistration={handleCancelRegistration}
+        onCancelRegistration={cancelRegistrationHandler}
         eventRoleLabels={eventRoleLabels}
       />
       <EventPageHeader
