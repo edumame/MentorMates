@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import { getTeamEmails, getUserProjectIds } from "@/lib/projects/membership";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -18,29 +19,34 @@ export default function MyProjectSection({ eventId }: MyProjectSectionProps) {
 
   useEffect(() => {
     async function fetchProject() {
-      const { data, error } = await supabase
-        .from("projects")
-        .select(
-          `
+      // The caller's own project in this event (my_project_ids); emails come
+      // from project_team_emails since they are not client-readable columns.
+      const { ids } = await getUserProjectIds(supabase, eventId);
+      const myId = ids?.[0];
+      const { data, error } = myId
+        ? await supabase
+            .from("projects")
+            .select(
+              `
           id,
           project_name,
           project_description,
-          teammates,
           lead_name,
-          lead_email,
           project_url,
           additional_materials_url,
           cover_image_url
         `
-        )
-        .eq("event_id", eventId)
-        .single();
+            )
+            .eq("id", myId)
+            .single()
+        : { data: null, error: { message: "No project" } };
+      const emails = myId ? (await getTeamEmails(supabase, [myId])).get(myId) : undefined;
 
       if (error) {
         console.error("Error fetching project:", error);
         setProject(null);
       } else {
-        setProject(data as Project);
+        setProject({ ...(data as unknown as Project), lead_email: emails?.lead_email ?? "", teammates: emails?.teammates ?? [] });
       }
       setLoading(false);
     }
