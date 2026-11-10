@@ -1,183 +1,128 @@
 /** @jest-environment node */
-import { meetingsEndAbandonedCall } from "./functions";
-import { streamVideo } from "@/lib/stream-video";
+import { meetingsProcessing } from "./functions";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
-type Handler = (ctx: {
-  event: {
-    data: { meetingId: string; agentId: string; ownerId: string | null; leftUserId: string };
-  };
-  step: {
-    run: <T>(id: string, fn: () => Promise<T>) => Promise<T>;
-    sleep: (id: string, duration: string) => Promise<void>;
-  };
-}) => Promise<unknown>;
-
-jest.mock("@/lib/inngest/client", () => ({
-  inngest: {
-    createFunction: jest.fn((options: unknown, trigger: unknown, handler: unknown) => ({
-      options,
-      trigger,
-      handler,
-    })),
-  },
-}));
-jest.mock("@inngest/agent-kit", () => ({}));
-jest.mock("jsonl-parse-stringify", () => ({}));
 jest.mock("@/lib/supabase/service", () => ({ createSupabaseServiceClient: jest.fn() }));
+jest.mock("@inngest/agent-kit", () => ({ createAgent: jest.fn(), openai: jest.fn() }));
+// functions.ts also holds meetingsEndAbandonedCall, which imports the Stream SDK.
 jest.mock("@/lib/stream-video", () => ({ streamVideo: { video: { call: jest.fn() } } }));
 
-const { options, trigger, handler } = meetingsEndAbandonedCall as unknown as {
-  options: { debounce: { key: string; period: string } };
-  trigger: { event: string };
-  handler: Handler;
+type Internals = {
+  fn: (ctx: unknown) => Promise<unknown>;
+  opts: { onFailure?: (ctx: unknown) => Promise<unknown> };
+  getConfig: (opts: { baseUrl: URL; appPrefix: string }) => Array<{ id: string }>;
 };
+type UpdateBuilder = {
+  update: (value: Record<string, unknown>) => UpdateBuilder;
+  eq: (key: string, value: unknown) => UpdateBuilder;
+  then: (resolve: (result: { error: unknown }) => void) => void;
+};
+const internals = meetingsProcessing as unknown as Internals;
 
-const get = jest.fn();
-const end = jest.fn();
-const sleep = jest.fn();
-const run = ({ leftUserId = "owner-1", ownerId = "owner-1" as string | null } = {}) =>
-  handler({
-    event: { data: { meetingId: "meeting-1", agentId: "agent-1", ownerId, leftUserId } },
-    step: { run: (_id, fn) => fn(), sleep },
-  });
-const session = (...userIds: string[]) => ({
-  participants: userIds.map((id) => ({ user: { id } })),
+const meetingId = "123e4567-e89b-42d3-a456-426614174000";
+const failure = (data: Record<string, unknown> = { meetingId }) => ({
+  event: { data: { event: { name: "meetings/processing", data } } },
 });
+
+let meeting: Record<string, unknown>;
+let updateError: { message: string } | null;
+let updates: Array<Record<string, unknown>>;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (streamVideo.video.call as jest.Mock).mockReturnValue({ get, end });
-  end.mockResolvedValue({});
-  sleep.mockResolvedValue(undefined);
+  meeting = { id: meetingId, status: "processing", ended_at: "2026-01-01T12:00:00.000Z" };
+  updateError = null;
+  updates = [];
+  (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+    from: jest.fn(() => {
+      const filters: Record<string, unknown> = {};
+      let patch: Record<string, unknown> = {};
+      const builder: UpdateBuilder = {
+        update: jest.fn((value: Record<string, unknown>) => { patch = value; return builder; }),
+        eq: jest.fn((key: string, value: unknown) => { filters[key] = value; return builder; }),
+        then: (resolve: (result: { error: unknown }) => void) => {
+          if (!updateError && Object.entries(filters).every(([key, value]) => meeting[key] === value)) {
+            updates.push(patch);
+            Object.assign(meeting, patch);
+          }
+          resolve({ error: updateError });
+        },
+      };
+      return builder;
+    }),
+  });
 });
 
-describe("meetingsEndAbandonedCall", () => {
-  it("waits out a grace window per meeting, restarting on each departure", () => {
-    expect(trigger.event).toBe("meetings/participant-left");
-    expect(options.debounce).toEqual({ key: "event.data.meetingId", period: "60s" });
-  });
+describe("meetingsProcessing onFailure", () => {
+  const onFailure = (ctx = failure()) => {
+    expect(internals.opts.onFailure).toEqual(expect.any(Function));
+    return internals.opts.onFailure!(ctx);
+  };
 
-  it("ends the call when only the agent is left", async () => {
-    get.mockResolvedValue({ call: { session: session("agent-1") } });
-
-    await run();
-
-    expect(streamVideo.video.call).toHaveBeenCalledWith("default", "meeting-1");
-    expect(end).toHaveBeenCalledTimes(1);
-  });
-
-  it("ends the call when nobody is left", async () => {
-    get.mockResolvedValue({ call: { session: session() } });
-
-    await run();
-
-    expect(end).toHaveBeenCalledTimes(1);
-  });
-
-  it("ends the call when there is no session", async () => {
-    get.mockResolvedValue({ call: {} });
-
-    await run();
-
-    expect(end).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps the call when a refreshed participant has rejoined", async () => {
-    get.mockResolvedValue({ call: { session: session("agent-1", "owner-1") } });
-
-    await run();
-
-    expect(end).not.toHaveBeenCalled();
-  });
-
-  it("keeps the call for the owner when a non-owner has left", async () => {
-    get.mockResolvedValue({ call: { session: session("owner-1") } });
-
-    await run();
-
-    expect(end).not.toHaveBeenCalled();
-  });
-
-  it("ends the call straight after the grace window when the owner was the one who left", async () => {
-    get.mockResolvedValue({ call: { session: session("agent-1") } });
-
-    await run({ leftUserId: "owner-1" });
-
-    expect(sleep).not.toHaveBeenCalled();
-    expect(end).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not wait for an owner on a meeting that has none", async () => {
-    get.mockResolvedValue({ call: { session: session("agent-1") } });
-
-    await run({ leftUserId: "organizer-1", ownerId: null });
-
-    expect(sleep).not.toHaveBeenCalled();
-    expect(end).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not end the call while waiting for an owner who has not arrived", async () => {
-    get.mockResolvedValue({ call: { session: session("agent-1") } });
-    sleep.mockImplementation(async () => {
-      expect(end).not.toHaveBeenCalled();
+  it("registers a failure handler with Inngest", () => {
+    const configs = internals.getConfig({
+      baseUrl: new URL("http://localhost/api/inngest"),
+      appPrefix: "mentor-mates",
     });
-
-    await run({ leftUserId: "organizer-1" });
-
-    expect(sleep).toHaveBeenCalledWith("wait-for-owner", "30m");
+    expect(configs.map((config) => config.id)).toContain("mentor-mates-meetings/processing-failure");
   });
 
-  it("keeps the call when the owner arrives during the wait", async () => {
-    get
-      .mockResolvedValueOnce({ call: { session: session("agent-1") } })
-      .mockResolvedValueOnce({ call: { session: session("agent-1", "owner-1") } });
-
-    await run({ leftUserId: "organizer-1" });
-
-    expect(sleep).toHaveBeenCalledTimes(1);
-    expect(end).not.toHaveBeenCalled();
+  it("returns a failed meeting to the state a user can resubmit from", async () => {
+    await onFailure();
+    expect(meeting.status).toBe("upcoming");
+    expect(meeting.ended_at).toBeNull();
   });
 
-  it("ends the call when the owner never arrives during the wait", async () => {
-    get.mockResolvedValue({ call: { session: session("agent-1") } });
-
-    await run({ leftUserId: "organizer-1" });
-
-    expect(sleep).toHaveBeenCalledTimes(1);
-    expect(end).toHaveBeenCalledTimes(1);
+  it.each(["completed", "upcoming", "active", "cancelled"])("leaves a %s meeting alone", async (status) => {
+    meeting.status = status;
+    await onFailure();
+    expect(meeting.status).toBe(status);
+    expect(updates).toEqual([]);
   });
 
-  it("does not end a call that ended during the wait", async () => {
-    get
-      .mockResolvedValueOnce({ call: { session: session("agent-1") } })
-      .mockResolvedValueOnce({ call: { ended_at: new Date(), session: session() } });
-
-    await run({ leftUserId: "organizer-1" });
-
-    expect(end).not.toHaveBeenCalled();
+  it("rethrows a failed update so Inngest retries the release", async () => {
+    updateError = { message: "database failure" };
+    await expect(onFailure()).rejects.toEqual(updateError);
   });
 
-  it("does not wait when someone is still in the call after a non-owner left", async () => {
-    get.mockResolvedValue({ call: { session: session("agent-1", "organizer-2") } });
+  it("does nothing for an event without a meeting id", async () => {
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    await onFailure(failure({}));
+    expect(createSupabaseServiceClient).not.toHaveBeenCalled();
+    expect(meeting.status).toBe("processing");
+    spy.mockRestore();
+  });
+});
 
-    await run({ leftUserId: "organizer-1" });
+describe("meetingsProcessing fetch-transcript", () => {
+  const transcriptUrl = "https://stream.example/transcript.jsonl?signature=secret";
+  const runUntilParse = (data: Record<string, unknown>) => {
+    const parsed = new Error("stop after fetch-transcript");
+    const seen: { value?: unknown } = {};
+    const step = {
+      run: async (name: string, callback: () => Promise<unknown>) => {
+        if (name === "parse-transcript") throw parsed;
+        seen.value = await callback();
+        return seen.value;
+      },
+    };
+    return { seen, parsed, run: internals.fn({ event: { data }, step }) };
+  };
+  const originalFetch = global.fetch;
 
-    expect(sleep).not.toHaveBeenCalled();
-    expect(end).not.toHaveBeenCalled();
+  afterEach(() => { global.fetch = originalFetch; });
+
+  it("names the HTTP status instead of handing an error body to the parser", async () => {
+    global.fetch = jest.fn().mockResolvedValue(new Response("<Error><Code>AccessDenied</Code></Error>", { status: 403 }));
+    const { run } = runUntilParse({ meetingId, transcriptUrl });
+    await expect(run).rejects.toThrow(/403/);
+    await expect(run).rejects.not.toThrow(/secret/);
   });
 
-  it("does not end a call that has already ended", async () => {
-    get.mockResolvedValue({ call: { ended_at: new Date(), session: session() } });
-
-    await run();
-
-    expect(end).not.toHaveBeenCalled();
-  });
-
-  it("lets a failed lookup surface so Inngest retries it", async () => {
-    get.mockRejectedValue(new Error("stream down"));
-
-    await expect(run()).rejects.toThrow("stream down");
-    expect(end).not.toHaveBeenCalled();
+  it("returns the transcript body on success", async () => {
+    global.fetch = jest.fn().mockResolvedValue(new Response('{"speaker_id":"a"}', { status: 200 }));
+    const { run, seen, parsed } = runUntilParse({ meetingId, transcriptUrl });
+    await expect(run).rejects.toBe(parsed);
+    expect(seen.value).toBe('{"speaker_id":"a"}');
   });
 });

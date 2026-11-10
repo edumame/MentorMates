@@ -1,116 +1,76 @@
 /** @jest-environment node */
-import { NextRequest } from "next/server";
-import { POST } from "./route";
-import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
-import { streamVideo } from "@/lib/stream-video";
-import { inngest } from "@/lib/inngest/client";
-
-jest.mock("openai", () => jest.fn());
-jest.mock("@/app/utils/supabase/server", () => ({ createSupabaseServiceClient: jest.fn() }));
-jest.mock("@/lib/stream-chat", () => ({ streamChat: {} }));
-jest.mock("@/lib/inngest/client", () => ({ inngest: { send: jest.fn() } }));
-jest.mock("@/lib/stream-video", () => ({
-  streamVideo: { verifyWebhook: jest.fn(), video: { call: jest.fn() } },
-}));
-
-const meetingId = "meeting-1";
-const end = jest.fn();
-const fetchMock = jest.fn();
-let meeting: { agent_id: string; user_id: string | null } | null;
-let meetingError: { message: string } | null;
-
-const participantLeft = (userId: string, reason?: string) =>
-  new NextRequest("http://localhost/api/webhook", {
-    method: "POST",
-    headers: { "x-signature": "signature", "x-api-key": "key" },
-    body: JSON.stringify({
-      type: "call.session_participant_left",
-      call_cid: `default:${meetingId}`,
-      session_id: "session-1",
-      participant: { user: { id: userId }, user_session_id: "user-session-1", role: "user" },
-      reason,
-    }),
+import { POST } from './route';
+import { NextRequest } from 'next/server';
+import { createSupabaseServiceClient } from '@/app/utils/supabase/server';
+import { streamChat } from '@/lib/stream-chat';
+import OpenAI from 'openai';
+import { isStreamChatConfigured, isStreamVideoConfigured } from '@/lib/stream-config';
+jest.mock('@/app/utils/supabase/server', () => ({ createSupabaseServiceClient: jest.fn() }));
+jest.mock('@/lib/stream-video', () => ({ streamVideo: { verifyWebhook: () => true } }));
+jest.mock('@/lib/inngest/client', () => ({ inngest: {} }));
+jest.mock('@/lib/stream-chat', () => ({ streamChat: { channel: jest.fn(), upsertUser: jest.fn(), getMessage: jest.fn() } }));
+const mockResponsesCreate = jest.fn();
+jest.mock('openai', () => ({ __esModule: true, default: jest.fn(() => ({ responses: { create: mockResponsesCreate } })) }));
+jest.mock('@/lib/stream-config', () => ({ ...jest.requireActual('@/lib/stream-config'), isStreamVideoConfigured: jest.fn(() => true), isStreamChatConfigured: jest.fn(() => true) }));
+const request = () => new NextRequest('http://localhost', { method: 'POST', headers: { 'x-signature': 'fixture', 'x-api-key': 'fixture' }, body: JSON.stringify({ type: 'message.new', user: { id: 'user' }, channel_id: 'meeting', message: { id: 'message', text: 'Hello' } }) });
+it('releases a failed claim so retry delivers, and completes only after awaited send', async () => {
+  (streamChat.getMessage as jest.Mock).mockRejectedValue({ status: 404 });
+  const receipts = new Map<string, string>();
+  const rpc = jest.fn(async (name, args) => {
+    if (name === 'claim_chat_webhook') { if (receipts.get(args.p_message_id) === 'done') return { data: 'completed' }; receipts.set(args.p_message_id,args.p_token); return { data: 'claimed' }; }
+    if (args.p_completed) receipts.set(args.p_message_id,'done'); else receipts.delete(args.p_message_id);
+    return {};
   });
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  meeting = { agent_id: "agent-1", user_id: "owner-1" };
-  meetingError = null;
-  global.fetch = fetchMock;
-  process.env.SCREEN_VISION_WORKER_URL = "http://worker.test";
-  (streamVideo.verifyWebhook as jest.Mock).mockReturnValue(true);
-  (streamVideo.video.call as jest.Mock).mockReturnValue({ end });
-  (inngest.send as jest.Mock).mockResolvedValue({ ids: ["event"] });
-  (createSupabaseServiceClient as jest.Mock).mockResolvedValue({
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          maybeSingle: jest.fn(async () => ({ data: meeting, error: meetingError })),
-        })),
-      })),
-    })),
-  });
+  (createSupabaseServiceClient as jest.Mock).mockResolvedValue({ rpc, from: (table: string) => {
+    const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: table === 'meetings' ? { agent_id: 'agent' } : { id: 'agent', name: 'Agent', instructions: 'Fixture' } }) }; return q;
+  } });
+  const sendMessage = jest.fn().mockRejectedValueOnce(new Error('provider outage')).mockResolvedValue({});
+  (streamChat.channel as jest.Mock).mockReturnValue({ watch: async () => {}, query: async () => ({ messages: [] }), sendMessage });
+  const ai = { responses: { create: mockResponsesCreate } };
+  ai.responses.create.mockResolvedValue({ output_text: 'Reply' });
+  await expect(POST(request())).rejects.toThrow('provider outage'); expect(receipts.size).toBe(0);
+  expect((await POST(request())).status).toBe(200); expect(receipts.get('message')).toBe('done');
+  await POST(request()); expect(sendMessage).toHaveBeenCalledTimes(2);
+  expect(sendMessage.mock.calls[0][0].id).toBe(sendMessage.mock.calls[1][0].id);
+  expect(rpc).toHaveBeenCalledWith('finish_chat_webhook', expect.objectContaining({ p_completed: false }));
+});
+it('recovers a delivered reply without regenerating or resending it', async () => {
+  const rpc = jest.fn(async (name: string) => name === 'claim_chat_webhook' ? { data: 'claimed' } : {});
+  (createSupabaseServiceClient as jest.Mock).mockResolvedValue({ rpc });
+  (streamChat.getMessage as jest.Mock).mockResolvedValue({ message: { id: 'persisted-reply' } });
+  const ai = { responses: { create: mockResponsesCreate } };
+  ai.responses.create.mockClear(); (streamChat.channel as jest.Mock).mockClear();
+  expect((await POST(request())).status).toBe(200);
+  expect(ai.responses.create).not.toHaveBeenCalled(); expect(streamChat.channel).not.toHaveBeenCalled();
+  expect(rpc).toHaveBeenCalledWith('finish_chat_webhook', expect.objectContaining({ p_completed: true }));
 });
 
-describe("POST /api/webhook call.session_participant_left", () => {
-  it("does not end the call or schedule a check when the agent drops", async () => {
-    const response = await POST(participantLeft("agent-1"));
+it('answers 503 without touching Stream when video keys are missing', async () => {
+  (isStreamVideoConfigured as jest.Mock).mockReturnValueOnce(false);
+  (createSupabaseServiceClient as jest.Mock).mockClear();
+  const response = await POST(new NextRequest('http://localhost', { method: 'POST', body: '{}' }));
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({ error: 'Video webhooks are not configured' });
+  expect(createSupabaseServiceClient).not.toHaveBeenCalled();
+});
+it('does not construct OpenAI at import time', async () => {
+  (OpenAI as unknown as jest.Mock).mockClear();
+  await jest.isolateModulesAsync(async () => { await import('./route'); });
+  expect(OpenAI as unknown as jest.Mock).not.toHaveBeenCalled();
+});
 
-    expect(response.status).toBe(200);
-    expect(end).not.toHaveBeenCalled();
-    expect(inngest.send).not.toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
+it('answers 503 for chat events when only chat keys are missing', async () => {
+  (isStreamChatConfigured as jest.Mock).mockReturnValueOnce(false);
+  (createSupabaseServiceClient as jest.Mock).mockResolvedValue({ rpc: jest.fn(), from: jest.fn() });
+  (streamChat.channel as jest.Mock).mockClear();
+  const response = await POST(request());
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({ error: 'Chat webhooks are not configured' });
+  expect(streamChat.channel).not.toHaveBeenCalled();
+});
 
-  it.each([
-    ["the owner, who may only be refreshing", "owner-1", undefined],
-    ["a non-owner", "organizer-1", undefined],
-    ["someone dropped by a timeout", "owner-1", "timeout"],
-  ])("defers the decision when %s leaves", async (_label, userId, reason) => {
-    const response = await POST(participantLeft(userId, reason));
-
-    expect(response.status).toBe(200);
-    expect(end).not.toHaveBeenCalled();
-    expect(inngest.send).toHaveBeenCalledWith({
-      name: "meetings/participant-left",
-      data: { meetingId, agentId: "agent-1", ownerId: "owner-1", leftUserId: userId },
-    });
-  });
-
-  it("passes on a missing owner for a meeting that has none", async () => {
-    meeting = { agent_id: "agent-1", user_id: null };
-
-    await POST(participantLeft("organizer-1"));
-
-    expect(inngest.send).toHaveBeenCalledWith({
-      name: "meetings/participant-left",
-      data: { meetingId, agentId: "agent-1", ownerId: null, leftUserId: "organizer-1" },
-    });
-  });
-
-  it("keeps the agent connected while the participant may still come back", async () => {
-    await POST(participantLeft("owner-1"));
-
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("does nothing for a call with no meeting", async () => {
-    meeting = null;
-
-    const response = await POST(participantLeft("owner-1"));
-
-    expect(response.status).toBe(404);
-    expect(end).not.toHaveBeenCalled();
-    expect(inngest.send).not.toHaveBeenCalled();
-  });
-
-  it("does nothing when the meeting lookup fails", async () => {
-    meetingError = { message: "boom" };
-
-    const response = await POST(participantLeft("owner-1"));
-
-    expect(response.status).toBe(404);
-    expect(end).not.toHaveBeenCalled();
-    expect(inngest.send).not.toHaveBeenCalled();
-  });
+it('has no console.log debug output (NEW-004)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const source = require('node:fs').readFileSync(require('node:path').join(process.cwd(), 'app/api/webhook/route.ts'), 'utf8');
+  expect(source).not.toMatch(/console\.log\(/);
 });

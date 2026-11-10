@@ -5,6 +5,9 @@ import {
   apiFieldsToEditor,
   DEFAULT_SUBMISSION_FIELDS,
   createSubmissionTemplateFields,
+  createLockedStarterSubmissionFields,
+  createMLHSubmissionTemplateFields,
+  normalizeAiSubmissionFields,
   type SubmissionField,
 } from "./types";
 
@@ -436,5 +439,212 @@ describe("submission field type mapping", () => {
       expect(template).not.toBe(DEFAULT_SUBMISSION_FIELDS);
       expect(template[0]).not.toBe(DEFAULT_SUBMISSION_FIELDS[0]);
     });
+  });
+});
+
+describe("normalizeAiSubmissionFields", () => {
+  const locked = createLockedStarterSubmissionFields();
+  const custom: SubmissionField = {
+    id: "tech_stack",
+    label: "Tech stack",
+    type: "text",
+    required: false,
+    placeholder: "",
+  };
+
+  it("prepends the canonical locked fields when they were never defined", () => {
+    expect(normalizeAiSubmissionFields([custom], [])).toEqual([...locked, custom]);
+    expect(normalizeAiSubmissionFields([], [])).toEqual(locked);
+  });
+
+  it("replaces invented locked definitions with the canonical ones", () => {
+    expect(
+      normalizeAiSubmissionFields(
+        [
+          { id: "project_name", label: "Name", type: "textarea", required: false, placeholder: "" },
+          { id: "project_description", label: "About", type: "text", required: false, placeholder: "" },
+          custom,
+        ],
+        [],
+      ),
+    ).toEqual([...locked, custom]);
+  });
+
+  describe("on the MLH template, where a locked field is not at the head", () => {
+    const mlh = createMLHSubmissionTemplateFields();
+    const ids = (fields: SubmissionField[] | null) =>
+      fields?.map((field) => field.id);
+    const mlhIdsWithout = (...removed: string[]) =>
+      mlh.map((field) => field.id).filter((id) => !removed.includes(id));
+    const newQuestion = { ...custom, id: "new_q", label: "New question" };
+
+    it("returns a fully compliant patch unchanged", () => {
+      expect(normalizeAiSubmissionFields([...mlh], mlh)).toEqual(mlh);
+    });
+
+    it("keeps the order when a patch removes a field ahead of a locked one", () => {
+      expect(
+        ids(
+          normalizeAiSubmissionFields(
+            mlh.filter((field) => field.id !== "project_url"),
+            mlh,
+          ),
+        ),
+      ).toEqual(mlhIdsWithout("project_url"));
+    });
+
+    it("keeps the order when a patch inserts a field ahead of a locked one", () => {
+      const descriptionIndex = mlh.findIndex(
+        (field) => field.id === "project_description",
+      );
+      const patch = [
+        ...mlh.slice(0, descriptionIndex),
+        newQuestion,
+        ...mlh.slice(descriptionIndex),
+      ];
+
+      expect(ids(normalizeAiSubmissionFields(patch, mlh))).toEqual(ids(patch));
+    });
+
+    it("restores an omitted locked field to its old place", () => {
+      expect(
+        normalizeAiSubmissionFields(
+          mlh.filter((field) => field.id !== "project_description"),
+          mlh,
+        ),
+      ).toEqual(mlh);
+    });
+
+    it("anchors an omitted locked field when its neighbour was removed too", () => {
+      expect(
+        ids(
+          normalizeAiSubmissionFields(
+            mlh.filter(
+              (field) =>
+                field.id !== "project_url" &&
+                field.id !== "project_description",
+            ),
+            mlh,
+          ),
+        ),
+      ).toEqual(mlhIdsWithout("project_url"));
+    });
+
+    it("restores both locked fields when the patch omits them", () => {
+      expect(
+        normalizeAiSubmissionFields(
+          mlh.filter(
+            (field) =>
+              field.id !== "project_name" && field.id !== "project_description",
+          ),
+          mlh,
+        ),
+      ).toEqual(mlh);
+    });
+
+    it("uses the current locked definitions wherever the patch places them", () => {
+      const result = normalizeAiSubmissionFields([...mlh].reverse(), mlh);
+
+      expect(result).toEqual([...mlh].reverse());
+    });
+
+    it("reverts edits to a locked entry without moving it", () => {
+      const patch = mlh.map((field) =>
+        field.id === "project_description"
+          ? { ...field, label: "Changed", type: "text" }
+          : field,
+      );
+
+      expect(normalizeAiSubmissionFields(patch, mlh)).toEqual(mlh);
+    });
+  });
+
+  it("restores a locked field the current list lacks after its canonical neighbour", () => {
+    const current = [locked[0], custom];
+
+    expect(normalizeAiSubmissionFields([...current], current)).toEqual([
+      locked[0],
+      locked[1],
+      custom,
+    ]);
+  });
+
+  it("keeps the first place of a locked id the patch repeats", () => {
+    expect(
+      normalizeAiSubmissionFields([locked[0], custom, locked[0], locked[1]], []),
+    ).toEqual([locked[0], custom, locked[1]]);
+  });
+
+  it("keeps locked fields when the patch asks to remove everything", () => {
+    expect(normalizeAiSubmissionFields([], createSubmissionTemplateFields())).toEqual(locked);
+  });
+
+  it("repairs ids the save route would reject, then removes duplicates", () => {
+    const result = normalizeAiSubmissionFields(
+      [
+        { ...custom, id: "Project-Name", label: "Sneaky" },
+        { ...custom, id: "Tech Stack" },
+        { ...custom, label: "Duplicate" },
+        { ...custom, id: "", label: "Team Size!" },
+      ],
+      [],
+    );
+
+    expect(result).toEqual([
+      ...locked,
+      custom,
+      { ...custom, id: "team_size", label: "Team Size!" },
+    ]);
+  });
+
+  it("produces values the save route accepts", () => {
+    const result = normalizeAiSubmissionFields(
+      [
+        {
+          id: "stack",
+          label: `  ${"l".repeat(200)}  `,
+          type: "file",
+          required: "yes",
+          placeholder: 5,
+          helperText: "h".repeat(600),
+          options: ["  a ", "", 3],
+          multiple: true,
+          maxFiles: 99,
+          allowsMultipleEntries: "true",
+          extra: "ignored",
+        },
+      ],
+      [],
+    );
+
+    expect(result?.[2]).toEqual({
+      id: "stack",
+      label: "l".repeat(160),
+      type: "file",
+      required: false,
+      placeholder: "",
+      helperText: "h".repeat(500),
+      options: ["a"],
+      multiple: true,
+    });
+  });
+
+  it.each([
+    ["a non-object", "tech_stack"],
+    ["a null entry", null],
+    ["a missing label", { id: "tech_stack", type: "text" }],
+    ["a blank label", { id: "tech_stack", label: "  ", type: "text" }],
+    ["an unknown type", { id: "tech_stack", label: "Tech", type: "number" }],
+    ["an inherited type name", { id: "tech_stack", label: "Tech", type: "toString" }],
+  ])("rejects the whole patch for %s", (_name, entry) => {
+    expect(
+      normalizeAiSubmissionFields([custom, entry], createSubmissionTemplateFields()),
+    ).toBeNull();
+  });
+
+  it("does not reject an invalid entry for a locked id", () => {
+    expect(
+      normalizeAiSubmissionFields([{ id: "project_name" }, custom], []),
+    ).toEqual([...locked, custom]);
   });
 });

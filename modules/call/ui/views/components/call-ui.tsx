@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+// The app mounts the use-toast Toaster (components/utils/Providers), not sonner.
+import { toast } from "@/lib/hooks/use-toast";
 import {
   CallingState,
   StreamTheme,
@@ -21,6 +22,8 @@ export const CallUI = ({ meetingId, meetingName, isOwner }: Props) => {
   const { useCallCallingState } = useCallStateHooks();
   const callingState = useCallCallingState();
   const [show, setShow] = useState<"lobby" | "call" | "ended">("lobby");
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinFailed, setJoinFailed] = useState(false);
   // The SDK leaves the call by itself when it is ended remotely.
   const view = show === "call" && callingState === CallingState.LEFT ? "ended" : show;
 
@@ -34,7 +37,11 @@ export const CallUI = ({ meetingId, meetingName, isOwner }: Props) => {
       setShow("ended");
     } else {
       setShow("lobby");
-      toast.error("You lost connection to the call. Join again to continue.");
+      toast({
+        title: "You lost connection to the call",
+        description: "Join again to continue.",
+        variant: "destructive",
+      });
     }
     call.leave().catch((err) => console.error("Failed to leave call", err));
   }, [call, callingState, show]);
@@ -42,6 +49,8 @@ export const CallUI = ({ meetingId, meetingName, isOwner }: Props) => {
   const handleJoin = async () => {
     if (!call) return;
 
+    setIsJoining(true);
+    setJoinFailed(false);
     try {
       await call.join();
       setShow("call");
@@ -52,8 +61,10 @@ export const CallUI = ({ meetingId, meetingName, isOwner }: Props) => {
       if (call.state.endedAt) {
         setShow("ended");
       } else {
-        toast.error("Could not join the call. Please try again.");
+        setJoinFailed(true);
       }
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -67,7 +78,9 @@ export const CallUI = ({ meetingId, meetingName, isOwner }: Props) => {
 
   return (
     <StreamTheme className="h-[95%]">
-      {view === "lobby" && <CallLobby onJoin={handleJoin} />}
+      {view === "lobby" && (
+        <CallLobby onJoin={handleJoin} isJoining={isJoining} joinFailed={joinFailed} />
+      )}
       {view === "call" && (
         <CallActive
           onLeave={handleLeave}
