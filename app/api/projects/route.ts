@@ -15,9 +15,16 @@ import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/eff
 import {
   fetchArtifactsByProjectIds,
   fetchSubmissionAnswersByProjectIds,
+  fetchSubmissionFieldsByEventIds as fetchSubmissionFieldsWithServiceClient,
 } from "@/lib/projects/query";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
+import {
+  buildProjectTeamMembers,
+  fetchPublicTeamRosters,
+} from "@/lib/projects/team-members";
+import { getTeamEmails } from "@/lib/projects/membership";
+import { PROJECT_CLIENT_COLUMNS } from "@/lib/projects/columns";
 
 type OrganizerProjectRow = {
   id: string;
@@ -34,6 +41,23 @@ async function fetchSubmissionFieldsByEventIds(
 ) {
   if (eventIds.length === 0) {
     return new Map<string, EventSubmissionField[]>();
+  }
+
+  // Field definitions are readable only by event members under RLS, while the
+  // answers keyed by them are public on non-private projects. An empty read
+  // here would swap in the default fields and orphan those answers, so go
+  // through the service client. Every caller runs after its visibility check
+  // and only attaches the fields to projects the viewer can already read.
+  try {
+    const fieldMap = await fetchSubmissionFieldsWithServiceClient(
+      createSupabaseServiceClient(),
+      eventIds
+    );
+    if (fieldMap.size > 0) {
+      return fieldMap;
+    }
+  } catch {
+    // Service key may not exist in local dev; use the caller's access instead.
   }
 
   const { data, error } = await supabase
@@ -135,6 +159,38 @@ async function fetchIsFinalist(projectId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Public-mode listings are open for public events. Members of a non-public
+ * (e.g. private) event may use the same email-free listing — popular voting
+ * and galleries call public=true for every viewer, and a members-only event
+ * must not look empty to its own participants.
+ */
+async function canViewEventProjects(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  eventId: string | null | undefined
+): Promise<boolean> {
+  if (!eventId) return false;
+  const { data: eventMeta, error: eventMetaError } = await supabase
+    .from("events")
+    .select("visibility")
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (eventMetaError || !eventMeta) return false;
+  if (eventMeta.visibility === "public") return true;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data: roles, error: roleError } = await supabase
+    .from("user_event_roles")
+    .select("role")
+    .eq("event_id", eventId)
+    .eq("user_id", user.id)
+    .limit(1);
+  return !roleError && (roles?.length ?? 0) > 0;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseClient();
@@ -160,9 +216,7 @@ export async function GET(request: NextRequest) {
             id,
             project_name,
             lead_name,
-            lead_email,
             project_description,
-            teammates,
             project_url,
             video_url,
             additional_materials_url,
@@ -199,14 +253,13 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ error: "Project not found" }, { status: 404 });
         }
 
-        // Ensure the owning event is public.
-        const { data: eventMeta, error: eventMetaError } = await supabase
-          .from("events")
-          .select("visibility")
-          .eq("event_id", project.event_id)
-          .maybeSingle();
-
-        if (eventMetaError || eventMeta?.visibility !== "public") {
+        // Ensure the owning event is public (or the viewer belongs to it).
+        // Projects whose event was deleted (event_id NULL) are governed by
+        // projects RLS alone (non-private rows only for outsiders).
+        if (
+          project.event_id &&
+          !(await canViewEventProjects(supabase, project.event_id))
+        ) {
           return NextResponse.json({ error: "Project not found" }, { status: 404 });
         }
         const [artifactMap, fieldMap, answerMap] = await Promise.all([
@@ -226,9 +279,7 @@ export async function GET(request: NextRequest) {
           id: project.id,
           project_name: project.project_name,
           lead_name: project.lead_name,
-          lead_email: project.lead_email,
           project_description: project.project_description,
-          teammates: project.teammates,
           is_private: Boolean((project as { private?: boolean | null }).private),
           project_url: project.project_url,
           additional_materials_url: project.additional_materials_url,
@@ -253,14 +304,25 @@ export async function GET(request: NextRequest) {
         artifactMap.get(project.id) || fallbackArtifacts
         );
 
-        const extras = await fetchCertificateExtras(supabase, project.id);
+        const [extras, rosters] = await Promise.all([
+          fetchCertificateExtras(supabase, project.id),
+          fetchPublicTeamRosters([project.id]),
+        ]);
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
           extras.prizes_won;
         (
           transformedProject as unknown as { is_finalist?: boolean }
         ).is_finalist = extras.is_finalist;
 
-        return NextResponse.json({ project: transformedProject });
+        // Public responses never carry member emails; the roster is resolved
+        // server-side and carries only names and opaque member ids.
+        const roster = rosters.get(project.id);
+        return NextResponse.json({
+          project: {
+            ...transformedProject,
+            team_members: roster?.members ?? [],
+          },
+        });
       }
 
       if (!resolvedEventId && eventSlug) {
@@ -298,14 +360,9 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Ensure the event itself is public before returning any projects.
-      const { data: eventMeta, error: eventMetaError } = await supabase
-        .from("events")
-        .select("visibility")
-        .eq("event_id", resolvedEventId)
-        .maybeSingle();
-
-      if (eventMetaError || eventMeta?.visibility !== "public") {
+      // Ensure the event itself is public (or the viewer belongs to it) before
+      // returning any projects; projects RLS still filters per caller.
+      if (!(await canViewEventProjects(supabase, resolvedEventId))) {
         return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
 
@@ -317,9 +374,7 @@ export async function GET(request: NextRequest) {
           id,
           project_name,
           lead_name,
-          lead_email,
           project_description,
-          teammates,
           project_url,
           video_url,
           additional_materials_url,
@@ -360,13 +415,13 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const projects = (allProjects || []).map((item: ProjectFromDatabase) => ({
+      // Public select omits lead_email/teammates (anon has no column grant).
+      type PublicProjectRow = Omit<ProjectFromDatabase, "lead_email" | "teammates">;
+      const projects = (allProjects || []).map((item: PublicProjectRow) => ({
         id: item.id,
         project_name: item.project_name,
         lead_name: item.lead_name,
-        lead_email: item.lead_email,
         project_description: item.project_description,
-        teammates: item.teammates,
         is_private: Boolean((item as { private?: boolean | null }).private),
         project_url: item.project_url,
         video_url: item.video_url,
@@ -477,7 +532,15 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return NextResponse.json({ projects: projectsWithArtifacts });
+      const listRosters = await fetchPublicTeamRosters(
+        projectsWithArtifacts.map((project) => project.id)
+      );
+      return NextResponse.json({
+        projects: projectsWithArtifacts.map((project) => ({
+          ...project,
+          team_members: listRosters.get(project.id)?.members ?? [],
+        })),
+      });
     }
 
     // For all other requests, require authentication
@@ -498,9 +561,7 @@ export async function GET(request: NextRequest) {
           id,
           project_name,
           lead_name,
-          lead_email,
           project_description,
-          teammates,
           project_url,
           video_url,
           additional_materials_url,
@@ -546,15 +607,20 @@ export async function GET(request: NextRequest) {
         fetchSubmissionAnswersByProjectIds(supabase, [project.id]),
       ]);
 
+      // Team emails only for team members, the event's organizers and admins
+      // (project_team_emails); everyone else gets the email-free payload.
+      const teamEmails = (await getTeamEmails(supabase, [project.id])).get(project.id);
+
       // Transform project data
       const transformedProject = applyEffectiveSubmissionToProject({
         id: project.id,
         project_name: project.project_name,
         lead_name: project.lead_name,
-        lead_email: project.lead_email,
+        ...(teamEmails
+          ? { lead_email: teamEmails.lead_email, teammates: teamEmails.teammates }
+          : {}),
         is_private: Boolean((project as { private?: boolean | null }).private),
         project_description: project.project_description,
-        teammates: project.teammates,
         project_url: project.project_url,
         video_url: (project as unknown as { video_url?: string | null }).video_url,
         additional_materials_url: project.additional_materials_url,
@@ -623,11 +689,26 @@ export async function GET(request: NextRequest) {
           prizeWinnersData as unknown as Prize[];
       }
 
+      const [isFinalist, rosters] = await Promise.all([
+        fetchIsFinalist(transformedProject.id),
+        fetchPublicTeamRosters([project.id]),
+      ]);
       (
         transformedProject as unknown as { is_finalist?: boolean }
-      ).is_finalist = await fetchIsFinalist(transformedProject.id);
+      ).is_finalist = isFinalist;
 
-      return NextResponse.json({ project: transformedProject });
+      const roster = rosters.get(project.id);
+      const teamMembers = roster
+        ? teamEmails
+          ? buildProjectTeamMembers(roster.source, roster.profiles, {
+              includeEmail: true,
+            })
+          : roster.members
+        : [];
+
+      return NextResponse.json({
+        project: { ...transformedProject, team_members: teamMembers },
+      });
     }
 
     // Handle projects by event
@@ -649,7 +730,7 @@ export async function GET(request: NextRequest) {
         .from("projects")
         .select(
           `
-            *,
+            ${PROJECT_CLIENT_COLUMNS},
             project_tracks (
               track_id,
               event_tracks (
@@ -661,7 +742,7 @@ export async function GET(request: NextRequest) {
             feedback (
               feedback_text,
               mentor_name,
-              mentor_email
+              mentor_id
             )
           `
         )
@@ -685,11 +766,18 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Organizers get every team's emails; members get their own team's;
+      // other viewers get none (PUB-008 round 2).
+      const listTeamEmails = await getTeamEmails(
+        supabase,
+        ((projectsData as unknown as OrganizerProjectRow[] | null) || []).map((project) => project.id)
+      );
       const transformedProjects: Array<
         OrganizerProjectRow & { track_ids: string[] }
-      > = ((projectsData as OrganizerProjectRow[] | null) || []).map(
+      > = ((projectsData as unknown as OrganizerProjectRow[] | null) || []).map(
         (project) => ({
           ...project,
+          ...(listTeamEmails.get(project.id) ?? {}),
           track_ids: project.project_tracks?.map((pt) => pt.track_id) || [],
         })
       );
@@ -801,7 +889,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("projects")
       .insert(insertPayload)
-      .select("id, lead_name, lead_email, event_id, project_name")
+      .select("id, lead_name, event_id, project_name")
       .single();
 
     if (error) {
@@ -824,7 +912,7 @@ export async function POST(request: NextRequest) {
           metadata: {
             mentor_mates_project_id: data.id,
             team_lead_name: data.lead_name,
-            team_lead_email: data.lead_email,
+            team_lead_email: insertPayload.lead_email as string,
             ...(data.event_id ? { event_id: data.event_id } : {}),
           },
         };

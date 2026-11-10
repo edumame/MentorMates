@@ -6,6 +6,7 @@ import {
 } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
 
@@ -40,43 +41,17 @@ export type ProjectBaseRow = {
   project_tracks?: Array<{ event_tracks: EventTrack | null }> | null;
 };
 
-const PAGE_SIZE = 1000;
-
 /**
- * Reads every page of a query. PostgREST silently caps each response at its
- * `max_rows` setting and still reports success, so an unpaged read can return
- * partial data. `fetchPage` must use a stable order and request an exact count;
- * the count is what ends the loop, so a cap below PAGE_SIZE cannot end it early.
- * Throws on a failed read so callers cannot mistake it for "no rows".
+ * Reads every page via the shared fetchAllRows (PostgREST silently caps each
+ * response at max_rows) and throws on a failed read, so callers cannot mistake
+ * it for "no rows" and render or export blanks.
  */
-async function fetchAllPages<Row>(
-  fetchPage: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{
-    data: Row[] | null;
-    error: unknown;
-    count: number | null;
-  }>,
-) {
-  const rows: Row[] = [];
-
-  while (true) {
-    const { data, error, count } = await fetchPage(
-      rows.length,
-      rows.length + PAGE_SIZE - 1,
-    );
-
-    if (error) {
-      throw error;
-    }
-
-    rows.push(...(data ?? []));
-
-    if (!data?.length || (count !== null && rows.length >= count)) {
-      return rows;
-    }
-  }
+async function fetchAllPagesOrThrow<Row, Err>(
+  fetchPage: Parameters<typeof fetchAllRows<Row, Err>>[0],
+): Promise<Row[]> {
+  const { data, error } = await fetchAllRows(fetchPage);
+  if (error) throw error;
+  return data as Row[];
 }
 
 export async function fetchSubmissionFieldsByEventIds(
@@ -119,12 +94,10 @@ export async function fetchSubmissionAnswersByProjectIds(
     return new Map<string, ProjectSubmissionAnswer[]>();
   }
 
-  const data = await fetchAllPages((from, to) =>
+  const data = await fetchAllPagesOrThrow((from, to) =>
     supabase
       .from("project_submission_answers")
-      .select("id, project_id, event_submission_field_id, answer", {
-        count: "exact",
-      })
+      .select("id, project_id, event_submission_field_id, answer")
       .in("project_id", uniqueProjectIds)
       .order("id", { ascending: true })
       .range(from, to)
@@ -150,12 +123,11 @@ export async function fetchArtifactsByProjectIds(
     return new Map<string, ProjectArtifactRow[]>();
   }
 
-  const data = await fetchAllPages((from, to) =>
+  const data = await fetchAllPagesOrThrow((from, to) =>
     supabase
       .from("project_artifacts")
       .select(
         "id, project_id, kind, label, url, sort_order, is_primary, metadata",
-        { count: "exact" },
       )
       .in("project_id", uniqueProjectIds)
       .order("sort_order", { ascending: true })

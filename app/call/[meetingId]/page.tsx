@@ -4,6 +4,9 @@ import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { loginRedirectFor } from "@/modules/meetings/server/login-redirect";
+import { MeetingServiceUnavailable } from "@/modules/meetings/ui/views/meeting-id-view";
+import { isStreamVideoConfigured } from "@/lib/stream-config";
 
 interface Props {
     params: Promise<{ meetingId: string }>;
@@ -18,7 +21,13 @@ const Page = async ({ params }: Props) => {
     } = await supabase.auth.getUser();
 
     if (!user) {
-        redirect("/sign-in");
+        redirect(loginRedirectFor(`/call/${meetingId}`));
+    }
+
+    // Without Stream keys the call client can never connect; say so instead
+    // of spinning on a token request that cannot succeed.
+    if (!isStreamVideoConfigured()) {
+        return <MeetingServiceUnavailable service="video" />;
     }
 
     const queryClient = getQueryClient();

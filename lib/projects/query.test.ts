@@ -65,7 +65,7 @@ describe("fetchSubmissionAnswersByProjectIds", () => {
     }
   });
 
-  it("returns exactly one page's worth of rows without a duplicate read", async () => {
+  it("returns exactly one page's worth of rows without duplicating any", async () => {
     const { client, supabase } = clientFor({
       project_submission_answers: { rows: buildAnswerRows(100, 10) },
     });
@@ -76,7 +76,12 @@ describe("fetchSubmissionAnswersByProjectIds", () => {
     );
 
     expect([...answers.values()].flat()).toHaveLength(1000);
-    expect(client.requests).toHaveLength(1);
+    // fetchAllRows stops on an empty page (so a server cap below the page size
+    // loses nothing), which costs one extra read after a full page.
+    expect(client.requests.map((request) => request.range)).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ]);
   });
 
   it("uses a stable order so pages cannot overlap or skip rows", async () => {

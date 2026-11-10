@@ -31,23 +31,11 @@ export function getActiveRound(
   scoringConfig: EventScoringConfig | null | undefined
 ): number {
   const active = scoringConfig?.activeRound;
-  if (typeof active === "number" && active > 0) return active;
+  // Positive integers only — same rule as public.event_active_round (DB).
+  if (typeof active === "number" && Number.isInteger(active) && active > 0) {
+    return active;
+  }
   return 1;
-}
-
-export interface AdvancementScoreRow {
-  project_id: string;
-  scores: Record<string, unknown> | null;
-  project_name?: string | null;
-  lead_name?: string | null;
-}
-
-export interface AdvancementCandidate {
-  projectId: string;
-  projectName: string;
-  leadName: string;
-  score: number | null;
-  judgeCount: number;
 }
 
 /**
@@ -89,61 +77,34 @@ export async function getProjectIdsForRound(
   return [];
 }
 
-export function rankProjectsForAdvancement(
-  rows: AdvancementScoreRow[]
-): AdvancementCandidate[] {
-  const bucket = new Map<string, { total: number; count: number }>();
-  const projectMeta = new Map<
-    string,
-    { projectName: string; leadName: string }
-  >();
-
-  for (const row of rows) {
-    if (!projectMeta.has(row.project_id)) {
-      projectMeta.set(row.project_id, {
-        projectName: row.project_name ?? "",
-        leadName: row.lead_name ?? "",
-      });
+/**
+ * project_scores rows outlive project_tracks membership, so keep only rows
+ * whose (project, track) pair is current: a track the project has left must
+ * not affect its advancement rank. Unlike the Scores tab's
+ * filterScoresToCurrentTracks, an unknown pair is dropped, because
+ * currentProjectTracks is the full membership of the projects being ranked.
+ */
+export function filterScoresToCurrentProjectTracks<
+  T extends { project_id: string; track_id: string | null },
+>(
+  scoreRows: T[],
+  currentProjectTracks: Array<{ project_id: string; track_id: string }>
+): T[] {
+  const trackIdsByProject = new Map<string, Set<string>>();
+  for (const { project_id, track_id } of currentProjectTracks) {
+    if (!trackIdsByProject.has(project_id)) {
+      trackIdsByProject.set(project_id, new Set());
     }
-
-    if (!row.scores) continue;
-    let sum = 0;
-    let n = 0;
-    for (const v of Object.values(row.scores)) {
-      const num = typeof v === "number" ? v : Number(v);
-      if (Number.isFinite(num)) {
-        sum += num;
-        n += 1;
-      }
-    }
-    if (n === 0) continue;
-    const avg = sum / n;
-    const existing = bucket.get(row.project_id);
-    if (existing) {
-      existing.total += avg;
-      existing.count += 1;
-    } else {
-      bucket.set(row.project_id, { total: avg, count: 1 });
-    }
+    trackIdsByProject.get(project_id)?.add(track_id);
   }
 
-  return Array.from(bucket.entries())
-    .map(([projectId, { total, count }]) => {
-      const meta = projectMeta.get(projectId);
-      return {
-        projectId,
-        projectName: meta?.projectName ?? "",
-        leadName: meta?.leadName ?? "",
-        score: total / count,
-        judgeCount: count,
-      };
-    })
-    .sort((a, b) => {
-      if ((b.score ?? -Infinity) !== (a.score ?? -Infinity)) {
-        return (b.score ?? -Infinity) - (a.score ?? -Infinity);
-      }
-      return a.projectName.localeCompare(b.projectName);
-    });
+  return scoreRows.filter(
+    (row) =>
+      // Legacy rows with no track predate track scoring; they cannot belong to
+      // a removed track, so they keep counting as before.
+      row.track_id == null ||
+      (trackIdsByProject.get(row.project_id)?.has(row.track_id) ?? false)
+  );
 }
 
 export async function replaceAdvancements(

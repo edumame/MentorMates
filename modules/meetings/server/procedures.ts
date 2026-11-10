@@ -8,6 +8,11 @@ import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
 import { streamChat } from "@/lib/stream-chat";
+import { requireMeetingAccess } from "@/lib/meetings/access";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchMeetingTranscript } from "@/lib/meetings/transcript";
+
+const FILTER_OPTIONS_BATCH_SIZE = 1000;
 
 interface MeetingRow {
   id: string;
@@ -37,7 +42,7 @@ interface SessionCaps {
     agent_caps: Record<string, number | null>;
 }
 
-type AgentRow = { id: string; name?: string | null; avatar_url?: string | null };
+type AgentRow = { id: string; name?: string | null; avatar_url?: string | null; requires_project?: boolean | null };
 type UserProfileRow = Record<string, unknown>;
 
 export const meetingsRouter = createTRPCRouter({
@@ -77,6 +82,7 @@ export const meetingsRouter = createTRPCRouter({
                                 .from('meetings')
                                 .select('id', { count: 'exact', head: true })
                                 .eq('user_id', ctx.auth.user.id)
+                                .eq('provisioning_failed', false)
                                 .eq('event_id', eventId)
                                 .eq('agent_id', agentId);
 
@@ -93,6 +99,7 @@ export const meetingsRouter = createTRPCRouter({
                                     .from('meetings')
                                     .select('id', { count: 'exact', head: true })
                                     .eq('user_id', ctx.auth.user.id)
+                                .eq('provisioning_failed', false)
                                     .eq('event_id', eventId);
 
                                 if (error) throw error;
@@ -109,7 +116,8 @@ export const meetingsRouter = createTRPCRouter({
                     const { data: rows, count, error } = await supabase
                         .from('meetings')
                         .select('id', { count: 'exact' })
-                        .eq('user_id', ctx.auth.user.id);
+                        .eq('user_id', ctx.auth.user.id)
+                                .eq('provisioning_failed', false);
 
                     if (error) throw error;
 
@@ -124,6 +132,20 @@ export const meetingsRouter = createTRPCRouter({
             throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: (err as Error).message || 'Failed to enforce session caps' });
         }
 
+        const { data: agentRows, error: agentError } = await supabase.from('agents').select('*').eq('id', input.agentId).limit(1);
+        const existingAgent = agentRows?.[0];
+        if (agentError) throw agentError;
+        if (!existingAgent) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' });
+
+        await streamVideo.upsertUsers([
+            {
+                id: existingAgent.id,
+                name: existingAgent.name,
+                role: "user",
+                image: existingAgent.avatar_url,
+            },
+        ]);
+
         const { data: createdRows, error: insertError } = await supabase.from('meetings')
             .insert({
                 name: input.name,
@@ -136,10 +158,14 @@ export const meetingsRouter = createTRPCRouter({
         if (insertError) throw insertError;
         const createdMeeting = createdRows?.[0];
 
+        if (!createdMeeting) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Meeting creation failed' });
+
         const call = streamVideo.video.call("default", createdMeeting.id);
-        await call.create({
+        try {
+            await call.create({
             data: {
                 created_by_id: ctx.auth.user.id,
+                members: [{ user_id: ctx.auth.user.id }],
                 custom: {
                     meetingId: createdMeeting.id,
                     meetingName: createdMeeting.name
@@ -158,20 +184,31 @@ export const meetingsRouter = createTRPCRouter({
             },
         });
 
-        const { data: agentRows, error: agentError } = await supabase.from('agents').select('*').eq('id', createdMeeting.agent_id).limit(1);
-        const existingAgent = agentRows?.[0];
-        if (agentError) throw agentError;
-        if (!existingAgent) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' });
+        } catch {
+            // A timed-out create may already have succeeded remotely. Attempt both
+            // compensations; a provider failure must not silently consume quota.
+            let remoteCleanupFailed = false;
+            try { await call.delete(); } catch { remoteCleanupFailed = true; }
+            if (remoteCleanupFailed) {
+                // Preserve the provider call ID for reconciliation and release the
+                // session allowance without losing the failed provisioning record.
+                const { error: markerError } = await createSupabaseServiceClient().from('meetings')
+                    .update({ provisioning_failed: true, status: 'cancelled' })
+                    .match({ id: createdMeeting.id, user_id: ctx.auth.user.id });
+                console.error('Meeting provider cleanup requires reconciliation', createdMeeting.id);
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: markerError
+                    ? 'Meeting setup failed; cleanup requires support'
+                    : 'Meeting setup failed. Your session allowance was restored; please try again.' });
+            }
+            const { error: cleanupError } = await supabase.from('meetings').delete()
+                .match({ id: createdMeeting.id, user_id: ctx.auth.user.id });
+            if (cleanupError) {
+                console.error('Meeting database cleanup failed', createdMeeting.id);
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Meeting setup failed; cleanup requires support' });
+            }
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Meeting setup failed. Please try again.' });
+        }
 
-        await streamVideo.upsertUsers([
-            {
-                id: existingAgent.id,
-                name: existingAgent.name,
-                role: "user",
-                image: existingAgent.avatar_url,
-            },
-        ]);
-    
         return createdMeeting;
     }),
     getOne: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ input, ctx }) => {
@@ -235,9 +272,13 @@ export const meetingsRouter = createTRPCRouter({
             if (!Number.isNaN(s) && !Number.isNaN(e)) duration = Math.max(0, Math.floor((e - s) / 1000));
         }
 
-        const { data: agentRows, error: agentError } = await supabase.from('agents').select('*').eq('id', existingMeeting.agent_id).limit(1);
-        if (agentError) throw agentError;
-        const agent = agentRows?.[0] ?? null;
+        // Meetings may have no agent; filtering on a null id is a uuid syntax error.
+        let agent = null;
+        if (existingMeeting.agent_id) {
+            const { data: agentRows, error: agentError } = await supabase.from('agents').select('*').eq('id', existingMeeting.agent_id).limit(1);
+            if (agentError) throw agentError;
+            agent = agentRows?.[0] ?? null;
+        }
 
         let projectName: string | null = null;
         if ((existingMeeting as MeetingRow).project_id) {
@@ -323,6 +364,7 @@ export const meetingsRouter = createTRPCRouter({
                     id,
                     name: (a.name as string | undefined) ?? null,
                     avatar_url: (a.avatar_url as string | undefined) ?? null,
+                    requires_project: (a.requires_project as boolean | undefined) ?? null,
                 };
                 return acc;
             }, {});
@@ -354,6 +396,33 @@ export const meetingsRouter = createTRPCRouter({
             totalPages,
         };
     }),
+    // Every event and project the user has a meeting in, independent of getMany's paging.
+    getFilterOptions: protectedProcedure.query(async ({ ctx }) => {
+        const eventIds = new Set<string>();
+        const projectIds = new Set<string>();
+
+        // PostgREST caps each response at max_rows (supabase/config.toml), so read in batches.
+        for (let offset = 0; ; offset += FILTER_OPTIONS_BATCH_SIZE) {
+            const { data, error } = await ctx.supabase
+                .from("meetings")
+                .select("event_id, project_id")
+                .eq("user_id", ctx.auth.user.id)
+                .order("id", { ascending: true })
+                .range(offset, offset + FILTER_OPTIONS_BATCH_SIZE - 1);
+
+            if (error) throw error;
+
+            const rows = data ?? [];
+            for (const row of rows) {
+                if (row.event_id) eventIds.add(String(row.event_id));
+                if (row.project_id) projectIds.add(String(row.project_id));
+            }
+
+            if (rows.length < FILTER_OPTIONS_BATCH_SIZE) break;
+        }
+
+        return { eventIds: Array.from(eventIds), projectIds: Array.from(projectIds) };
+    }),
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
         const { agentId, eventId, projectId, id, ...rest } = input;
@@ -377,26 +446,19 @@ export const meetingsRouter = createTRPCRouter({
         if (!removedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
         return removedMeeting;
     }),
-    generateToken: protectedProcedure.mutation(async ({ ctx }) => {
-        await streamVideo.upsertUsers([
-            {
-                id: ctx.auth.user.id,
-                name: ctx.auth.user.user_metadata.full_name,
-                role: "admin",
-                image: ctx.auth.user.user_metadata?.avatar_url,
-            },
-        ]);
-
-        const expirationTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour
-        const issuedAt = Math.floor(Date.now() / 1000) - 60;
-
-        const token = streamVideo.generateUserToken({
+    generateToken: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+        await requireMeetingAccess(ctx.supabase, ctx.auth.user.id, input.id);
+        await streamVideo.upsertUsers([{
+            id: ctx.auth.user.id,
+            name: ctx.auth.user.user_metadata?.full_name,
+            role: "user",
+            image: ctx.auth.user.user_metadata?.avatar_url,
+        }]);
+        return streamVideo.generateCallToken({
             user_id: ctx.auth.user.id,
-            exp: expirationTime,
-            validity_in_seconds: issuedAt,
+            call_cids: [`default:${input.id}`],
+            validity_in_seconds: 3600,
         });
-
-        return token;
     }),
     getTranscript: protectedProcedure.input(z.object({ id: z.string()} )).query(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
@@ -455,12 +517,8 @@ export const meetingsRouter = createTRPCRouter({
             return [];
         }
 
-        const transcript = await fetch(existingMeeting.transcript_url)
-            .then((res) => res.text())
-            .then((text) => JSONL.parse<StreamTranscriptItem>(text))
-            .catch(() => {
-                return [];
-            });
+        const transcript = await fetchMeetingTranscript(input.id)
+            .then((text) => text ? JSONL.parse<StreamTranscriptItem>(text) : []);
 
         const speakerIds = [...new Set(transcript.map((item) => item.speaker_id))];
 
@@ -496,14 +554,17 @@ export const meetingsRouter = createTRPCRouter({
 
         return transcriptWithSpeakers;
     }),
-    generateChatToken: protectedProcedure.mutation(async ({ ctx }) => {
-        const token = streamChat.createToken(ctx.auth.user.id);
-        await streamChat.upsertUsers([{
-                id: ctx.auth.user.id,
-                role: "admin",
-        }]);
-
-        return token;
+    generateChatToken: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+        await requireMeetingAccess(ctx.supabase, ctx.auth.user.id, input.id);
+        await streamChat.upsertUsers([{ id: ctx.auth.user.id, role: "user" }]);
+        // Membership is granted server-side only after meeting authorization.
+        const channel = streamChat.channel("messaging", input.id, {
+            created_by_id: ctx.auth.user.id,
+            members: [ctx.auth.user.id],
+        });
+        await channel.create();
+        await channel.addMembers([ctx.auth.user.id]);
+        return streamChat.createToken(ctx.auth.user.id, Math.floor(Date.now() / 1000) + 3600);
     }),
     ensureCallExists: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
@@ -518,6 +579,10 @@ export const meetingsRouter = createTRPCRouter({
         if (meetingError) throw meetingError;
         if (!existingMeeting) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+        }
+
+        if (existingMeeting.provisioning_failed) {
+            throw new TRPCError({ code: "CONFLICT", message: "Meeting setup failed; create a new meeting" });
         }
 
         // Check if user has access to this meeting
@@ -547,6 +612,7 @@ export const meetingsRouter = createTRPCRouter({
                         .select("role")
                         .eq("event_id", meetingEventId)
                         .eq("user_id", userId)
+                        .in("role", ["organizer", "admin"])
                         .maybeSingle();
                     if (roleErr) throw roleErr;
                     if (roleRow?.role) isAuthorized = true;
@@ -561,11 +627,18 @@ export const meetingsRouter = createTRPCRouter({
         // Try to get the call from Stream.io
         const call = streamVideo.video.call("default", input.id);
 
+        let exists = false;
         try {
             await call.get();
-            // Call exists, we're done
+            exists = true;
+        } catch (error) {
+            const providerError = error as { statusCode?: number; status?: number; response?: { status?: number } };
+            if ((providerError.statusCode ?? providerError.status ?? providerError.response?.status) !== 404) throw error;
+        }
+        if (exists) {
+            await call.updateCallMembers({ update_members: [{ user_id: userId }] });
             return { created: false };
-        } catch {
+        } else {
             // Call doesn't exist, create it
             const agentId = (existingMeeting as MeetingRow).agent_id;
             if (!agentId) {
@@ -589,6 +662,7 @@ export const meetingsRouter = createTRPCRouter({
             await call.create({
                 data: {
                     created_by_id: userId,
+                    members: [{ user_id: userId }],
                     custom: {
                         meetingId: input.id,
                         meetingName: (existingMeeting as MeetingRow).name

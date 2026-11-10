@@ -59,6 +59,19 @@ const DATE_BUCKET_LABEL: Record<DateBucket, string> = {
 
 const DATE_ORDER: DateBucket[] = ["today", "tomorrow", "thisWeek", "nextWeek", "later", "past"];
 
+/** Search matches the event name or its location (PUB-018: host is not part of listing data). */
+export function matchesEventSearch(
+  event: { event_name: string; location?: string | null },
+  searchTerm: string
+) {
+  const term = searchTerm.trim().toLowerCase();
+  if (!term) return true;
+  return (
+    event.event_name.toLowerCase().includes(term) ||
+    (event.location ?? "").toLowerCase().includes(term)
+  );
+}
+
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
@@ -156,7 +169,7 @@ export function EventsPageClient({
 
   const filteredEvents = useMemo(() => {
     return tabFilteredEvents.filter((event) => {
-      if (searchTerm && !event.event_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      if (searchTerm && !matchesEventSearch(event, searchTerm)) {
         return false;
       }
       if (selectedLocations.size > 0) {
@@ -193,8 +206,10 @@ export function EventsPageClient({
       later: [],
       past: [],
     };
+    // Skip only the events shown in Featured; overflow stays in its date bucket.
+    const featuredIds = new Set(featuredEvents.map((e) => e.event_id));
     for (const e of filteredEvents) {
-      if (e.featured) continue;
+      if (featuredIds.has(e.event_id)) continue;
       buckets[bucketForDate(e.event_date)].push(e);
     }
     for (const k of Object.keys(buckets) as DateBucket[]) {
@@ -205,7 +220,7 @@ export function EventsPageClient({
       });
     }
     return buckets;
-  }, [filteredEvents]);
+  }, [filteredEvents, featuredEvents]);
 
   const datesWithEvents = useMemo(() => {
     const set = new Set<string>();
@@ -363,7 +378,8 @@ export function EventsPageClient({
             <div className="pb-3">
               <EventSearchInput
                 wrapperClassName="w-full"
-                placeholder="Search by event or host title"
+                placeholder="Search events by name or location"
+                aria-label="Search events by name or location"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
