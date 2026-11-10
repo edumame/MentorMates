@@ -29,7 +29,9 @@ const INITIAL_MESSAGE: ChatMessage = {
 
 interface JudgingSidebarProps {
   config: EventScoringConfig;
-  onConfigChange: (config: EventScoringConfig) => void;
+  onConfigChange: React.Dispatch<
+    React.SetStateAction<EventScoringConfig | null>
+  >;
   eventId: string;
 }
 
@@ -158,7 +160,10 @@ export function JudgingSidebar({
         }
 
         if (data.config) {
-          onConfigChange(data.config);
+          // parse-file returns only tracks and defaults. Merge into the latest
+          // config so rounds and activeRound survive, including changes saved
+          // while the file was parsing.
+          onConfigChange((prev) => ({ ...prev, ...data.config }));
           const trackNames = Object.values(
             (data.config as EventScoringConfig).tracks
           )

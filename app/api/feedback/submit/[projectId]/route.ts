@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import OpenAI from "openai";
 
@@ -6,21 +7,44 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null as unknown as OpenAI;
 
+const optionalText = z.string().max(5000).optional().nullable();
+
+// Only content fields are accepted from the client. Authorship (mentor_id,
+// mentor_name, mentor_email), project_id and event_id are derived on the
+// server (MENT-001); unknown keys are stripped rather than inserted.
+const feedbackSubmissionSchema = z.object({
+  feedback_text: z.string().trim().min(1).max(10000),
+  original_feedback_text: z.string().max(10000).optional().nullable(),
+  modifier_field: z.array(z.string().max(100)).max(20).optional().nullable(),
+  specific_ai_suggestion: optionalText,
+  positive_ai_suggestion: optionalText,
+  actionable_ai_suggestion: optionalText,
+});
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-
-  const body = await request.json();
   const { projectId } = await params;
 
-
-  if (!projectId) {
+  if (!projectId || !UUID_RE.test(projectId)) {
     return NextResponse.json(
       { error: "Project ID is required" },
       { status: 400 }
     );
   }
+
+  const rawBody = await request.json().catch(() => null);
+  const parsed = feedbackSubmissionSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid feedback", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+  const body = parsed.data;
 
   const supabase = await createSupabaseClient();
 
@@ -28,21 +52,15 @@ export async function POST(
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Allow anonymous feedback submission, but attach user info if available
-  if (user) {
-    body.mentor_id = user.id;
-    body.mentor_name = user.user_metadata?.full_name || null;
-    body.mentor_email = user.email || null;
-  }
-
-  const { error: projectError } = await supabase
+  // RLS limits this read to projects the caller may view (public projects, or
+  // projects of events the caller belongs to).
+  const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id")
+    .select("id, event_id")
     .eq("id", projectId)
-    .single();
+    .maybeSingle();
 
-  if (projectError) {
-    console.error("Project lookup error:", projectError);
+  if (projectError || !project) {
     return NextResponse.json(
       { error: "Could not find project" },
       { status: 404 }
@@ -72,15 +90,27 @@ export async function POST(
     }
   }
 
-  // Ensure event_id is null if empty string (not all projects are tied to events)
-  if (body.event_id === "" || body.event_id === undefined) {
-    body.event_id = null;
-  }
+  // Anonymous feedback is unattributed; signed-in feedback is always attributed
+  // to the caller. The database also enforces both rules and derives the
+  // mentor name from the profile.
+  const row = {
+    ...body,
+    project_id: project.id,
+    event_id: project.event_id ?? null,
+    mentor_id: user?.id ?? null,
+    mentor_name: user ? user.user_metadata?.full_name || null : null,
+  };
 
-  const { error } = await supabase.from("feedback").insert([body]);
+  const { error } = await supabase.from("feedback").insert([row]);
 
   if (error) {
-    console.error("Feedback submission error:", error);
+    if (error.code === "42501") {
+      return NextResponse.json(
+        { error: "You cannot submit feedback for this project" },
+        { status: 403 }
+      );
+    }
+    console.error("Feedback submission error:", error.code);
     return NextResponse.json(
       { error: "Feedback submission failed" },
       { status: 500 }

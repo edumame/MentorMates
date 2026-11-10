@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getTeamEmails } from "@/lib/projects/membership";
 import type { Database, Json } from "@/lib/database.types";
 import {
   createSupabaseServiceClient,
@@ -42,6 +43,29 @@ const projectWriteSchema = z.object({
   extraVideoUrls: z.array(z.string()).optional(),
   extraMaterialsUrls: z.array(z.string()).optional(),
 });
+
+
+/**
+ * Database guards on projects (lane A1): moving a project to another event is
+ * refused once it has scores/prizes/votes (23514) or when the target event was
+ * not joined (42501). Surface those as client errors instead of a 500.
+ */
+export function mapProjectUpdateError(error: { code?: string | null; message?: string | null }) {
+  if (error.code === "23514") {
+    return {
+      error:
+        "This project can't be moved to another event because it already has scores, prizes or votes.",
+      status: 400 as const,
+    };
+  }
+  if (error.code === "42501") {
+    return {
+      error: "You can only move a project to an event you have joined.",
+      status: 403 as const,
+    };
+  }
+  return null;
+}
 
 export type NormalizedProjectWriteInput = z.infer<typeof projectWriteSchema>;
 
@@ -313,15 +337,15 @@ function buildArtifactsFromInput(input: NormalizedProjectWriteInput) {
   return normalizeProjectArtifacts(fallbackArtifacts);
 }
 
-// Scores, assignments and advancements stay keyed to the event they were made
-// in, so moving a project away from them silently detaches it from that event's
-// judging. The caller may be a lead, who cannot read these tables under RLS, so
-// the lookups use the service client and a failed lookup blocks the move.
-const JUDGING_RECORD_TABLES = [
-  "project_scores",
-  "project_assignments",
-  "project_round_advancements",
-] as const;
+// Round advancements stay keyed to the event they were made in, so moving a
+// project away from them silently detaches it from that event's judging.
+// Scores, prize winners and votes are already refused by the
+// guard_project_event_change trigger (mapped by mapProjectUpdateError), and
+// stale assignments are dropped by cleanup_project_after_event_change
+// (migration 202611080105), so they are not re-checked here. The caller may be
+// a lead, who cannot read these tables under RLS, so the lookups use the
+// service client and a failed lookup blocks the move.
+const JUDGING_RECORD_TABLES = ["project_round_advancements"] as const;
 
 const EVENT_MOVE_CHECK_FAILED = {
   error: "Failed to verify whether this project can change events",
@@ -823,16 +847,27 @@ export async function saveProjectSubmission(
 
     finalProjectId = createdProject.id;
   } else {
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("projects")
       .update(updateData)
-      .eq("id", finalProjectId!);
+      .eq("id", finalProjectId!)
+      .select("id");
     if (error) {
+      const mapped = mapProjectUpdateError(error);
+      if (mapped) return mapped;
       console.error("[submit] update project failed", {
         projectId: finalProjectId,
         error,
       });
       return { error: "Failed to update project", status: 500 as const };
+    }
+    // RLS filters an unauthorised UPDATE to zero rows without an error; that
+    // must not be reported as a successful save (PUB-011).
+    if (!updatedRows || updatedRows.length === 0) {
+      return {
+        error: "You don't have permission to edit this project",
+        status: 403 as const,
+      };
     }
   }
 
@@ -972,9 +1007,7 @@ export async function saveProjectSubmission(
       id,
       project_name,
       lead_name,
-      lead_email,
       project_description,
-      teammates,
       project_url,
       video_url,
       additional_materials_url,
@@ -1013,7 +1046,14 @@ export async function saveProjectSubmission(
     return { error: "Failed to fetch updated project", status: 500 as const };
   }
 
-  const updatedProject = updatedProjectRow;
+  // Team emails are not client-readable columns; the saver is a team member
+  // or organizer, so project_team_emails returns them.
+  const savedTeamEmails = (await getTeamEmails(supabase, [finalProjectId])).get(finalProjectId);
+  const updatedProject: ProjectBaseRow = {
+    ...updatedProjectRow,
+    lead_email: savedTeamEmails?.lead_email ?? null,
+    teammates: savedTeamEmails?.teammates ?? null,
+  };
 
   const contextusProjectId = await maybeCreateContextusProject(supabase, {
     projectId: finalProjectId,

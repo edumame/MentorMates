@@ -2,6 +2,7 @@
 
 import { GET, POST } from "./route";
 import { authenticateAgentRequest } from "@/lib/agent/auth";
+import { logAgentEvent } from "@/lib/agent/logging";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 jest.mock("next/server", () => {
@@ -25,19 +26,33 @@ jest.mock("next/server", () => {
 });
 
 jest.mock("@/lib/agent/auth", () => ({ authenticateAgentRequest: jest.fn() }));
+jest.mock("@/lib/agent/logging", () => ({ logAgentEvent: jest.fn() }));
 jest.mock("@/lib/supabase/service", () => ({ createSupabaseServiceClient: jest.fn() }));
 
 type Row = Record<string, unknown>;
 
-/** Minimal fake of the two tables + rpc the route touches. */
-function fakeSupabase(opts: { invite: Row | null; usage: Row[] }) {
+/**
+ * Minimal fake of the two tables + rpc the route touches.
+ *
+ * rpc is lazy like the real PostgrestBuilder: nothing runs until the builder is
+ * awaited, so `executed` only records calls that would reach the database.
+ */
+function fakeSupabase(opts: { invite: Row | null; usage: Row[]; rpcError?: Row }) {
   const inserted: Row[] = [];
-  const rpc = jest.fn().mockResolvedValue({ data: null, error: null });
+  const executed: Row[] = [];
+  const invite = opts.invite ? { ...opts.invite } : null;
+  const rpc = jest.fn((_fn: string, args: Row) => ({
+    then(onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) {
+      executed.push(args);
+      if (invite && !opts.rpcError) invite.uses = (invite.uses as number) + 1;
+      return Promise.resolve({ data: null, error: opts.rpcError ?? null }).then(onFulfilled, onRejected);
+    },
+  }));
   const from = jest.fn((table: string) => {
     if (table === "internal_invites") {
       return {
         select: () => ({
-          eq: () => ({ maybeSingle: async () => ({ data: opts.invite, error: null }) }),
+          eq: () => ({ maybeSingle: async () => ({ data: invite ? { ...invite } : null, error: null }) }),
         }),
       };
     }
@@ -58,7 +73,7 @@ function fakeSupabase(opts: { invite: Row | null; usage: Row[] }) {
     }
     throw new Error(`unexpected table ${table}`);
   });
-  return { client: { from, rpc }, inserted, rpc };
+  return { client: { from, rpc }, inserted, rpc, executed };
 }
 
 function req(opts: { method?: string; invite?: string; body?: unknown; auth?: string }) {
@@ -144,7 +159,7 @@ describe("/api/internal/jev", () => {
   });
 
   it("forwards to Typesafe with the pinned model and server key, logs usage, and returns the upstream JSON", async () => {
-    const { client, inserted, rpc } = fakeSupabase({ invite: liveInvite, usage: [] });
+    const { client, inserted, rpc, executed } = fakeSupabase({ invite: liveInvite, usage: [] });
     (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
     const res = await POST(
@@ -165,6 +180,54 @@ describe("/api/internal/jev", () => {
     expect(inserted).toHaveLength(1);
     expect(inserted[0]).toMatchObject({ service: "jev", key_id: "key-1", invite_id: "inv-1", status: 200, prompt_tokens: 312, completion_tokens: 48 });
     expect(rpc).toHaveBeenCalledWith("increment_internal_invite_uses", { p_invite_id: "inv-1" });
+    expect(executed).toEqual([{ p_invite_id: "inv-1" }]);
+  });
+
+  it("stops forwarding once an invite reaches max_uses", async () => {
+    const { client, executed } = fakeSupabase({ invite: { ...liveInvite, max_uses: 2 }, usage: [] });
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
+    (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
+
+    expect((await POST(req({ invite: "beta-2026", body: goodBody }))).status).toBe(200);
+    expect((await POST(req({ invite: "beta-2026", body: goodBody }))).status).toBe(200);
+    expect((await POST(req({ invite: "beta-2026", body: goodBody }))).status).toBe(404);
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(executed).toHaveLength(2);
+  });
+
+  it("counts a forwarded call against the invite even when upstream fails", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 503, json: async () => ({ error: "down" }) });
+    const { client, executed } = fakeSupabase({ invite: liveInvite, usage: [] });
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
+    (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
+    const res = await POST(req({ invite: "beta-2026", body: goodBody }));
+    expect(res.status).toBe(502);
+    expect(executed).toHaveLength(1);
+  });
+
+  it("does not count calls that are never forwarded", async () => {
+    const { client, executed } = fakeSupabase({ invite: liveInvite, usage: [] });
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
+    (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
+    const res = await POST(req({ invite: "beta-2026", body: { state: "x" } }));
+    expect(res.status).toBe(400);
+    expect(executed).toHaveLength(0);
+  });
+
+  it("logs a failed increment but still returns the upstream result the caller paid for", async () => {
+    const { client, executed } = fakeSupabase({ invite: liveInvite, usage: [], rpcError: { message: "boom" } });
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue(client);
+    (authenticateAgentRequest as jest.Mock).mockResolvedValue(authed);
+    const res = await POST(req({ invite: "beta-2026", body: goodBody }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(upstreamJson);
+    expect(executed).toHaveLength(1);
+    expect(logAgentEvent).toHaveBeenCalledWith(
+      "internal_invite_increment_failed",
+      expect.objectContaining({ route: "/api/internal/jev", keyId: "key-1" }),
+      { message: "boom" }
+    );
   });
 
   it("returns 502 and still logs when upstream fails", async () => {

@@ -122,7 +122,9 @@ describe("saveProjectSubmission", () => {
       }),
     };
 
-    const projectUpdateEq = jest.fn().mockResolvedValue({ error: null });
+    const projectUpdateEq = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [{ id: "project-1" }], error: null }),
+    });
     const projectsTable = {
       select: jest
         .fn()
@@ -143,6 +145,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -261,7 +264,9 @@ describe("saveProjectSubmission", () => {
       }),
     };
 
-    const projectUpdateEq = jest.fn().mockResolvedValue({ error: null });
+    const projectUpdateEq = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue({ data: [{ id: "project-1" }], error: null }),
+    });
     const projectsTable = {
       select: jest.fn().mockReturnValue(existingProjectQuery),
       update: jest.fn().mockReturnValue({
@@ -278,6 +283,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -353,6 +359,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "events") {
           return eventsQuery;
@@ -414,6 +421,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") {
           return projectsTable;
@@ -448,6 +456,7 @@ describe("saveProjectSubmission", () => {
   it("rejects create when locked project_name is missing", async () => {
     const projectsTable = { insert: jest.fn() };
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -472,6 +481,7 @@ describe("saveProjectSubmission", () => {
   it("rejects create when locked project_description is missing", async () => {
     const projectsTable = { insert: jest.fn() };
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -515,6 +525,7 @@ describe("saveProjectSubmission", () => {
     };
 
     const supabase = {
+      rpc: jest.fn(async () => ({ data: [], error: null })),
       from: jest.fn((table: string) => {
         if (table === "projects") return projectsTable;
         throw new Error(`Unexpected table ${table}`);
@@ -592,7 +603,11 @@ describe("saveProjectSubmission", () => {
             }),
           ),
         update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
+          eq: jest.fn().mockReturnValue({
+            select: jest
+              .fn()
+              .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+          }),
         }),
       };
 
@@ -615,9 +630,10 @@ describe("saveProjectSubmission", () => {
           }
           throw new Error(`Unexpected table ${table}`);
         }),
+        rpc: jest.fn(async () => ({ data: [], error: null })),
       };
 
-      // Scores and advancements are hidden from leads by RLS, so the guard has
+      // Advancements are hidden from leads by RLS, so the guard has
       // to see them through the service client. The caller's client above
       // throws on those tables to prove it never relies on them.
       const serviceClient = {
@@ -658,23 +674,19 @@ describe("saveProjectSubmission", () => {
       expect(projectsTable.update).not.toHaveBeenCalled();
     });
 
-    it("rejects the move when the cutoff has passed and scores exist", async () => {
+    it("rejects the move when the cutoff has passed and advancements exist", async () => {
       const { move, projectsTable } = setup({
         sourceCutoff: pastCutoff,
-        judgingRows: { project_scores: [{ project_id: projectId }] },
+        judgingRows: { project_round_advancements: [{ project_id: projectId }] },
       });
 
       await expect(move()).resolves.toMatchObject({ status: 409 });
       expect(projectsTable.update).not.toHaveBeenCalled();
     });
 
-    it.each([
-      "project_scores",
-      "project_assignments",
-      "project_round_advancements",
-    ])("rejects the move while the window is open if %s has rows", async (table) => {
+    it("rejects the move while the window is open if the project advanced a round", async () => {
       const { move, projectsTable } = setup({
-        judgingRows: { [table]: [{ project_id: projectId }] },
+        judgingRows: { project_round_advancements: [{ project_id: projectId }] },
       });
 
       await expect(move()).resolves.toMatchObject({
@@ -684,11 +696,27 @@ describe("saveProjectSubmission", () => {
       expect(projectsTable.update).not.toHaveBeenCalled();
     });
 
+    it("leaves scores and assignments to the database triggers", async () => {
+      // guard_project_event_change refuses scored projects (23514) and
+      // cleanup_project_after_event_change drops stale assignments.
+      const { move, serviceClient } = setup({
+        judgingRows: {
+          project_scores: [{ project_id: projectId }],
+          project_assignments: [{ project_id: projectId }],
+        },
+      });
+
+      await expect(move()).resolves.toMatchObject({ status: 200 });
+      const tables = serviceClient.from.mock.calls.map(([table]) => table);
+      expect(tables).not.toContain("project_scores");
+      expect(tables).not.toContain("project_assignments");
+    });
+
     it("rejects a draft that already has judging records", async () => {
       const { move, projectsTable } = setup({
         submitted: false,
         sourceCutoff: pastCutoff,
-        judgingRows: { project_assignments: [{ project_id: projectId }] },
+        judgingRows: { project_round_advancements: [{ project_id: projectId }] },
       });
 
       await expect(move()).resolves.toMatchObject({ status: 409 });
