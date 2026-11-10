@@ -4,6 +4,7 @@ from rls_test_harness import Checks, Database
 
 EVENT_A = '00000000-0000-0000-0000-00000000000a'
 EVENT_B = '00000000-0000-0000-0000-00000000000b'
+ORGANIZER_A = '00000000-0000-0000-0000-000000000001'
 ORGANIZER_B = '00000000-0000-0000-0000-000000000002'
 OUTSIDER = '00000000-0000-0000-0000-000000000003'
 ADVANCED = '10000000-0000-0000-0000-000000000001'
@@ -30,7 +31,7 @@ CREATE FUNCTION user_has_event_role(uuid, uuid) RETURNS boolean LANGUAGE sql AS
 CREATE FUNCTION is_event_organizer_or_owner(uuid, uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;
 CREATE FUNCTION is_admin_user(uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;
 INSERT INTO events VALUES ('{EVENT_A}'), ('{EVENT_B}'), ('{DELETED_EVENT}');
-INSERT INTO user_event_roles VALUES ('{ORGANIZER_B}', '{EVENT_B}', 'organizer');
+INSERT INTO user_event_roles VALUES ('{ORGANIZER_A}', '{EVENT_A}', 'organizer'), ('{ORGANIZER_B}', '{EVENT_B}', 'organizer');
 INSERT INTO projects VALUES ('{ADVANCED}', '{EVENT_A}'), ('{WON}', '{EVENT_A}'), ('{PLAIN}', '{EVENT_A}'),
   ('{DELETED_PROJECT}', '{DELETED_EVENT}');
 INSERT INTO project_round_advancements VALUES ('{ADVANCED}', '{EVENT_A}', 2), ('{DELETED_PROJECT}', '{DELETED_EVENT}', 2);
@@ -52,7 +53,7 @@ def main():
     checks = Checks()
     with Database('project-event-awards') as db:
         db.sql(SCHEMA)
-        db.migrate('202611090037_guard_project_move_with_advancements.sql')
+        db.migrate('202611090201_guard_project_move_with_advancements.sql')
         # The trigger comes from 202611080105, whose full file needs the whole
         # schema; recreate just the trigger here.
         db.sql("""
@@ -60,7 +61,7 @@ def main():
           FOR EACH ROW EXECUTE FUNCTION guard_project_event_change();
         """)
         # Re-running must be safe.
-        db.migrate('202611090037_guard_project_move_with_advancements.sql')
+        db.migrate('202611090201_guard_project_move_with_advancements.sql')
 
         ok, out = db.attempt('authenticated', ORGANIZER_B, move(ADVANCED, EVENT_B))
         checks.expect('advanced project cannot move to another event', ok, False)
@@ -73,7 +74,8 @@ def main():
         checks.expect('advanced project can be detached', ok, True)
         ok, out = db.attempt('authenticated', ORGANIZER_B, move(ADVANCED, EVENT_B))
         checks.expect('detach then re-attach does not launder the advancement', ok, False)
-        ok, _ = db.attempt('authenticated', ORGANIZER_B, move(ADVANCED, EVENT_A))
+        # Re-attaching needs a member of the target event, like any other move.
+        ok, _ = db.attempt('authenticated', ORGANIZER_A, move(ADVANCED, EVENT_A))
         checks.expect('re-attaching to the advancement event is allowed', ok, True)
 
         ok, _ = db.attempt('authenticated', OUTSIDER, move(PLAIN, EVENT_B))

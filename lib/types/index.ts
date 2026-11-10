@@ -62,7 +62,7 @@ export interface Coupon {
   stripe_coupon_id: string;
   name: string;
   percent_off?: number; // Percentage discount (1-100)
-  amount_off?: number; // Fixed amount discount in cents
+  amount_off?: number; // Fixed amount discount in the currency's smallest unit (Stripe amount_off)
   currency?: string; // Currency for amount_off (e.g., 'usd')
   duration: CouponDuration;
   duration_in_months?: number; // For 'repeating' duration
@@ -125,10 +125,11 @@ export type EventItem = {
   event_type?: string[];
   featured?: boolean; // Whether this event is featured on homepage
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
+  rejection_reason?: string | null; // Admin's reason, kept on the row after resubmission, so only meaningful while approval_status is rejected.
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
   external_url?: string | null; // Optional outside event URL
-  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
+  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects visitors other than managers and judges away from MentorMates (invite routes live outside the event layout)
   team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
   submitter_email?: string | null; // Contact email from the public submit form
   submitter_name?: string | null; // Submitter name from the public submit form
@@ -191,6 +192,16 @@ export interface Resource {
 }
 
 export interface Lesson {
+  /**
+   * Database id, absent until the lesson is saved. Saving replaces every row,
+   * so it changes on each save.
+   */
+  id?: string;
+  /**
+   * Client-only id that follows an unsaved lesson while the editor changes the
+   * list. Not a database column, so never include it when saving.
+   */
+  client_id?: string;
   /**
    * Title of the lesson, shown to users
    */

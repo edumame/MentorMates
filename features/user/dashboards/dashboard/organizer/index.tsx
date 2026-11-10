@@ -37,7 +37,7 @@ import { ApiKeysTab } from "./api-keys/ApiKeysTab";
 import { IntakeResponsesTab } from "./registration";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
-import { ContentTab } from "./details/ContentTab";
+import { ContentTab, EVENT_LESSON_COLUMNS } from "./details/ContentTab";
 import { ScheduleTab } from "./details/ScheduleTab";
 import { ResourcesTab } from "./details/ResourcesTab";
 import { RulesTab } from "./details/RulesTab";
@@ -180,7 +180,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         // Fetch event_lessons separately
         const { data: lessonsData, error: lessonsError } = await supabase
           .from("event_lessons")
-          .select("title,cover_image_url,url,description,duration_minutes")
+          .select(EVENT_LESSON_COLUMNS)
           .eq("event_id", eventId);
 
         if (lessonsError) {
@@ -189,9 +189,11 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
         // The typed select narrows nested tracks (no event_id/created_at);
         // EventDetails is the UI shape used everywhere else.
+        // On a failed lessons load leave them undefined so it is not mistaken
+        // for an event with no lessons; ContentTab retries.
         const eventDetails = {
           ...(eventData as unknown as EventDetails),
-          event_lessons: lessonsData || [],
+          event_lessons: lessonsError ? undefined : lessonsData || [],
         } as EventDetails;
         setEvent(eventDetails);
 

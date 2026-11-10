@@ -1,13 +1,21 @@
 "use client";
 
-import { useState, ChangeEvent, useEffect } from "react";
+import { useState, ChangeEvent, useEffect, useRef } from "react";
 import { Mail, UserPlus, Link2 } from "lucide-react";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { toast } from "@/lib/hooks/use-toast";
 
+// `tags` only reflects what the parent last passed in, which can be missing
+// people who joined by invite since, so callers should save this change
+// rather than replace the stored team with the list.
+export interface TeamTagChange {
+  added: string[];
+  removed: string[];
+}
+
 interface UserSearchWithInviteProps {
   allTags: string[];
-  onTagsChange: (tags: string[]) => void;
+  onTagsChange: (tags: string[], change: TeamTagChange) => void;
   initialTags?: string[];
   projectId?: string;
   enableInvite?: boolean;
@@ -30,6 +38,33 @@ const UserSearchWithInvite = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [filteredTags, setFilteredTags] = useState<string[]>([]);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
+
+  // Read after awaiting the invite request, when the closure may be out of date.
+  const latestSelectedTags = useRef(selectedTags);
+  latestSelectedTags.current = selectedTags;
+
+  // Compared by value because several callers build initialTags on every render.
+  const initialTagsKey = JSON.stringify(initialTags);
+  const syncedInitialTagsKey = useRef(initialTagsKey);
+
+  // The parent can change the team outside this component, and it saves whatever
+  // list we send as a full replace, so a stale chip would undo that change.
+  // Tags the parent has not seen yet stay: a save still in flight, or a pending
+  // invitation, which the project page never adds to the team.
+  useEffect(() => {
+    if (syncedInitialTagsKey.current === initialTagsKey) return;
+
+    const previousTags: string[] = JSON.parse(syncedInitialTagsKey.current);
+    const nextTags: string[] = JSON.parse(initialTagsKey);
+    syncedInitialTagsKey.current = initialTagsKey;
+
+    setSelectedTags((current) => [
+      ...nextTags,
+      ...current.filter(
+        (tag) => !previousTags.includes(tag) && !nextTags.includes(tag)
+      ),
+    ]);
+  }, [initialTagsKey]);
 
   useEffect(() => {
     if (tagInput) {
@@ -63,14 +98,17 @@ const UserSearchWithInvite = ({
       setSelectedTags(newSelectedTags);
       setTagInput("");
       setFilteredTags([]);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { added: [extractEmail(tag)], removed: [] });
     }
   };
 
   const removeTag = (tagToRemove: string): void => {
     const newSelectedTags = selectedTags.filter((tag) => tag !== tagToRemove);
     setSelectedTags(newSelectedTags);
-    onTagsChange(newSelectedTags);
+    onTagsChange(newSelectedTags, {
+      added: [],
+      removed: [extractEmail(tagToRemove)],
+    });
   };
 
   const sendInvitation = async (email: string): Promise<void> => {
@@ -110,9 +148,9 @@ const UserSearchWithInvite = ({
       });
 
       // Add the invited email to selected tags so it shows up in the UI
-      const newSelectedTags = [...selectedTags, email.trim()];
+      const newSelectedTags = [...latestSelectedTags.current, email.trim()];
       setSelectedTags(newSelectedTags);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { added: [email.trim()], removed: [] });
 
       setTagInput("");
       setFilteredTags([]);
@@ -299,9 +337,10 @@ const UserSearchWithInvite = ({
     return selectedTags.map((tag, index) => getTagMarkup(tag, index));
   };
 
-  // Extract email from formatted tag "Name (email)" or return the tag itself
+  // Extract email from formatted tag "Name (email)" or return the tag itself.
+  // Takes the last group because display names can contain parentheses.
   const extractEmail = (tag: string): string => {
-    const emailMatch = tag.match(/\((.+?)\)$/);
+    const emailMatch = tag.match(/\(([^()]+)\)$/);
     return emailMatch ? emailMatch[1] : tag;
   };
 

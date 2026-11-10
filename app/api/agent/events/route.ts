@@ -6,6 +6,7 @@ import {
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { listManagedAgentEvents } from "@/lib/agent/event-access";
+import { EventRole } from "@/lib/types";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { randomUUID } from "crypto";
@@ -86,25 +87,45 @@ export async function GET(request: NextRequest) {
     }
 
     // Get participant/role counts
-    const { data: roleCounts } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("event_id", auth.eventId);
-
-    const counts = {
-      participants: 0,
-      mentors: 0,
-      judges: 0,
-      organizers: 0,
-      total: roleCounts?.length || 0,
+    const countRoleRows = (role?: EventRole) => {
+      const query = supabase
+        .from("user_event_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", auth.eventId);
+      return role ? query.eq("role", role) : query;
     };
 
-    roleCounts?.forEach((r) => {
-      if (r.role === "participant") counts.participants++;
-      else if (r.role === "mentor") counts.mentors++;
-      else if (r.role === "judge") counts.judges++;
-      else if (r.role === "organizer") counts.organizers++;
-    });
+    const [participants, mentors, judges, organizers, total] =
+      await Promise.all([
+        countRoleRows(EventRole.Participant),
+        countRoleRows(EventRole.Mentor),
+        countRoleRows(EventRole.Judge),
+        countRoleRows(EventRole.Organizer),
+        countRoleRows(),
+      ]);
+
+    const roleCountError =
+      participants.error ||
+      mentors.error ||
+      judges.error ||
+      organizers.error ||
+      total.error;
+
+    if (roleCountError) {
+      console.error("Error fetching role counts:", roleCountError);
+      return NextResponse.json(
+        { error: "Failed to fetch role counts" },
+        { status: 500 }
+      );
+    }
+
+    const counts = {
+      participants: participants.count || 0,
+      mentors: mentors.count || 0,
+      judges: judges.count || 0,
+      organizers: organizers.count || 0,
+      total: total.count || 0,
+    };
 
     // Get project count
     const { count: projectCount } = await supabase
@@ -152,6 +173,107 @@ const ruleShape = z
 const resourceShape = z
   .object({ name: z.string(), link: z.string().url() })
   .strict();
+
+type AgentPrize = z.infer<typeof prizeShape>;
+type SkippedPrize = {
+  track: string;
+  prize: string;
+  reason: "no_matching_track" | "save_failed";
+};
+
+function normalizeTrackName(name: string) {
+  return name.trim().toLowerCase();
+}
+
+// events.event_prizes is a legacy column that nothing displays: the event page,
+// the organizer Prizes tab and prize assignment all read the prizes table, so
+// agent prizes must land there too. This only adds rows. Existing prizes may
+// already have winners, and a prize the track already has (same amount and
+// description) is left as it is, which makes resending the same list safe.
+// Amount alone is not enough: a track can have several "$500" prizes.
+async function savePrizesToTracks(
+  supabase: ReturnType<typeof createSupabaseServiceClient>,
+  eventId: string,
+  prizes: AgentPrize[]
+) {
+  const created: { track: string; prize: string }[] = [];
+  const skipped: SkippedPrize[] = [];
+  if (prizes.length === 0) return { created, skipped };
+
+  const skipAll = (reason: SkippedPrize["reason"], items: AgentPrize[]) => {
+    for (const { track, prize } of items) skipped.push({ track, prize, reason });
+  };
+
+  const { data: tracks, error: tracksError } = await supabase
+    .from("event_tracks")
+    .select("track_id, name")
+    .eq("event_id", eventId);
+
+  if (tracksError) {
+    console.error("Error loading tracks for prizes:", tracksError);
+    skipAll("save_failed", prizes);
+    return { created, skipped };
+  }
+
+  const trackIdByName = new Map<string, string>();
+  for (const track of tracks ?? []) {
+    const key = normalizeTrackName(track.name);
+    if (!trackIdByName.has(key)) trackIdByName.set(key, track.track_id);
+  }
+
+  const matched: { prize: AgentPrize; trackId: string }[] = [];
+  for (const prize of prizes) {
+    const trackId = trackIdByName.get(normalizeTrackName(prize.track));
+    if (trackId) matched.push({ prize, trackId });
+    else skipAll("no_matching_track", [prize]);
+  }
+  if (matched.length === 0) return { created, skipped };
+
+  const { data: existingPrizes, error: existingError } = await supabase
+    .from("prizes")
+    .select("track_id, prize_amount, prize_description")
+    .in("track_id", (tracks ?? []).map((track) => track.track_id));
+
+  if (existingError) {
+    console.error("Error loading existing prizes:", existingError);
+    skipAll("save_failed", matched.map(({ prize }) => prize));
+    return { created, skipped };
+  }
+
+  const prizeKey = (trackId: string, amount: string, description: string) =>
+    JSON.stringify([trackId, amount, description]);
+  const existingKeys = new Set(
+    (existingPrizes ?? []).map((row) =>
+      prizeKey(row.track_id, row.prize_amount, row.prize_description)
+    )
+  );
+  const toInsert = matched.filter(
+    ({ prize, trackId }) =>
+      !existingKeys.has(prizeKey(trackId, prize.prize, prize.description ?? ""))
+  );
+  if (toInsert.length === 0) return { created, skipped };
+
+  const prizeInserts: Database["public"]["Tables"]["prizes"]["Insert"][] =
+    toInsert.map(({ prize, trackId }) => ({
+      track_id: trackId,
+      prize_amount: prize.prize,
+      prize_description: prize.description ?? "",
+      updated_at: new Date().toISOString(),
+    }));
+
+  const { error: insertError } = await supabase.from("prizes").insert(prizeInserts);
+
+  if (insertError) {
+    console.error("Error creating prizes:", insertError);
+    skipAll("save_failed", toInsert.map(({ prize }) => prize));
+    return { created, skipped };
+  }
+
+  for (const { prize } of toInsert) {
+    created.push({ track: prize.track, prize: prize.prize });
+  }
+  return { created, skipped };
+}
 
 // URL-safe slug: alphanumeric + hyphen/underscore only. Blocks path traversal,
 // whitespace, and special characters.
@@ -259,7 +381,22 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, event });
+    if (parsed.data.event_prizes === undefined) {
+      return NextResponse.json({ success: true, event });
+    }
+
+    const prizeResult = await savePrizesToTracks(
+      supabase,
+      auth.eventId,
+      parsed.data.event_prizes
+    );
+
+    return NextResponse.json({
+      success: true,
+      event,
+      prizes_created: prizeResult.created,
+      skipped_prizes: prizeResult.skipped,
+    });
   } catch (error) {
     console.error("Agent events PATCH error:", error);
     return NextResponse.json(
@@ -453,11 +590,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const prizeResult = await savePrizesToTracks(
+      supabase,
+      createdEvent.event_id,
+      event.event_prizes ?? []
+    );
+
     return NextResponse.json(
       {
         success: true,
         event: createdEvent,
         tracks_created: tracksCreated,
+        prizes_created: prizeResult.created,
+        skipped_prizes: prizeResult.skipped,
         message: `Event "${createdEvent.event_name}" created successfully. You are now the organizer.`,
       },
       { status: 201 }

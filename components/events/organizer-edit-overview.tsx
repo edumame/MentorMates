@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useTransition } from "react";
+import { useCallback, useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -13,6 +13,7 @@ import {
   EventScoringConfig,
   EventVisibility,
 } from "@/lib/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
@@ -38,6 +39,7 @@ import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details
 import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/FAQTab";
 import { IntakeResponsesTab } from "@/features/user/dashboards/dashboard/organizer/registration";
 
+import { withdrawSubmissionUpdate } from "@/lib/events/approval-visibility";
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -97,6 +99,15 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
     null
+  );
+  // Refs don't trigger renders, so the button's disabled state needs real state.
+  const [basicInfoSaveReady, setBasicInfoSaveReady] = useState(false);
+  const registerBasicInfoSaveHandler = useCallback(
+    (fn: null | (() => Promise<void> | void)) => {
+      basicInfoSaveHandlerRef.current = fn;
+      setBasicInfoSaveReady(fn !== null);
+    },
+    []
   );
 
   const [peopleCount, setPeopleCount] = useState<number>(0);
@@ -204,9 +215,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   const handleAccessVisibilityChange = async (value: EventVisibility) => {
     try {
+      const withdrawal = withdrawSubmissionUpdate(event?.approval_status, value);
       const { error } = await supabase
         .from("events")
-        .update({ visibility: value })
+        .update({ visibility: value, ...withdrawal })
         .eq("event_id", eventId);
 
       if (error) {
@@ -220,7 +232,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       setEvent((prev) => {
         if (!prev) return prev;
-        return { ...prev, visibility: value };
+        return { ...prev, visibility: value, ...withdrawal };
       });
 
       toast({
@@ -372,7 +384,22 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       // The typed select narrows nested tracks; EventDetails is the UI shape.
       const eventDetails = data as unknown as EventDetails;
-      setEvent(eventDetails);
+
+      // rejection_reason is not column-readable (XL-014). Event managers get it
+      // through get_event_rejection_reasons, and it only matters while rejected.
+      let rejectionReason: string | null = null;
+      if (eventDetails.approval_status === ApprovalStatus.Rejected) {
+        const { data: reasonRows, error: reasonError } = await supabase.rpc(
+          "get_event_rejection_reasons",
+          { p_event_ids: [eventDetails.event_id] }
+        );
+        if (reasonError) {
+          console.error("Error fetching rejection reason:", reasonError.message);
+        } else {
+          rejectionReason = reasonRows?.[0]?.rejection_reason ?? null;
+        }
+      }
+      setEvent({ ...eventDetails, rejection_reason: rejectionReason });
 
       setScoringConfig(buildEventScoringConfig(eventDetails));
     } catch (error) {
@@ -561,8 +588,18 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 <ArchiveEventDialog
                   event={event}
                   onBusyChange={setArchiving}
-                  onVisibilityChange={(visibility) =>
-                    setEvent((prev) => (prev ? { ...prev, visibility } : prev))
+                  onVisibilityChange={(visibility, approvalStatus) =>
+                    setEvent((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            visibility,
+                            ...(approvalStatus !== undefined
+                              ? { approval_status: approvalStatus }
+                              : {}),
+                          }
+                        : prev
+                    )
                   }
                   trigger={({ busy, isArchived }) => (
                     <Button
@@ -609,7 +646,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       archiving ||
                       deleting ||
                       event.visibility === EventVisibility.Archived ||
-                      !basicInfoSaveHandlerRef.current
+                      !basicInfoSaveReady
                     }
                     onClick={() => {
                       void basicInfoSaveHandlerRef.current?.();
@@ -621,6 +658,17 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               </div>
             </div>
           </div>
+
+          {/* Gated on status: resubmitting leaves the old reason on the row. */}
+          {event.approval_status === ApprovalStatus.Rejected &&
+            event.rejection_reason?.trim() && (
+              <Alert variant="destructive" className="mb-6 flex-shrink-0">
+                <AlertTitle>Rejection reason</AlertTitle>
+                <AlertDescription className="whitespace-pre-wrap break-words">
+                  {event.rejection_reason}
+                </AlertDescription>
+              </Alert>
+            )}
 
           {/* Main Tabs */}
           <Tabs
@@ -821,9 +869,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                               setSaving={setSaving}
                               toast={toast}
                               router={router}
-                              registerSaveHandler={(fn) => {
-                                basicInfoSaveHandlerRef.current = fn;
-                              }}
+                              registerSaveHandler={registerBasicInfoSaveHandler}
                             />
                           )}
                         </TabsContent>
