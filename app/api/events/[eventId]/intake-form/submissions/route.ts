@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUserProjectIds } from "@/lib/projects/membership";
 import { z } from "zod";
 
 import {
   INTAKE_FORM_CONTEXTS,
-  type IntakeFormAnswers,
+  type IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { validateIntakeAnswers } from "@/features/intake-forms/validation";
 import { getAuthContext } from "../../intake-forms/_shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { Json } from "@/lib/database.types";
+
+/** ORG-010: hard cap on the request body (answers are free-form JSON). */
+const MAX_SUBMISSION_BYTES = 256 * 1024;
 
 const submitSchema = z.object({
   context: z.enum(INTAKE_FORM_CONTEXTS),
@@ -144,7 +150,22 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params;
-    const body = await request.json();
+
+    // ORG-010: bound the request size before parsing (answers are free-form).
+    const declaredLength = Number(request.headers.get("content-length") ?? "0");
+    if (declaredLength > MAX_SUBMISSION_BYTES) {
+      return NextResponse.json({ error: "Submission is too large" }, { status: 413 });
+    }
+    const rawBody = await request.text().catch(() => "");
+    if (rawBody.length > MAX_SUBMISSION_BYTES) {
+      return NextResponse.json({ error: "Submission is too large" }, { status: 413 });
+    }
+    let body: unknown = null;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      body = null;
+    }
     const parsed = submitSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -194,7 +215,7 @@ export async function POST(
     if (projectId) {
       const { data: project } = await auth.supabase
         .from("projects")
-        .select("id, lead_email, teammates")
+        .select("id, event_id")
         .eq("id", projectId)
         .maybeSingle();
 
@@ -202,105 +223,130 @@ export async function POST(
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
       }
 
-      const userEmail = auth.user.email?.toLowerCase() ?? "";
-      const teammateEmails = ((project.teammates as string[] | null) ?? []).map((email) =>
-        email.toLowerCase()
-      );
-      const isProjectMember =
-        (project.lead_email ?? "").toLowerCase() === userEmail ||
-        teammateEmails.includes(userEmail);
+      // ORG-010: a project from another event cannot answer this event's form.
+      if (project.event_id !== eventId) {
+        return NextResponse.json(
+          { error: "Project does not belong to this event" },
+          { status: 400 }
+        );
+      }
+
+      // Team email columns are not client-readable; membership comes from
+      // my_project_ids (verified auth email, case-insensitive).
+      const { ids: myProjectIds } = await getUserProjectIds(auth.supabase, eventId);
+      const isProjectMember = Boolean(myProjectIds?.includes(project.id));
 
       if (!isProjectMember && !auth.isOrganizer && !auth.isAdmin) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 
-    const { data: version } = await auth.supabase
+    // All reads/writes below use the service client: the user-facing RLS
+    // policies no longer allow participants to write submissions directly
+    // (see supabase/migrations/202611080402_c_intake_submission_writes.sql),
+    // so this route is the only writer and enforces the checks below.
+    const serviceSupabase = createSupabaseServiceClient();
+
+    // ORG-010: archived events are read-only, and drafts are not open for
+    // registration yet.
+    const { data: eventRow, error: eventError } = await serviceSupabase
+      .from("events")
+      .select("visibility")
+      .eq("event_id", eventId)
+      .maybeSingle();
+    if (eventError) {
+      return NextResponse.json({ error: "Failed to load event" }, { status: 500 });
+    }
+    if (!eventRow) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+    if (
+      eventRow.visibility === "archived" ||
+      (context === "registration" && eventRow.visibility === "draft")
+    ) {
+      return NextResponse.json(
+        { error: "This event is not accepting form submissions" },
+        { status: 409 }
+      );
+    }
+
+    // The submitted version must be the form currently active for this event
+    // and context; otherwise any version (even another event's) was accepted.
+    const { data: binding, error: bindingError } = await serviceSupabase
+      .from("event_intake_form_bindings")
+      .select("form_version_id")
+      .eq("event_id", eventId)
+      .eq("context", context)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (bindingError) {
+      return NextResponse.json({ error: "Failed to load form" }, { status: 500 });
+    }
+
+    if (!binding?.form_version_id) {
+      return NextResponse.json(
+        { error: "This event has no active form for this step" },
+        { status: 404 }
+      );
+    }
+
+    if (binding.form_version_id !== formVersionId) {
+      return NextResponse.json(
+        {
+          error: "This form was updated. Please reload the page and submit again.",
+          code: "stale_form_version",
+        },
+        { status: 409 }
+      );
+    }
+
+    const { data: version, error: versionError } = await serviceSupabase
       .from("intake_form_versions")
-      .select("id")
+      .select("id, schema_json")
       .eq("id", formVersionId)
       .maybeSingle();
+
+    if (versionError) {
+      return NextResponse.json({ error: "Failed to load form" }, { status: 500 });
+    }
 
     if (!version?.id) {
       return NextResponse.json({ error: "Form version not found" }, { status: 404 });
     }
 
-    let submissionId: string;
-
-    const submissionLookup = auth.supabase
-      .from("intake_form_submissions")
-      .select("id")
-      .eq("event_id", eventId)
-      .eq("context", context)
-      .eq("submitter_user_id", auth.user.id);
-
-    const { data: existingSubmission } = projectId
-      ? await submissionLookup.eq("project_id", projectId).maybeSingle()
-      : await submissionLookup.is("project_id", null).maybeSingle();
-
-    if (existingSubmission?.id) {
-      submissionId = existingSubmission.id as string;
-
-      const { error: updateError } = await auth.supabase
-        .from("intake_form_submissions")
-        .update({
-          form_version_id: formVersionId,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-        })
-        .eq("id", submissionId);
-
-      if (updateError) {
-        return NextResponse.json({ error: "Failed to update submission" }, { status: 500 });
-      }
-    } else {
-      const { data: createdSubmission, error: insertError } = await auth.supabase
-        .from("intake_form_submissions")
-        .insert({
-          event_id: eventId,
-          context,
-          form_version_id: formVersionId,
-          submitter_user_id: auth.user.id,
-          project_id: projectId ?? null,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-
-      if (insertError || !createdSubmission?.id) {
-        return NextResponse.json({ error: "Failed to create submission" }, { status: 500 });
-      }
-
-      submissionId = createdSubmission.id as string;
-    }
-
-    const { error: deleteAnswersError } = await auth.supabase
-      .from("intake_form_submission_answers")
-      .delete()
-      .eq("submission_id", submissionId);
-
-    if (deleteAnswersError) {
-      return NextResponse.json({ error: "Failed to update answers" }, { status: 500 });
-    }
-
-    const answerRecords = Object.entries(answers as IntakeFormAnswers).map(
-      ([fieldKey, value]) => ({
-        submission_id: submissionId,
-        form_version_id: formVersionId,
-        field_key: fieldKey,
-        value_json: value,
-      })
+    const validation = validateIntakeAnswers(
+      version.schema_json as IntakeFormSchema,
+      answers
     );
 
-    if (answerRecords.length > 0) {
-      const { error: answerInsertError } = await auth.supabase
-        .from("intake_form_submission_answers")
-        .insert(answerRecords);
+    if (!validation.ok) {
+      return NextResponse.json(
+        { error: "Some answers are missing or invalid", fieldErrors: validation.errors },
+        { status: 400 }
+      );
+    }
 
-      if (answerInsertError) {
-        return NextResponse.json({ error: "Failed to save answers" }, { status: 500 });
+    // ORG-010: submission row + answers are written in one transaction by
+    // public.submit_intake_form (supabase/migrations/202611080405_c_round2.sql),
+    // so a failure can never leave a "submitted" row with missing answers.
+    const { data: submissionId, error: submitError } = await serviceSupabase.rpc(
+      "submit_intake_form",
+      {
+        p_event_id: eventId,
+        p_context: context,
+        p_form_version_id: formVersionId,
+        p_user_id: auth.user.id,
+        p_project_id: projectId ?? null,
+        p_answers: validation.answers as Json,
       }
+    );
+
+    if (submitError || !submissionId) {
+      console.error("Error saving intake submission:", submitError);
+      return NextResponse.json({ error: "Failed to save submission" }, { status: 500 });
     }
 
     return NextResponse.json({

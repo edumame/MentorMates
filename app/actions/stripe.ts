@@ -1,6 +1,8 @@
 "use server";
 
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { headers } from "next/headers";
+import { getAppBaseUrl } from "@/lib/utils/app-url";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
@@ -12,7 +14,9 @@ interface CheckoutOptions {
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
-  const origin = (await headers()).get("origin");
+  // PUB-012: return URLs come from NEXT_PUBLIC_APP_URL, not the Origin header.
+  const origin = getAppBaseUrl((await headers()).get("origin"));
+  if (!options?.eventId) throw new Error("Event is required for checkout");
   const supabase = await createSupabaseClient();
 
   const {
@@ -22,7 +26,11 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     throw new Error("User not found");
   }
 
-  let { data: userProfile } = await supabase
+  // stripe_customer_id is server-managed: read and write it with the service
+  // client so a value the user wrote into their own profile is never trusted
+  // and the write keeps working once the column is not user-writable (MENT-008).
+  const service = createSupabaseServiceClient();
+  let { data: userProfile } = await service
     .from("user_profiles")
     .select("stripe_customer_id")
     .eq("uid", user.id)
@@ -36,7 +44,7 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     });
 
     // Update the stripe_customer_id and get the updated record
-    const { data: updatedUserProfile, error: userProfileError } = await supabase
+    const { data: updatedUserProfile, error: userProfileError } = await service
       .from("user_profiles")
       .update({
         stripe_customer_id: customer.id,
@@ -98,41 +106,32 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     throw new Error("No pricing tier selected. Please select a pricing tier to continue.");
   }
 
+  const customerId = userProfile?.stripe_customer_id;
+  if (!customerId) {
+    throw new Error("Failed to load Stripe customer");
+  }
+
   // Create Checkout Sessions from body params.
   const session = await stripe.checkout.sessions.create({
-    customer: userProfile?.stripe_customer_id,
+    customer: customerId,
     ui_mode: "embedded",
     line_items: lineItems,
     mode: "payment",
-    return_url: `${origin}/return?session_id={CHECKOUT_SESSION_ID}${options?.eventSlug ? `&eventSlug=${options.eventSlug}` : ""}`,
+    return_url: `${origin}/return?session_id={CHECKOUT_SESSION_ID}${options?.eventSlug ? `&eventSlug=${encodeURIComponent(options.eventSlug)}` : ""}`,
+    metadata: { product_type: "event", event_id: options?.eventId || "" },
     // automatic_tax: { enabled: true },
     allow_promotion_codes: true,
   });
 
-  // greedily create a user event payment record for the user in the processing state
-  const { data: userEventPayment, error: userEventPaymentError } = await supabase
-    .from("user_event_payments")
-    .upsert(
-      {
-        user_id: user.id,
-        event_id: options?.eventId,
-        stripe_customer_id: userProfile?.stripe_customer_id,
-        stripe_session_id: session.id,
-        stripe_payment_intent_id: session.payment_intent,
-        amount_paid: session.amount_total,
-        currency: session.currency,
-        payment_status: "processing",
-        pricing_id: options?.pricingTierId,
-      },
-      {
-        onConflict: "user_id,event_id",
-      }
-    )
-    .select();
-
-  if (!userEventPayment || userEventPaymentError) {
-    console.error("Failed to create user event payment: ", userEventPaymentError);
-    throw new Error("Failed to create user event payment");
+  // Persist immutable session mapping without resetting an existing paid entitlement.
+  const { error: registrationError } = await service.rpc("register_event_checkout", {
+    p_user_id: user.id, p_event_id: options?.eventId, p_pricing_id: options?.pricingTierId,
+    p_customer: customerId, p_session: session.id,
+  });
+  if (registrationError) {
+    // Do not leave an untracked payable checkout behind.
+    await stripe.checkout.sessions.expire(session.id).catch(() => {});
+    throw new Error("Failed to register checkout session");
   }
 
   if (!session.client_secret) {
@@ -143,11 +142,9 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
 }
 
 export async function fetchGuideClientSecret() {
-  const origin = (await headers()).get("origin");
+  // PUB-012: return URLs come from NEXT_PUBLIC_APP_URL, not the Origin header.
+  const origin = getAppBaseUrl((await headers()).get("origin"));
 
-  if (!origin) {
-    throw new Error("Missing origin header");
-  }
 
   // Best effort: attach customer email if logged in, but do not require auth
   let customerEmail: string | undefined = undefined;
@@ -209,11 +206,9 @@ export async function fetchGuideClientSecret() {
 }
 
 export async function fetchMasterclassClientSecret() {
-  const origin = (await headers()).get("origin");
+  // PUB-012: return URLs come from NEXT_PUBLIC_APP_URL, not the Origin header.
+  const origin = getAppBaseUrl((await headers()).get("origin"));
 
-  if (!origin) {
-    throw new Error("Missing origin header");
-  }
 
   // Best effort: attach customer email if logged in, but do not require auth
   let customerEmail: string | undefined = undefined;
