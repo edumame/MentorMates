@@ -1,3 +1,5 @@
+import { escapeHtml, escapeUrl, plainTextSubject } from "./escape-html";
+
 export interface OrganizerInvitationEmailTemplate {
   subject: string;
   html: string;
@@ -16,22 +18,28 @@ export function getOrganizerInvitationEmailTemplate(
     eventUrlOverride ||
     `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventSlug || eventId}/overview`;
 
-  const actionUrl = isNewUser && acceptUrl ? acceptUrl : eventUrl;
+  const actionUrl = acceptUrl || eventUrl;
+  // Every interpolated value is escaped (inviterName/eventName are user data).
+  const h = {
+    eventName: escapeHtml(eventName),
+    inviterName: escapeHtml(inviterName),
+    actionUrl: escapeUrl(actionUrl),
+  };
   const actionText = isNewUser
     ? "Accept Invitation & Sign Up"
-    : "Access Event Dashboard";
+    : "Open Organizer Invitation";
   const instructionText = isNewUser
     ? "Click the button below to accept your invitation. You'll be prompted to create an account or sign in, and you'll automatically receive organizer access for this event."
-    : "Your organizer permissions have already been activated. Simply log in to your MentorMates account to access the event dashboard.";
+    : "Open this invitation and sign in with the invited email address to accept. Your organizer access starts once you accept.";
 
   return {
-    subject: `You've been invited to organize "${eventName}" - MentorMates`,
+    subject: plainTextSubject(`You've been invited to organize "${eventName}" - MentorMates`),
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb; margin-bottom: 24px;">Organizer Invitation</h1>
 
         <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
-          Great news! You've been invited by ${inviterName} to be an organizer for the event "${eventName}" on MentorMates.
+          Great news! You've been invited by ${h.inviterName} to be an organizer for the event "${h.eventName}" on MentorMates.
         </p>
 
         <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 24px;">
@@ -50,13 +58,13 @@ export function getOrganizerInvitationEmailTemplate(
             Ready to get started?
           </p>
           <p style="margin-bottom: 16px;">
-            <a href="${actionUrl}"
+            <a href="${h.actionUrl}"
                style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
               ${actionText}
             </a>
           </p>
           <p style="font-size: 14px; line-height: 1.4; color: #6b7280; margin: 0;">
-            Or copy this link: <a href="${actionUrl}" style="color: #2563eb;">${actionUrl}</a>
+            Or copy this link: <a href="${h.actionUrl}" style="color: #2563eb;">${h.actionUrl}</a>
           </p>
         </div>
 

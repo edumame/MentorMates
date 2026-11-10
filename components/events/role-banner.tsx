@@ -31,6 +31,13 @@ export function RoleBanner({
 }: RoleBannerProps) {
   const accessibleRoles = getAccessibleRoles(actualRole);
   const canSwitchRoles = accessibleRoles.length > 1;
+  // Organizers manage the event; leaving is not a participant-style
+  // "cancel registration" (EVT-ORG-001). The database also refuses to remove
+  // an event's last organizer.
+  const canCancelRegistration =
+    Boolean(onCancelRegistration) &&
+    actualRole !== EventRole.Organizer &&
+    actualRole !== EventRole.Admin;
 
   const getRoleText = () => {
     const roleLabel = getRoleLabel(activeRole, eventRoleLabels);
@@ -168,7 +175,7 @@ export function RoleBanner({
           </div>
         </div>
 
-        {onCancelRegistration && (
+        {canCancelRegistration && (
           <button
             onClick={onCancelRegistration}
             className="text-[#d92d20] text-sm sm:text-base font-medium leading-[1.5] underline hover:no-underline whitespace-nowrap flex-shrink-0 self-end sm:self-auto"
