@@ -13,7 +13,7 @@ from test_scraper_quota import CONTAINER, docker, sql
 
 MIGRATIONS = Path(__file__).resolve().parents[1] / "supabase/migrations"
 TABLES = MIGRATIONS / "20260919_add_internal_invites_and_usage.sql"
-RESERVATION = MIGRATIONS / "202611050102_reserve_internal_api_call.sql"
+RESERVATION = MIGRATIONS / "202611090200_reserve_internal_api_call.sql"
 SIGNATURE = "public.reserve_internal_api_call"
 
 
