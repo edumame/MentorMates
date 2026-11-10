@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   // Fetch event details for the email
   const { data: eventData } = await supabase
     .from('events')
-    .select('event_name, slug')
+    .select('event_name')
     .eq('event_id', eventId)
     .single();
 
@@ -110,7 +110,6 @@ export async function POST(request: Request) {
     appOrigin: process.env.NEXT_PUBLIC_APP_URL ?? '',
     eventId,
     eventName: eventData.event_name,
-    eventSlug: eventData.slug,
     inviterName,
     existingOrganizerEmails: user ? [inviteEmail] : [],
     newOrganizerEmails: user ? [] : [inviteEmail],

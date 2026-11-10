@@ -98,13 +98,22 @@ type Rows = Record<string, unknown[]>;
 function buildClient(rows: Rows, user: { id: string } | null = null) {
   const from = jest.fn((table: string) => {
     const tableRows = rows[table] ?? [];
-    const result = { data: tableRows, error: null };
+    // Paged reads (fetchAllRows) apply .range(); unpaged reads get every row.
+    let window: [number, number] | null = null;
+    const result = () => ({
+      data: window ? tableRows.slice(window[0], window[1] + 1) : tableRows,
+      error: null,
+    });
     const single = { data: tableRows[0] ?? null, error: null };
     const query: Record<string, unknown> = {
       then: (
-        resolve: (value: typeof result) => unknown,
+        resolve: (value: ReturnType<typeof result>) => unknown,
         reject: (reason: unknown) => unknown
-      ) => Promise.resolve(result).then(resolve, reject),
+      ) => Promise.resolve(result()).then(resolve, reject),
+      range: (from: number, to: number) => {
+        window = [from, to];
+        return query;
+      },
       maybeSingle: () => query.__single,
       single: () => query.__single,
       __single: {

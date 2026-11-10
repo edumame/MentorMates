@@ -1,4 +1,5 @@
 import React from "react";
+import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CompactScoringForm } from "./CompactScoringForm";
 import type { EventScoringConfig } from "@/lib/types";
@@ -188,6 +189,7 @@ describe("CompactScoringForm", () => {
         onSave={onSave}
         isArchived={false}
         eventId="event-1"
+        onTrackDeleted={jest.fn()}
       />
     );
 
@@ -232,6 +234,43 @@ describe("CompactScoringForm", () => {
     );
   });
 
+  it("lets a fractional weight be typed and a score range be retyped", async () => {
+    const user = userEvent.setup();
+    const onSave = jest.fn();
+
+    render(
+      <CompactScoringForm
+        initialConfig={{
+          ...multiRoundConfig,
+          rounds: [{ round_number: 1, name: "Only Round" }],
+        }}
+        onSave={onSave}
+        isArchived={false}
+        eventId="event-1"
+        onTrackDeleted={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Impact"));
+    const [weight, , maxScore] = screen.getAllByRole("spinbutton");
+
+    await user.clear(weight);
+    await user.keyboard("0.5");
+    expect(weight).toHaveValue(0.5);
+
+    await user.clear(maxScore);
+    expect(maxScore).toHaveValue(null);
+    await user.keyboard("5");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save Scoring Configuration" })
+    );
+
+    expect(onSave.mock.calls[0][0].tracks["track-1"].criteria[0]).toMatchObject(
+      { weight: 0.5, max: 5 }
+    );
+  });
+
   it("hides the round selector when the event does not have multiple rounds", () => {
     render(
       <CompactScoringForm
@@ -242,6 +281,7 @@ describe("CompactScoringForm", () => {
         onSave={jest.fn()}
         isArchived={false}
         eventId="event-1"
+        onTrackDeleted={jest.fn()}
       />
     );
 
@@ -250,10 +290,18 @@ describe("CompactScoringForm", () => {
 
   describe("track delete confirmation (ORG-021 / JUDGE-005)", () => {
     function mockTables(counts: { project_scores: number; project_tracks: number; prizes: number }) {
-      const deleteEq = jest.fn().mockResolvedValue({ error: null });
+      const deleteEq = jest.fn();
+      // removeTrack chains .eq("track_id").eq("event_id").select("track_id").
+      const deleteQuery = {
+        eq: (...args: unknown[]) => {
+          deleteEq(...args);
+          return deleteQuery;
+        },
+        select: jest.fn().mockResolvedValue({ data: [{ track_id: "track-1" }], error: null }),
+      };
       from.mockImplementation((table: string) => {
         if (table === "event_tracks") {
-          return { delete: jest.fn().mockReturnValue({ eq: deleteEq }) };
+          return { delete: jest.fn().mockReturnValue(deleteQuery) };
         }
         return {
           select: jest.fn().mockReturnValue({
@@ -274,6 +322,7 @@ describe("CompactScoringForm", () => {
           onSave={jest.fn()}
           isArchived={false}
           eventId="event-1"
+          onTrackDeleted={jest.fn()}
         />
       );
 
@@ -302,7 +351,8 @@ describe("CompactScoringForm", () => {
       fireEvent.change(screen.getByLabelText(/to confirm/), { target: { value: "AI Track" } });
       expect(confirm).toBeEnabled();
       fireEvent.click(confirm);
-      await waitFor(() => expect(deleteEq).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(deleteEq).toHaveBeenCalledWith("track_id", "track-1"));
+      expect(deleteEq).toHaveBeenCalledWith("event_id", "event-1");
     });
 
     it("cancel keeps the track", async () => {
@@ -363,6 +413,7 @@ describe("CompactScoringForm", () => {
           isArchived={false}
           eventId="event-1"
           tracks={[savedTrack]}
+          onTrackDeleted={jest.fn()}
         />
       );
       expect(screen.getByPlaceholderText("e.g., Best Overall")).toHaveValue("Climate Track");
@@ -387,6 +438,7 @@ describe("CompactScoringForm", () => {
           isArchived={false}
           eventId="event-1"
           tracks={[savedTrack]}
+          onTrackDeleted={jest.fn()}
         />
       );
       fireEvent.change(screen.getByLabelText("Track description"), {
@@ -404,6 +456,7 @@ describe("CompactScoringForm", () => {
           isArchived={false}
           eventId="event-1"
           tracks={[savedTrack]}
+          onTrackDeleted={jest.fn()}
         />
       );
       expect(screen.getByText("$100")).toBeInTheDocument();
@@ -440,6 +493,7 @@ describe("CompactScoringForm", () => {
           onSave={onSave}
           isArchived={false}
           eventId="event-1"
+          onTrackDeleted={jest.fn()}
         />
       );
 

@@ -200,7 +200,10 @@ describe("UserSearchWithInvite", () => {
       rerender(<UserSearchWithInvite {...props} initialTags={[]} />);
       finishInvite({ ok: true, json: async () => ({}) });
 
-      await waitFor(() => expect(onTagsChange).toHaveBeenCalledWith([INVITED], { added: [INVITED], removed: [] }));
+      // The invitee only joins by accepting, so the parent is never told.
+      await waitFor(() => expect(chip(INVITED)).toBeInTheDocument());
+      expect(screen.queryByText(A)).not.toBeInTheDocument();
+      expect(onTagsChange).not.toHaveBeenCalled();
     });
 
     it("keeps a second add while the first save is still in flight", () => {
