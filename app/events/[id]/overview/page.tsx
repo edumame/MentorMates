@@ -2,7 +2,7 @@ import React from "react";
 import { notFound } from "next/navigation";
 import { EventDetails, EventTrack, EventRole, Lesson } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { isValidUUID } from "@/app/utils/supabase/queries";
+import { getEventForRoute } from "@/lib/events/server-event";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { EventPageContent } from "@/components/events/event-page-content";
 import { EventPageSidebar } from "@/components/events/event-page-sidebar";
@@ -21,71 +21,42 @@ interface EventJudge {
 
 export default async function EventOverviewPage({ params }: PageProps) {
   const { id } = await Promise.resolve(params);
-  const supabase = await createSupabaseClient();
-
-  const isUUID = isValidUUID(id);
-
-  let query = supabase.from("events").select(`
-    event_id,
-    event_name,
-    event_description,
-    event_blurb,
-    event_date,
-    location,
-    rules,
-    event_schedule,
-    event_prizes,
-    event_resources,
-    paywall_content,
-    participant_capacity,
-    cover_image_url,
-    slug,
-    paid,
-    event_type,
-    submission_time_cutoff
-  `);
-
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
-
-  const { data: eventData, error: eventError } = await query.single();
+  const [supabase, { data: eventData, error: eventError }] = await Promise.all([
+    createSupabaseClient(),
+    getEventForRoute(id),
+  ]);
 
   if (eventError || !eventData) {
     notFound();
   }
 
-  const { data: tracksData } = await supabase
-    .from("event_tracks")
-    .select(
-      `
-      *,
-      prizes (
-        prize_amount,
-        prize_description
-      )
-    `
-    )
-    .eq("event_id", eventData.event_id);
+  // These resources are independent once the event ID is known. Run them
+  // together instead of making every round trip wait for the previous one.
+  const [
+    { data: tracksData },
+    { data: lessonsData },
+    { data: judgesData },
+    { data: { user } },
+  ] = await Promise.all([
+    supabase.from("event_tracks")
+      .select("*, prizes (prize_amount, prize_description)")
+      .eq("event_id", eventData.event_id),
+    supabase.from("event_lessons")
+      .select("title,cover_image_url,url,description,duration_minutes")
+      .eq("event_id", eventData.event_id),
+    supabase.from("user_event_roles")
+      .select("user_id, user_profiles!user_id(uid, display_name, bio, avatar_url, affiliation)")
+      .eq("event_id", eventData.event_id)
+      .eq("role", "judge"),
+    supabase.auth.getUser(),
+  ]);
 
-  const typedEvent = eventData as EventDetails & { cover_image_url?: string };
-  // Fetch lessons from new event_lessons table
-  const { data: lessonsData } = await supabase
-    .from("event_lessons")
-    .select("title,cover_image_url,url,description,duration_minutes")
-    .eq("event_id", eventData.event_id);
-  (typedEvent as EventDetails & { event_lessons?: Lesson[] }).event_lessons = (lessonsData || []) as Lesson[];
+  // Never mutate the request-memoized event object shared with the layout.
+  const typedEvent = {
+    ...eventData,
+    event_lessons: (lessonsData || []) as Lesson[],
+  } as EventDetails & { cover_image_url?: string; event_lessons?: Lesson[] };
   const tracks = (tracksData || []) as EventTrack[];
-
-  const { data: judgesData } = await supabase
-    .from("user_event_roles")
-    .select(
-      "user_id, user_profiles!user_id(uid, display_name, bio, avatar_url, affiliation)"
-    )
-    .eq("event_id", eventData.event_id)
-    .eq("role", "judge");
 
   const judges: EventJudge[] = (judgesData || []).flatMap((judgeRecord) => {
       const profile = Array.isArray(judgeRecord.user_profiles)
@@ -107,11 +78,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
       ];
     });
 
-  // Check if user has joined and get their role
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   let hasJoined = false;
   let userRole: EventRole | null = null;
   let userProjects: Array<{
@@ -124,26 +90,39 @@ export default async function EventOverviewPage({ params }: PageProps) {
     created_at: string | null;
   }> = [];
 
+  // Member-only content. It is never part of the shared route lookup and is
+  // only fetched after the role check below, so it is not serialized into the
+  // page for anonymous visitors or non-members (PUB-002).
+  let paywallContent: string | null = null;
+
   if (user) {
-    const { data: userEventRole } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("event_id", eventData.event_id)
-      .maybeSingle();
+    const [{ data: userEventRole }, { data: projectsData }] = await Promise.all([
+      supabase.from("user_event_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("event_id", eventData.event_id)
+        .maybeSingle(),
+      // Team email columns are not client-readable: the caller's projects in
+      // this event come from my_project_ids (verified auth email).
+      supabase.rpc("my_project_ids", { p_event_id: eventData.event_id }).then(async ({ data: ids, error }) => {
+        const projectIds = error ? [] : ((ids ?? []) as unknown as string[]);
+        if (projectIds.length === 0) return { data: [] as Array<Record<string, unknown>> };
+        return supabase.from("projects")
+          .select("id, project_name, project_description, cover_image_url, submitted, submitted_at, created_at")
+          .in("id", projectIds);
+      }),
+    ]);
 
     hasJoined = !!userEventRole;
     userRole = (userEventRole?.role as EventRole) || null;
 
-    // Fetch the user's projects for this event so they can always find them
-    const userEmail = user.email || "";
-    const { data: projectsData } = await supabase
-      .from("projects")
-      .select(
-        "id, project_name, project_description, cover_image_url, submitted, submitted_at, created_at, lead_email"
-      )
-      .eq("event_id", eventData.event_id)
-      .eq("lead_email", userEmail);
+    if (hasJoined) {
+      // The column is not readable directly; the RPC re-checks membership.
+      const { data: paywall } = await supabase.rpc("get_event_paywall_content", {
+        p_event_id: eventData.event_id,
+      });
+      paywallContent = paywall ?? null;
+    }
 
     userProjects = (projectsData || []).map((p) => ({
       id: p.id,
@@ -172,7 +151,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
       {/* Main Content */}
       <div className="min-w-0 flex-1">
         <EventPageContent
-          event={typedEvent}
+          event={{ ...typedEvent, paywall_content: paywallContent ?? undefined }}
           tracks={tracks}
           hasJoined={hasJoined}
           userRole={userRole}

@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CompactScoringForm } from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
+import {
+  CompactScoringForm,
+  type TrackDetailsById,
+} from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
 import { JudgingSidebar } from "@/features/user/dashboards/dashboard/organizer/tracks/JudgingSidebar";
 import { buildEventTrackScoringCriteriaFromConfig } from "@/lib/judging/scoring-config";
 import {
   classifyTrackEntries,
+  rekeyTrackDescriptions,
   withFreshTrackIds,
   withoutTrack,
   withUuidTrackIds,
@@ -16,6 +20,15 @@ import { Pencil, Eye, Scale, Download } from "lucide-react";
 import { JudgePreviewDeck } from "./JudgePreviewDeck";
 
 const POSTGRES_UNIQUE_VIOLATION = "23505";
+
+const TRACKS_WITH_PRIZES_SELECT = `
+  *,
+  prizes (
+    id,
+    prize_amount,
+    prize_description
+  )
+`;
 
 interface TracksTabProps {
   eventId: string;
@@ -50,9 +63,10 @@ export function TracksTab({
   const [tracks, setTracks] = useState<EventTrack[]>([]);
 
   const fetchTracks = useCallback(async () => {
+    // Include prizes so the track cards can list them (JUDGE-018).
     const { data, error } = await supabase
       .from("event_tracks")
-      .select("*")
+      .select(TRACKS_WITH_PRIZES_SELECT)
       .eq("event_id", eventId);
 
     if (error) {
@@ -63,7 +77,7 @@ export function TracksTab({
         variant: "destructive",
       });
     } else {
-      setTracks(data || []);
+      setTracks((data || []) as unknown as EventTrack[]);
     }
   }, [eventId, toast]);
 
@@ -75,14 +89,23 @@ export function TracksTab({
   const writeTracks = async (
     config: EventScoringConfig,
     savedTrackIds: Set<string>,
+    details?: TrackDetailsById,
   ) => {
+    const savedDescriptions = new Map(
+      tracks.map((t) => [t.track_id, t.description ?? ""])
+    );
     const { existing, newTracks } = classifyTrackEntries(
       Object.keys(config.tracks),
       savedTrackIds,
       eventId,
       (trackId) => ({
         name: config.tracks[trackId].name,
-        description: config.tracks[trackId].name,
+        // JUDGE-006: never derive the description from the name; keep the
+        // edited value, else the stored one.
+        description:
+          details?.descriptions[trackId] ??
+          savedDescriptions.get(trackId) ??
+          "",
         scoring_criteria: buildEventTrackScoringCriteriaFromConfig({
           trackId,
           trackConfig: config.tracks[trackId],
@@ -136,33 +159,33 @@ export function TracksTab({
     };
   };
 
-  const handleScoreUpdate = async (submittedConfig: EventScoringConfig) => {
+  const handleScoreUpdate = async (
+    submittedConfig: EventScoringConfig,
+    details?: TrackDetailsById
+  ) => {
     try {
       setSaving(true);
       const config = withUuidTrackIds(submittedConfig);
       setScoringConfig(config);
+      let trackDetails = rekeyTrackDescriptions(details, submittedConfig, config);
 
       const savedTrackIds = new Set(tracks.map((t) => t.track_id));
-      let insertError = await writeTracks(config, savedTrackIds);
+      let insertError = await writeTracks(config, savedTrackIds, trackDetails);
       if (insertError?.code === POSTGRES_UNIQUE_VIOLATION) {
         const resolved = await resolveTrackIdCollision(config, savedTrackIds);
         setScoringConfig(resolved.config);
-        insertError = await writeTracks(resolved.config, resolved.savedTrackIds);
+        trackDetails = rekeyTrackDescriptions(trackDetails, config, resolved.config);
+        insertError = await writeTracks(
+          resolved.config,
+          resolved.savedTrackIds,
+          trackDetails,
+        );
       }
       if (insertError) throw insertError;
 
       const { data: refreshedTracks } = await supabase
         .from("event_tracks")
-        .select(
-          `
-          *,
-          prizes (
-            id,
-            prize_amount,
-            prize_description
-          )
-        `
-        )
+        .select(TRACKS_WITH_PRIZES_SELECT)
         .eq("event_id", eventId);
 
       if (refreshedTracks && event) {

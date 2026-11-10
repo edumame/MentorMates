@@ -61,6 +61,27 @@ export function withUuidTrackIds(config: EventScoringConfig): EventScoringConfig
   );
 }
 
+// Re-keying keeps track order, so carry edited descriptions over to the new
+// ids; otherwise a re-keyed track would save with an empty description.
+export function rekeyTrackDescriptions<
+  T extends { descriptions: Record<string, string> },
+>(
+  details: T | undefined,
+  before: EventScoringConfig,
+  after: EventScoringConfig,
+): T | undefined {
+  if (!details || before === after) return details;
+  const beforeIds = Object.keys(before.tracks);
+  const afterIds = Object.keys(after.tracks);
+  const descriptions: Record<string, string> = {};
+  beforeIds.forEach((trackId, index) => {
+    if (trackId in details.descriptions) {
+      descriptions[afterIds[index]] = details.descriptions[trackId];
+    }
+  });
+  return { ...details, descriptions };
+}
+
 /** Remove a track from the config, including its per-round overrides. */
 export function withoutTrack(
   config: EventScoringConfig,

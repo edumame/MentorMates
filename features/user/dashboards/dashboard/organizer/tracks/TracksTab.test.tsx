@@ -107,8 +107,19 @@ const eventTracksTable = () => ({
   },
 });
 
+// TrackDeleteDialog counts a track's scores, entries and prizes before the
+// delete is confirmed; report none so the confirm button is enabled.
+const impactCountTable = () => ({
+  select: () => ({
+    eq: async () => ({ count: 0, error: null }),
+  }),
+});
+
 jest.mock("@/lib/supabase", () => ({
-  supabase: { from: () => eventTracksTable() },
+  supabase: {
+    from: (table: string) =>
+      table === "event_tracks" ? eventTracksTable() : impactCountTable(),
+  },
 }));
 
 const formToast = jest.fn();
@@ -237,8 +248,12 @@ const addNamedTrackAt = (index: number, name: string) => {
   });
 };
 
+// Deleting goes through TrackDeleteDialog: open it, then confirm.
 const clickDeleteTrack = async (index = 0) => {
   fireEvent.click(screen.getAllByTitle("Delete")[index]);
+  const confirm = await screen.findByRole("button", { name: "Delete track" });
+  await waitFor(() => expect(confirm).toBeEnabled());
+  fireEvent.click(confirm);
   await act(async () => {});
 };
 

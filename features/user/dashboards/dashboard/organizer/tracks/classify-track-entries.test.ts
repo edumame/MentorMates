@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   classifyTrackEntries,
+  rekeyTrackDescriptions,
   withFreshTrackIds,
   withoutTrack,
   withUuidTrackIds,
@@ -204,5 +205,38 @@ describe("withFreshTrackIds", () => {
 
   it("returns the same config when there is nothing to re-key", () => {
     expect(withFreshTrackIds(config, [])).toBe(config);
+  });
+});
+
+describe("rekeyTrackDescriptions", () => {
+  const track = { name: "Track", criteria: [] };
+  const config: EventScoringConfig = {
+    tracks: { [REAL_UUID_A]: track, [SLUG_ID]: track, [TIMESTAMP_ID]: track },
+    defaultMin: 0,
+    defaultMax: 10,
+    defaultWeight: 1,
+  };
+
+  it("moves edited descriptions onto the re-keyed track ids", () => {
+    const rekeyed = withUuidTrackIds(config);
+    const [, slugNewId, timestampNewId] = Object.keys(rekeyed.tracks);
+
+    expect(
+      rekeyTrackDescriptions(
+        { descriptions: { [REAL_UUID_A]: "kept", [SLUG_ID]: "imported" } },
+        config,
+        rekeyed,
+      ),
+    ).toEqual({ descriptions: { [REAL_UUID_A]: "kept", [slugNewId]: "imported" } });
+    expect(timestampNewId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("returns the details unchanged when nothing was re-keyed", () => {
+    const details = { descriptions: { [REAL_UUID_A]: "kept" } };
+    expect(rekeyTrackDescriptions(details, config, config)).toBe(details);
+  });
+
+  it("passes through missing details", () => {
+    expect(rekeyTrackDescriptions(undefined, config, withUuidTrackIds(config))).toBeUndefined();
   });
 });
