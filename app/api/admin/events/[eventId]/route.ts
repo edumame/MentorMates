@@ -86,7 +86,8 @@ export async function PATCH(
     }
 
     // If approval_status is being updated, get the current state first for
-    // logging and to check that approval may publish the event
+    // logging, to check that approval may publish the event, and to take a
+    // public event down on rejection
     let previousStatus = null;
     if (approval_status !== undefined) {
       const { data: currentEvent, error: currentEventError } = await supabase
@@ -117,6 +118,25 @@ export async function PATCH(
       }
 
       previousStatus = currentEvent?.approval_status || null;
+
+      if (approval_status === "rejected") {
+        if (!currentEvent) {
+          return NextResponse.json(
+            { error: "Failed to update event" },
+            { status: 500 }
+          );
+        }
+
+        // Draft, not private: RLS lets everyone read private events. Private
+        // events stay as they are because they were only denied a public listing.
+        // Draft is a withdrawn visibility, so approving again needs the
+        // organizer to set the event to Private first (see the approval check
+        // above). external_redirect_enabled is kept; getExternalRedirectUrl
+        // ignores it until the event is approved.
+        if (currentEvent.visibility === EventVisibility.Public) {
+          updateData.visibility = EventVisibility.Draft;
+        }
+      }
     }
 
     // Update the event

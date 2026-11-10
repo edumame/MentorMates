@@ -25,6 +25,7 @@ function mockTables({
     },
     event_intake_form_bindings: () => createCappedQuery([]),
     intake_form_submissions: () => createCappedQuery([]),
+    role_passwords: () => createCappedQuery([]),
   };
 
   (createSupabaseServiceClient as jest.Mock).mockReturnValue({
