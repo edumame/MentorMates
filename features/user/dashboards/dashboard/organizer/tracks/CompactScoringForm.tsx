@@ -100,6 +100,12 @@ function cloneCriterion(criterion: ScoringCriterion): ScoringCriterion {
   };
 }
 
+// Criterion ids are only unique within a track: default criteria, templates and
+// duplicated tracks all reuse the same ids.
+function criterionEditKey(trackId: string, criterionId: string): string {
+  return `${trackId}:${criterionId}`;
+}
+
 function cloneTrackScoringConfig(track: TrackScoringConfig): TrackScoringConfig {
   return {
     name: track.name,
@@ -757,7 +763,7 @@ export function CompactScoringForm({
                     <div className="space-y-0">
                       {displayedCriteria.map((criterion, idx) => {
                         const pct = totalWeight > 0 ? Math.round(((criterion.weight ?? 1) / totalWeight) * 100) : 0;
-                        const isEditing = editingCritId === criterion.id;
+                        const isEditing = editingCritId === criterionEditKey(trackId, criterion.id);
 
                         return (
                           <div key={criterion.id}>
@@ -903,7 +909,7 @@ export function CompactScoringForm({
                               /* ── Criterion Row (compact) ── */
                               <div
                                 className="group flex items-center gap-3 py-2.5 px-2 -mx-1 rounded-lg hover:bg-gray-50/80 transition-colors cursor-pointer"
-                                onClick={() => !isArchived && setEditingCritId(criterion.id)}
+                                onClick={() => !isArchived && setEditingCritId(criterionEditKey(trackId, criterion.id))}
                               >
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-black truncate">
