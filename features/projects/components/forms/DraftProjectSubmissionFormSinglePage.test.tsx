@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import type { Project } from "@/lib/types";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { supabase } from "@/lib/supabase";
+import { applyTeammateChanges, type TeammateChanges } from "@/lib/projects/teammates";
 import DraftProjectSubmissionFormSinglePage from "./DraftProjectSubmissionFormSinglePage";
 
 jest.mock("next/navigation", () => ({
@@ -34,8 +35,16 @@ jest.mock("@/features/projects/components/displays/ProjectFieldEntriesSection", 
 }));
 jest.mock("@/components/utils/UserSearchWithInvite", () => ({
   __esModule: true,
-  default: ({ onTagsChange }: { onTagsChange: (tags: string[]) => void }) => (
-    <button onClick={() => onTagsChange(["mate@x.com", "new@x.com"])}>
+  default: ({
+    onTagsChange,
+  }: {
+    onTagsChange: (tags: string[], change: { added: string[]; removed: string[] }) => void;
+  }) => (
+    <button
+      onClick={() =>
+        onTagsChange(["mate@x.com", "new@x.com"], { added: ["new@x.com"], removed: [] })
+      }
+    >
       Add teammate
     </button>
   ),
@@ -126,8 +135,9 @@ describe("DraftProjectSubmissionFormSinglePage team changes", () => {
       json: async () => ({ project: hydratedProject(), participants: [] }),
     });
     (updateProjectTeamClient as jest.Mock).mockImplementation(
-      async (_projectId: string, teammates: string[]) => ({
-        data: rawProjectRow(teammates),
+      // The stored team is ["mate@x.com"]; the client applies the change to it.
+      async (_projectId: string, changes: TeammateChanges) => ({
+        data: rawProjectRow(applyTeammateChanges(["mate@x.com"], changes)),
         error: null,
       })
     );
@@ -138,14 +148,19 @@ describe("DraftProjectSubmissionFormSinglePage team changes", () => {
     jest.clearAllMocks();
   });
 
-  const changes: Array<[string, () => void, string[]]> = [
-    ["removing a teammate", clickRemoveTeammate, []],
-    ["adding a teammate", clickAddTeammate, ["mate@x.com", "new@x.com"]],
+  const changes: Array<[string, () => void, string[], TeammateChanges]> = [
+    ["removing a teammate", clickRemoveTeammate, [], { remove: ["mate@x.com"] }],
+    [
+      "adding a teammate",
+      clickAddTeammate,
+      ["mate@x.com", "new@x.com"],
+      { add: ["new@x.com"], remove: [] },
+    ],
   ];
 
   it.each(changes)(
     "keeps a private project private after %s",
-    async (_name, changeTeam, expectedTeammates) => {
+    async (_name, changeTeam, expectedTeammates, expectedChange) => {
       const { onProjectUpdate } = await renderForm(hydratedProject());
 
       changeTeam();
@@ -156,7 +171,7 @@ describe("DraftProjectSubmissionFormSinglePage team changes", () => {
 
       expect(updateProjectTeamClient).toHaveBeenCalledWith(
         PROJECT_ID,
-        expectedTeammates
+        expectedChange
       );
       expect(patchBodies()).not.toContainEqual(
         expect.objectContaining({ private: false })

@@ -269,6 +269,32 @@ export async function DELETE(request: Request) {
       );
     }
 
+    // Deleting a prize cascades to prize_winners and changes those teams'
+    // certificates, so winners must be acknowledged with force=true.
+    if (searchParams.get("force") !== "true") {
+      const { count: winnerCount, error: winnersError } = await supabase
+        .from("prize_winners")
+        .select("id", { count: "exact", head: true })
+        .eq("prize_id", prizeId);
+
+      if (winnersError) {
+        return NextResponse.json(
+          { error: "Failed to check prize winners" },
+          { status: 500 }
+        );
+      }
+
+      if (winnerCount) {
+        return NextResponse.json(
+          {
+            error:
+              "This prize has winners. Review them and confirm to delete it.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Delete the prize
     const { error: deleteError } = await supabase
       .from("prizes")

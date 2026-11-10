@@ -21,6 +21,7 @@ import {
   hydrateProjectsWithSubmissionData,
   type ProjectBaseRow,
 } from "@/lib/projects/query";
+import { applyTeammateChanges } from "@/lib/projects/teammates";
 
 const projectWriteSchema = z.object({
   projectId: z.string().uuid().optional(),
@@ -29,6 +30,8 @@ const projectWriteSchema = z.object({
   leadEmail: z.string().email().max(320).optional(),
   projectDescription: z.string().max(20000).optional(),
   teammates: z.array(z.string()).optional(),
+  addTeammates: z.array(z.string()).optional(),
+  removeTeammates: z.array(z.string()).optional(),
   projectUrl: z.string().optional(),
   coverImageUrl: z.string().optional(),
   additionalMaterialsUrl: z.string().optional(),
@@ -120,6 +123,8 @@ export function normalizeProjectWriteInput(body: unknown) {
           (item): item is string => typeof item === "string",
         )
       : undefined,
+    addTeammates: normalizeStringArray(payload.addTeammates),
+    removeTeammates: normalizeStringArray(payload.removeTeammates),
     projectUrl: normalizeString(payload.projectUrl ?? payload.project_url),
     coverImageUrl: normalizeString(
       payload.coverImageUrl ?? payload.cover_image_url,
@@ -658,11 +663,12 @@ export async function saveProjectSubmission(
   let existingProjectEventId: string | null | undefined = input.eventId;
   let existingProjectName: string | null = null;
   let existingProjectDescription: string | null = null;
+  let existingTeammates: string[] | null = null;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description, submitted",
+        "id, event_id, contextus_project_id, project_name, project_description, teammates, submitted",
       )
       .eq("id", projectId)
       .single()
@@ -674,6 +680,7 @@ export async function saveProjectSubmission(
           | "contextus_project_id"
           | "project_name"
           | "project_description"
+          | "teammates"
           | "submitted"
         >
       >();
@@ -701,6 +708,7 @@ export async function saveProjectSubmission(
     existingProjectEventId = input.eventId ?? existingProject.event_id;
     existingProjectName = existingProject.project_name ?? null;
     existingProjectDescription = existingProject.project_description ?? null;
+    existingTeammates = existingProject.teammates;
   }
 
   const validation = await validateProjectEventContext(
@@ -759,7 +767,14 @@ export async function saveProjectSubmission(
     updateData.cover_image_url = input.coverImageUrl;
   if (input.leadName !== undefined) updateData.lead_name = input.leadName;
   if (input.leadEmail !== undefined) updateData.lead_email = input.leadEmail;
-  if (input.teammates !== undefined) updateData.teammates = input.teammates;
+  if (input.teammates !== undefined) {
+    updateData.teammates = input.teammates;
+  } else if (input.addTeammates?.length || input.removeTeammates?.length) {
+    updateData.teammates = applyTeammateChanges(existingTeammates, {
+      add: input.addTeammates,
+      remove: input.removeTeammates,
+    });
+  }
   if (input.videoUrl !== undefined) updateData.video_url = input.videoUrl;
   if (input.eventId !== undefined) updateData.event_id = input.eventId;
   if (input.isPrivate !== undefined) updateData.private = input.isPrivate;
@@ -825,7 +840,7 @@ export async function saveProjectSubmission(
       ...updateData,
       lead_name: input.leadName ?? "",
       lead_email: input.leadEmail ?? null,
-      teammates: input.teammates || [],
+      teammates: updateData.teammates ?? [],
       event_id: input.eventId || null,
       submitted: submitted ?? true,
       submitted_at: submitted === false ? null : new Date().toISOString(),

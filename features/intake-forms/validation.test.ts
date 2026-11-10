@@ -164,6 +164,19 @@ describe("helpers shared with ParticipantIntakeDialog", () => {
     expect(getVisibleFields(schema, { level: "B" }).map((f) => f.key)).toContain("level_other");
   });
 
+  it("treats a showIf rule whose source question no longer exists as absent", () => {
+    const orphaned: IntakeFormSchema = {
+      title: "t",
+      fields: [
+        field({ key: "school", type: "short_text", required: true, showIf: { fieldKey: "old_key", equals: "student" } }),
+      ],
+    };
+    expect(getVisibleFields(orphaned, {}).map((f) => f.key)).toEqual(["school"]);
+    // ...so the server still enforces it as required.
+    expect(validateIntakeAnswers(orphaned, {}).ok).toBe(false);
+    expect(validateIntakeAnswers(orphaned, { school: "MIT" }).ok).toBe(true);
+  });
+
   it("satisfiesRequired ignores optional fields", () => {
     expect(satisfiesRequired(schema.fields[1], "")).toBe(true);
     expect(satisfiesRequired(schema.fields[0], "")).toBe(false);

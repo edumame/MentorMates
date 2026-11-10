@@ -1,10 +1,79 @@
 import {
   getNextProjectId,
   isProjectFullyScored,
+  removeTrackScores,
+  setTrackScores,
   truncateWithEllipsis,
 } from "./utils";
 
 describe("judge dashboard utils", () => {
+  describe("setTrackScores", () => {
+    it("adds a project and track that had no scores", () => {
+      const result = setTrackScores(new Map(), "project-1", "track-a", { q: 7 });
+
+      expect(result.get("project-1")?.get("track-a")).toEqual({ q: 7 });
+    });
+
+    it("replaces one track and keeps the others without mutating the input", () => {
+      const original = new Map([
+        [
+          "project-1",
+          new Map([
+            ["track-a", { q: 7 }],
+            ["track-b", { q: 4 }],
+          ]),
+        ],
+      ]);
+
+      const result = setTrackScores(original, "project-1", "track-a", { q: 2 });
+
+      expect(result.get("project-1")?.get("track-a")).toEqual({ q: 2 });
+      expect(result.get("project-1")?.get("track-b")).toEqual({ q: 4 });
+      expect(original.get("project-1")?.get("track-a")).toEqual({ q: 7 });
+    });
+  });
+
+  describe("removeTrackScores", () => {
+    it("removes the project entry when its last track is removed", () => {
+      const original = new Map([
+        ["project-1", new Map([["track-a", { q: 7 }]])],
+      ]);
+
+      const result = removeTrackScores(original, "project-1", "track-a");
+
+      expect(result.has("project-1")).toBe(false);
+      expect(original.get("project-1")?.has("track-a")).toBe(true);
+    });
+
+    it("keeps the project's other tracks", () => {
+      const original = new Map([
+        [
+          "project-1",
+          new Map([
+            ["track-a", { q: 7 }],
+            ["track-b", { q: 4 }],
+          ]),
+        ],
+      ]);
+
+      const result = removeTrackScores(original, "project-1", "track-a");
+
+      expect(result.get("project-1")?.has("track-a")).toBe(false);
+      expect(result.get("project-1")?.get("track-b")).toEqual({ q: 4 });
+    });
+
+    it("leaves other projects alone when the project has no scores", () => {
+      const original = new Map([
+        ["project-2", new Map([["track-a", { q: 7 }]])],
+      ]);
+
+      const result = removeTrackScores(original, "project-1", "track-a");
+
+      expect(result.get("project-2")?.get("track-a")).toEqual({ q: 7 });
+      expect(result.has("project-1")).toBe(false);
+    });
+  });
+
   describe("isProjectFullyScored", () => {
     it("returns true when all tracks are scored", () => {
       const scoredProjects = new Map<string, Set<string>>([

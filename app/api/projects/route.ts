@@ -14,6 +14,7 @@ import { createContextusProject } from "@/lib/integrations/contextus";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchSubmissionFieldsByEventIds as fetchSubmissionFieldsWithServiceClient } from "@/lib/projects/query";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
 import {
   buildProjectTeamMembers,
@@ -50,6 +51,23 @@ async function fetchSubmissionFieldsByEventIds(
 ) {
   if (eventIds.length === 0) {
     return new Map<string, EventSubmissionField[]>();
+  }
+
+  // Field definitions are readable only by event members under RLS, while the
+  // answers keyed by them are public on non-private projects. An empty read
+  // here would swap in the default fields and orphan those answers, so go
+  // through the service client. Every caller runs after its visibility check
+  // and only attaches the fields to projects the viewer can already read.
+  try {
+    const fieldMap = await fetchSubmissionFieldsWithServiceClient(
+      createSupabaseServiceClient(),
+      eventIds
+    );
+    if (fieldMap.size > 0) {
+      return fieldMap;
+    }
+  } catch {
+    // Service key may not exist in local dev; use the caller's access instead.
   }
 
   const { data, error } = await supabase
