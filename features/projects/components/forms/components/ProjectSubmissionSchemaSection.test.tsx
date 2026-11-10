@@ -118,3 +118,42 @@ describe('multi_url rows', () => {
     expect(findMissingRequiredSubmissionField([multiUrlField], { demo_links: ['', ' '] })).toBe(multiUrlField);
   });
 });
+
+describe('submission field accessible names', () => {
+  const renderFields = (fields: EffectiveSubmissionField[]) => render(
+    <ProjectSubmissionSchemaSection fields={fields} values={{}}
+      onValueChange={jest.fn()} onFileUpload={jest.fn()}
+      showDescriptionPreview={false} onToggleDescriptionPreview={jest.fn()} />
+  );
+
+  it('associates visible labels and help text with text, description and URL controls', () => {
+    renderFields([
+      { ...field, id: 'name', key: 'project_name', label: 'Project name', field_type: 'short_text', description: 'A concise name' },
+      { ...field, id: 'description', key: 'project_description', label: 'Description', field_type: 'long_text' },
+      { ...field, id: 'url', key: 'project_url', label: 'Project URL', field_type: 'url' },
+    ]);
+    const name = screen.getByRole('textbox', { name: 'Project name' });
+    expect(screen.getByLabelText('Project name')).toBe(name);
+    expect(name).toHaveAccessibleDescription('A concise name');
+    expect(screen.getByRole('textbox', { name: 'Description' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Project URL' })).toBeInTheDocument();
+  });
+
+  it('uses distinct associations when multiple sections render the same fields', () => {
+    renderFields([{ ...field, field_type: 'short_text' }]);
+    renderFields([{ ...field, field_type: 'short_text' }]);
+    const controls = screen.getAllByRole('textbox', { name: 'Slide Deck' });
+    expect(controls).toHaveLength(2);
+    expect(controls[0].id).not.toBe(controls[1].id);
+  });
+
+  it('names upload controls and option groups with their schema labels', () => {
+    renderFields([
+      { ...field, id: 'files', key: 'files', label: 'Attachments', field_type: 'multi_file' },
+      { ...field, id: 'choice', key: 'choice', label: 'Category', field_type: 'select', options: ['One', 'Two'] },
+    ]);
+    expect(screen.getByLabelText('Attachments')).toHaveAttribute('type', 'file');
+    expect(screen.getByRole('radiogroup', { name: 'Category' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'One' })).toBeInTheDocument();
+  });
+});
