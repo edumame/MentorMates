@@ -14,6 +14,7 @@ import { createContextusProject } from "@/lib/integrations/contextus";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchSubmissionFieldsByEventIds as fetchSubmissionFieldsWithServiceClient } from "@/lib/projects/query";
 import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
 import {
   buildProjectTeamMembers,
@@ -50,6 +51,23 @@ async function fetchSubmissionFieldsByEventIds(
 ) {
   if (eventIds.length === 0) {
     return new Map<string, EventSubmissionField[]>();
+  }
+
+  // Field definitions are readable only by event members under RLS, while the
+  // answers keyed by them are public on non-private projects. An empty read
+  // here would swap in the default fields and orphan those answers, so go
+  // through the service client. Every caller runs after its visibility check
+  // and only attaches the fields to projects the viewer can already read.
+  try {
+    const fieldMap = await fetchSubmissionFieldsWithServiceClient(
+      createSupabaseServiceClient(),
+      eventIds
+    );
+    if (fieldMap.size > 0) {
+      return fieldMap;
+    }
+  } catch {
+    // Service key may not exist in local dev; use the caller's access instead.
   }
 
   const { data, error } = await supabase
@@ -153,7 +171,8 @@ async function fetchTeammateProfiles(
 // client — it only ever leaks a boolean.
 async function fetchCertificateExtras(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-  projectId: string
+  projectId: string,
+  eventId: string
 ): Promise<{ prizes_won: Prize[]; is_finalist: boolean }> {
   const { data: prizeRows } = await supabase
     .from("prize_winners")
@@ -189,16 +208,20 @@ async function fetchCertificateExtras(
     winning_project_id: row.project_id,
   })) as Prize[];
 
-  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId) };
+  return { prizes_won: prizes, is_finalist: await fetchIsFinalist(projectId, eventId) };
 }
 
-async function fetchIsFinalist(projectId: string): Promise<boolean> {
+async function fetchIsFinalist(
+  projectId: string,
+  eventId: string
+): Promise<boolean> {
   try {
     const serviceClient = createSupabaseServiceClient();
     const { data: advancements } = await serviceClient
       .from("project_round_advancements")
       .select("id")
       .eq("project_id", projectId)
+      .eq("event_id", eventId)
       .limit(1);
     return (advancements?.length ?? 0) > 0;
   } catch {
@@ -353,7 +376,7 @@ export async function GET(request: NextRequest) {
         );
 
         const [extras, rosters] = await Promise.all([
-          fetchCertificateExtras(supabase, project.id),
+          fetchCertificateExtras(supabase, project.id, project.event_id),
           fetchPublicTeamRosters([project.id]),
         ]);
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
@@ -738,7 +761,7 @@ export async function GET(request: NextRequest) {
       }
 
       const [isFinalist, rosters] = await Promise.all([
-        fetchIsFinalist(transformedProject.id),
+        fetchIsFinalist(transformedProject.id, project.event_id),
         fetchPublicTeamRosters([project.id]),
       ]);
       (

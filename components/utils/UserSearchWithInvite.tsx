@@ -5,9 +5,17 @@ import { Mail, UserPlus, Link2 } from "lucide-react";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { toast } from "@/lib/hooks/use-toast";
 
+// `tags` only reflects what the parent last passed in, which can be missing
+// people who joined by invite since, so callers should save this change
+// rather than replace the stored team with the list.
+export interface TeamTagChange {
+  added: string[];
+  removed: string[];
+}
+
 interface UserSearchWithInviteProps {
   allTags: string[];
-  onTagsChange: (tags: string[]) => void;
+  onTagsChange: (tags: string[], change: TeamTagChange) => void;
   initialTags?: string[];
   projectId?: string;
   enableInvite?: boolean;
@@ -90,14 +98,17 @@ const UserSearchWithInvite = ({
       setSelectedTags(newSelectedTags);
       setTagInput("");
       setFilteredTags([]);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { added: [extractEmail(tag)], removed: [] });
     }
   };
 
   const removeTag = (tagToRemove: string): void => {
     const newSelectedTags = selectedTags.filter((tag) => tag !== tagToRemove);
     setSelectedTags(newSelectedTags);
-    onTagsChange(newSelectedTags);
+    onTagsChange(newSelectedTags, {
+      added: [],
+      removed: [extractEmail(tagToRemove)],
+    });
   };
 
   const sendInvitation = async (email: string): Promise<void> => {
@@ -139,7 +150,7 @@ const UserSearchWithInvite = ({
       // Add the invited email to selected tags so it shows up in the UI
       const newSelectedTags = [...latestSelectedTags.current, email.trim()];
       setSelectedTags(newSelectedTags);
-      onTagsChange(newSelectedTags);
+      onTagsChange(newSelectedTags, { added: [email.trim()], removed: [] });
 
       setTagInput("");
       setFilteredTags([]);
@@ -326,9 +337,10 @@ const UserSearchWithInvite = ({
     return selectedTags.map((tag, index) => getTagMarkup(tag, index));
   };
 
-  // Extract email from formatted tag "Name (email)" or return the tag itself
+  // Extract email from formatted tag "Name (email)" or return the tag itself.
+  // Takes the last group because display names can contain parentheses.
   const extractEmail = (tag: string): string => {
-    const emailMatch = tag.match(/\((.+?)\)$/);
+    const emailMatch = tag.match(/\(([^()]+)\)$/);
     return emailMatch ? emailMatch[1] : tag;
   };
 

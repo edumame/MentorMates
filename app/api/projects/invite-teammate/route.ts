@@ -4,7 +4,10 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getProjectInvitationEmailTemplate } from '@/lib/email_templates/project-invitation';
-import { generateProjectInviteToken } from '@/lib/utils/jwt';
+import {
+  generateProjectInviteToken,
+  PROJECT_EMAIL_INVITE_EXPIRY_DAYS,
+} from '@/lib/utils/jwt';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -96,7 +99,7 @@ export async function POST(request: Request) {
         projectId: project.id,
         invitedBy: userEmail || auth.user.id,
       },
-      600 // 10 minutes
+      PROJECT_EMAIL_INVITE_EXPIRY_DAYS * 24 * 60 * 60
     );
   } catch {
     return NextResponse.json({ error: 'Failed to generate invitation token' }, { status: 500 });
@@ -110,6 +113,7 @@ export async function POST(request: Request) {
       inviterName,
       eventName,
       inviteToken,
+      PROJECT_EMAIL_INVITE_EXPIRY_DAYS,
     );
 
     const { error: emailError } = await resend.emails.send({

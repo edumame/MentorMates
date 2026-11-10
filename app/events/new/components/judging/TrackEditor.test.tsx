@@ -34,6 +34,28 @@ describe("TrackEditor", () => {
     expect(latestEvent.tracks[0].client_id).toBe(originalClientId);
   });
 
+  it("lets rubric numbers be cleared and retyped", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: /add new track/i }));
+    await user.click(screen.getByRole("button", { name: /add criterion/i }));
+    const [weight, , maxScore] = screen.getAllByRole("spinbutton");
+
+    await user.clear(weight);
+    expect(weight).toHaveValue(null);
+    await user.keyboard("10");
+    expect(weight).toHaveValue(10);
+
+    await user.clear(maxScore);
+    expect(maxScore).toHaveValue(null);
+    await user.keyboard("5");
+    await user.tab();
+
+    const criterion = latestEvent.tracks[0].criteria.at(-1);
+    expect(criterion).toMatchObject({ weight: 10, max: 5 });
+  });
+
   it("keeps prize linkage intact when a track is renamed", async () => {
     const user = userEvent.setup();
     render(<Harness />);

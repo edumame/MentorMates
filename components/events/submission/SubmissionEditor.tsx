@@ -11,11 +11,13 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { NumberInput } from "@/components/ui/number-input";
 import type { SubmissionField, ChatMessage } from "./types";
 import {
   createSubmissionTemplateFields,
   createLockedStarterSubmissionFields,
   createMLHSubmissionTemplateFields,
+  normalizeAiSubmissionFields,
   BUILT_IN_FIELD_IDS,
 } from "./types";
 import {
@@ -127,7 +129,12 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          event: { submission_fields: editorFields },
+          event: {
+            submission_fields:
+              editorFields.length > 0
+                ? editorFields
+                : createLockedStarterSubmissionFields(),
+          },
           history: chatMessages,
           context: "submission",
         }),
@@ -149,7 +156,21 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
       ]);
 
       if (data.patch?.submission_fields && Array.isArray(data.patch.submission_fields)) {
-        onChange(data.patch.submission_fields);
+        const normalized = normalizeAiSubmissionFields(
+          data.patch.submission_fields,
+          editorFields
+        );
+        if (normalized) {
+          onChange(normalized);
+        } else {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: "That change included a field I can't use, so your form was not changed. Please try rephrasing.",
+            },
+          ]);
+        }
       }
     } catch {
       setChatMessages((prev) => [
@@ -744,19 +765,13 @@ function FieldEditor({
             {field.multiple && field.type === "file" && (
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-gray-500">Max files:</label>
-                <input
-                  type="number"
+                <NumberInput
+                  unstyled
+                  integer
                   min={2}
                   max={20}
                   value={field.maxFiles ?? 5}
-                  onChange={(e) =>
-                    onUpdate({
-                      maxFiles: Math.max(
-                        2,
-                        parseInt(e.target.value, 10) || 5
-                      ),
-                    })
-                  }
+                  onValueChange={(maxFiles) => onUpdate({ maxFiles })}
                   {...{ [FIELD_EDITOR_STEP]: "" }}
                   className="w-16 h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-center outline-none focus:border-[#4B89EF]"
                 />

@@ -24,10 +24,14 @@ import { CoverImageWithFallback } from "@/features/projects/components/displays/
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import {
+  buildJudgeScoreMaps,
   getCardNavigationDirection,
   getNextProjectId,
   isProjectFullyScored,
+  removeTrackScores,
+  setTrackScores,
   truncateWithEllipsis,
+  type ScoreValuesByProject,
 } from "./utils";
 import { computeWeightedScore } from "@/lib/judging/weighted-score";
 import { getActiveRound } from "@/lib/judging/rounds";
@@ -123,9 +127,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     Map<string, Set<string>>
   >(new Map());
   // Stores actual numeric scores per project per track: Map<projectId, Map<trackId, scoresObject>>
-  const [scoreValues, setScoreValues] = useState<
-    Map<string, Map<string, Record<string, number>>>
-  >(new Map());
+  const [scoreValues, setScoreValues] = useState<ScoreValuesByProject>(
+    new Map()
+  );
   const [navigatorSort, setNavigatorSort] = useState<NavigatorSort>("default");
   const [judgeId, setJudgeId] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -144,6 +148,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     null
   );
   const [activeRound, setActiveRound] = useState(1);
+  const [queueReloadCount, setQueueReloadCount] = useState(0);
   const previousVisibleIdsRef = useRef<string[]>([]);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeEnabledRef = useRef(false);
@@ -331,13 +336,26 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
         return updated;
       });
+      setScoreValues((prev) => removeTrackScores(prev, projectId, trackId));
     },
     []
   );
 
   const advanceAfterTrackSubmit = useCallback(
-    (project: Project, submittedTrackId: string) => {
+    (
+      project: Project,
+      submittedTrackId: string,
+      scores: Record<string, number | string>
+    ) => {
       const updatedTrackIds = markTrackAsScored(project.id, submittedTrackId);
+      setScoreValues((prev) =>
+        setTrackScores(
+          prev,
+          project.id,
+          submittedTrackId,
+          scores as Record<string, number>
+        )
+      );
 
       const nextUnscoredTrackId = project.track_ids.find(
         (trackId) => !updatedTrackIds.has(trackId)
@@ -605,26 +623,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           throw new Error(`Failed to fetch scores: ${scoresError.message}`);
         }
 
-        const scoredMap = new Map<string, Set<string>>();
-        const valuesMap = new Map<
-          string,
-          Map<string, Record<string, number>>
-        >();
-        scoresData?.forEach((score) => {
-          if (!scoredMap.has(score.project_id)) {
-            scoredMap.set(score.project_id, new Set());
-          }
-          scoredMap.get(score.project_id)?.add(score.track_id);
-
-          if (score.scores && typeof score.scores === "object") {
-            if (!valuesMap.has(score.project_id)) {
-              valuesMap.set(score.project_id, new Map());
-            }
-            valuesMap
-              .get(score.project_id)
-              ?.set(score.track_id, score.scores as Record<string, number>);
-          }
-        });
+        const { scoredProjects: scoredMap, scoreValues: valuesMap } =
+          buildJudgeScoreMaps(scoresData ?? [], mappedProjects);
         setScoredProjects(scoredMap);
         setScoreValues(valuesMap);
       } catch (error) {
@@ -640,7 +640,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     };
 
     fetchData();
-  }, [eventId]);
+  }, [eventId, queueReloadCount]);
 
   useEffect(() => {
     setOpenTracksByProject((prev) => {
@@ -1228,11 +1228,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                       roundNumber={activeRound}
                                       finalistFeatureEnabled={finalistFeatureEnabled}
                                       hideProjectHeader
-                                      onScoreSaved={() =>
-                                        advanceAfterTrackSubmit(currentProject, trackId)
+                                      onScoreSaved={(scores) =>
+                                        advanceAfterTrackSubmit(currentProject, trackId, scores)
                                       }
                                       onScoreDeleted={() =>
                                         markTrackAsUnscored(currentProject.id, trackId)
+                                      }
+                                      onRoundChanged={() =>
+                                        setQueueReloadCount((count) => count + 1)
                                       }
                                     />
                                   )}
@@ -1344,11 +1347,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                 roundNumber={activeRound}
                                 finalistFeatureEnabled={finalistFeatureEnabled}
                                 hideProjectHeader
-                                onScoreSaved={() =>
-                                  advanceAfterTrackSubmit(currentProject, trackId)
+                                onScoreSaved={(scores) =>
+                                  advanceAfterTrackSubmit(currentProject, trackId, scores)
                                 }
                                 onScoreDeleted={() =>
                                   markTrackAsUnscored(currentProject.id, trackId)
+                                }
+                                onRoundChanged={() =>
+                                  setQueueReloadCount((count) => count + 1)
                                 }
                               />
                             )}

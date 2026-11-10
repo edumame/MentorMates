@@ -3,6 +3,8 @@ import {
   buildSignupConsentMetadata,
   hasRecordedTermsAcceptance,
   parseConsentParams,
+  requiresTermsAcceptance,
+  TERMS_ACCEPTANCE_REQUIRED_FROM,
   TERMS_VERSION,
 } from "./signup-consent";
 
@@ -73,4 +75,40 @@ describe("hasRecordedTermsAcceptance", () => {
   ])("%j -> %p", (metadata, expected) => {
     expect(hasRecordedTermsAcceptance(metadata as Record<string, unknown> | null)).toBe(expected);
   });
+});
+
+describe("requiresTermsAcceptance", () => {
+  const before = "2026-11-01T23:59:59.999Z";
+
+  it("requires acceptance from accounts created on or after the rollout", () => {
+    expect(
+      requiresTermsAcceptance({ created_at: TERMS_ACCEPTANCE_REQUIRED_FROM })
+    ).toBe(true);
+    expect(
+      requiresTermsAcceptance({
+        created_at: "2026-11-03T00:00:00.000Z",
+        user_metadata: { full_name: "Person" },
+      })
+    ).toBe(true);
+  });
+
+  it("does not require it from accounts that predate the rollout", () => {
+    expect(requiresTermsAcceptance({ created_at: before })).toBe(false);
+  });
+
+  it("does not require it once an acceptance is recorded", () => {
+    expect(
+      requiresTermsAcceptance({
+        created_at: TERMS_ACCEPTANCE_REQUIRED_FROM,
+        user_metadata: { terms_accepted_at: now.toISOString() },
+      })
+    ).toBe(false);
+  });
+
+  it.each([[undefined], [""], ["not-a-date"]])(
+    "requires it when the creation date is unusable (%s)",
+    (created_at) => {
+      expect(requiresTermsAcceptance({ created_at })).toBe(true);
+    }
+  );
 });
