@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { EventsPageClient } from "./eventsPageClient";
+import { EventsPageClient, matchesEventSearch } from "./eventsPageClient";
 
 const mockUseAuth = jest.fn();
 const mockUseSearchParams = jest.fn();
@@ -96,5 +96,16 @@ describe("EventsPageClient", () => {
     expect(stickyHeader).toBeTruthy();
     expect(stickyHeader?.className).toContain("pt-[24px]");
     expect(stickyHeader?.className).not.toContain("-mt-[24px]");
+  });
+});
+
+describe("event search (PUB-018)", () => {
+  it("matches name or location, case-insensitively, ignoring surrounding spaces", () => {
+    const event = { event_name: "Spring Hack Night", location: "San Francisco" };
+    expect(matchesEventSearch(event, "  hack ")).toBe(true);
+    expect(matchesEventSearch(event, "francisco")).toBe(true);
+    expect(matchesEventSearch(event, "tokyo")).toBe(false);
+    expect(matchesEventSearch({ event_name: "Online Jam", location: null }, "jam")).toBe(true);
+    expect(matchesEventSearch(event, "")).toBe(true);
   });
 });
