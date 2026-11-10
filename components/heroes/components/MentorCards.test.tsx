@@ -20,7 +20,11 @@ jest.mock("@/lib/supabase", () => ({
     rpc: jest.fn(),
   },
 }));
-jest.mock("@/lib/hooks/use-confirm", () => ({ useConfirm: () => [() => null, jest.fn()] }));
+// MentorCards only fires getMany for signed-in viewers.
+jest.mock("@/features/user/authentication/auth/AuthContext", () => ({
+  useAuth: () => ({ isAuthenticated: true }),
+}));
+jest.mock("@/lib/hooks/use-confirm",() => ({ useConfirm: () => [() => null, jest.fn()] }));
 jest.mock("@/modules/meetings/ui/components/update-meeting-dialog", () => ({ UpdateMeetingDialog: () => null }));
 jest.mock("@/trpc/client", () => ({
   useTRPC: () => ({
