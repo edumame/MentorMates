@@ -46,6 +46,7 @@ import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
+import { EVENT_ROW_COLUMNS } from "@/lib/events/event-columns";
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,7 +157,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           .from("events")
           .select(
             `
-            *,
+            ${EVENT_ROW_COLUMNS},
             event_tracks (
               track_id,
               name,
@@ -169,7 +170,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                 prize_description
               )
             )
-          `
+          ` as const
           )
           .eq("event_id", eventId)
           .single();
@@ -186,12 +187,17 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           console.error("Error fetching lessons:", lessonsError);
         }
 
-        // Add lessons to event data. On failure leave them undefined so a failed
-        // load is not mistaken for an event with no lessons; ContentTab retries.
-        eventData.event_lessons = lessonsError ? undefined : lessonsData || [];
-        setEvent(eventData);
+        // The typed select narrows nested tracks (no event_id/created_at);
+        // EventDetails is the UI shape used everywhere else.
+        // On a failed lessons load leave them undefined so it is not mistaken
+        // for an event with no lessons; ContentTab retries.
+        const eventDetails = {
+          ...(eventData as unknown as EventDetails),
+          event_lessons: lessonsError ? undefined : lessonsData || [],
+        } as EventDetails;
+        setEvent(eventDetails);
 
-        setScoringConfig(buildEventScoringConfig(eventData));
+        setScoringConfig(buildEventScoringConfig(eventDetails));
       } catch (error) {
         console.error("Error fetching event:", error);
         toast({

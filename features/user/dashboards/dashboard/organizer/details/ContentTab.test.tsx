@@ -9,6 +9,7 @@ const toast = jest.fn();
 const lessonsEq = jest.fn();
 const deleteEq = jest.fn();
 const insert = jest.fn();
+const rpc = jest.fn();
 
 jest.mock("@/lib/hooks/use-toast", () => ({
   useToast: () => ({ toast }),
@@ -30,6 +31,7 @@ jest.mock("@/components/markdown/plugins", () => ({
 
 jest.mock("@/lib/supabase", () => ({
   supabase: {
+    rpc: (...args: unknown[]) => rpc(...args),
     from: () => ({
       select: () => ({ eq: (...args: unknown[]) => lessonsEq(...args) }),
       delete: () => ({ eq: (...args: unknown[]) => deleteEq(...args) }),
@@ -90,6 +92,7 @@ describe("ContentTab lessons", () => {
     jest.clearAllMocks();
     jest.spyOn(console, "error").mockImplementation(() => undefined);
     lessonsEq.mockResolvedValue({ data: [], error: null });
+    rpc.mockResolvedValue({ data: "Saved paywall", error: null });
     deleteEq.mockResolvedValue({ error: null });
     insert.mockReturnValue({
       select: jest.fn().mockResolvedValue({ error: null }),
@@ -241,5 +244,63 @@ describe("ContentTab lessons", () => {
       expect(deleteEq).toHaveBeenCalledWith("event_id", "event-1");
     });
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  describe("paywall content", () => {
+    const paywallBox = () =>
+      screen.getByPlaceholderText("Add content (markdown supported)");
+
+    it("loads paywall content once when the parent has none", async () => {
+      render(
+        <Harness
+          initialEvent={{ ...baseEvent, paywall_content: undefined, event_lessons: [] }}
+        />
+      );
+
+      await waitFor(() => expect(paywallBox()).toHaveValue("Saved paywall"));
+      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(rpc).toHaveBeenCalledWith("get_event_paywall_content", {
+        p_event_id: "event-1",
+      });
+    });
+
+    it("keeps unsaved paywall edits when switching sub-tabs and back", async () => {
+      const user = userEvent.setup();
+      render(
+        <Harness
+          initialEvent={{ ...baseEvent, paywall_content: undefined, event_lessons: [] }}
+        />
+      );
+      await waitFor(() => expect(paywallBox()).toHaveValue("Saved paywall"));
+
+      await user.clear(paywallBox());
+      await user.type(paywallBox(), "Unsaved paywall");
+      await user.click(screen.getByRole("tab", { name: "Schedule tab" }));
+      await user.click(screen.getByRole("tab", { name: "Content tab" }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(paywallBox()).toHaveValue("Unsaved paywall");
+      expect(rpc).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not let a late paywall load overwrite text typed meanwhile", async () => {
+      const user = userEvent.setup();
+      const pending = deferred<{ data: string; error: null }>();
+      rpc.mockReturnValue(pending.promise);
+      render(
+        <Harness
+          initialEvent={{ ...baseEvent, paywall_content: undefined, event_lessons: [] }}
+        />
+      );
+
+      await user.type(paywallBox(), "Typed first");
+      await act(async () => {
+        pending.resolve({ data: "Saved paywall", error: null });
+      });
+
+      expect(paywallBox()).toHaveValue("Typed first");
+    });
   });
 });

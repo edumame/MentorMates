@@ -81,6 +81,35 @@ export function ContentTab({
     fetchLessons();
   }, [event.event_id, lessonsUnknown, setEvent]);
 
+  // Paywall content is members-only (PUB-002): it is not part of the event
+  // row selected by the dashboard, so load it through the gated RPC.
+  // Like lessons, the parent keeps paywall_content across this tab being
+  // unmounted, so only load it while it is still unknown; reloading on every
+  // mount (or applying a late result) would revert unsaved edits.
+  const paywallUnknown = event.paywall_content === undefined;
+  useEffect(() => {
+    if (!paywallUnknown) return;
+    let active = true;
+    const eventId = event.event_id;
+    supabase
+      .rpc("get_event_paywall_content", { p_event_id: eventId })
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.error("Error fetching paywall content:", error);
+          return;
+        }
+        setEvent((prev) =>
+          prev && prev.event_id === eventId && prev.paywall_content === undefined
+            ? { ...prev, paywall_content: data ?? undefined }
+            : prev
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [event.event_id, paywallUnknown, setEvent]);
+
   const addLesson = () => {
     const newLesson: Lesson = {
       title: "",

@@ -99,3 +99,11 @@ describe("EventPageHeader — Edit Event button (#779)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("EventPageHeader — long titles (ORG-016)", () => {
+  it("lets long unbroken event names wrap instead of being clipped", () => {
+    render(<EventPageHeader {...baseProps} eventName={"x".repeat(120)} userRole={EventRole.Participant} />);
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveClass("break-words", "[overflow-wrap:anywhere]");
+  });
+});
