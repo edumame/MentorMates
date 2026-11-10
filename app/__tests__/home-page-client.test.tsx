@@ -14,8 +14,7 @@ jest.mock("@/components/layout/SidebarLayout", () => ({ SidebarLayout: ({ childr
 jest.mock("@/components/utils/ServiceWorkerRegistration", () => ({ ServiceWorkerRegistration: () => null }));
 
 it("keeps landing visible until login, syncs the profile once, and restores landing on logout", async () => {
-  const select = jest.fn().mockResolvedValue({ error: null });
-  const upsert = jest.fn().mockReturnValue({ select });
+  const upsert = jest.fn().mockResolvedValue({ error: null });
   (supabase.from as jest.Mock).mockReturnValue({ upsert });
   (useAuth as jest.Mock).mockReturnValue({ session: null, isLoading: true });
   const content = <HomePageClient><h1>Landing</h1></HomePageClient>;
@@ -30,7 +29,7 @@ it("keeps landing visible until login, syncs the profile once, and restores land
   expect(screen.queryByRole("heading", { name: "Landing" })).not.toBeInTheDocument();
   await waitFor(() => expect(posthog.identify).toHaveBeenCalledWith("member", { email: "member@example.com", display_name: "Member" }));
   expect(supabase.from).toHaveBeenCalledWith("user_profiles");
-  expect(upsert).toHaveBeenCalledWith({ uid: "member", email: "member@example.com", display_name: "Member" }, { onConflict: "email" });
+  expect(upsert).toHaveBeenCalledWith({ uid: "member", email: "member@example.com", display_name: "Member", created_at: expect.any(String) }, { onConflict: "uid", ignoreDuplicates: true });
 
   (useAuth as jest.Mock).mockReturnValue({ session: { ...session }, isLoading: false });
   rerender(<HomePageClient><h1>Landing</h1></HomePageClient>);
@@ -42,8 +41,7 @@ it("keeps landing visible until login, syncs the profile once, and restores land
 
 
 it("hydrates server landing HTML with a cached client session without recoverable errors", async () => {
-  const select = jest.fn().mockResolvedValue({ error: null });
-  (supabase.from as jest.Mock).mockReturnValue({ upsert: jest.fn().mockReturnValue({ select }) });
+  (supabase.from as jest.Mock).mockReturnValue({ upsert: jest.fn().mockResolvedValue({ error: null }) });
   const content = <HomePageClient><h1>Landing</h1></HomePageClient>;
   (useAuth as jest.Mock).mockReturnValue({ session: null, isLoading: true });
   const container = document.createElement("div");

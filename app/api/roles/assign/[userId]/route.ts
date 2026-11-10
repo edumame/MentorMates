@@ -41,7 +41,9 @@ export async function POST(
   const { error } = await supabase
     .from("project_assignments")
     .upsert(
-      { project_id: projectId, user_id: userId, role: role, event_id: eventId },
+      // Re-activates a soft-revoked row for the same pair (A1, JUDGE-017).
+      { project_id: projectId, user_id: userId, role: role, event_id: eventId, revoked_at: null },
+      { onConflict: "project_id,user_id,role" }
     );
 
   if (error) {

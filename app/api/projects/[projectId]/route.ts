@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { getProjectEditAccess } from "@/lib/projects/access";
+// Edit rights are derived from the verified user; the team email columns are
+// not readable by client roles, so the lookup uses the service client.
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import {
   normalizeProjectWriteInput,
   saveProjectSubmission,
@@ -30,7 +33,7 @@ export async function PATCH(
       );
     }
 
-    const accessResult = await getProjectEditAccess(supabase, {
+    const accessResult = await getProjectEditAccess(createSupabaseServiceClient(), {
       projectId,
       userId: user.id,
       userEmail: user.email,
@@ -98,7 +101,7 @@ export async function DELETE(
     // First check if the user has permission to delete this project
     const { data: project, error: fetchError } = await supabase
       .from("projects")
-      .select("lead_email, submitted, event_id")
+      .select("submitted, event_id")
       .eq("id", projectId)
       .single();
 
@@ -116,7 +119,12 @@ export async function DELETE(
       );
     }
 
-    const isProjectLead = project.lead_email === user.email;
+    const accessResult = await getProjectEditAccess(createSupabaseServiceClient(), {
+      projectId,
+      userId: user.id,
+      userEmail: user.email,
+    });
+    const isProjectLead = Boolean(accessResult.access?.isLead);
 
     // Check if user is an organizer for the event
     let isOrganizer = false;

@@ -7,6 +7,7 @@ import type { ReportStore } from "shipcue/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import { escapeHtml } from "@/lib/email_templates/escape-html";
 import { SHIPCUE_BUCKET, SHIPCUE_PREFIX, shipcueConfig } from "@/lib/shipcue/config";
 import { supabaseStore } from "@/lib/shipcue/supabase-store";
 import type { ShipcueDeps, ShipcueUser } from "@/lib/shipcue/handler";
@@ -44,10 +45,6 @@ export async function saveToBucket(file: File, key: string): Promise<string> {
   const { error } = await storage.upload(path, file, { contentType: file.type });
   if (error) throw new Error(`Screenshot upload failed: ${error.message}`);
   return storage.getPublicUrl(path).data.publicUrl;
-}
-
-function escapeHtml(v: string): string {
-  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /** Emails the team about a new report, as /api/bug-reports did. Skipped without RESEND_API_KEY. */
