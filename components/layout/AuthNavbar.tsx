@@ -58,6 +58,8 @@ export function AuthNavbar() {
           {/* Mobile Menu Button */}
           <button
             aria-label="Toggle menu"
+            aria-expanded={isOpen}
+            aria-controls="auth-mobile-menu"
             onClick={() => setIsOpen((o) => !o)}
             className="p-2 rounded-md hover:bg-gray-200 flex lg:hidden"
           >
@@ -72,7 +74,7 @@ export function AuthNavbar() {
 
       {/* Mobile Menu (<lg only) - Dropdown style */}
       {isOpen && (
-        <div className="fixed inset-0 top-[72px] bg-white z-40 lg:hidden overflow-y-auto">
+        <div id="auth-mobile-menu" className="fixed inset-0 top-[72px] bg-white z-40 lg:hidden overflow-y-auto">
           <div className="px-6 py-6 space-y-1">
             {/* Navigation Links */}
             <Link

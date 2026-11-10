@@ -1,5 +1,7 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { generateProjectInviteToken } from "@/lib/utils/jwt";
+import { getProjectEditAccess } from "@/lib/projects/access";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -19,31 +21,22 @@ export async function POST(request: Request) {
     );
   }
 
-  // Fetch project details to verify user has permission
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("id, lead_email, teammates")
-    .eq("id", projectId)
-    .single();
+  // Authorization uses the verified auth identity, never mutable profile
+  // email. Team email columns are not client-readable, so membership is
+  // resolved with the service client (lead or teammate only).
+  const userEmail = auth.user.email?.trim().toLowerCase();
+  const accessResult = await getProjectEditAccess(createSupabaseServiceClient(), {
+    projectId,
+    userId: auth.user.id,
+    userEmail,
+    allowOrganizer: false,
+  });
 
-  if (projectError || !project) {
+  if (!accessResult.access) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  // Get user email from profile
-  const { data: userProfile } = await supabase
-    .from("user_profiles")
-    .select("email")
-    .eq("uid", auth.user.id)
-    .single();
-
-  const userEmail = userProfile?.email;
-
-  // Verify user has permission (is project lead or teammate)
-  const isProjectLead = project.lead_email === userEmail;
-  const isTeammate = project.teammates?.includes(userEmail || "");
-
-  if (!isProjectLead && !isTeammate) {
+  if (!accessResult.access.isLead && !accessResult.access.isTeammate) {
     return NextResponse.json(
       { error: "Forbidden: Only project lead or teammates can generate invite links" },
       { status: 403 }
