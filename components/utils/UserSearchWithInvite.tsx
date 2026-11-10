@@ -1,13 +1,21 @@
 "use client";
 
-import { useState, ChangeEvent, useEffect } from "react";
+import { useState, ChangeEvent, useEffect, useRef } from "react";
 import { Mail, UserPlus, Link2 } from "lucide-react";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { toast } from "@/lib/hooks/use-toast";
 
+// `tags` only reflects what the parent last passed in, which can be missing
+// people who joined by invite since, so callers should save this change
+// rather than replace the stored team with the list.
+export interface TeamTagChange {
+  added: string[];
+  removed: string[];
+}
+
 interface UserSearchWithInviteProps {
   allTags: string[];
-  onTagsChange: (tags: string[]) => void;
+  onTagsChange: (tags: string[], change: TeamTagChange) => void;
   initialTags?: string[];
   projectId?: string;
   enableInvite?: boolean;
@@ -33,6 +41,35 @@ const UserSearchWithInvite = ({
   // Invited emails shown as chips. They are not team members until the invitee
   // accepts, so they must never reach onTagsChange.
   const [pendingInvites, setPendingInvites] = useState<string[]>([]);
+
+  // Compared by value because several callers build initialTags on every render.
+  const initialTagsKey = JSON.stringify(initialTags);
+  const syncedInitialTagsKey = useRef(initialTagsKey);
+
+  // The parent can change the team outside this component, and it saves whatever
+  // list we send as a full replace, so a stale chip would undo that change.
+  // Tags the parent has not seen yet stay: a save still in flight, or a pending
+  // invitation, which the project page never adds to the team.
+  useEffect(() => {
+    if (syncedInitialTagsKey.current === initialTagsKey) return;
+
+    const previousTags: string[] = JSON.parse(syncedInitialTagsKey.current);
+    const nextTags: string[] = JSON.parse(initialTagsKey);
+    syncedInitialTagsKey.current = initialTagsKey;
+
+    setSelectedTags((current) => [
+      ...nextTags,
+      ...current.filter(
+        (tag) => !previousTags.includes(tag) && !nextTags.includes(tag)
+      ),
+    ]);
+    // An invitee who accepted is now a real teammate, so their chip is no
+    // longer pending (removing it must reach the parent).
+    const acceptedEmails = new Set(nextTags.map((tag) => extractEmail(tag).toLowerCase()));
+    setPendingInvites((invites) =>
+      invites.filter((invite) => !acceptedEmails.has(invite.toLowerCase()))
+    );
+  }, [initialTagsKey]);
 
   useEffect(() => {
     if (tagInput) {
@@ -69,7 +106,10 @@ const UserSearchWithInvite = ({
       setSelectedTags(newSelectedTags);
       setTagInput("");
       setFilteredTags([]);
-      onTagsChange(withoutPendingInvites(newSelectedTags));
+      onTagsChange(withoutPendingInvites(newSelectedTags), {
+        added: [extractEmail(tag)],
+        removed: [],
+      });
     }
   };
 
@@ -82,7 +122,10 @@ const UserSearchWithInvite = ({
       return;
     }
 
-    onTagsChange(withoutPendingInvites(newSelectedTags));
+    onTagsChange(withoutPendingInvites(newSelectedTags), {
+      added: [],
+      removed: [extractEmail(tagToRemove)],
+    });
   };
 
   const sendInvitation = async (email: string): Promise<void> => {

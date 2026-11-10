@@ -1,119 +1,257 @@
+import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import UserSearchWithInvite from "./UserSearchWithInvite";
 
-const toast = jest.fn();
+jest.mock("@/lib/hooks/use-toast", () => ({ toast: jest.fn() }));
 
-jest.mock("@/lib/hooks/use-toast", () => ({
-  toast: (...args: unknown[]) => toast(...args),
-}));
+const A = "a@x.com";
+const B = "b@x.com";
+const C = "c@x.com";
+const INVITED = "invited@elsewhere.com";
 
-const INVITEE = "invitee@example.com";
-const PARTICIPANT = "participant@example.com";
-const TEAMMATE = "teammate@example.com";
-
-const mockInviteResponse = (ok: boolean) => {
-  global.fetch = jest.fn().mockResolvedValue({
-    ok,
-    json: async () => (ok ? { success: true } : { error: "Invite failed" }),
-  }) as unknown as typeof fetch;
-};
-
-const renderSearch = () => {
-  const onTagsChange = jest.fn();
-  render(
-    <UserSearchWithInvite
-      allTags={[PARTICIPANT, TEAMMATE]}
-      onTagsChange={onTagsChange}
-      initialTags={[TEAMMATE]}
-      projectId="project-1"
-      enableInvite
-    />
-  );
-  return onTagsChange;
-};
-
-const typeInSearch = (value: string) =>
+const search = (value: string) =>
   fireEvent.change(screen.getByRole("textbox"), { target: { value } });
 
-const invite = async (email: string) => {
-  typeInSearch(email);
-  fireEvent.click(screen.getByText("Send project invitation"));
-  await waitFor(() =>
-    expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: expect.any(String) })
-    )
-  );
+const pick = (tag: string) => {
+  search(tag);
+  fireEvent.click(screen.getByRole("listitem"));
 };
 
-describe("UserSearchWithInvite pending invitations", () => {
-  beforeEach(() => {
-    toast.mockClear();
-    mockInviteResponse(true);
+const chip = (tag: string) => screen.queryByText(tag);
+
+const removeChip = (tag: string) => {
+  const button = chip(tag)?.querySelector("button");
+  if (!button) throw new Error(`No chip for ${tag}`);
+  fireEvent.click(button);
+};
+
+describe("UserSearchWithInvite", () => {
+  describe("when the parent changes initialTags", () => {
+    it("does not bring back a teammate the parent removed when adding someone else", () => {
+      const onTagsChange = jest.fn();
+      const { rerender } = render(
+        <UserSearchWithInvite
+          allTags={[A, B]}
+          initialTags={[A]}
+          onTagsChange={onTagsChange}
+        />
+      );
+      expect(chip(A)).toBeInTheDocument();
+
+      rerender(
+        <UserSearchWithInvite
+          allTags={[A, B]}
+          initialTags={[]}
+          onTagsChange={onTagsChange}
+        />
+      );
+      expect(chip(A)).not.toBeInTheDocument();
+
+      pick(B);
+
+      expect(onTagsChange).toHaveBeenCalledTimes(1);
+      expect(onTagsChange).toHaveBeenCalledWith([B], { added: [B], removed: [] });
+    });
+
+    it("does not bring back a removed teammate when another chip is removed", () => {
+      const onTagsChange = jest.fn();
+      const { rerender } = render(
+        <UserSearchWithInvite
+          allTags={[A, B]}
+          initialTags={[A, B]}
+          onTagsChange={onTagsChange}
+        />
+      );
+
+      rerender(
+        <UserSearchWithInvite
+          allTags={[A, B]}
+          initialTags={[B]}
+          onTagsChange={onTagsChange}
+        />
+      );
+      removeChip(B);
+
+      expect(onTagsChange).toHaveBeenCalledWith([], { added: [], removed: [B] });
+    });
+
+    it("keeps the chips in step with a parent that owns the team list", () => {
+      const Parent = () => {
+        const [team, setTeam] = useState([A]);
+        return (
+          <>
+            <UserSearchWithInvite
+              allTags={[A, B]}
+              initialTags={team}
+              onTagsChange={setTeam}
+            />
+            <button type="button" onClick={() => setTeam([])}>
+              Remove A
+            </button>
+            <output data-testid="team">{team.join(",")}</output>
+          </>
+        );
+      };
+      render(<Parent />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Remove A" }));
+      pick(B);
+
+      expect(screen.getByTestId("team")).toHaveTextContent(B);
+      expect(screen.getByTestId("team")).not.toHaveTextContent(A);
+    });
+
+    it("picks up relabelled tags without leaving the old label behind", () => {
+      const { rerender } = render(
+        <UserSearchWithInvite
+          allTags={[]}
+          initialTags={[A]}
+          onTagsChange={jest.fn()}
+        />
+      );
+
+      rerender(
+        <UserSearchWithInvite
+          allTags={[`Ann (${A})`]}
+          initialTags={[`Ann (${A})`]}
+          onTagsChange={jest.fn()}
+        />
+      );
+
+      expect(chip(`Ann (${A})`)).toBeInTheDocument();
+      expect(chip(A)).not.toBeInTheDocument();
+    });
   });
 
-  it("shows an invited email as pending without reporting it as a team member", async () => {
-    const onTagsChange = renderSearch();
+  describe("selections the parent has not saved yet", () => {
+    const inviteByEmail = async () => {
+      search(INVITED);
+      fireEvent.click(
+        screen.getByRole("button", { name: /send project invitation/i })
+      );
+      await waitFor(() => expect(chip(INVITED)).toBeInTheDocument());
+    };
 
-    await invite(INVITEE);
+    beforeEach(() => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      }) as unknown as typeof fetch;
+    });
 
-    expect(await screen.findByText("Invited")).toBeInTheDocument();
-    expect(screen.getByText(INVITEE)).toBeInTheDocument();
-    expect(onTagsChange).not.toHaveBeenCalled();
+    it("is not reset by a new initialTags array with the same values", async () => {
+      const props = {
+        allTags: [A],
+        onTagsChange: jest.fn(),
+        projectId: "project-1",
+        enableInvite: true,
+      };
+      const { rerender } = render(
+        <UserSearchWithInvite {...props} initialTags={[A]} />
+      );
+      await inviteByEmail();
+
+      rerender(<UserSearchWithInvite {...props} initialTags={[A]} />);
+
+      expect(chip(INVITED)).toBeInTheDocument();
+      expect(chip(A)).toBeInTheDocument();
+    });
+
+    it("keeps a pending invitation chip when the saved team changes", async () => {
+      // The project page never saves invited emails to the team, so the chip
+      // exists only in this component until the invitee accepts.
+      const props = {
+        allTags: [A, B],
+        onTagsChange: jest.fn(),
+        projectId: "project-1",
+        enableInvite: true,
+      };
+      const { rerender } = render(
+        <UserSearchWithInvite {...props} initialTags={[A]} />
+      );
+      await inviteByEmail();
+
+      rerender(<UserSearchWithInvite {...props} initialTags={[A, B]} />);
+
+      expect(chip(INVITED)).toBeInTheDocument();
+      expect(chip(B)).toBeInTheDocument();
+    });
+
+    it("does not bring back a teammate removed while an invitation is sending", async () => {
+      let finishInvite: (response: unknown) => void = () => undefined;
+      global.fetch = jest.fn(
+        () => new Promise((resolve) => (finishInvite = resolve))
+      ) as unknown as typeof fetch;
+      const onTagsChange = jest.fn();
+      const props = {
+        allTags: [A],
+        onTagsChange,
+        projectId: "project-1",
+        enableInvite: true,
+      };
+      const { rerender } = render(
+        <UserSearchWithInvite {...props} initialTags={[A]} />
+      );
+      search(INVITED);
+      fireEvent.click(
+        screen.getByRole("button", { name: /send project invitation/i })
+      );
+
+      rerender(<UserSearchWithInvite {...props} initialTags={[]} />);
+      finishInvite({ ok: true, json: async () => ({}) });
+
+      // The invitee only joins by accepting, so the parent is never told.
+      await waitFor(() => expect(chip(INVITED)).toBeInTheDocument());
+      expect(screen.queryByText(A)).not.toBeInTheDocument();
+      expect(onTagsChange).not.toHaveBeenCalled();
+    });
+
+    it("keeps a second add while the first save is still in flight", () => {
+      const onTagsChange = jest.fn();
+      const props = { allTags: [A, B, C], onTagsChange };
+      const { rerender } = render(
+        <UserSearchWithInvite {...props} initialTags={[A]} />
+      );
+      pick(B);
+      pick(C);
+
+      rerender(<UserSearchWithInvite {...props} initialTags={[A, B]} />);
+
+      expect(chip(C)).toBeInTheDocument();
+    });
+
+    it("drops a chip once the parent saved it and then removed it", () => {
+      const onTagsChange = jest.fn();
+      const props = { allTags: [A, B], onTagsChange };
+      const { rerender } = render(
+        <UserSearchWithInvite {...props} initialTags={[]} />
+      );
+      pick(B);
+      rerender(<UserSearchWithInvite {...props} initialTags={[B]} />);
+
+      rerender(<UserSearchWithInvite {...props} initialTags={[]} />);
+
+      expect(chip(B)).not.toBeInTheDocument();
+    });
   });
+});
 
-  it("keeps a pending invite out of later team changes", async () => {
-    const onTagsChange = renderSearch();
-
-    await invite(INVITEE);
-    await screen.findByText("Invited");
-
-    typeInSearch("participant");
-    fireEvent.click(screen.getByText(PARTICIPANT));
-
-    expect(onTagsChange).toHaveBeenCalledTimes(1);
-    expect(onTagsChange).toHaveBeenCalledWith([TEAMMATE, PARTICIPANT]);
-
-    fireEvent.click(
-      screen.getByText(TEAMMATE).querySelector("button") as HTMLButtonElement
+describe("UserSearchWithInvite change reporting", () => {
+  it("reports only the removed email, not the whole list", () => {
+    const onTagsChange = jest.fn();
+    render(
+      <UserSearchWithInvite
+        allTags={[]}
+        onTagsChange={onTagsChange}
+        initialTags={["Ann (ann@x.com)", "bob@x.com"]}
+      />
     );
 
-    expect(onTagsChange).toHaveBeenLastCalledWith([PARTICIPANT]);
-  });
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove" })[0]);
 
-  it("drops a pending invite locally without touching the team", async () => {
-    const onTagsChange = renderSearch();
-
-    await invite(INVITEE);
-    const chip = (await screen.findByText("Invited")).closest(
-      "span.rounded-full.bg-purple-200"
-    ) as HTMLElement;
-
-    fireEvent.click(chip.querySelector("button") as HTMLButtonElement);
-
-    expect(screen.queryByText("Invited")).not.toBeInTheDocument();
-    expect(onTagsChange).not.toHaveBeenCalled();
-  });
-
-  it("does not offer a second invitation to an email that is already pending", async () => {
-    renderSearch();
-
-    await invite(INVITEE);
-    await screen.findByText("Invited");
-
-    typeInSearch(INVITEE);
-
-    expect(
-      screen.queryByText("Send project invitation")
-    ).not.toBeInTheDocument();
-  });
-
-  it("adds nothing when the invitation fails", async () => {
-    mockInviteResponse(false);
-    const onTagsChange = renderSearch();
-
-    await invite(INVITEE);
-
-    expect(screen.queryByText("Invited")).not.toBeInTheDocument();
-    expect(onTagsChange).not.toHaveBeenCalled();
+    expect(onTagsChange).toHaveBeenCalledWith(["bob@x.com"], {
+      added: [],
+      removed: ["ann@x.com"],
+    });
   });
 });

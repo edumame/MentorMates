@@ -1,312 +1,252 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
 import type { Project } from "@/lib/types";
+import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
+import { supabase } from "@/lib/supabase";
+import { applyTeammateChanges, type TeammateChanges } from "@/lib/projects/teammates";
 import DraftProjectSubmissionFormSinglePage from "./DraftProjectSubmissionFormSinglePage";
 
-const PROJECT_ID = "project-1";
-const LEAD = "lead@example.com";
-const TEAMMATE = "teammate@example.com";
-const PARTICIPANT = "participant@example.com";
-const OTHER_PARTICIPANT = "other@example.com";
-const INVITEE = "invitee@example.com";
-
-// In-memory projects row. The form's real client actions run against it.
-const mockDb = {
-  teammates: [] as string[],
-  writes: [] as string[][],
-  failNextRead: false,
-  readDelayMs: 0,
-};
-
-const mockToast = jest.fn();
-
-jest.mock("@/lib/hooks/use-toast", () => ({
-  toast: (...args: unknown[]) => mockToast(...args),
-}));
-
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), refresh: jest.fn() }),
+}));
+jest.mock("@/lib/hooks/use-toast", () => ({ toast: jest.fn() }));
+jest.mock("@/features/projects/client-actions/client-update", () => ({
+  updateProjectTeamClient: jest.fn(),
+}));
+jest.mock("@/features/projects/client-actions/client-delete", () => ({
+  deleteProjectClient: jest.fn(),
+}));
+jest.mock("@/lib/supabase", () => {
+  const query = {
+    select: () => query,
+    eq: () => query,
+    order: () => query,
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({ data: [], error: null }).then(resolve),
+  };
+  return { supabase: { from: jest.fn(() => query) } };
+});
+// react-markdown ships ESM that Jest does not transform.
+jest.mock("@/components/projects/ProjectDescription", () => ({
+  ProjectDescription: () => null,
+}));
+jest.mock("@/features/projects/components/displays/ProjectFieldEntriesSection", () => ({
+  ProjectFieldEntriesSection: jest.requireActual("react").forwardRef(() => null),
+}));
+jest.mock("@/components/utils/UserSearchWithInvite", () => ({
+  __esModule: true,
+  default: ({
+    onTagsChange,
+  }: {
+    onTagsChange: (tags: string[], change: { added: string[]; removed: string[] }) => void;
+  }) => (
+    <button
+      onClick={() =>
+        onTagsChange(["mate@x.com", "new@x.com"], { added: ["new@x.com"], removed: [] })
+      }
+    >
+      Add teammate
+    </button>
+  ),
 }));
 
-jest.mock(
-  "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave",
-  () => ({
-    useProjectSubmissionAutosave: () => ({
-      lastSaved: null,
-      flushSave: jest.fn(),
-    }),
-  })
-);
+const PROJECT_ID = "project-1";
+const leadSession = { user: { id: "u1", email: "lead@x.com" } } as Session;
 
-jest.mock(
-  "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection",
-  () => ({ ProjectSubmissionSchemaSection: () => null })
-);
-
-jest.mock(
-  "@/features/projects/components/displays/ProjectFieldEntriesSection",
-  () => ({ ProjectFieldEntriesSection: () => null })
-);
-
-jest.mock("@/lib/supabase", () => {
-  const projectRow = () => ({
-    project_id: "project-1",
-    lead_email: "lead@example.com",
-    teammates: mockDb.teammates,
-  });
-
-  const projectsQuery = () => {
-    let pendingTeammates: string[] | null = null;
-    const query = {
-      select: () => query,
-      eq: () => query,
-      update: ({ teammates }: { teammates: string[] }) => {
-        pendingTeammates = teammates;
-        return query;
-      },
-      single: async () => {
-        if (pendingTeammates) {
-          mockDb.teammates = pendingTeammates;
-          mockDb.writes.push(pendingTeammates);
-          return { data: projectRow(), error: null };
-        }
-
-        const teammates = mockDb.teammates;
-        if (mockDb.readDelayMs) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, mockDb.readDelayMs)
-          );
-        }
-        if (mockDb.failNextRead) {
-          mockDb.failNextRead = false;
-          return { data: null, error: { message: "read failed" } };
-        }
-        return { data: { teammates }, error: null };
-      },
-    };
-    return query;
-  };
-
-  const emptyQuery = () => {
-    const query: Record<string, unknown> = {
-      then: (resolve: (value: unknown) => void) =>
-        resolve({ data: [], error: null }),
-      single: async () => ({ data: null, error: null }),
-      maybeSingle: async () => ({ data: null, error: null }),
-    };
-    ["select", "eq", "in", "order", "limit"].forEach((method) => {
-      query[method] = () => query;
-    });
-    return query;
-  };
-
-  return {
-    supabase: {
-      from: (table: string) =>
-        table === "projects" ? projectsQuery() : emptyQuery(),
-    },
-  };
+const hydratedProject = (overrides: Partial<Project> = {}): Project => ({
+  id: PROJECT_ID,
+  project_name: "Secret project",
+  project_description: "Not for public eyes",
+  lead_name: "Lead",
+  lead_email: "lead@x.com",
+  is_private: true,
+  teammates: ["mate@x.com"],
+  event_id: "event-1",
+  track_ids: [],
+  created_at: "2026-01-01T00:00:00Z",
+  has_submission_field_config: false,
+  ...overrides,
 });
 
-const project = {
-  project_id: PROJECT_ID,
-  event_id: "event-1",
-  project_name: "Test project",
-  lead_name: "Lead",
-  lead_email: LEAD,
-  teammates: [TEAMMATE],
-  submission_answers: [],
-} as unknown as Project;
+// What `.from("projects").update().select().single()` actually returns: the DB
+// column is `private`, and none of the API's hydrated fields are present.
+const rawProjectRow = (teammates: string[]) =>
+  ({
+    id: PROJECT_ID,
+    project_name: "Secret project",
+    project_description: "Not for public eyes",
+    lead_name: "Lead",
+    lead_email: "lead@x.com",
+    private: true,
+    teammates,
+    event_id: "event-1",
+    created_at: "2026-01-01T00:00:00Z",
+  }) as unknown as Project;
 
-const session = {
-  user: { id: "user-1", email: LEAD },
-} as unknown as Session;
+const patchBodies = () =>
+  (fetch as jest.Mock).mock.calls
+    .filter(([, init]) => init?.method === "PATCH")
+    .map(([, init]) => JSON.parse(init.body));
 
-const mockFetch = () => {
-  global.fetch = jest.fn(async (input: RequestInfo | URL) => {
-    const payload = String(input).includes("/users")
-      ? {
-          users: [PARTICIPANT, OTHER_PARTICIPANT, TEAMMATE].map((email) => ({
-            user_id: email,
-            display_name: email,
-            email,
-          })),
-        }
-      : { success: true };
-    return { ok: true, json: async () => payload };
-  }) as unknown as typeof fetch;
+const artifactFetchCount = () =>
+  (supabase.from as jest.Mock).mock.calls.filter(
+    ([table]) => table === "project_artifacts"
+  ).length;
+
+const privacySelect = () =>
+  within(screen.getByText("Project visibility").parentElement!).getByRole(
+    "combobox"
+  );
+
+const clickRemoveTeammate = () => {
+  const row = screen.getAllByText("mate@x.com")[0].parentElement!.parentElement!;
+  fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
 };
 
-const renderForm = async () => {
+const clickAddTeammate = () =>
+  fireEvent.click(screen.getByRole("button", { name: "Add teammate" }));
+
+const settle = () =>
+  act(async () => {
+    await jest.advanceTimersByTimeAsync(0);
+  });
+
+async function renderForm(project: Project) {
+  const onProjectUpdate = jest.fn();
   render(
     <DraftProjectSubmissionFormSinglePage
       projectId={PROJECT_ID}
-      session={session}
+      session={leadSession}
       project={project}
       canEdit
+      onProjectUpdate={onProjectUpdate}
     />
   );
-  await waitFor(() =>
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/events/event-1/users")
-    )
-  );
-};
-
-const searchInput = () =>
-  screen.getByPlaceholderText(/Enter your teammates' emails/);
-
-const typeInSearch = (value: string) =>
-  fireEvent.change(searchInput(), { target: { value } });
-
-const invite = async (email: string) => {
-  typeInSearch(email);
-  fireEvent.click(await screen.findByText("Send project invitation"));
-  await screen.findByText("Invited");
-};
-
-const addParticipant = async (email: string) => {
-  typeInSearch(email);
-  const dropdown = await waitFor(() => {
-    const list = document.getElementById("dropdown");
-    expect(list).not.toBeNull();
-    return list as HTMLElement;
-  });
-  fireEvent.click(within(dropdown).getByText(email));
-};
-
-const removeChip = (email: string) => {
-  const chip = within(document.getElementById("tagList") as HTMLElement)
-    .getByText(email)
-    .closest("span") as HTMLElement;
-  fireEvent.click(chip.querySelector("button") as HTMLButtonElement);
-};
-
-const removeFromTeamList = () => {
-  const chips = document.getElementById("tagList") as HTMLElement;
-  const teamListRemove = screen
-    .getAllByRole("button", { name: "Remove" })
-    .find((button) => !chips.contains(button)) as HTMLElement;
-  fireEvent.click(teamListRemove);
-};
-
-// What /api/projects/join does when the invitee accepts.
-const acceptInvite = (email: string) => {
-  mockDb.teammates = [...mockDb.teammates, email];
-};
+  await settle();
+  return { onProjectUpdate };
+}
 
 describe("DraftProjectSubmissionFormSinglePage team changes", () => {
   beforeEach(() => {
-    mockDb.teammates = [TEAMMATE];
-    mockDb.writes = [];
-    mockDb.failNextRead = false;
-    mockDb.readDelayMs = 0;
-    mockToast.mockClear();
-    mockFetch();
-  });
-
-  it("does not add an invited email to the team", async () => {
-    await renderForm();
-
-    await invite(INVITEE);
-
-    expect(mockDb.writes).toEqual([]);
-    expect(mockDb.teammates).toEqual([TEAMMATE]);
-  });
-
-  it("does not add a pending invite when another teammate is added", async () => {
-    await renderForm();
-    await invite(INVITEE);
-
-    await addParticipant(PARTICIPANT);
-
-    await waitFor(() =>
-      expect(mockDb.teammates).toEqual([TEAMMATE, PARTICIPANT])
+    jest.useFakeTimers();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ project: hydratedProject(), participants: [] }),
+    });
+    (updateProjectTeamClient as jest.Mock).mockImplementation(
+      // The stored team is ["mate@x.com"]; the client applies the change to it.
+      async (_projectId: string, changes: TeammateChanges) => ({
+        data: rawProjectRow(applyTeammateChanges(["mate@x.com"], changes)),
+        error: null,
+      })
     );
   });
 
-  it("keeps an invitee who accepted when another teammate is added", async () => {
-    await renderForm();
-    await invite(INVITEE);
-    acceptInvite(INVITEE);
-
-    await addParticipant(PARTICIPANT);
-
-    await waitFor(() =>
-      expect(mockDb.teammates).toEqual([TEAMMATE, INVITEE, PARTICIPANT])
-    );
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.clearAllMocks();
   });
 
-  it("keeps an invitee who accepted when a teammate chip is removed", async () => {
-    await renderForm();
-    await invite(INVITEE);
-    acceptInvite(INVITEE);
+  const changes: Array<[string, () => void, string[], TeammateChanges]> = [
+    ["removing a teammate", clickRemoveTeammate, [], { remove: ["mate@x.com"] }],
+    [
+      "adding a teammate",
+      clickAddTeammate,
+      ["mate@x.com", "new@x.com"],
+      { add: ["new@x.com"], remove: [] },
+    ],
+  ];
 
-    removeChip(TEAMMATE);
+  it.each(changes)(
+    "keeps a private project private after %s",
+    async (_name, changeTeam, expectedTeammates, expectedChange) => {
+      const { onProjectUpdate } = await renderForm(hydratedProject());
 
-    await waitFor(() => expect(mockDb.teammates).toEqual([INVITEE]));
-  });
+      changeTeam();
+      await settle();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(2000);
+      });
 
-  it("keeps an invitee who accepted when a teammate is removed from the team list", async () => {
-    await renderForm();
-    await invite(INVITEE);
-    acceptInvite(INVITEE);
-
-    removeFromTeamList();
-
-    await waitFor(() => expect(mockDb.teammates).toEqual([INVITEE]));
-  });
-
-  it("saves both teammates when two are added in quick succession", async () => {
-    mockDb.readDelayMs = 100;
-    await renderForm();
-
-    await addParticipant(PARTICIPANT);
-    await addParticipant(OTHER_PARTICIPANT);
-
-    await waitFor(() =>
-      expect(mockDb.teammates).toEqual([
-        TEAMMATE,
-        PARTICIPANT,
-        OTHER_PARTICIPANT,
-      ])
-    );
-  });
-
-  it("applies overlapping team changes one after the other", async () => {
-    mockDb.readDelayMs = 100;
-    await renderForm();
-
-    removeFromTeamList();
-    await addParticipant(PARTICIPANT);
-
-    await waitFor(() => expect(mockDb.writes).toHaveLength(2));
-    expect(mockDb.teammates).toEqual([PARTICIPANT]);
-  });
-
-  it("writes nothing when the team cannot be read, then retries with the next change", async () => {
-    await renderForm();
-    mockDb.failNextRead = true;
-
-    await addParticipant(PARTICIPANT);
-
-    await waitFor(() =>
-      expect(mockToast).toHaveBeenCalledWith(
+      expect(updateProjectTeamClient).toHaveBeenCalledWith(
+        PROJECT_ID,
+        expectedChange
+      );
+      expect(patchBodies()).not.toContainEqual(
+        expect.objectContaining({ private: false })
+      );
+      expect(privacySelect()).toHaveTextContent("Private");
+      expect(onProjectUpdate).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          description: "Failed to update team members",
+          is_private: true,
+          teammates: expectedTeammates,
         })
-      )
-    );
-    expect(mockDb.writes).toEqual([]);
+      );
+    }
+  );
 
-    await addParticipant(OTHER_PARTICIPANT);
+  it.each(changes)(
+    "keeps a public project public after %s",
+    async (_name, changeTeam) => {
+      await renderForm(hydratedProject({ is_private: false }));
 
-    await waitFor(() =>
-      expect(mockDb.teammates).toEqual([
-        TEAMMATE,
-        PARTICIPANT,
-        OTHER_PARTICIPANT,
-      ])
+      changeTeam();
+      await settle();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(2000);
+      });
+
+      expect(patchBodies()).not.toContainEqual(
+        expect.objectContaining({ private: true })
+      );
+      expect(privacySelect()).toHaveTextContent("Public");
+    }
+  );
+
+  it.each(changes)(
+    "does not re-run artifact hydration, which would overwrite unsaved links, after %s",
+    async (_name, changeTeam) => {
+      await renderForm(hydratedProject());
+      const fetchesAfterLoad = artifactFetchCount();
+      expect(fetchesAfterLoad).toBeGreaterThan(0);
+
+      changeTeam();
+      await settle();
+
+      expect(artifactFetchCount()).toBe(fetchesAfterLoad);
+    }
+  );
+
+  it("shows the new team list and leaves project fields alone", async () => {
+    const { onProjectUpdate } = await renderForm(
+      hydratedProject({ cover_image_url: "https://example.com/cover.png" })
     );
+
+    clickRemoveTeammate();
+    await settle();
+
+    expect(screen.queryByText("mate@x.com")).toBeNull();
+    expect(onProjectUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cover_image_url: "https://example.com/cover.png",
+        has_submission_field_config: false,
+        teammates: [],
+      })
+    );
+  });
+
+  it("keeps the current team when the update returns no row", async () => {
+    (updateProjectTeamClient as jest.Mock).mockResolvedValue({
+      data: null,
+      error: { message: "denied" },
+    });
+    await renderForm(hydratedProject());
+
+    clickRemoveTeammate();
+    await settle();
+
+    expect(screen.getAllByText("mate@x.com").length).toBeGreaterThan(0);
+    expect(privacySelect()).toHaveTextContent("Private");
   });
 });

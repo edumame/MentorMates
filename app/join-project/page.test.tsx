@@ -72,7 +72,8 @@ describe("JoinProjectPage", () => {
       ok: true,
       json: async () =>
         url === "/api/projects/verify-invite-token"
-          ? { valid: true, email: USER_EMAIL }
+          ? // With a token, the project (team included) comes from the verify route.
+            { valid: true, email: USER_EMAIL, project }
           : {},
     }));
     global.fetch = fetchMock as unknown as typeof fetch;
