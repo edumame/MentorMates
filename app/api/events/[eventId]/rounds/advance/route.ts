@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole, type EventScoringConfig, type EventTrack } from "@/lib/types";
 import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import {
   filterScoresToCurrentProjectTracks,
   getProjectIdsForRound,
@@ -100,26 +101,31 @@ export async function GET(
     if (advancedErr) throw advancedErr;
 
     const [scoreResult, tracksResult, eventResult, scorerRolesResult] = await Promise.all([
-      supabase
-        .from("project_scores")
-        .select(
+      // Paged: PostgREST silently truncates a select at max_rows (1000).
+      fetchAllRows((from, to) =>
+        supabase
+          .from("project_scores")
+          .select(
+            `
+            project_id,
+            judge_id,
+            track_id,
+            scores,
+            projects:projects!inner (
+              project_name,
+              lead_name,
+              event_id
+            ),
+            event_tracks:event_tracks!fk_project_scores_track (
+              name
+            )
           `
-          project_id,
-          judge_id,
-          track_id,
-          scores,
-          projects:projects!inner (
-            project_name,
-            lead_name,
-            event_id
-          ),
-          event_tracks:event_tracks!fk_project_scores_track (
-            name
           )
-        `
-        )
-        .eq("event_id", eventId)
-        .eq("round_number", fromRound),
+          .eq("event_id", eventId)
+          .eq("round_number", fromRound)
+          .order("id")
+          .range(from, to)
+      ),
       supabase
         .from("event_tracks")
         .select("track_id, name, scoring_criteria")
