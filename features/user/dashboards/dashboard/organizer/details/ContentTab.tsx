@@ -51,7 +51,11 @@ export function ContentTab({
           console.error("Error fetching lessons:", error);
         } else {
           // Update event with fetched lessons
-          setEvent({ ...event, event_lessons: (lessonsData || []) as Lesson[] });
+          // Functional update: the paywall RPC below also writes to event
+          // concurrently; spreading a stale `event` would drop its result.
+          setEvent((prev) =>
+            prev ? { ...prev, event_lessons: (lessonsData || []) as Lesson[] } : prev
+          );
         }
       } catch (err) {
         console.error("Exception fetching lessons:", err);
@@ -62,6 +66,27 @@ export function ContentTab({
 
     fetchLessons();
   }, [event.event_id]); // Only re-fetch when event_id changes
+
+  // Paywall content is members-only (PUB-002): it is not part of the event
+  // row selected by the dashboard, so load it through the gated RPC.
+  useEffect(() => {
+    let active = true;
+    supabase
+      .rpc("get_event_paywall_content", { p_event_id: event.event_id })
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.error("Error fetching paywall content:", error);
+          return;
+        }
+        setEvent((prev) =>
+          prev ? { ...prev, paywall_content: data ?? undefined } : prev
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [event.event_id, setEvent]);
 
   const addLesson = () => {
     const newLesson: Lesson = {

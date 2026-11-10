@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { getTeamEmails } from "@/lib/projects/membership";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
-import Papa from "papaparse";
+import { toSpreadsheetSafeCsv } from "@/lib/utils/csv";
 import { supabase } from "@/lib/supabase";
 import { RoundsEditor } from "@/components/events/rounds-editor";
 import {
@@ -25,6 +26,7 @@ import {
   buildRawScoreExportFiles,
   buildScoreExportFiles,
   buildTrackScores,
+  getRanksByProjectId,
   type DashboardProjectScore,
   type RawScoreExportData,
   type TrackScore,
@@ -119,6 +121,9 @@ export function ScoresTab({
     DashboardProjectScore[]
   >([]);
   const [trackScores, setTrackScores] = useState<TrackScores>({});
+  // Users who may currently score (judge/organizer/admin). Scores from anyone
+  // else (e.g. a removed judge) are shown but excluded from rankings (JUDGE-017).
+  const [activeJudgeIds, setActiveJudgeIds] = useState<Set<string> | null>(null);
   const [rawScoreData, setRawScoreData] = useState<RawScoreExportData[]>([]);
   const [agentMeetingScores, setAgentMeetingScores] = useState<
     AgentMeetingScoreRow[]
@@ -236,6 +241,7 @@ export function ScoresTab({
       rawScoreData,
       scoringConfig,
       eventId,
+      activeJudgeIds,
     });
 
     if (exportFiles.length === 0) {
@@ -244,7 +250,7 @@ export function ScoresTab({
     }
 
     exportFiles.forEach((file) => {
-      const csv = Papa.unparse(file.rows);
+      const csv = toSpreadsheetSafeCsv(file.rows);
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -267,6 +273,7 @@ export function ScoresTab({
       eventId,
       linkTracksEnabled,
       mainTrackId,
+      activeJudgeIds,
     });
 
     if (exportFiles.length === 0) {
@@ -275,7 +282,7 @@ export function ScoresTab({
     }
 
     exportFiles.forEach((file) => {
-      const csv = Papa.unparse(file.rows);
+      const csv = toSpreadsheetSafeCsv(file.rows);
 
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
@@ -288,12 +295,14 @@ export function ScoresTab({
   };
 
   const calculateTrackScores = useCallback(
-    (scoreData: DashboardProjectScore[]) => {
+    (scoreData: DashboardProjectScore[], currentJudgeIds: Set<string> | null) => {
       if (!scoreData.length) {
         setTrackScores({});
         return;
       }
-      setTrackScores(buildTrackScores(scoreData, scoringConfig));
+      setTrackScores(
+        buildTrackScores(scoreData, scoringConfig, { activeJudgeIds: currentJudgeIds })
+      );
     },
     [scoringConfig]
   );
@@ -533,7 +542,6 @@ export function ScoresTab({
             projects:projects!inner (
               project_name,
               lead_name,
-              lead_email,
               event_id
             ),
             event_tracks:event_tracks!fk_project_scores_track (
@@ -558,6 +566,32 @@ export function ScoresTab({
         }
 
         const scoreRows = (data || []) as ProjectScoreQueryRow[];
+
+        // Lead emails are not client-readable columns; organizers get them
+        // through project_team_emails.
+        const leadEmailTeams = await getTeamEmails(
+          supabase,
+          Array.from(new Set(scoreRows.map((item) => String(item.project_id))))
+        );
+        const leadEmailFor = (projectId: unknown) =>
+          leadEmailTeams.get(String(projectId))?.lead_email ?? "";
+
+        // Current scorers for the event (JUDGE-017). On failure fall back to
+        // counting every score rather than hiding valid ones.
+        let currentJudgeIds: Set<string> | null = null;
+        const { data: scorerRoles, error: scorerRolesError } = await supabase
+          .from("user_event_roles")
+          .select("user_id")
+          .eq("event_id", eventId)
+          .in("role", ["judge", "organizer", "admin"]);
+        if (scorerRolesError) {
+          console.error("Error fetching current judges:", scorerRolesError);
+        } else {
+          currentJudgeIds = new Set(
+            (scorerRoles ?? []).map((roleRow) => String(roleRow.user_id))
+          );
+        }
+        setActiveJudgeIds(currentJudgeIds);
         const judgeIds = Array.from(
           new Set(
             scoreRows
@@ -645,7 +679,7 @@ export function ScoresTab({
             created_at: item.created_at ?? null,
             projects: {
               project_name: projects?.project_name || "",
-              lead_email: projects?.lead_email || "",
+              lead_email: leadEmailFor(item.project_id),
             },
             event_tracks: {
               name: eventTracks?.name || "",
@@ -656,7 +690,7 @@ export function ScoresTab({
 
         setDashboardScoreData(allDisplayData);
         setRawScoreData(rawData);
-        calculateTrackScores(displayData);
+        calculateTrackScores(displayData, currentJudgeIds);
       } catch (error) {
         console.error("Error fetching scores:", error);
       } finally {
@@ -929,6 +963,8 @@ export function ScoresTab({
 
                           // Apply sorting
                           const sortedScores = sortScores(displayScores, trackId, numericCriteria);
+                          // Rank by average (ties share a rank) regardless of the column sort.
+                          const ranksByProjectId = getRanksByProjectId(displayScores);
 
                           return (
                             <Card key={trackId} className="overflow-hidden">
@@ -1027,7 +1063,7 @@ export function ScoresTab({
                                       {sortedScores.map((score, index) => (
                                         <TableRow key={score.projectId}>
                                           <TableCell className="font-medium w-16 text-center">
-                                            {index + 1}
+                                            {ranksByProjectId.get(score.projectId) ?? index + 1}
                                           </TableCell>
                                           <TableCell className="min-w-[150px] max-w-[200px]">
                                             <div className="break-words">
@@ -1097,9 +1133,24 @@ export function ScoresTab({
                                                     <div className="flex items-center justify-between gap-3">
                                                       <span className="truncate">
                                                         {judgeScore.judgeName}
+                                                        {judgeScore.excludedReason === "former_judge" ? (
+                                                          <span className="ml-1 text-xs text-muted-foreground">
+                                                            (no longer a judge, not counted)
+                                                          </span>
+                                                        ) : judgeScore.excludedReason === "incomplete" ? (
+                                                          <span className="ml-1 text-xs text-muted-foreground">
+                                                            (incomplete or invalid scorecard, not counted)
+                                                          </span>
+                                                        ) : judgeScore.invalidCriterionIds?.length ? (
+                                                          <span className="ml-1 text-xs text-muted-foreground">
+                                                            (out-of-range values ignored)
+                                                          </span>
+                                                        ) : null}
                                                       </span>
                                                       <span className="font-medium tabular-nums">
-                                                        {judgeScore.totalScore.toFixed(2)}
+                                                        {judgeScore.excludedReason === "incomplete"
+                                                          ? "—"
+                                                          : judgeScore.totalScore.toFixed(2)}
                                                       </span>
                                                     </div>
                                                     {choiceCriteria.length > 0 &&

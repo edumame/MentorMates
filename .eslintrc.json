@@ -4,6 +4,8 @@
     "next/typescript"
   ],
   "ignorePatterns": [
-    "worker/dist/**"
+    "worker/dist/**",
+    "audit-recovery/**",
+    "audit-2026-11-06/**"
   ]
 }

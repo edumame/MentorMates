@@ -138,7 +138,9 @@ export async function POST(request: NextRequest) {
     completion_tokens: usage?.output_tokens ?? null,
   });
   if (insertError) logAgentEvent("internal_usage_insert_failed", { route: ROUTE, keyId: auth.keyId }, insertError);
-  void supabase.rpc("increment_internal_invite_uses", { p_invite_id: invite.id });
+  // Must be awaited: the builder only sends the request when it is awaited.
+  const { error: incrementError } = await supabase.rpc("increment_internal_invite_uses", { p_invite_id: invite.id });
+  if (incrementError) logAgentEvent("internal_invite_increment_failed", { route: ROUTE, keyId: auth.keyId, inviteId: invite.id }, incrementError);
 
   const ok = status >= 200 && status < 300;
   return NextResponse.json(ok ? payload : { error: "Upstream error", upstream_status: status, detail: payload }, {

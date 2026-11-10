@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
+import { fetchAllEventUsers } from "@/features/user/dashboards/dashboard/organizer/participants/fetch-event-users";
+import { clampPerProject } from "./auto-assign";
 import { supabase } from "@/lib/supabase";
 import {
   buildJudgeProjectPairs,
@@ -171,15 +173,14 @@ export function AssignTab({ eventId }: AssignTabProps) {
   );
 
   const fetchUsers = useCallback(async () => {
-    const response = await fetch(
-      `/api/events/${eventId}/users?roles=${EventRole.Judge},${EventRole.Mentor},${EventRole.Organizer}&limit=500`
-    );
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "Failed to fetch users");
-    }
+    // Page through every judge/mentor/organizer (ORG-024).
+    const { users: eventUsers } = await fetchAllEventUsers(eventId, [
+      EventRole.Judge,
+      EventRole.Mentor,
+      EventRole.Organizer,
+    ]);
 
-    const users: User[] = (payload.users || []).map(
+    const users: User[] = eventUsers.map(
       (user: {
         user_id: string;
         role: EventRole;
@@ -269,6 +270,15 @@ export function AssignTab({ eventId }: AssignTabProps) {
     fetchData();
   }, [fetchData]);
 
+  // JUDGE-008: never ask for more people per project than the pool has
+  // (the default of 3 failed with "Not enough roles" for small events).
+  useEffect(() => {
+    setJudgesPerProject((prev) => clampPerProject(prev, judges.length));
+  }, [judges.length]);
+  useEffect(() => {
+    setMentorsPerProject((prev) => clampPerProject(prev, mentors.length));
+  }, [mentors.length]);
+
   // Refetch users when includeOrganizers changes
   useEffect(() => {
     if (!loading) {
@@ -323,17 +333,21 @@ export function AssignTab({ eventId }: AssignTabProps) {
           eventId,
           role,
           rolesPerProject,
+          // JUDGE-008: the server must use the same pool the UI shows.
+          includeOrganizers,
         }),
       });
 
+      const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData?.error || "Error auto-assigning roles");
+        throw new Error(result?.error || "Error auto-assigning roles");
       }
 
       toast({
-        title: "Success",
-        description: `Auto-assigned ${role}s to projects`,
+        title: result?.skipped ? "Nothing to assign" : "Success",
+        description: result?.skipped
+          ? result.message || "No submitted projects yet."
+          : `Auto-assigned ${role}s to projects`,
       });
 
       await fetchAssignments();
@@ -670,7 +684,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                   id="judges-per-project"
                   integer
                   min={1}
-                  max={10}
+                  max={Math.max(1, judges.length)}
                   value={judgesPerProject}
                   onValueChange={setJudgesPerProject}
                 />
@@ -709,7 +723,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                   id="mentors-per-project"
                   integer
                   min={1}
-                  max={10}
+                  max={Math.max(1, mentors.length)}
                   value={mentorsPerProject}
                   onValueChange={setMentorsPerProject}
                 />

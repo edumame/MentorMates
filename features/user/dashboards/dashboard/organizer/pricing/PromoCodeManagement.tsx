@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus, Tag, Copy, Check } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Coupon, PromoCode } from "@/lib/types";
+import { formatCouponAmount } from "@/lib/utils/pricing";
 
 interface PromoCodeManagementProps {
   eventId: string;
@@ -241,7 +242,7 @@ export function PromoCodeManagement({
                     {coupons.map((coupon) => (
                       <SelectItem key={coupon.id} value={coupon.id}>
                         {coupon.name} - {coupon.percent_off ? `${coupon.percent_off}% off` : 
-                          coupon.amount_off ? `$${(coupon.amount_off / 100).toFixed(2)} off` : 'Discount'}
+                          coupon.amount_off ? `${formatCouponAmount(coupon.amount_off, coupon.currency)} off` : 'Discount'}
                       </SelectItem>
                     ))}
                   </SelectContent>
