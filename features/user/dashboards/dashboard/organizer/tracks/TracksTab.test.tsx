@@ -131,9 +131,13 @@ function Harness() {
 const bulkOptions = () =>
   screen.queryAllByTestId("bulk-option").map((option) => option.textContent);
 
-async function deleteTrackAt(index: number) {
+async function deleteTrackAt(index: number, name: string) {
   fireEvent.click(screen.getAllByTitle("Delete")[index]);
   await screen.findByText(/2 judge scores/);
+  // Scored tracks require typing the track name (TrackDeleteDialog).
+  fireEvent.change(screen.getByLabelText(/to confirm/), {
+    target: { value: name },
+  });
   fireEvent.click(screen.getByRole("button", { name: "Delete track" }));
   await waitFor(() =>
     expect(
@@ -156,7 +160,7 @@ describe("TracksTab track deletion", () => {
     await waitFor(() =>
       expect(bulkOptions()).toEqual(["AI Track", "Design Track"])
     );
-    await deleteTrackAt(0);
+    await deleteTrackAt(0, "AI Track");
     expect(trackDelete).toHaveBeenCalledWith(TRACK_A);
   }
 
@@ -210,7 +214,7 @@ describe("TracksTab track deletion", () => {
     fireEvent.change(screen.getByDisplayValue("Design Track"), {
       target: { value: "Design Track (edited)" },
     });
-    await deleteTrackAt(0);
+    await deleteTrackAt(0, "AI Track");
 
     expect(screen.getByDisplayValue("Design Track (edited)")).toBeInTheDocument();
   });

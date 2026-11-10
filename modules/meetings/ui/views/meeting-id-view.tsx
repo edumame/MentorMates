@@ -36,6 +36,16 @@ export const MeetingIdViewLoading = () => {
     )
 }
 
+/** Shown when the Stream video/chat provider is not configured for this deployment. */
+export const MeetingServiceUnavailable = ({ service }: { service: "video" | "chat" }) => {
+    return (
+        <ErrorState
+            title={service === "video" ? "Video calls are unavailable" : "Chat is unavailable"}
+            description={`${service === "video" ? "Video calls are" : "Meeting chat is"} not set up for this MentorMates deployment yet. Please contact the event organizer.`}
+        />
+    )
+}
+
 export const MeetingIdViewError = () => {
     return (
         <ErrorState title="Error Loading Meeting" description="Please try again later" />

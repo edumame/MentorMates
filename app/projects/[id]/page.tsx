@@ -1,4 +1,7 @@
 "use client";
+import { useProjectDetailLoader } from "@/features/projects/hooks/use-project-detail-loader";
+import { ProjectDetailTabs } from "@/features/projects/components/displays/ProjectDetailTabs";
+import { ProjectLoadError } from "@/features/projects/components/displays/ProjectLoadError";
 
 import { saveProjectMaterials } from "@/features/projects/client-actions/client-materials";
 import { useEffect, useState, useCallback } from "react";
@@ -6,12 +9,15 @@ import { QRCodeSVG } from "qrcode.react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import {
+  ProjectSubmittedToCard,
+  SUBMITTED_TO_EVENT_COLUMNS,
+} from "@/features/projects/components/displays/ProjectSubmittedToCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
   Calendar,
@@ -23,7 +29,6 @@ import {
   Edit,
   Heart,
   Loader,
-  MapPin,
   ArrowUpRight,
   Link as LinkIcon,
   Video,
@@ -43,7 +48,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Session } from "@supabase/supabase-js";
-import FeedbackDisplay from "@/features/projects/components/feedback/FeedbackDisplay";
+import { ProjectFeedbackSection } from "@/features/projects/components/displays/ProjectFeedbackSection";
 import { GiveFeedbackDialog } from "@/features/projects/components/feedback/GiveFeedbackDialog";
 import { useQRCodeActions } from "@/features/projects/components/management/project-dashboard/hooks/useQRCodeActions";
 import { toast } from "@/lib/hooks/use-toast";
@@ -54,7 +59,7 @@ import { updateProjectClient } from "@/features/projects/client-actions/client-u
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
 import { TrackSelector } from "@/features/projects/components/tracks/TrackSelector";
-import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
+import { useProjectEventTracks } from "@/features/projects/hooks/use-project-event-tracks";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import ProjectTimeline from "@/features/projects/components/displays/ProjectTimeline";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
@@ -75,6 +80,15 @@ import {
 } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { ProjectShareSection } from "@/features/projects/components/displays/ProjectShareSection";
+import {
+  ProjectTeamMembersList,
+  ProjectTeamSidebar,
+} from "@/features/projects/components/displays/ProjectTeam";
+import { ProjectEventRemovedNote } from "@/features/projects/components/displays/ProjectEventRemovedNote";
+import { getProjectFeedbackUrl } from "@/features/projects/utils/feedback-url";
+import { ProjectPrivateShareNotice } from "@/features/projects/components/displays/ProjectPrivateShareNotice";
+import { getProjectTeamDisplayMembers } from "@/features/projects/utils/team-display";
+import { parseUtcTimestamp } from "@/lib/utils/parse-utc-timestamp";
 
 interface EventParticipant {
   user_id: string;
@@ -91,6 +105,8 @@ interface EventDetails {
   location?: string;
   event_type?: string[];
   cover_image_url?: string;
+  paid?: boolean | null;
+  event_blurb?: string | null;
 }
 
 export default function ProjectPage() {
@@ -99,28 +115,18 @@ export default function ProjectPage() {
   const projectId = params.id as string;
   const isAdmin = useAdmin();
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionPending, setSessionPending] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Loading state for updates
   const [isUpdating, setIsUpdating] = useState(false);
-  const [hasEventTracks, setHasEventTracks] = useState(true);
+  const hasEventTracks = useProjectEventTracks(project?.event_id);
 
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
-  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
-    Record<
-      string,
-      {
-        displayName: string | null;
-        avatarUrl: string | null;
-        affiliation: string | null;
-      }
-    >
-  >({});
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
@@ -135,7 +141,6 @@ export default function ProjectPage() {
   // Give Feedback Dialog state
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
-  const [fetchComplete, setFetchComplete] = useState(false);
 
   const setProjectWithArtifacts = useCallback((nextProject: Project) => {
     const fallbackArtifacts = buildArtifactsFromLegacy({
@@ -147,7 +152,7 @@ export default function ProjectPage() {
       ...nextProject,
       artifacts:
         nextProject.artifacts ||
-        prev?.artifacts ||
+        (prev?.id === nextProject.id ? prev.artifacts : undefined) ||
         fallbackArtifacts,
     }));
   }, []);
@@ -179,22 +184,28 @@ export default function ProjectPage() {
   }, [likeError, router, projectId]);
 
   useEffect(() => {
+    let current = true;
     const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setSession(session);
-      setIsLoading(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (current) setSession(session);
+      } catch {
+        if (current) setSession(null);
+      } finally {
+        if (current) setSessionPending(false);
+      }
     };
+    void getSession();
+    return () => { current = false; };
 
-    getSession();
   }, []);
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      fetchProject();
-    }
-  }, [session, projectId]);
+  const { isLoading, fetchComplete, loadError, retryProject } = useProjectDetailLoader(projectId, (nextProject) => {
+    if (!nextProject) { setProject(null); setCanEdit(false); return; }
+    setProjectWithArtifacts({ ...nextProject, artifacts: nextProject.artifacts || undefined });
+    const email = session?.user?.email?.toLowerCase();
+    setCanEdit(Boolean(email && (nextProject.lead_email?.toLowerCase() === email || nextProject.teammates?.some(value => value.toLowerCase() === email))));
+  }, Boolean(session?.user?.email), "authenticated");
 
   // Fetch event details and feedback count when project is loaded
   useEffect(() => {
@@ -205,9 +216,7 @@ export default function ProjectPage() {
         const [eventResult, feedbackResult] = await Promise.all([
           supabase
             .from("events")
-            .select(
-              "event_id, event_name, slug, event_date, location, cover_image_url"
-            )
+            .select(SUBMITTED_TO_EVENT_COLUMNS)
             .eq("event_id", project.event_id)
             .single(),
           supabase
@@ -225,8 +234,10 @@ export default function ProjectPage() {
             start_date: eventResult.data.event_date,
             end_date: eventResult.data.event_date,
             location: eventResult.data.location || undefined,
-            event_type: undefined,
+            event_type: eventResult.data.event_type || undefined,
             cover_image_url: eventResult.data.cover_image_url || undefined,
+            paid: eventResult.data.paid,
+            event_blurb: eventResult.data.event_blurb,
           });
         }
 
@@ -244,79 +255,10 @@ export default function ProjectPage() {
   }, [project?.event_id, project?.id]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const checkEventTracks = async () => {
-      if (!project?.event_id) {
-        return;
-      }
-
-      try {
-        const { data, error } = await fetchEventTracks(project.event_id);
-        if (!isMounted) {
-          return;
-        }
-
-        if (error) {
-          console.error("Error checking event tracks:", error);
-          return;
-        }
-
-        setHasEventTracks(Boolean(data?.length));
-      } catch (error) {
-        if (isMounted) {
-          console.error("Error determining event tracks:", error);
-        }
-      }
-    };
-
-    void checkEventTracks();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [project?.event_id]);
-
-  useEffect(() => {
     if (!hasEventTracks && activeTab === "tracks") {
       setActiveTab("overview");
     }
   }, [hasEventTracks, activeTab]);
-
-  const fetchProject = async () => {
-    setIsLoading(true);
-    setFetchComplete(false);
-
-    const response = await fetch(`/api/projects?projectId=${projectId}`);
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      project?: Project;
-    };
-
-    if (!response.ok || !payload.project) {
-      setProject(null);
-      setIsLoading(false);
-      setFetchComplete(true);
-      return;
-    }
-
-    setProjectWithArtifacts({
-      ...payload.project,
-      artifacts: payload.project.artifacts || undefined,
-    });
-
-    // Check if user can edit (is lead or teammate)
-    if (session?.user?.email) {
-      const userEmail = session.user.email;
-      const isLead = payload.project.lead_email === userEmail;
-      const isTeammate = payload.project.teammates?.includes(userEmail);
-      const canEditProject = isLead || Boolean(isTeammate);
-      setCanEdit(canEditProject);
-    }
-
-    setIsLoading(false);
-    setFetchComplete(true);
-  };
 
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
     setIsUpdating(true);
@@ -822,66 +764,6 @@ export default function ProjectPage() {
     }
   }, [project?.event_id, fetchEventParticipants]);
 
-  const getInitials = useCallback((value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return "?";
-    const parts = trimmed.split(/\s+/).filter(Boolean);
-    const first = parts[0]?.[0] ?? "";
-    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
-    const initials = (first + last).toUpperCase();
-    return initials || trimmed.slice(0, 2).toUpperCase();
-  }, []);
-
-  // Load team profile info for team members (from user_profiles)
-  useEffect(() => {
-    if (!project) return;
-
-    const emails = Array.from(
-      new Set([project.lead_email, ...(project.teammates ?? [])])
-    )
-      .filter(Boolean)
-      .map((e) => String(e).toLowerCase());
-
-    if (emails.length === 0) return;
-
-    let alive = true;
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("user_profiles")
-          .select("email, affiliation, avatar_url, display_name")
-          .in("email", emails);
-
-        if (error || !alive) return;
-
-        const map: Record<
-          string,
-          {
-            displayName: string | null;
-            avatarUrl: string | null;
-            affiliation: string | null;
-          }
-        > = {};
-        for (const row of data ?? []) {
-          const email = row.email?.toLowerCase();
-          if (!email) continue;
-          map[email] = {
-            displayName: row.display_name?.trim() || null,
-            avatarUrl: row.avatar_url?.trim() || null,
-            affiliation: row.affiliation?.trim() || null,
-          };
-        }
-        setTeamProfileByEmail(map);
-      } catch {
-        // ignore
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [project?.lead_email, project?.teammates, project]);
-
   const handleAddTeammate = async (email: string) => {
     const emailToAdd = email.trim();
 
@@ -1057,7 +939,7 @@ export default function ProjectPage() {
     }
   };
 
-  if (isLoading || !fetchComplete) {
+  if (sessionPending || isLoading || !fetchComplete) {
     return (
       <PageContainer>
         <div className="flex items-center justify-center flex-grow">
@@ -1068,6 +950,8 @@ export default function ProjectPage() {
       </PageContainer>
     );
   }
+
+  if (loadError) return <PageContainer><ProjectLoadError message={loadError} retry={retryProject} /></PageContainer>;
 
   if (!project) {
     return (
@@ -1090,27 +974,18 @@ export default function ProjectPage() {
   const isLead =
     session?.user?.email?.toLowerCase() === project.lead_email?.toLowerCase();
   const totalMembers = (project.teammates?.length || 0) + 1;
-  const teamMembers = [
-    {
-      email: project.lead_email,
-      displayName:
-        teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
-        project.lead_name,
-      role: "lead" as const,
-    },
-    ...(project.teammates ?? []).map((email) => ({
-      email,
-      displayName:
-        teamProfileByEmail[email.toLowerCase()]?.displayName ||
-        participants.find((p) => p.email.toLowerCase() === email.toLowerCase())
-          ?.display_name || email,
-      role: "member" as const,
-    })),
-  ];
+  // Same server-resolved roster as the public route. Emails are shown only
+  // when the API included them, i.e. to team members, the event's organizers
+  // and admins (project_team_emails); other signed-in viewers see names only.
+  const canSeeTeamEmails = Boolean(project.lead_email);
+  const teamMembers = getProjectTeamDisplayMembers(
+    project,
+    Object.fromEntries(
+      participants.map((p) => [p.email.toLowerCase(), p.display_name])
+    )
+  );
 
-  const feedbackUrl = `${
-    typeof window !== "undefined" ? window.location.origin : ""
-  }/projects/public/${project.id}`;
+  const feedbackUrl = getProjectFeedbackUrl(project.id);
 
   const projectArtifacts = project.artifacts || [];
   const extraProjectLinks = projectArtifacts.filter(
@@ -1170,7 +1045,7 @@ export default function ProjectPage() {
                   <div className="font-normal flex items-center gap-1">
                     <Calendar className="h-[18px] w-[18px]" />
                     Created:{" "}
-                    {new Date(project.created_at).toLocaleDateString("en-US", {
+                    {(parseUtcTimestamp(project.created_at) ?? new Date(project.created_at)).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
@@ -1240,8 +1115,9 @@ export default function ProjectPage() {
               </div>
             </div>
 
-            {/* Submission Status Banner — clarifies published vs submitted */}
-            {canEdit && (
+            {/* Submission Status Banner — clarifies published vs submitted.
+                Hidden when the event was deleted: there is nothing to submit to. */}
+            {canEdit && project.event_id && (
               <div
                 className={`mb-6 rounded-[16px] border p-4 shadow-sm ${
                   project.submitted
@@ -1488,52 +1364,7 @@ export default function ProjectPage() {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-3 sm:gap-6 overflow-x-auto scrollbar-hide flex-nowrap">
-                <TabsTrigger
-                  value="overview"
-                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
-                >
-                  Overview
-                </TabsTrigger>
-                {hasEventTracks && (
-                  <TabsTrigger
-                    value="tracks"
-                    className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
-                  >
-                    Tracks
-                  </TabsTrigger>
-                )}
-                <TabsTrigger
-                  value="team"
-                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
-                >
-                  Team
-                  <Badge
-                    variant="secondary"
-                    className="bg-white border border-black/15 text-black rounded-full text-xs"
-                  >
-                    {totalMembers}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="feedback"
-                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
-                >
-                  Feedback
-                  <Badge
-                    variant="secondary"
-                    className="bg-white border border-black/15 text-black rounded-full text-xs"
-                  >
-                    {feedbackCount}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="sharing"
-                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
-                >
-                  Sharing
-                </TabsTrigger>
-              </TabsList>
+              <ProjectDetailTabs hasTracks={hasEventTracks} totalMembers={totalMembers} feedbackCount={feedbackCount} />
 
               {/* Main Content Area */}
               <div className="py-6 sm:py-12">
@@ -1601,7 +1432,11 @@ export default function ProjectPage() {
                           </div>
                         )}
 
-                        {/* Session timeline */}
+                        {/* Session timeline. Intentionally private-route only (CLAUDE.md
+                            parity exception): it lists mentor/AI session meetings with
+                            scores, and meetings RLS only lets the team, judges and
+                            organizers read them (202611030002), so the public route
+                            would always render an empty card. */}
                         <div>
                           <ProjectTimeline projectId={project.id} />
                         </div>
@@ -1880,69 +1715,7 @@ export default function ProjectPage() {
 
                     <TabsContent value="team" className="mt-0 overflow-visible">
                       <div className="w-full overflow-visible">
-                        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 overflow-visible">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Team Members
-                          </h3>
-
-                          <div className="mt-5 space-y-4">
-                            {teamMembers.map((member) => {
-                              const emailKey = member.email.toLowerCase();
-                              const profile = teamProfileByEmail[emailKey];
-                              const title =
-                                member.displayName?.trim() || member.email;
-                              const subtitle =
-                                profile?.affiliation?.trim() ||
-                                (title.toLowerCase() === member.email.toLowerCase()
-                                  ? member.email
-                                  : null);
-
-                              return (
-                                <div
-                                  key={member.email}
-                                  className="flex items-center justify-between gap-4"
-                                >
-                                  <div className="flex items-center gap-4 min-w-0">
-                                    <Avatar className="h-14 w-14 shrink-0">
-                                      <AvatarImage
-                                        src={profile?.avatarUrl ?? undefined}
-                                        alt={title}
-                                      />
-                                      <AvatarFallback>
-                                        {getInitials(title)}
-                                      </AvatarFallback>
-                                    </Avatar>
-
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <p className="font-semibold text-base text-black truncate">
-                                          {title}
-                                        </p>
-                                        {member.role === "lead" ? (
-                                          <Badge
-                                            variant="secondary"
-                                            className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                                          >
-                                            Lead
-                                          </Badge>
-                                        ) : null}
-                                      </div>
-                                      {subtitle ? (
-                                        <p className="text-base text-black truncate">
-                                          {subtitle}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  </div>
-
-                                  <Button className="h-9 rounded-full bg-blue-600 px-4 text-white hover:bg-blue-700">
-                                    Follow
-                                  </Button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                        <ProjectTeamMembersList members={teamMembers} showEmails={canSeeTeamEmails} />
 
                         {canEdit && isLead && (
                           <div className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6 overflow-visible">
@@ -2034,16 +1807,8 @@ export default function ProjectPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent
-                      value="feedback"
-                      className="mt-0 overflow-hidden"
-                    >
-                      <div>
-                        <FeedbackDisplay
-                          projectId={project.id}
-                          showTitle={false}
-                        />
-                      </div>
+                    <TabsContent value="feedback" className="mt-0 overflow-hidden">
+                      <ProjectFeedbackSection projectId={project.id} onGiveFeedback={() => setShowFeedbackDialog(true)} />
                     </TabsContent>
 
                     {/* Sharing Tab */}
@@ -2064,6 +1829,9 @@ export default function ProjectPage() {
                             </p>
                           </CardHeader>
                           <CardContent className="space-y-6">
+                            {project.is_private && (
+                              <ProjectPrivateShareNotice eventName={eventDetails?.event_name} />
+                            )}
                             {/* Copy Link Section */}
                             <div className="space-y-2">
                               <div className="flex flex-col sm:flex-row gap-2">
@@ -2200,199 +1968,17 @@ export default function ProjectPage() {
                   {activeTab === "overview" && (
                     <div className="w-full lg:w-[420px] xl:w-[480px] lg:flex-shrink-0 space-y-6">
                       {/* Meet the team */}
-                      {activeTab === "overview" && (
-                        <div className="space-y-6">
-                          <h3 className="text-lg font-bold text-black tracking-tight">
-                            Meet the team
-                          </h3>
-                          <div className="space-y-6">
-                            {/* Project Lead */}
-                            <div className="flex gap-4 items-center">
-                              <Avatar className="h-14 w-14 shrink-0">
-                                <AvatarImage
-                                  src={
-                                    teamProfileByEmail[
-                                      project.lead_email.toLowerCase()
-                                    ]?.avatarUrl ?? undefined
-                                  }
-                                  alt={
-                                    teamProfileByEmail[
-                                      project.lead_email.toLowerCase()
-                                    ]?.displayName ||
-                                    project.lead_name ||
-                                    project.lead_email
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {getInitials(project.lead_name || project.lead_email)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-base text-black">
-                                    {teamProfileByEmail[
-                                      project.lead_email.toLowerCase()
-                                    ]?.displayName || project.lead_name}
-                                  </p>
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                                  >
-                                    Lead
-                                  </Badge>
-                                </div>
-                                {teamProfileByEmail[
-                                  project.lead_email.toLowerCase()
-                                ]?.affiliation ? (
-                                  <p className="text-base text-black">
-                                    {
-                                      teamProfileByEmail[
-                                        project.lead_email.toLowerCase()
-                                      ]?.affiliation
-                                    }
-                                  </p>
-                                ) : (
-                                  <p className="text-base text-black">
-                                    {project.lead_email}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Team Members */}
-                            {project.teammates
-                              ?.slice(0, 1)
-                              .map((teammate, index) => (
-                                <div
-                                  key={index}
-                                  className="flex gap-4 items-center"
-                                >
-                                  <Avatar className="h-14 w-14 shrink-0">
-                                    <AvatarImage
-                                      src={
-                                        teamProfileByEmail[
-                                          teammate.toLowerCase()
-                                        ]?.avatarUrl ?? undefined
-                                      }
-                                      alt={
-                                        teamProfileByEmail[
-                                          teammate.toLowerCase()
-                                        ]?.displayName || teammate
-                                      }
-                                    />
-                                    <AvatarFallback>
-                                      {getInitials(
-                                        teamProfileByEmail[teammate.toLowerCase()]
-                                          ?.displayName || teammate
-                                      )}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="space-y-0">
-                                    <p className="font-semibold text-base text-black">
-                                      {teamProfileByEmail[teammate.toLowerCase()]
-                                        ?.displayName || teammate}
-                                    </p>
-                                    {teamProfileByEmail[teammate.toLowerCase()]
-                                      ?.affiliation ? (
-                                      <p className="text-base text-black">
-                                        {
-                                          teamProfileByEmail[
-                                            teammate.toLowerCase()
-                                          ]?.affiliation
-                                        }
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      )}
+                      <ProjectTeamSidebar members={teamMembers} showEmails={canSeeTeamEmails} />
 
                       {/* Divider */}
                       {activeTab === "overview" && (
                         <div className="border-t border-gray-200"></div>
                       )}
 
-                      {/* Submitted to Event */}
+                      {/* Submitted to Event (or a note when the event was deleted) */}
+                      {activeTab === "overview" && !project.event_id && <ProjectEventRemovedNote />}
                       {activeTab === "overview" && eventDetails && (
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-bold text-black tracking-tight">
-                            Submitted to
-                          </h3>
-                          <Link
-                            href={`/events/${eventDetails.event_id}/overview`}
-                          >
-                            <Card className="border border-black/15 rounded-xl overflow-hidden hover:shadow-lg">
-                              <div className="relative">
-                                {eventDetails.cover_image_url ? (
-                                  <img
-                                    src={eventDetails.cover_image_url}
-                                    alt={eventDetails.event_name}
-                                    className="w-full h-[180px] object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
-                                )}
-                                {eventDetails.start_date && (
-                                  <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
-                                    <p className="text-sm text-black">
-                                      {new Date(
-                                        eventDetails.start_date
-                                      ).toLocaleDateString("en-US", {
-                                        weekday: "short",
-                                      })}
-                                    </p>
-                                    <p className="text-4xl font-semibold text-black tracking-tight leading-none">
-                                      {new Date(
-                                        eventDetails.start_date
-                                      ).getDate()}
-                                    </p>
-                                    <p className="text-sm text-black">
-                                      {new Date(
-                                        eventDetails.start_date
-                                      ).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        year: "numeric",
-                                      })}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                              <CardContent className="p-6 space-y-4">
-                                <div className="flex gap-1 flex-wrap">
-                                  {(eventDetails.event_type?.length ? eventDetails.event_type : ["Hackathon"]).map((type) => (
-                                    <Badge key={type} variant="secondary" className="bg-transparent border border-black/15 text-black rounded-full font-semibold">
-                                      {type}
-                                    </Badge>
-                                  ))}
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                  >
-                                    Paid event
-                                  </Badge>
-                                </div>
-                                <div className="space-y-2">
-                                  <h4 className="text-2xl font-semibold text-black tracking-tight">
-                                    {eventDetails.event_name}
-                                  </h4>
-                                  <div className="flex items-center gap-1 text-sm">
-                                    <MapPin className="h-4 w-4 text-black" />
-                                    <span className="text-black text-center">
-                                      {eventDetails.location || "Online"}
-                                    </span>
-                                  </div>
-                                </div>
-                                <p className="text-base text-black leading-relaxed">
-                                  Lorem ipsum dolor sit amet, consectetur
-                                  adipiscing elit. Suspendisse varius enim in
-                                  eros.
-                                </p>
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        </div>
+                        <ProjectSubmittedToCard event={eventDetails} />
                       )}
 
                       {/* Divider */}
@@ -2560,7 +2146,6 @@ export default function ProjectPage() {
             onOpenChange={setShowFeedbackDialog}
             projectName={project.project_name}
             projectId={project.id}
-            projectDescription={project.project_description || ""}
             eventId={project.event_id || ""}
           />
         )}
