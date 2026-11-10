@@ -82,15 +82,6 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
       return;
     }
 
-    if (newCoupon.amount_off && !newCoupon.currency) {
-      toast({
-        title: "Error",
-        description: "Currency is required for fixed amount discounts",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (newCoupon.duration === "repeating" && !newCoupon.duration_in_months) {
       toast({
         title: "Error",
@@ -100,6 +91,12 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
       return;
     }
 
+    // The currency select displays the default until another currency is picked,
+    // so apply it here. Percentage coupons stay without one.
+    const couponRequest: CreateCouponRequest = newCoupon.amount_off
+      ? { ...newCoupon, currency: newCoupon.currency || DEFAULT_PAYMENT_CURRENCY }
+      : newCoupon;
+
     setCreating(true);
     try {
       const response = await fetch("/api/stripe/coupon", {
@@ -108,9 +105,13 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...newCoupon,
-          amount_off: newCoupon.amount_off
-            ? toMinorUnits(newCoupon.amount_off, newCoupon.currency)
+          ...couponRequest,
+          amount_off: couponRequest.amount_off
+            ? toMinorUnits(couponRequest.amount_off, couponRequest.currency)
+            : undefined,
+          // datetime-local has no timezone, so resolve it in the organizer's browser.
+          redeem_by: newCoupon.redeem_by
+            ? new Date(newCoupon.redeem_by).toISOString()
             : undefined,
         }),
       });
@@ -309,6 +310,7 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
                         ...newCoupon,
                         percent_off: parseInt(e.target.value) || undefined,
                         amount_off: undefined, // Clear amount_off when setting percent_off
+                        currency: undefined,
                       })
                     }
                     placeholder="e.g., 25"
@@ -328,6 +330,7 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
                         setNewCoupon({
                           ...newCoupon,
                           amount_off: parseFloat(e.target.value) || undefined,
+                          currency: newCoupon.currency || DEFAULT_PAYMENT_CURRENCY,
                           percent_off: undefined, // Clear percent_off when setting amount_off
                         })
                       }
