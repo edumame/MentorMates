@@ -5,7 +5,6 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { releaseParticipantSeatReservation } from "@/lib/events/participant-access";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { z } from "zod";
@@ -159,21 +158,34 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (action === "remove") {
-      await releaseParticipantSeatReservation(supabase, {
-        eventId: auth.eventId,
-        userId: user_id,
+      // Same transaction as the organizer DELETE route
+      // (app/api/events/[eventId]/participants/[userId]): deletes the role,
+      // cleans up team memberships and closes an approved participant request,
+      // so a removed user cannot rejoin an approval-gated event unreviewed.
+      const { data: cleanup, error } = await supabase.rpc("remove_event_member", {
+        p_event_id: auth.eventId,
+        p_user_id: user_id,
+        p_actor_id: auth.userId,
       });
 
-      const { error } = await supabase
-        .from("user_event_roles")
-        .delete()
-        .eq("event_id", auth.eventId)
-        .eq("user_id", user_id);
-
       if (error) {
+        if (error.hint === "last_organizer") {
+          return NextResponse.json(
+            { error: "An event must keep at least one organizer." },
+            { status: 409 }
+          );
+        }
+        console.error("Failed to remove participant:", error.code);
         return NextResponse.json(
           { error: "Failed to remove participant" },
           { status: 500 }
+        );
+      }
+
+      if (!cleanup) {
+        return NextResponse.json(
+          { error: "User not found for this event" },
+          { status: 404 }
         );
       }
 

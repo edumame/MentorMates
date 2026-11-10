@@ -171,7 +171,7 @@ export async function POST(req: Request) {
     organizerEmail: email,
     eventDate: start_datetime,
     location,
-    eventId: slug,
+    eventId: data.event_id,
   }).catch((err) =>
     console.error("Failed to send admin approval notification email:", err)
   );

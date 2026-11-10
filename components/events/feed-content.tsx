@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { fetchPublicProfilesByIds } from "@/lib/users/public-profiles";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -56,19 +57,8 @@ export async function FeedContent({
     // Get unique user IDs
     const userIds = [...new Set(feedItems.map((item) => item.user_id))];
 
-    // Fetch user display names only
-    const { data: users, error: usersError } = await supabase
-      .from("user_profiles")
-      .select("uid, display_name")
-      .in("uid", userIds);
-
-    if (usersError) {
-      console.error("Error fetching users:", usersError);
-      throw usersError;
-    }
-
-    // Create a map of user data
-    const userMap = new Map(users?.map((user) => [user.uid, user]) || []);
+    // Authors of the feed rows this viewer can already read
+    const userMap = await fetchPublicProfilesByIds(userIds);
 
     // Combine feed items with user data
     const enrichedFeedItems: FeedItem[] = feedItems.map((item) => ({

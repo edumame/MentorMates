@@ -174,6 +174,88 @@ describe("PATCH /api/agent/events/participants", () => {
     expect(response).toBe(archived);
     expect(from).not.toHaveBeenCalled();
   });
+  describe("remove action on an approved participant", () => {
+    const targetUserId = "55555555-5555-4555-8555-555555555555";
+    const eventId = "22222222-2222-4222-8222-222222222222";
+    const reviewerId = "11111111-1111-4111-8111-111111111111";
+
+    function mockRemoval(result: { data: unknown; error: unknown }) {
+      (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({
+        eventId,
+        isAdmin: false,
+        isOwner: false,
+        userRole: EventRole.Organizer,
+      });
+
+      const roleDelete = jest.fn();
+      const rpc = jest.fn().mockResolvedValue(result);
+
+      (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+        rpc,
+        from: jest.fn((table: string) => {
+          if (table === "user_event_roles") {
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              maybeSingle: jest.fn().mockResolvedValue({
+                data: { role: EventRole.Participant },
+                error: null,
+              }),
+              delete: roleDelete,
+            };
+          }
+          throw new Error(`Unexpected table: ${table}`);
+        }),
+      });
+
+      return { roleDelete, rpc };
+    }
+
+    const removeRequest = {
+      json: async () => ({ user_id: targetUserId, action: "remove" }),
+    };
+
+    it("removes through remove_event_member so the approval is closed in the same transaction", async () => {
+      const { roleDelete, rpc } = mockRemoval({
+        data: { removedTeamMemberships: 0, promotedTeamLeads: 0, closedApprovalRequests: 1 },
+        error: null,
+      });
+
+      const response = await PATCH(removeRequest as never);
+
+      expect(response.status).toBe(200);
+      expect(rpc).toHaveBeenCalledWith("remove_event_member", {
+        p_event_id: eventId,
+        p_user_id: targetUserId,
+        p_actor_id: reviewerId,
+      });
+      expect(roleDelete).not.toHaveBeenCalled();
+    });
+
+    it("reports a failed removal and does not claim success", async () => {
+      mockRemoval({ data: null, error: { code: "XX000", message: "write failed" } });
+
+      const response = await PATCH(removeRequest as never);
+
+      expect(response.status).toBe(500);
+    });
+
+    it("maps the last-organizer guard to 409", async () => {
+      mockRemoval({ data: null, error: { hint: "last_organizer", message: "guard" } });
+
+      const response = await PATCH(removeRequest as never);
+
+      expect(response.status).toBe(409);
+    });
+
+    it("returns 404 when the role was already gone", async () => {
+      mockRemoval({ data: null, error: null });
+
+      const response = await PATCH(removeRequest as never);
+
+      expect(response.status).toBe(404);
+    });
+  });
 
   describe("seat reservations", () => {
     const alice = "33333333-3333-4333-8333-333333333333";
@@ -182,13 +264,12 @@ describe("PATCH /api/agent/events/participants", () => {
     const patch = (body: Record<string, unknown>) =>
       PATCH({ json: async () => ({ user_id: alice, ...body }) } as never);
 
-    const useStore = (failingTables?: string[]) => {
+    const useStore = () => {
       const store = createSeatStore({
         participantCapacity: 1,
         paid: true,
         roles: { [alice]: EventRole.Participant },
         requests: { [alice]: "approved" },
-        failingTables,
       });
       (createSupabaseServiceClient as jest.Mock).mockReturnValue(store.client);
       (authenticateAgentRequest as jest.Mock).mockResolvedValue({
@@ -206,22 +287,6 @@ describe("PATCH /api/agent/events/participants", () => {
       return store;
     };
 
-    it("frees the seat when a paid participant is removed", async () => {
-      const store = useStore();
-
-      const response = await patch({ action: "remove" });
-
-      expect(response.status).toBe(200);
-      expect(store.roleOf(alice)).toBeUndefined();
-      expect(store.requestStatusOf(alice)).toBe("withdrawn");
-      await expect(
-        isParticipantSeatAvailable(store.client, {
-          eventId: store.eventId,
-          userId: bob,
-        }),
-      ).resolves.toBe(true);
-    });
-
     it("frees the seat when a paid participant moves to another role", async () => {
       const store = useStore();
 
@@ -237,16 +302,6 @@ describe("PATCH /api/agent/events/participants", () => {
           userId: bob,
         }),
       ).resolves.toBe(true);
-    });
-
-    it("keeps the role when the reservation cannot be released", async () => {
-      jest.spyOn(console, "error").mockImplementation(() => {});
-      const store = useStore(["participant_approval_requests"]);
-
-      const response = await patch({ action: "remove" });
-
-      expect(response.status).toBe(500);
-      expect(store.roleOf(alice)).toBe(EventRole.Participant);
     });
   });
 });

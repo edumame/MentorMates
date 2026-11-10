@@ -164,8 +164,41 @@ describe("helpers shared with ParticipantIntakeDialog", () => {
     expect(getVisibleFields(schema, { level: "B" }).map((f) => f.key)).toContain("level_other");
   });
 
+  it("treats a showIf rule whose source question no longer exists as absent", () => {
+    const orphaned: IntakeFormSchema = {
+      title: "t",
+      fields: [
+        field({ key: "school", type: "short_text", required: true, showIf: { fieldKey: "old_key", equals: "student" } }),
+      ],
+    };
+    expect(getVisibleFields(orphaned, {}).map((f) => f.key)).toEqual(["school"]);
+    // ...so the server still enforces it as required.
+    expect(validateIntakeAnswers(orphaned, {}).ok).toBe(false);
+    expect(validateIntakeAnswers(orphaned, { school: "MIT" }).ok).toBe(true);
+  });
+
   it("satisfiesRequired ignores optional fields", () => {
     expect(satisfiesRequired(schema.fields[1], "")).toBe(true);
     expect(satisfiesRequired(schema.fields[0], "")).toBe(false);
+  });
+});
+
+describe("required selects with no usable options", () => {
+  it.each(["single_select", "multi_select"] as const)(
+    "does not require a %s whose options are all blank (client and server agree)",
+    (type) => {
+      const f = field({ key: "pick", type, required: true, options: ["", "  "] });
+      expect(satisfiesRequired(f, undefined)).toBe(true);
+      expect(validateIntakeAnswers({ title: "T", fields: [f] }, {})).toEqual({ ok: true, answers: {} });
+    }
+  );
+
+  it("still requires a select that has at least one usable option", () => {
+    const f = field({ key: "pick", type: "single_select", required: true, options: ["A", ""] });
+    expect(satisfiesRequired(f, undefined)).toBe(false);
+    expect(validateIntakeAnswers({ title: "T", fields: [f] }, {})).toEqual({
+      ok: false,
+      errors: { pick: "This field is required" },
+    });
   });
 });
