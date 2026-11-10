@@ -322,6 +322,124 @@ describe("SubmissionsTab", () => {
     expect(screen.getByText("AI | Accessibility")).toBeInTheDocument();
   });
 
+  describe("when submissions fail to load", () => {
+    let consoleError: jest.SpyInstance;
+
+    const expectLoadFailureShown = async () => {
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Failed to load submissions"
+      );
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Export Submissions" })
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "Export Feedback" })
+      ).toBeDisabled();
+    };
+
+    beforeEach(() => {
+      consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleError.mockRestore();
+    });
+
+    it("shows an error and blocks exports on a 500 from the projects API", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: "Failed to load submission answers" }),
+      });
+
+      render(<SubmissionsTab eventId="event-1" />);
+
+      await expectLoadFailureShown();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/projects?eventId=event-1"
+      );
+    });
+
+    it("shows an error when the 500 response has no JSON body", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+      });
+
+      render(<SubmissionsTab eventId="event-1" />);
+
+      await expectLoadFailureShown();
+    });
+
+    it("shows an error when the request itself fails", async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(
+        new TypeError("Failed to fetch")
+      );
+
+      render(<SubmissionsTab eventId="event-1" />);
+
+      await expectLoadFailureShown();
+    });
+
+    it("does not show projects when the tracks read fails", async () => {
+      fetchEventTracks.mockResolvedValue({
+        data: null,
+        error: new Error("tracks unavailable"),
+      });
+
+      render(<SubmissionsTab eventId="event-1" />);
+
+      await expectLoadFailureShown();
+      expect(screen.queryByText("Project One")).not.toBeInTheDocument();
+    });
+
+    it("clears the error once a later event loads", async () => {
+      const successfulFetch = (global.fetch as jest.Mock).getMockImplementation();
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: "Failed to load submission answers" }),
+      });
+
+      const { rerender } = render(<SubmissionsTab eventId="event-1" />);
+      await expectLoadFailureShown();
+
+      (global.fetch as jest.Mock).mockImplementation(successfulFetch);
+      rerender(<SubmissionsTab eventId="event-2" />);
+
+      expect(await screen.findByText("Project One")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Export Submissions" })
+      ).toBeEnabled();
+      expect(
+        screen.getByRole("button", { name: "Export Feedback" })
+      ).toBeEnabled();
+    });
+  });
+
+  it("keeps the table and exports for an event with no submissions", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ projects: [] }),
+    });
+
+    render(<SubmissionsTab eventId="event-1" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Export Submissions" })
+      ).toBeEnabled()
+    );
+
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   describe("deleting projects", () => {
     const baseProject = {
       lead_name: "Alice",
