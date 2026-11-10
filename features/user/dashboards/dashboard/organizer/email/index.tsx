@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Send, Users, Eye, Loader2, LayoutTemplate } from "lucide-react";
 import { EventRole } from "@/lib/types";
+import { fetchAllEventUsers } from "@/features/user/dashboards/dashboard/organizer/participants/fetch-event-users";
 import { EmailTemplates } from "./templates";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 
@@ -32,6 +33,7 @@ interface EmailTabProps {
 }
 
 export function EmailTab({ eventId }: EmailTabProps) {
+  const emailRequestId = useRef<string | null>(null);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [recipientFilter, setRecipientFilter] = useState<string>("all");
@@ -47,13 +49,17 @@ export function EmailTab({ eventId }: EmailTabProps) {
   useEffect(() => {
     async function fetchRecipients() {
       try {
-        const response = await fetch(
-          `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer,admin&limit=500`
-        );
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Failed to load recipients");
+        // Page through every member (ORG-024: a single limit=500 call
+        // silently dropped recipients beyond the first 500).
+        const { users } = await fetchAllEventUsers(eventId, [
+          EventRole.Participant,
+          EventRole.Mentor,
+          EventRole.Judge,
+          EventRole.Organizer,
+          EventRole.Admin,
+        ]);
 
-        const recipientList: Recipient[] = (payload.users || [])
+        const recipientList: Recipient[] = users
           .filter((user: { email: string }) => Boolean(user.email))
           .map(
             (user: {
@@ -143,6 +149,8 @@ export function EmailTab({ eventId }: EmailTabProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          requestId: emailRequestId.current ||= crypto.randomUUID(),
+          eventId,
           to: "admin@mentormates.ai",
           from: NOTIFICATIONS_EMAIL_FROM,
           subject,
@@ -159,6 +167,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
         }
       }
 
+      emailRequestId.current = null;
       toast({
         title: "Success",
         description: `Email sent to ${selectedEmails.length} recipients`,

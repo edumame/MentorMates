@@ -5,6 +5,7 @@ import { createClient } from "@/app/utils/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { fetchDashboardCounts } from "./dashboard-stats";
 
 interface CountsState {
   projects: number;
@@ -50,88 +51,46 @@ export function DashBoardStats() {
     feedback: 0,
   });
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
+    let active = true;
 
     const fetchPersonalCounts = async () => {
-      setLoading(true);
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
         if (!session?.user) {
-          setCounts({ projects: 0, events: 0, feedback: 0 });
+          if (active) setCounts({ projects: 0, events: 0, feedback: 0 });
           return;
         }
 
-        const userId = session.user.id;
-
-        const { count: ownerCount } = await supabase
-          .from("projects")
-          .select("*", { count: "exact", head: true })
-          .eq("lead_email", session.user.email);
-
-        const { count: teammateCount } = await supabase
-          .from("projects")
-          .select("*", { count: "exact", head: true })
-          .contains("teammates", [session.user.email]);
-
-        const projectsCount = (ownerCount ?? 0) + (teammateCount ?? 0);
-
-        const { count: eventsCount } = await supabase
-          .from("user_event_roles")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", userId);
-
-        const { data: projects } = await supabase
-          .from("projects")
-          .select("id")
-          .or(
-            `lead_email.eq.${session.user.email},teammates.cs.{${session.user.email}}`
-          );
-
-        const projectIds = projects?.map((project) => project.id);
-
-        const { count: feedbackCount } = await supabase
-          .from("feedback")
-          .select("*", { count: "exact", head: true })
-          .in("project_id", projectIds || []);
-
-        setCounts({
-          projects: projectsCount ?? 0,
-          events: eventsCount ?? 0,
-          feedback: feedbackCount ?? 0,
-        });
+        const next = await fetchDashboardCounts(supabase, session.user);
+        if (active) {
+          setCounts(next);
+          setLoadFailed(false);
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard stats:", error);
+        if (active) setLoadFailed(true);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    fetchPersonalCounts();
+    void fetchPersonalCounts();
 
-    const channel = supabase
-      .channel("dashboard-stats-personal")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "projects" },
-        fetchPersonalCounts
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "event_participants" },
-        fetchPersonalCounts
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "feedback" },
-        fetchPersonalCounts
-      )
-      .subscribe();
+    // Refresh when the user comes back to the tab instead of subscribing to
+    // every projects/feedback change platform-wide (DASH-001).
+    const onFocus = () => void fetchPersonalCounts();
+    window.addEventListener("focus", onFocus);
 
     return () => {
-      supabase.removeChannel(channel);
+      active = false;
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
@@ -215,6 +174,14 @@ export function DashBoardStats() {
                 <div className="mt-2 text-3xl font-semibold tracking-tight text-gray-900">
                   {loading ? (
                     <span className="inline-block h-7 w-10 rounded bg-gray-200 animate-pulse" />
+                  ) : loadFailed ? (
+                    <span
+                      className="text-gray-400"
+                      title="Couldn't load this right now"
+                      aria-label="Unavailable"
+                    >
+                      —
+                    </span>
                   ) : (
                     stat.value
                   )}

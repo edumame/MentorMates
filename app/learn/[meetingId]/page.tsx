@@ -3,6 +3,7 @@ import { MeetingIdView, MeetingIdViewError, MeetingIdViewLoading } from "@/modul
 import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { redirect } from "next/navigation";
+import { loginRedirectFor } from "@/modules/meetings/server/login-redirect";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
@@ -19,7 +20,7 @@ const Page = async ({ params }: Props) => {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/sign-in");
+    redirect(loginRedirectFor(`/learn/${meetingId}`));
   };
 
   const queryClient = getQueryClient();
