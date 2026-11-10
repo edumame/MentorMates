@@ -109,6 +109,10 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
           amount_off: couponRequest.amount_off
             ? toMinorUnits(couponRequest.amount_off, couponRequest.currency)
             : undefined,
+          // datetime-local has no timezone, so resolve it in the organizer's browser.
+          redeem_by: newCoupon.redeem_by
+            ? new Date(newCoupon.redeem_by).toISOString()
+            : undefined,
         }),
       });
 
@@ -306,6 +310,7 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
                         ...newCoupon,
                         percent_off: parseInt(e.target.value) || undefined,
                         amount_off: undefined, // Clear amount_off when setting percent_off
+                        currency: undefined,
                       })
                     }
                     placeholder="e.g., 25"
@@ -325,6 +330,7 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
                         setNewCoupon({
                           ...newCoupon,
                           amount_off: parseFloat(e.target.value) || undefined,
+                          currency: newCoupon.currency || DEFAULT_PAYMENT_CURRENCY,
                           percent_off: undefined, // Clear percent_off when setting amount_off
                         })
                       }
