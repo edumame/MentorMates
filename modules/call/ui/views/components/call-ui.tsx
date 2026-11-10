@@ -12,12 +12,23 @@ interface Props {
 export const CallUI = ({ meetingId, meetingName }: Props) => {
   const call = useCall();
   const [show, setShow] = useState<"lobby" | "call" | "ended">("lobby");
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinFailed, setJoinFailed] = useState(false);
 
   const handleJoin = async () => {
     if (!call) return;
 
-    await call.join();
-    setShow("call");
+    setIsJoining(true);
+    setJoinFailed(false);
+    try {
+      await call.join();
+      setShow("call");
+    } catch (error) {
+      console.error("Failed to join call", error);
+      setJoinFailed(true);
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   const handleLeave = () => {
@@ -29,7 +40,9 @@ export const CallUI = ({ meetingId, meetingName }: Props) => {
 
   return (
     <StreamTheme className="h-[95%]">
-      {show === "lobby" && <CallLobby onJoin={handleJoin} />}
+      {show === "lobby" && (
+        <CallLobby onJoin={handleJoin} isJoining={isJoining} joinFailed={joinFailed} />
+      )}
       {show === "call" && (
         <CallActive
           onLeave={handleLeave}
