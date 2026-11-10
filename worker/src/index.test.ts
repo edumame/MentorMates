@@ -79,6 +79,9 @@ jest.mock("@stream-io/node-sdk", () => ({
   },
 }));
 
+// The worker rejects any request without the shared Next-server secret.
+const WORKER_SECRET = "test-worker-secret";
+
 function fakeRealtimeClient(): FakeRealtimeClient {
   return {
     realtime: { ws: null, send: jest.fn(), on: jest.fn() },
@@ -101,7 +104,10 @@ describe("worker session lifecycle", () => {
   const post = async (path: string, body: unknown) => {
     const response = await fetch(`${baseUrl}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${WORKER_SECRET}`,
+      },
       body: JSON.stringify(body),
     });
     return { status: response.status, body: await response.json() };
@@ -136,6 +142,7 @@ describe("worker session lifecycle", () => {
   };
 
   beforeAll(async () => {
+    process.env.SCREEN_VISION_WORKER_SECRET = WORKER_SECRET;
     jest.spyOn(console, "error").mockImplementation(() => undefined);
     await import("./index");
     server = http.createServer(mockHarness.app);
@@ -230,6 +237,8 @@ describe("worker session lifecycle", () => {
       const replaced = fakeRealtimeClient();
       const current = fakeRealtimeClient();
       await startSession("restarted", replaced);
+      // A live session is never replaced by a duplicate start, so stop it first.
+      await post("/session/stop", { meetingId: "restarted" });
       await startSession("restarted", current);
 
       fireClose(replaced);

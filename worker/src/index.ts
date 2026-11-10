@@ -303,6 +303,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
     // the close of a replaced client from removing the session that replaced it.
     realtimeClient.realtime.on("close", () => {
       if (sessions.get(meetingId) !== record) return;
+      record.cleanup?.();
       if (record.intervalId) clearInterval(record.intervalId);
       sessions.delete(meetingId);
     });
