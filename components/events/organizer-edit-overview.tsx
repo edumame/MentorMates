@@ -50,17 +50,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -73,9 +62,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ArchiveEventDialog,
+  DeleteEventDialog,
+} from "@/features/user/dashboards/dashboard/organizer/details/EventLifecycleDialogs";
 import { ApiKeysTab } from "@/features/user/dashboards/dashboard/organizer/api-keys/ApiKeysTab";
 import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
+import { EVENT_ROW_COLUMNS } from "@/lib/events/event-columns";
 interface OrganizerEditOverviewProps {
   eventId: string;
 }
@@ -96,9 +90,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const [submittingForApproval, setSubmittingForApproval] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
-  const [submitVisibility, setSubmitVisibility] = useState<EventVisibility>(
-    EventVisibility.Public
-  );
 
   // Use URL as single source of truth for tab state (default to Registration)
   const activeTab = searchParams.get("tab") || "participants";
@@ -117,13 +108,13 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     []
   );
 
-  const [participantCount, setParticipantCount] = useState<number>(0);
+  const [peopleCount, setPeopleCount] = useState<number>(0);
   const [projectCount, setProjectCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Primary tabs in the bar (Advanced Settings is a dropdown)
   const mainTabs = [
-    { value: "participants", label: "People", badge: participantCount },
+    { value: "participants", label: "People", badge: peopleCount },
     { value: "teams", label: "Teams" },
     { value: "forms", label: "Forms" },
     { value: "project", label: "Projects", badge: projectCount },
@@ -313,7 +304,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   useEffect(() => {
     fetchEvent();
-    fetchParticipantCount();
+    fetchPeopleCount();
     fetchProjectCount();
     checkAdminStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,15 +326,15 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   };
 
-  const fetchParticipantCount = async () => {
+  const fetchPeopleCount = async () => {
     try {
       const { count } = await supabase
         .from("user_event_roles")
         .select("*", { count: "exact", head: true })
-        .eq("event_id", eventId)
-        .eq("role", "participant");
+        // The People tab lists every role, so the badge counts every member.
+        .eq("event_id", eventId);
 
-      setParticipantCount(count || 0);
+      setPeopleCount(count || 0);
     } catch (error) {
       console.error("Error fetching participant count:", error);
     }
@@ -353,7 +344,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     try {
       const { count } = await supabase
         .from("projects")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("event_id", eventId);
 
       setProjectCount(count || 0);
@@ -368,7 +359,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
         .from("events")
         .select(
           `
-          *,
+          ${EVENT_ROW_COLUMNS},
           event_tracks (
             track_id,
             name,
@@ -381,16 +372,18 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               prize_description
             )
           )
-        `
+        ` as const
         )
         .eq("event_id", eventId)
         .single();
 
       if (error) throw error;
 
-      setEvent(data as EventDetails);
+      // The typed select narrows nested tracks; EventDetails is the UI shape.
+      const eventDetails = data as unknown as EventDetails;
+      setEvent(eventDetails);
 
-      setScoringConfig(buildEventScoringConfig(data));
+      setScoringConfig(buildEventScoringConfig(eventDetails));
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       const message = error instanceof Error ? error.message : String(error);
@@ -428,80 +421,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
         </a>
       </div>
     );
-  };
-
-  const handleDelete = async () => {
-    if (!event) return;
-    try {
-      setDeleting(true);
-      const res = await fetch(`/api/events/${event.event_id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || "Failed to delete event");
-      }
-      toast({ title: "Event deleted" });
-      // Navigate back to events list
-      router.push("/events");
-    } catch (err) {
-      console.error(err);
-      toast({
-        title: "Error",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleArchiveToggle = async () => {
-    if (!event) return;
-
-    try {
-      setArchiving(true);
-      const action =
-        event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
-
-      const res = await fetch(`/api/events/${event.event_id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || `Failed to ${action} event`);
-      }
-
-      const result = await res.json();
-
-      // Update local state
-      setEvent({ ...event, visibility: result.newVisibility });
-
-      toast({
-        title: "Success",
-        description: `Event ${action}d successfully`,
-      });
-
-      // Refresh the page to update any cached data
-      router.refresh();
-    } catch (error) {
-      console.error(
-        `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
-        error
-      );
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setArchiving(false);
-    }
   };
 
   const handleSubmitForApproval = async () => {
@@ -636,11 +555,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     variant="default"
                     className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium whitespace-nowrap"
                     disabled={submittingForApproval || archiving || deleting}
-                    onClick={() => {
-                      // Default dropdown selection: Public (per UX request).
-                      setSubmitVisibility(EventVisibility.Public);
-                      setSubmitDialogOpen(true);
-                    }}
+                    onClick={() => setSubmitDialogOpen(true)}
                   >
                     <Send className="w-4 h-4 flex-shrink-0" />
                     <span className="text-center">
@@ -652,78 +567,46 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 )}
 
               <div className="flex gap-2 w-full sm:w-auto">
-                {/* Archive Event Dialog */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <ArchiveEventDialog
+                  event={event}
+                  onBusyChange={setArchiving}
+                  onVisibilityChange={(visibility) =>
+                    setEvent((prev) => (prev ? { ...prev, visibility } : prev))
+                  }
+                  trigger={({ busy, isArchived }) => (
                     <Button
                       variant="defaultGray"
                       className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none"
-                      disabled={
-                        archiving || event.visibility === EventVisibility.Archived
-                      }
+                      disabled={busy || deleting}
                     >
                       <Archive className="w-4 h-4" />
                       <span>
-                        {archiving ? "Archiving..." : "Archive"}
+                        {isArchived
+                          ? busy
+                            ? "Unarchiving..."
+                            : "Unarchive"
+                          : busy
+                            ? "Archiving..."
+                            : "Archive"}
                       </span>
                     </Button>
-                  </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {event.visibility === EventVisibility.Archived
-                        ? "Unarchive this event?"
-                        : "Archive this event?"}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {event.visibility === EventVisibility.Archived
-                        ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                        : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleArchiveToggle}>
-                      {event.visibility === EventVisibility.Archived
-                        ? "Confirm Unarchive"
-                        : "Confirm Archive"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  )}
+                />
 
-                {/* Delete Event Dialog */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <DeleteEventDialog
+                  event={event}
+                  onBusyChange={setDeleting}
+                  trigger={({ busy }) => (
                     <Button
                       variant="delete"
-                      disabled={deleting}
+                      disabled={busy || archiving}
                       className="flex-1 sm:flex-none"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
                     </Button>
-                  </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently remove the event and related data
-                      (tickets, payments, tracks, feedback). This cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                      onClick={handleDelete}
-                    >
-                      Confirm Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  )}
+                />
 
                 {/* Update Event (Save Changes) */}
                 {activeTab === "overview" && activeSubTab === "basics" && (
@@ -1204,37 +1087,13 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           <DialogHeader>
             <DialogTitle>Submit for approval</DialogTitle>
             <DialogDescription>
-              {submitVisibility === EventVisibility.Public
-                ? "Submissions must be Private. We’ll switch it to Private for you, then request approval."
-                : "This event is Private. We’ll request approval now."}
+              {/* Approval always happens while the event is Private; approving
+                  it makes the event Public (see app/api/admin/events). */}
+              {event.visibility === EventVisibility.Private
+                ? "This event is Private. We’ll request approval now. Once an admin approves it, it becomes Public."
+                : "Events are reviewed while Private. We’ll switch this event to Private, then request approval. Once an admin approves it, it becomes Public."}
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-3">
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-black">
-                Visibility
-              </span>
-              <Select
-                value={submitVisibility}
-                onValueChange={(value) =>
-                  setSubmitVisibility(value as EventVisibility)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select visibility" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={EventVisibility.Private}>
-                    Private
-                  </SelectItem>
-                  <SelectItem value={EventVisibility.Public}>
-                    Public
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
           <DialogFooter>
             <Button
