@@ -29,7 +29,7 @@ type UIEvent = {
   description: string;
   dateISO: string | null;
   dateLabel: string;
-  location: string;
+  location: string | null;
   category: string;
   image: string;
   href: string;
@@ -139,12 +139,13 @@ export function Featured() {
             id,
             title: e.event_name ?? "Untitled Event",
             description:
-              e.event_blurb ??
-              e.event_description ??
+              e.event_blurb ||
+              e.event_description ||
               "No description available",
             dateISO,
             dateLabel: fmtDate(dateISO),
-            location: e.location ?? "Online",
+            // A missing location is unknown, not virtual; virtual events store "Online".
+            location: e.location?.trim() || null,
             category: e.category ?? "General",
             image: e.cover_image_url ?? "/img/placeholder.png",
             href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
@@ -281,9 +282,11 @@ export function Featured() {
                     <h3 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white font-geist tracking-[-0.06em] line-clamp-2 min-h-14">
                       {e.title}
                     </h3>
-                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {e.location}
-                    </div>
+                    {e.location && (
+                      <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {e.location}
+                      </div>
+                    )}
                     <p className="mt-3 text-gray-600 dark:text-gray-300 line-clamp-2">
                       {e.description}
                     </p>
