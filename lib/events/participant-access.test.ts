@@ -1,352 +1,91 @@
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 import { joinParticipantEvent } from "./participant-access";
 
-describe("joinParticipantEvent", () => {
-  const maybeSingleResult = (result: { data: unknown; error: unknown }) => ({
-    overrideTypes: jest.fn().mockResolvedValue(result),
+function harness(overrides: Record<string, unknown> = {}, data: Record<string, unknown> = {}) {
+  const event = { event_id: "event-1", event_name: "Fixture", visibility: "public", approval_status: "approved",
+    paid: false, require_participant_approval: false, participant_capacity: null, ...overrides };
+  const insert = jest.fn().mockResolvedValue({ error: null });
+  const from = jest.fn((table: string) => {
+    const q: Record<string, jest.Mock> = {};
+    for (const method of ["select", "eq", "order", "limit", "maybeSingle", "single"]) q[method] = jest.fn(() => q);
+    q.overrideTypes = jest.fn().mockResolvedValue({ data: table === "events" ? event : data[table] ?? null, error: null });
+    q.insert = insert;
+    return q;
   });
+  return { client: { from } as unknown as ServiceSupabaseClient, from, insert };
+}
+const options = { eventId: "event-1", userId: "user-1", channel: "web" as const };
 
-  it("blocks paid events for agent joins", async () => {
-    const supabase = {
-      from: jest.fn(() => ({
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            maybeSingle: jest.fn(() =>
-              maybeSingleResult({
-                data: {
-                  event_id: "event-1",
-                  event_name: "Paid Event",
-                  visibility: "public",
-                  approval_status: "approved",
-                  require_participant_approval: false,
-                  participant_capacity: null,
-                  paid: true,
-                },
-                error: null,
-              }),
-            ),
-          })),
-        })),
-      })),
-    } as unknown as ServiceSupabaseClient;
-
-    const result = await joinParticipantEvent(
-      supabase,
-      {
-        eventId: "event-1",
-        userId: "user-1",
-        channel: "agent",
-      }
-    );
-
-    expect(result).toEqual({
-      status: "error",
-      httpStatus: 403,
-      payload: {
-        error: "Paid events cannot be joined through the agent API.",
-      },
-    });
+describe("participant enrollment requirements", () => {
+  it("joins free approved events with an insert that cannot overwrite a concurrent staff role", async () => {
+    const h = harness();
+    expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "joined" });
+    expect(h.insert).toHaveBeenCalledWith(expect.objectContaining({ role: "participant", user_id: "user-1" }));
   });
-
-  it("joins an unpaid public event without approval", async () => {
-    const upsert = jest.fn().mockResolvedValue({ error: null });
-    const supabase = {
-      from: jest.fn((table: string) => {
-        if (table === "events") {
-          return {
-            select: jest.fn(() => ({
-              eq: jest.fn(() => ({
-                maybeSingle: jest.fn(() =>
-                  maybeSingleResult({
-                    data: {
-                      event_id: "event-1",
-                      event_name: "Free Event",
-                      visibility: "public",
-                      approval_status: "approved",
-                      require_participant_approval: false,
-                      participant_capacity: null,
-                      paid: false,
-                    },
-                    error: null,
-                  }),
-                ),
-              })),
-            })),
-          };
-        }
-
-        if (table === "user_event_roles") {
-          return {
-            select: jest.fn((columns: string) => {
-              if (columns === "role") {
-                return {
-                  eq: jest.fn(() => ({
-                    eq: jest.fn(() => ({
-                      maybeSingle: jest.fn(() =>
-                        maybeSingleResult({
-                          data: null,
-                          error: null,
-                        }),
-                      ),
-                    })),
-                  })),
-                };
-              }
-
-              return {
-                eq: jest.fn(() => ({
-                  eq: jest.fn().mockResolvedValue({
-                    count: 0,
-                    error: null,
-                  }),
-                })),
-              };
-            }),
-            upsert,
-          };
-        }
-
-        if (table === "role_passwords") {
-          return {
-            select: jest.fn(() => ({
-              eq: jest.fn(() => ({
-                eq: jest.fn(() => ({
-                  maybeSingle: jest.fn().mockResolvedValue({
-                    data: null,
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          };
-        }
-
-        if (table === "event_intake_form_bindings") {
-          return {
-            select: jest.fn(() => ({
-              eq: jest.fn(() => ({
-                eq: jest.fn(() => ({
-                  eq: jest.fn(() => ({
-                    order: jest.fn(() => ({
-                      limit: jest.fn(() => ({
-                        maybeSingle: jest.fn(() =>
-                          maybeSingleResult({
-                            data: null,
-                            error: null,
-                          }),
-                        ),
-                      })),
-                    })),
-                  })),
-                })),
-              })),
-            })),
-          };
-        }
-
-        throw new Error(`Unexpected table ${table}`);
-      }),
-    } as unknown as ServiceSupabaseClient;
-
-    const result = await joinParticipantEvent(
-      supabase,
-      {
-        eventId: "event-1",
-        userId: "user-1",
-        channel: "agent",
-      }
-    );
-
-    expect(result).toEqual({
-      status: "joined",
-      requiresApproval: false,
-      requestStatus: "joined",
-      message: "Joined Free Event as a participant",
+  it.each([true, false])("requires paid entitlement independently of approval configuration (%s)", async (approval) => {
+    const h = harness({ paid: true, require_participant_approval: approval }, {
+      participant_approval_requests: approval ? { id: "request", status: "approved" } : null,
     });
-    expect(upsert).toHaveBeenCalled();
+    expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "error", httpStatus: 402 });
+    expect(h.insert).not.toHaveBeenCalled();
   });
-
-  describe("agent join gates", () => {
-    const publicEvent = {
-      event_id: "event-1",
-      event_name: "Gated Event",
-      visibility: "public",
-      approval_status: "approved",
-      require_participant_approval: false,
-      participant_capacity: null,
-      paid: false,
-    };
-
-    const buildClient = ({
-      event = publicEvent,
-      existingRole = null,
-      rolePassword = { data: null, error: null },
-    }: {
-      event?: Record<string, unknown>;
-      existingRole?: { role: string } | null;
-      rolePassword?: { data: unknown; error: unknown };
-    }) => {
-      const upsert = jest.fn().mockResolvedValue({ error: null });
-      const rolePasswordEq = jest.fn();
-      const single = (result: { data: unknown; error: unknown }) => ({
-        maybeSingle: jest.fn(() => maybeSingleResult(result)),
-      });
-
-      const supabase = {
-        from: jest.fn((table: string) => {
-          if (table === "events") {
-            return {
-              select: jest.fn(() => ({
-                eq: jest.fn(() => single({ data: event, error: null })),
-              })),
-            };
-          }
-
-          if (table === "user_event_roles") {
-            return {
-              select: jest.fn(() => ({
-                eq: jest.fn(() => ({
-                  eq: jest.fn(() =>
-                    single({ data: existingRole, error: null }),
-                  ),
-                })),
-              })),
-              upsert,
-            };
-          }
-
-          if (table === "role_passwords") {
-            const chain = {
-              eq: rolePasswordEq.mockImplementation((): unknown => chain),
-              maybeSingle: jest.fn().mockResolvedValue(rolePassword),
-            };
-            return { select: jest.fn(() => chain) };
-          }
-
-          if (table === "event_intake_form_bindings") {
-            const chain = {
-              eq: jest.fn((): unknown => chain),
-              order: jest.fn((): unknown => chain),
-              limit: jest.fn((): unknown => chain),
-              maybeSingle: jest.fn(() =>
-                maybeSingleResult({ data: null, error: null }),
-              ),
-            };
-            return { select: jest.fn(() => chain) };
-          }
-
-          throw new Error(`Unexpected table ${table}`);
-        }),
-      } as unknown as ServiceSupabaseClient;
-
-      return { supabase, upsert, rolePasswordEq };
-    };
-
-    const join = (
-      supabase: ServiceSupabaseClient,
-      channel: "web" | "agent" = "agent",
-    ) =>
-      joinParticipantEvent(supabase, {
-        eventId: "event-1",
-        userId: "user-1",
-        channel,
-      });
-
-    it.each(["draft", "private", "test", "demo", "archived", null])(
-      "blocks agent joins when visibility is %s",
-      async (visibility) => {
-        const { supabase, upsert } = buildClient({
-          event: { ...publicEvent, visibility },
-        });
-
-        const result = await join(supabase);
-
-        expect(result).toEqual({
-          status: "error",
-          httpStatus: 403,
-          payload: {
-            error:
-              "Only public, approved events can be joined through the agent API.",
-          },
-        });
-        expect(upsert).not.toHaveBeenCalled();
-      },
-    );
-
-    it.each(["not_submitted", "submitted", "rejected", null])(
-      "blocks agent joins when approval_status is %s",
-      async (approval_status) => {
-        const { supabase, upsert } = buildClient({
-          event: { ...publicEvent, approval_status },
-        });
-
-        const result = await join(supabase);
-
-        expect(result).toMatchObject({ status: "error", httpStatus: 403 });
-        expect(upsert).not.toHaveBeenCalled();
-      },
-    );
-
-    it("blocks agent joins when the participant role has a password", async () => {
-      const { supabase, upsert, rolePasswordEq } = buildClient({
-        rolePassword: { data: { event_id: "event-1" }, error: null },
-      });
-
-      const result = await join(supabase);
-
-      expect(result).toEqual({
-        status: "error",
-        httpStatus: 403,
-        payload: {
-          error:
-            "Password-protected events cannot be joined through the agent API.",
-        },
-      });
-      expect(rolePasswordEq).toHaveBeenCalledWith("event_id", "event-1");
-      expect(rolePasswordEq).toHaveBeenCalledWith("role", "participant");
-      expect(upsert).not.toHaveBeenCalled();
+  it("allows paid entitlement after all independent requirements", async () => {
+    const h = harness({ paid: true }, { user_event_payments: { payment_status: "paid" } });
+    expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "joined" });
+  });
+  it.each([
+    { visibility: "draft", approval_status: "approved" },
+    { visibility: "public", approval_status: "submitted" },
+    { visibility: "private", approval_status: "rejected" },
+    { visibility: "archived", approval_status: "approved" },
+    { visibility: "archived", approval_status: "not_submitted" },
+  ])("rejects closed enrollment state %o before mutation", async (state) => {
+    const h = harness(state);
+    expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "error", httpStatus: 403 });
+    expect(h.insert).not.toHaveBeenCalled();
+  });
+  it("rejects agent joins of archived events before mutation (XL-001)", async () => {
+    const h = harness({ visibility: "archived", approval_status: "approved" });
+    expect(await joinParticipantEvent(h.client, { ...options, channel: "agent" })).toMatchObject({ status: "error", httpStatus: 403 });
+    expect(h.insert).not.toHaveBeenCalled();
+  });
+  it("preserves private non-listed events without requiring public-listing approval", async () => {
+    const h = harness({ visibility: "private", approval_status: "not_submitted" });
+    expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "joined" });
+  });
+  it("blocks agent access to paid or password-protected events", async () => {
+    for (const h of [harness({ paid: true }), harness({}, { role_passwords: { role: "participant" } })]) {
+      expect(await joinParticipantEvent(h.client, { ...options, channel: "agent" })).toMatchObject({ status: "error", httpStatus: 403 });
+      expect(h.insert).not.toHaveBeenCalled();
+    }
+  });
+  it("maps the serialized capacity rejection to a conflict", async () => {
+    const h = harness(); h.insert.mockResolvedValue({ error: { code: "45000" } });
+    expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "error", httpStatus: 409 });
+  });
+  it("preserves a concurrently assigned role", async () => {
+    const h = harness(); h.insert.mockResolvedValue({ error: { code: "23505" } });
+    expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "error", httpStatus: 409 });
+  });
+  describe("registration questionnaire version (ORG-010)", () => {
+    const binding = { event_intake_form_bindings: { form_version_id: "v2" } };
+    it("requires a submission when a registration form is active", async () => {
+      const h = harness({}, binding);
+      expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "error", httpStatus: 412 });
+      expect(h.insert).not.toHaveBeenCalled();
     });
-
-    it("fails closed when the role password lookup errors", async () => {
-      const { supabase, upsert } = buildClient({
-        rolePassword: { data: null, error: { message: "boom" } },
-      });
-
-      const result = await join(supabase);
-
-      expect(result).toEqual({
+    it("rejects a submission for an older form version", async () => {
+      const h = harness({}, { ...binding, intake_form_submissions: { id: "s1", form_version_id: "v1" } });
+      expect(await joinParticipantEvent(h.client, options)).toMatchObject({
         status: "error",
-        httpStatus: 500,
-        payload: { error: "Failed to verify role password" },
+        httpStatus: 412,
+        payload: expect.objectContaining({ questionnaire_outdated: true }),
       });
-      expect(upsert).not.toHaveBeenCalled();
+      expect(h.insert).not.toHaveBeenCalled();
     });
-
-    it("still reports an existing role as a conflict on a gated event", async () => {
-      const { supabase } = buildClient({
-        event: { ...publicEvent, visibility: "private" },
-        existingRole: { role: "participant" },
-      });
-
-      const result = await join(supabase);
-
-      expect(result).toEqual({
-        status: "error",
-        httpStatus: 409,
-        payload: { error: "You already have a role in this event" },
-      });
-    });
-
-    it("leaves web joins to the verify route's own gates", async () => {
-      const { supabase, upsert } = buildClient({
-        event: { ...publicEvent, visibility: "private" },
-        rolePassword: { data: { event_id: "event-1" }, error: null },
-      });
-
-      const result = await join(supabase, "web");
-
-      expect(result).toMatchObject({ status: "joined" });
-      expect(upsert).toHaveBeenCalled();
+    it("joins with a submission for the active form version", async () => {
+      const h = harness({}, { ...binding, intake_form_submissions: { id: "s1", form_version_id: "v2" } });
+      expect(await joinParticipantEvent(h.client, options)).toMatchObject({ status: "joined" });
     });
   });
 });

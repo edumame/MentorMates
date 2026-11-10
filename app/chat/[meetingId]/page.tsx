@@ -1,9 +1,11 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { MeetingChatView, MeetingIdViewError, MeetingIdViewLoading } from "@/modules/meetings/ui/views/meeting-id-view";
+import { MeetingChatView, MeetingIdViewError, MeetingIdViewLoading, MeetingServiceUnavailable } from "@/modules/meetings/ui/views/meeting-id-view";
+import { isStreamChatConfigured } from "@/lib/stream-config";
 import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { redirect } from "next/navigation";
+import { loginRedirectFor } from "@/modules/meetings/server/login-redirect";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import SubmitTranscriptButton from "@/components/SubmitTranscriptButton";
@@ -29,8 +31,18 @@ const Page = async ({ params }: Props) => {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/sign-in");
+    redirect(loginRedirectFor(`/chat/${meetingId}`));
   };
+
+  if (!isStreamChatConfigured()) {
+    return (
+      <PageContainer className="bg-[#F4F4F5]">
+        <PageContent className="h-full overflow-hidden">
+          <MeetingServiceUnavailable service="chat" />
+        </PageContent>
+      </PageContainer>
+    );
+  }
 
   const queryClient = getQueryClient();
   const meetingQueryOptions = trpc.meetings.getOne.queryOptions({ id: meetingId });

@@ -23,7 +23,7 @@ jest.mock("@/lib/agent/logging", () => ({
 }));
 
 describe("POST /api/agent/me/events/[eventId]/join", () => {
-  const upsert = jest.fn();
+  const insertRole = jest.fn();
 
   const single = (data: unknown) => {
     const result = { data, error: null };
@@ -36,7 +36,7 @@ describe("POST /api/agent/me/events/[eventId]/join", () => {
         overrideTypes: jest.fn().mockResolvedValue(result),
         then: (resolve: (value: typeof result) => unknown) => resolve(result),
       })),
-      upsert,
+      insert: insertRole,
     };
     return chain;
   };
@@ -78,7 +78,7 @@ describe("POST /api/agent/me/events/[eventId]/join", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    upsert.mockResolvedValue({ error: null });
+    insertRole.mockResolvedValue({ error: null });
     const auth = { userId: "user-1", eventId: "event-1", scopes: [] };
     (authenticateAgentRequest as jest.Mock).mockResolvedValue(auth);
     (requireScope as jest.Mock).mockReturnValue(null);
@@ -92,7 +92,7 @@ describe("POST /api/agent/me/events/[eventId]/join", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ success: true });
-    expect(upsert).toHaveBeenCalled();
+    expect(insertRole).toHaveBeenCalled();
   });
 
   it("rejects an event with a participant password", async () => {
@@ -101,7 +101,7 @@ describe("POST /api/agent/me/events/[eventId]/join", () => {
     const response = await post();
 
     expect(response.status).toBe(403);
-    expect(upsert).not.toHaveBeenCalled();
+    expect(insertRole).not.toHaveBeenCalled();
   });
 
   it("rejects a draft event", async () => {
@@ -110,7 +110,7 @@ describe("POST /api/agent/me/events/[eventId]/join", () => {
     const response = await post();
 
     expect(response.status).toBe(403);
-    expect(upsert).not.toHaveBeenCalled();
+    expect(insertRole).not.toHaveBeenCalled();
   });
 
   it("rejects an unapproved event", async () => {
@@ -119,6 +119,6 @@ describe("POST /api/agent/me/events/[eventId]/join", () => {
     const response = await post();
 
     expect(response.status).toBe(403);
-    expect(upsert).not.toHaveBeenCalled();
+    expect(insertRole).not.toHaveBeenCalled();
   });
 });
