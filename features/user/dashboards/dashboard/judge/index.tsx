@@ -24,6 +24,7 @@ import { CoverImageWithFallback } from "@/features/projects/components/displays/
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import {
+  buildJudgeScoreMaps,
   getCardNavigationDirection,
   getNextProjectId,
   isProjectFullyScored,
@@ -622,26 +623,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           throw new Error(`Failed to fetch scores: ${scoresError.message}`);
         }
 
-        const scoredMap = new Map<string, Set<string>>();
-        const valuesMap = new Map<
-          string,
-          Map<string, Record<string, number>>
-        >();
-        scoresData?.forEach((score) => {
-          if (!scoredMap.has(score.project_id)) {
-            scoredMap.set(score.project_id, new Set());
-          }
-          scoredMap.get(score.project_id)?.add(score.track_id);
-
-          if (score.scores && typeof score.scores === "object") {
-            if (!valuesMap.has(score.project_id)) {
-              valuesMap.set(score.project_id, new Map());
-            }
-            valuesMap
-              .get(score.project_id)
-              ?.set(score.track_id, score.scores as Record<string, number>);
-          }
-        });
+        const { scoredProjects: scoredMap, scoreValues: valuesMap } =
+          buildJudgeScoreMaps(scoresData ?? [], mappedProjects);
         setScoredProjects(scoredMap);
         setScoreValues(valuesMap);
       } catch (error) {
