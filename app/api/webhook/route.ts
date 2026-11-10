@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from "node:crypto";
+import { workerHeaders } from "@/lib/meetings/worker";
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -13,10 +15,16 @@ import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 import { streamVideo } from "@/lib/stream-video";
 import { inngest } from "@/lib/inngest/client";
 import { streamChat } from "@/lib/stream-chat";
+import { isStreamChatConfigured, isStreamVideoConfigured, lazyClient } from "@/lib/stream-config";
 
-const openaiClient = new OpenAI();
+// Constructed on first use: `new OpenAI()` throws without OPENAI_API_KEY, which
+// used to crash this module at import and turn every webhook into a 500.
+let openaiInstance: OpenAI | null = null;
+const openaiClient: OpenAI = lazyClient(
+  () => (openaiInstance ??= new OpenAI())
+);
 
-const processedMessages = new Set<string>();
+
 
 const CHAT_RESPONSES_MODEL = process.env.OPENAI_RESPONSES_MODEL || "gpt-5.2";
 const CHAT_ENABLE_WEB_SEARCH =
@@ -28,7 +36,6 @@ const CHAT_TOOL_CHOICE = resolveToolChoice(
   process.env.OPENAI_CHAT_TOOL_CHOICE,
   "required"
 );
-const CHAT_LOG_TOOL_CALLS = process.env.OPENAI_CHAT_LOG_TOOL_CALLS === "true";
 const MAX_ATTACHMENT_INPUTS = normalizePositiveInt(
   Number.parseInt(process.env.OPENAI_CHAT_MAX_ATTACHMENT_INPUTS || "3", 10),
   3
@@ -149,10 +156,6 @@ async function createTextResponse(params: {
   };
 
   const response = await openaiClient.responses.create(requestBody);
-  if (CHAT_LOG_TOOL_CALLS) {
-    const toolCalls = extractToolCalls(response);
-    console.log("chat tool calls", toolCalls);
-  }
 
   return extractResponseText(response);
 }
@@ -179,22 +182,6 @@ function resolveToolChoice(
   if (candidate === "required") return "required";
   if (candidate === "none") return "none";
   return fallback;
-}
-
-function extractToolCalls(response: unknown): string[] {
-  const record = response as Record<string, unknown>;
-  if (!Array.isArray(record.output)) return [];
-
-  const result: string[] = [];
-  for (const outputItem of record.output) {
-    if (!outputItem || typeof outputItem !== "object") continue;
-    const item = outputItem as Record<string, unknown>;
-    if (typeof item.type !== "string") continue;
-    if (item.type.endsWith("_call")) {
-      result.push(item.type);
-    }
-  }
-  return result;
 }
 
 function normalizeHttpUrl(raw: unknown): string | null {
@@ -308,6 +295,15 @@ function resolveMeetingId(callRef: CallReference): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  // Without Stream keys no signature can be verified; say so explicitly
+  // instead of failing inside the SDK.
+  if (!isStreamVideoConfigured()) {
+    return NextResponse.json(
+      { error: "Video webhooks are not configured" },
+      { status: 503 }
+    );
+  }
+
   const supabase = await createSupabaseServiceClient();
   const signature = req.headers.get("x-signature");
   const apiKey = req.headers.get("x-api-key");
@@ -412,7 +408,7 @@ export async function POST(req: NextRequest) {
         `${workerUrl.replace(/\/$/, "")}/session/start`,
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: workerHeaders(),
           body: JSON.stringify({
             meetingId,
             callId,
@@ -452,7 +448,7 @@ export async function POST(req: NextRequest) {
       if (workerUrl2) {
         await fetch(`${workerUrl2.replace(/\/$/, "")}/session/stop`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: workerHeaders(),
           body: JSON.stringify({ meetingId }),
         });
       }
@@ -481,7 +477,7 @@ export async function POST(req: NextRequest) {
       if (workerUrl3) {
         await fetch(`${workerUrl3.replace(/\/$/, "")}/session/stop`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: workerHeaders(),
           body: JSON.stringify({ meetingId }),
         });
       }
@@ -520,7 +516,6 @@ export async function POST(req: NextRequest) {
       .update({ recording_url: event.call_recording.url })
       .eq("id", meetingId);
   } else if (eventType === "custom") {
-    console.log("reaching custom")
     const event = payload as CustomVideoEvent;
     const meetingId = event.call_cid.split(":")[1];
 
@@ -530,7 +525,7 @@ export async function POST(req: NextRequest) {
         if (workerUrl) {
           await fetch(`${workerUrl.replace(/\/$/, "")}/session/pause`, {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: workerHeaders(),
             body: JSON.stringify({ meetingId }),
           });
         }
@@ -543,7 +538,7 @@ export async function POST(req: NextRequest) {
         if (workerUrl) {
           await fetch(`${workerUrl.replace(/\/$/, "")}/session/resume`, {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: workerHeaders(),
             body: JSON.stringify({ meetingId }),
           });
         }
@@ -553,6 +548,14 @@ export async function POST(req: NextRequest) {
     }
   }
   else if (eventType === "message.new") {
+    // Chat replies need the chat keys too; without them this would throw
+    // StreamNotConfiguredError mid-handler (500).
+    if (!isStreamChatConfigured()) {
+      return NextResponse.json(
+        { error: "Chat webhooks are not configured" },
+        { status: 503 }
+      );
+    }
       const event = payload as MessageNewEvent;
       const message = (event.message || {}) as StreamWebhookMessage;
 
@@ -566,15 +569,28 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ status: "ignored_no_id" });
       }
 
-      if (processedMessages.has(messageId)) {
-          return NextResponse.json({ status: "duplicate_ignored" });
-      }
-      processedMessages.add(messageId);
-
       if (!userId || !channelId || (!text && userAttachments.length === 0)) {
           return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
       }
-
+      const claimToken = randomUUID();
+      const { data: claim, error: claimError } = await supabase.rpc("claim_chat_webhook", {
+        p_message_id: messageId, p_token: claimToken,
+      });
+      if (claimError) return NextResponse.json({ error: "Unable to claim message" }, { status: 503 });
+      if (claim === "completed") return NextResponse.json({ status: "duplicate_ignored" });
+      if (claim !== "claimed") return NextResponse.json({ error: "Message processing in progress" }, { status: 503 });
+      let completed = false;
+      const replyId = `mm-reply-${createHash("sha256").update(messageId).digest("hex")}`;
+      try {
+      // Recover the crash window after provider delivery but before receipt completion.
+      const existingReply = await streamChat.getMessage(replyId).catch((error: unknown) => {
+        if ((error as { status?: number }).status === 404) return null;
+        throw error;
+      });
+      if (existingReply?.message) {
+        completed = true;
+        return NextResponse.json({ status: "already_delivered" });
+      }
       const userText =
         text || "Please analyze the attached file(s) and answer the request.";
 
@@ -617,16 +633,17 @@ export async function POST(req: NextRequest) {
           });
 
           if (!GPTResponseText) {
-              return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
+              return NextResponse.json({ error: "No response from GPT" }, { status: 503 });
           }
 
-          streamChat.upsertUser({
+          await streamChat.upsertUser({
               id: existingAgent.id,
               name: existingAgent.name,
               image: existingAgent.avatar_url,
           });
 
-          channel.sendMessage({
+          await channel.sendMessage({
+              id: replyId,
               text: GPTResponseText,
               user: {
                   id: existingAgent.id,
@@ -698,16 +715,17 @@ export async function POST(req: NextRequest) {
           });
 
           if (!GPTResponseText) {
-              return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
+              return NextResponse.json({ error: "No response from GPT" }, { status: 503 });
           }
 
-          streamChat.upsertUser({
+          await streamChat.upsertUser({
               id: existingAgent.id,
               name: existingAgent.name,
               image: existingAgent.avatar_url,
           });
 
-          channel.sendMessage({
+          await channel.sendMessage({
+              id: replyId,
               text: GPTResponseText,
               user: {
                   id: existingAgent.id,
@@ -716,6 +734,13 @@ export async function POST(req: NextRequest) {
               },
           });
         }
+      }
+      completed = true;
+      } finally {
+        const { error: finishError } = await supabase.rpc("finish_chat_webhook", {
+          p_message_id: messageId, p_token: claimToken, p_completed: completed,
+        });
+        if (finishError) throw new Error("Failed to persist message processing state");
       }
   };
 
