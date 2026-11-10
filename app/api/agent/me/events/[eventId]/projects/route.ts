@@ -134,7 +134,9 @@ export async function POST(
     if (resolvedAuth instanceof NextResponse) return resolvedAuth;
     logCtx.eventId = resolvedAuth.eventId;
 
-    const access = await authorizeAgentEventAccess(resolvedAuth, EventRole.Participant);
+    const access = await authorizeAgentEventAccess(resolvedAuth, EventRole.Participant, {
+      intent: "write",
+    });
     if (access instanceof NextResponse) return access;
 
     const { data: profile, error: profileError } = await fetchAgentUserProfile(
