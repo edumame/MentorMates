@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getTeamEmails } from "@/lib/projects/membership";
 import { Prize, Project } from "@/lib/types";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
@@ -27,9 +28,7 @@ export async function fetchProjectById(
         id,
         project_name,
         lead_name,
-        lead_email,
         project_description,
-        teammates,
         project_url,
         video_url,
         additional_materials_url,
@@ -65,6 +64,9 @@ export async function fetchProjectById(
       return null;
     }
 
+    // Emails only for team members / organizers (project_team_emails).
+    const teamEmails = (await getTeamEmails(supabase, [data.id])).get(data.id);
+
     const [{ data: artifactRows }, { data: answerRows }, { data: fieldRows }] =
       await Promise.all([
       supabase
@@ -92,10 +94,10 @@ export async function fetchProjectById(
       id: data.id,
       project_name: data.project_name,
       lead_name: data.lead_name,
-      lead_email: data.lead_email,
+      lead_email: teamEmails?.lead_email ?? "",
       is_private: Boolean((data as { private?: boolean | null }).private),
       project_description: data.project_description,
-      teammates: data.teammates,
+      teammates: teamEmails?.teammates ?? [],
       project_url: data.project_url,
       video_url: data.video_url,
       additional_materials_url: data.additional_materials_url,

@@ -122,7 +122,9 @@ export function PricingTierSelector({
 
       <Button
         variant="default"
-        onClick={onContinue}
+        // Call without arguments: callers' continue handlers take optional
+        // parameters (e.g. a tier id) and must not receive the click event.
+        onClick={() => onContinue()}
         disabled={!selectedTierId || isLoading}
         className="w-full rounded-full"
       >

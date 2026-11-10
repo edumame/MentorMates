@@ -54,3 +54,13 @@ Set `CI=true` so Playwright does not reuse an existing dev server and retries ar
 ## Authenticated mobile shell
 
 The signed-in header (menu, notifications, avatar) lives behind Supabase auth. Extending tests with `storageState` from a `global-setup` script is the usual next step.
+
+## Invitation regression (isolated local data)
+
+Run `pnpm exec playwright test --config playwright.invites.config.ts`.
+This starts Next on port 3107 and a local Supabase HTTP fixture on port 54329.
+The fixture denies anonymous reads of its draft event and permits service-key
+reads, so the tests exercise actual invitation routes and their parent layouts.
+It does not connect to or modify a production database. It covers all three
+invite roles, changed slugs, and missing/forged/expired/wrong-role links. It does
+not replace a real Supabase RLS integration test or a full sign-in journey.

@@ -2,6 +2,7 @@
 
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { fetchClientSecret } from "./stripe";
 
 jest.mock("next/headers", () => ({
@@ -9,41 +10,47 @@ jest.mock("next/headers", () => ({
 }));
 
 jest.mock("@/lib/stripe/stripe", () => ({
-  stripe: { checkout: { sessions: { create: jest.fn() } } },
+  stripe: { checkout: { sessions: { create: jest.fn(), expire: jest.fn() } } },
 }));
 
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
 }));
 
+jest.mock("@/lib/supabase/service", () => ({
+  createSupabaseServiceClient: jest.fn(),
+}));
+
 describe("fetchClientSecret", () => {
   const mockCreateSession = stripe.checkout.sessions.create as jest.Mock;
   const mockCreateClient = createSupabaseClient as jest.Mock;
+  const mockCreateService = createSupabaseServiceClient as jest.Mock;
 
   const queryResolving = (data: unknown) => {
     const query = {
       select: () => query,
       eq: () => query,
-      upsert: () => query,
       maybeSingle: async () => ({ data }),
       single: async () => ({ data }),
-      then: (resolve: (result: { data: unknown; error: null }) => unknown) =>
-        Promise.resolve({ data, error: null }).then(resolve),
     };
     return query;
   };
 
-  it("records who bought what on the session so the webhook need not rely on the row", async () => {
+  it("records the buyer and event on the session so /return can find the payment row", async () => {
     const tableData: Record<string, unknown> = {
       user_profiles: { stripe_customer_id: "cus_1" },
-      pricing_tiers: { stripe_price_id: "price_1" },
-      user_event_payments: [{ id: "payment-1" }],
+      pricing_tiers: { stripe_price_id: "price_1", is_active: true },
     };
+    const from = (table: string) => queryResolving(tableData[table]);
     mockCreateClient.mockResolvedValue({
       auth: {
         getUser: async () => ({ data: { user: { id: "user-1" } } }),
       },
-      from: (table: string) => queryResolving(tableData[table]),
+      from,
+    });
+    mockCreateService.mockReturnValue({
+      from,
+      rpc: jest.fn(async () => ({ data: "payment-1", error: null })),
     });
     mockCreateSession.mockResolvedValue({
       id: "cs_1",
@@ -57,9 +64,9 @@ describe("fetchClientSecret", () => {
     expect(mockCreateSession).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: {
-          user_id: "user-1",
+          product_type: "event",
           event_id: "event-1",
-          pricing_tier_id: "tier-1",
+          user_id: "user-1",
         },
       })
     );

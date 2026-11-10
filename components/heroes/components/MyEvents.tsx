@@ -53,6 +53,10 @@ function toEventItem(event: UIEvent): EventItem {
     event_blurb: event.blurb,
     event_description: event.description,
     event_type: event.event_type,
+    // Lane B's shared card redirect rule needs approval status to link
+    // approved events to their public page.
+    approval_status: event.approvalStatus,
+    visibility: event.visibility,
   };
 }
 
