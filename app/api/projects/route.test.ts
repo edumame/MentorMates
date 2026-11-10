@@ -123,6 +123,9 @@ function buildClient(rows: Rows, user: { id: string } | null = null) {
 
   return {
     from,
+    // Membership and team emails go through SECURITY DEFINER RPCs
+    // (my_project_ids, project_team_emails); a non-member gets no rows.
+    rpc: jest.fn().mockResolvedValue({ data: [], error: null }),
     auth: {
       getUser: jest.fn().mockResolvedValue({ data: { user }, error: null }),
     },
