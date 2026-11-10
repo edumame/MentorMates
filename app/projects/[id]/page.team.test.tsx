@@ -156,8 +156,10 @@ function removeChip(label: string) {
 describe("project team tab", () => {
   beforeEach(() => {
     updateTeam.mockReset();
-    updateTeam.mockImplementation(async (_projectId, teammates) => ({
-      data: buildProject({ event_id: null, teammates }) as never,
+    // Since #892 the page sends only the change; the client action applies
+    // it to the stored team.
+    updateTeam.mockImplementation(async () => ({
+      data: buildProject({ event_id: null, teammates: [] }) as never,
       error: null,
     }));
   });
@@ -199,11 +201,7 @@ describe("project team tab", () => {
     await user.click(await screen.findByText("Pat (p@x.com)"));
 
     await waitFor(() => expect(updateTeam).toHaveBeenCalledTimes(1));
-    expect(updateTeam).toHaveBeenCalledWith("project-1", [
-      "a@x.com",
-      "mentor@x.com",
-      "p@x.com",
-    ]);
+    expect(updateTeam).toHaveBeenCalledWith("project-1", { add: ["p@x.com"] });
   });
 
   it("does not add a chip that is not an event participant", async () => {
@@ -222,7 +220,7 @@ describe("project team tab", () => {
     removeChip("a@x.com");
 
     await waitFor(() => expect(updateTeam).toHaveBeenCalledTimes(1));
-    expect(updateTeam).toHaveBeenCalledWith("project-1", ["b@x.com"]);
+    expect(updateTeam).toHaveBeenCalledWith("project-1", { remove: ["a@x.com"] });
   });
 
   it("removes a teammate whose stored email has different casing", async () => {
@@ -235,7 +233,8 @@ describe("project team tab", () => {
     removeChip("Ann (ann@x.com)");
 
     await waitFor(() => expect(updateTeam).toHaveBeenCalledTimes(1));
-    expect(updateTeam).toHaveBeenCalledWith("project-1", ["b@x.com"]);
+    // applyTeammateChanges matches the stored email case-insensitively.
+    expect(updateTeam).toHaveBeenCalledWith("project-1", { remove: ["ann@x.com"] });
   });
 
   it("removes a teammate whose display name contains parentheses", async () => {
@@ -248,7 +247,8 @@ describe("project team tab", () => {
     removeChip("Ann (she/her) (ann@x.com)");
 
     await waitFor(() => expect(updateTeam).toHaveBeenCalledTimes(1));
-    expect(updateTeam).toHaveBeenCalledWith("project-1", ["b@x.com"]);
+    // applyTeammateChanges matches the stored email case-insensitively.
+    expect(updateTeam).toHaveBeenCalledWith("project-1", { remove: ["ann@x.com"] });
   });
 
   it("adds a participant whose display name contains parentheses", async () => {
@@ -262,7 +262,7 @@ describe("project team tab", () => {
     await user.click(await screen.findByText("Pat (they/them) (p@x.com)"));
 
     await waitFor(() => expect(updateTeam).toHaveBeenCalledTimes(1));
-    expect(updateTeam).toHaveBeenCalledWith("project-1", ["a@x.com", "p@x.com"]);
+    expect(updateTeam).toHaveBeenCalledWith("project-1", { add: ["p@x.com"] });
   });
 
   it("does not write when removing the chip of a pending invite", async () => {

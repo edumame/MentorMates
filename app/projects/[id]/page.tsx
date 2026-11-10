@@ -812,11 +812,9 @@ export default function ProjectPage() {
     }
 
     try {
-      const updatedTeammates = [...currentTeammates, normalizedEmail];
-      const { data, error } = await updateProjectTeamClient(
-        projectId,
-        updatedTeammates
-      );
+      const { data, error } = await updateProjectTeamClient(projectId, {
+        add: [normalizedEmail],
+      });
 
       if (error) {
         toast({
@@ -844,14 +842,9 @@ export default function ProjectPage() {
   const handleRemoveTeammate = async (teammateEmail: string) => {
     setIsUpdating(true);
     try {
-      const currentTeammates = project?.teammates || [];
-      const updatedTeammates = currentTeammates.filter(
-        (email) => email !== teammateEmail
-      );
-      const { data, error } = await updateProjectTeamClient(
-        projectId,
-        updatedTeammates
-      );
+      const { data, error } = await updateProjectTeamClient(projectId, {
+        remove: [teammateEmail],
+      });
 
       if (error) {
         toast({
@@ -1732,28 +1725,29 @@ export default function ProjectPage() {
                                   (p) =>
                                     `${p.display_name || p.email} (${p.email})`
                                 )}
-                                onTagsChange={(_tags, change) => {
-                                  const changedEmail = change.email.toLowerCase();
-                                  const teammate = (project?.teammates || []).find(
-                                    (email) => email.toLowerCase() === changedEmail
+                                onTagsChange={(_tags, { added, removed }) => {
+                                  // Get list of participant emails for validation
+                                  const participantEmails = participants.map((p) =>
+                                    p.email.toLowerCase()
                                   );
 
-                                  // Only an explicit chip removal removes someone
-                                  if (change.type === "removed") {
-                                    if (teammate) {
-                                      handleRemoveTeammate(teammate);
-                                    }
-                                    return;
-                                  }
+                                  // Handle additions (only for event participants)
+                                  added
+                                    .filter((email) =>
+                                      participantEmails.includes(email.toLowerCase())
+                                    )
+                                    .forEach((email) => handleAddTeammate(email));
 
-                                  // Only event participants join immediately;
-                                  // anyone else joins by accepting their invite
-                                  const isParticipant = participants.some(
-                                    (p) => p.email.toLowerCase() === changedEmail
+                                  // Handle removals. A pending invite's chip is not a
+                                  // teammate yet, so removing it writes nothing.
+                                  const teammateEmails = (project?.teammates || []).map(
+                                    (email) => email.toLowerCase()
                                   );
-                                  if (isParticipant && !teammate) {
-                                    handleAddTeammate(change.email);
-                                  }
+                                  removed
+                                    .filter((email) =>
+                                      teammateEmails.includes(email.toLowerCase())
+                                    )
+                                    .forEach((email) => handleRemoveTeammate(email));
                                 }}
                                 initialTags={(project?.teammates || []).map((email) => {
                                   const participant = participants.find(
