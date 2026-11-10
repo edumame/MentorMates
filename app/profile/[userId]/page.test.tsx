@@ -110,7 +110,7 @@ describe("ProfilePage ?edit=1 auto-open", () => {
     });
     render(<ProfilePage />);
 
-    await screen.findByRole("heading", { name: "User Profile" });
+    await screen.findByRole("heading", { name: "Couldn't load this profile" });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByPlaceholderText("Your name")).not.toBeInTheDocument();
