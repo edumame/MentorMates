@@ -103,6 +103,20 @@ const toastDescriptions = () =>
   mockToast.mock.calls.map(([options]) => options.description as string);
 
 describe("EventTicket", () => {
+  beforeAll(() => {
+    // jsdom has no crypto.randomUUID; the email request id needs one.
+    if (!globalThis.crypto?.randomUUID) {
+      let n = 0;
+      Object.defineProperty(globalThis, "crypto", {
+        configurable: true,
+        value: {
+          ...globalThis.crypto,
+          randomUUID: () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`,
+        },
+      });
+    }
+  });
+
   beforeEach(() => {
     mockToast.mockClear();
     mockSupabase();
@@ -250,7 +264,9 @@ describe("EventTicket", () => {
     const [[, init]] = callsTo(fetchMock, EMAIL_URL);
     const body = JSON.parse(init.body);
     expect(body.to).toBe(RECIPIENT);
-    expect(body.html).toContain(`/claim-ticket?ticket=${assignedTicket.id}`);
+    expect(body.ticketId).toBe(assignedTicket.id);
+    expect(body.requestId).toEqual(expect.any(String));
+    // The server rebuilds the claim email from ticketId; the html is not trusted.
     expect(mockTicketUpdate).not.toHaveBeenCalled();
   });
 

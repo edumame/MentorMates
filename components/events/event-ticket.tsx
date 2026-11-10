@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,9 @@ interface EventTicketProps {
 }
 
 export function EventTicket({ eventId }: EventTicketProps) {
+  // One idempotency key per ticket, reused across retries of a failed send and
+  // cleared once it succeeds, so a deliberate resend is a new email.
+  const emailRequestIds = useRef<Record<string, string>>({});
   const [tickets, setTickets] = useState<EventTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
@@ -105,6 +108,8 @@ export function EventTicket({ eventId }: EventTicketProps) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        requestId: (emailRequestIds.current[ticketId] ||= crypto.randomUUID()),
+        ticketId,
         to: recipient,
         from: NOTIFICATIONS_EMAIL_FROM,
         subject: email.subject,
@@ -115,6 +120,7 @@ export function EventTicket({ eventId }: EventTicketProps) {
     if (!response.ok) {
       throw new Error("Failed to send invitation email");
     }
+    delete emailRequestIds.current[ticketId];
   };
 
   const assignTicket = async (ticketId: string) => {
