@@ -337,9 +337,10 @@ const UserSearchWithInvite = ({
     return selectedTags.map((tag, index) => getTagMarkup(tag, index));
   };
 
-  // Extract email from formatted tag "Name (email)" or return the tag itself
+  // Extract email from formatted tag "Name (email)" or return the tag itself.
+  // Takes the last group because display names can contain parentheses.
   const extractEmail = (tag: string): string => {
-    const emailMatch = tag.match(/\((.+?)\)$/);
+    const emailMatch = tag.match(/\(([^()]+)\)$/);
     return emailMatch ? emailMatch[1] : tag;
   };
 

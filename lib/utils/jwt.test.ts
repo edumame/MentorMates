@@ -189,7 +189,11 @@ describe("event check-in tokens (PUB-007)", () => {
     const expired = await generateEventCheckinToken({ eventId: "e", userId: "u" }, -10);
     await expect(verifyEventCheckinToken(expired)).resolves.toBeNull();
     const token = await generateEventCheckinToken({ eventId: "e", userId: "u" });
-    await expect(verifyEventCheckinToken(token.slice(0, -2) + "xx")).resolves.toBeNull();
+    // Change the signature's first character: every bit of it is significant,
+    // unlike the last base64url character, so the token is always invalid.
+    const [header, payload, signature] = token.split(".");
+    const tampered = `${header}.${payload}.${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
+    await expect(verifyEventCheckinToken(tampered)).resolves.toBeNull();
     process.env.JWT_SECRET = "another-secret";
     await expect(verifyEventCheckinToken(token)).resolves.toBeNull();
   });

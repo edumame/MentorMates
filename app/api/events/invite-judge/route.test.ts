@@ -151,8 +151,9 @@ describe("POST /api/events/invite-judge", () => {
       expect.objectContaining({
         to: "judge@email.com",
         subject: expect.stringContaining("judge"),
+        // The link uses the immutable event id, not the editable slug.
         html: expect.stringMatching(
-          /\/events\/hack-night\/accept-judge\?email=[^"&]+&token=[\w.-]+/
+          /\/events\/event-123\/accept-judge\?email=[^"&]+&token=[\w.-]+/
         ),
       })
     );
