@@ -68,16 +68,17 @@ export async function EventPageLayout({
   const showTeamTab = Boolean(eventData?.team_formation_enabled) && hasJoined;
 
   // Fetch participant count
+  // Count-only selects: signed-out visitors cannot read every column (D 202611080501).
   const { count: participantCount } = await supabase
     .from("user_event_roles")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("event_id", dbEventId)
     .eq("role", "participant");
 
   // Fetch project count
   const { count: projectCount } = await supabase
     .from("projects")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("event_id", dbEventId)
     .eq("submitted", true);
 

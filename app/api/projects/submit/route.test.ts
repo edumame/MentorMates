@@ -1,96 +1,66 @@
-/** @jest-environment jsdom */
+/** @jest-environment node */
+const mockSave = jest.fn();
+const mockAccess = jest.fn();
+jest.mock('@/app/utils/supabase/server', () => ({
+  createSupabaseClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'u1', email: 'outsider@example.test' } }, error: null }) } }),
+}));
+jest.mock('@/lib/supabase/service', () => ({ createSupabaseServiceClient: () => ({}) }));
+jest.mock('@/lib/projects/access', () => ({ getProjectEditAccess: (...args: unknown[]) => mockAccess(...args) }));
+jest.mock('@/lib/projects/submission-service', () => ({
+  normalizeProjectWriteInput: (body: Record<string, unknown>) => ({ success: true, data: body }),
+  saveProjectSubmission: (...args: unknown[]) => mockSave(...args),
+}));
+import { POST } from './route';
 
-import { POST } from "./route";
-import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { saveProjectSubmission } from "@/lib/projects/submission-service";
+const post = (body: object) => POST(new Request('http://localhost/api/projects/submit', { method: 'POST', body: JSON.stringify(body) }));
+beforeEach(() => { jest.clearAllMocks(); mockSave.mockResolvedValue({ project: { id: 'p1' } }); });
 
-jest.mock("next/server", () => {
-  class MockNextResponse {
-    status: number;
-    private readonly body: unknown;
-
-    constructor(body: unknown, init?: ResponseInit) {
-      this.status = init?.status ?? 200;
-      this.body = body;
-    }
-
-    static json(body: unknown, init?: ResponseInit) {
-      return new MockNextResponse(body, init);
-    }
-
-    async json() {
-      return this.body;
-    }
-  }
-
-  return { NextResponse: MockNextResponse };
+it('rejects a non-member update with 403 before writing (PUB-011)', async () => {
+  mockAccess.mockResolvedValue({ access: { canEdit: false } });
+  expect((await post({ projectId: 'p1', projectName: 'x' })).status).toBe(403);
+  expect(mockSave).not.toHaveBeenCalled();
 });
 
-jest.mock("@/app/utils/supabase/server", () => ({
-  createSupabaseClient: jest.fn(),
-}));
+it('returns 404 for an unknown project', async () => {
+  mockAccess.mockResolvedValue({ access: null, error: 'Project not found', status: 404 });
+  expect((await post({ projectId: 'nope' })).status).toBe(404);
+  expect(mockSave).not.toHaveBeenCalled();
+});
 
-jest.mock("@/lib/projects/submission-service", () => ({
-  ...jest.requireActual("@/lib/projects/submission-service"),
-  saveProjectSubmission: jest.fn(),
-}));
+it('lets a member update', async () => {
+  mockAccess.mockResolvedValue({ access: { canEdit: true } });
+  expect((await post({ projectId: 'p1' })).status).toBe(200);
+});
 
-describe("POST /api/projects/submit", () => {
-  const projectId = "22222222-2222-4222-8222-222222222222";
-  const callerEmail = "teammate@example.com";
+it('does not require edit access to create', async () => {
+  expect((await post({ projectName: 'new' })).status).toBe(200);
+  expect(mockAccess).not.toHaveBeenCalled();
+});
 
-  const post = (body: unknown) =>
-    POST({ json: async () => body } as unknown as Request);
+it('passes through the 403 for a zero-row RLS update', async () => {
+  mockAccess.mockResolvedValue({ access: { canEdit: true } });
+  mockSave.mockResolvedValue({ error: "You don't have permission to edit this project", status: 403 });
+  expect((await post({ projectId: 'p1' })).status).toBe(403);
+});
 
-  const savedOptions = () =>
-    (saveProjectSubmission as jest.Mock).mock.calls[0][1];
+describe('project lead (audit-014)', () => {
+  const savedInput = () => mockSave.mock.calls[0][1].input;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (createSupabaseClient as jest.Mock).mockResolvedValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({
-          data: { user: { id: "user-1", email: callerEmail } },
-          error: null,
-        }),
-      },
-    });
-    (saveProjectSubmission as jest.Mock).mockResolvedValue({
-      status: 200,
-      project: { id: projectId },
-    });
+  it('does not make the caller the lead when submitting an existing project', async () => {
+    mockAccess.mockResolvedValue({ access: { canEdit: true } });
+    expect((await post({ projectId: 'p1', submitted: true })).status).toBe(200);
+    expect(mockSave.mock.calls[0][1]).toMatchObject({ mode: 'update', projectId: 'p1' });
+    expect(savedInput().leadEmail).toBeUndefined();
   });
 
-  it("does not make the caller the lead when submitting an existing project", async () => {
-    const response = await post({ projectId, submitted: true });
-
-    expect(response.status).toBe(200);
-    expect(savedOptions()).toMatchObject({ mode: "update", projectId });
-    expect(savedOptions().input.leadEmail).toBeUndefined();
+  it('defaults the lead to the caller when creating a project', async () => {
+    await post({ projectName: 'New' });
+    expect(mockSave.mock.calls[0][1].mode).toBe('create');
+    expect(savedInput().leadEmail).toBe('outsider@example.test');
   });
 
-  it("treats project_id the same as projectId", async () => {
-    await post({ project_id: projectId, submitted: true });
-
-    expect(savedOptions()).toMatchObject({ mode: "update", projectId });
-    expect(savedOptions().input.leadEmail).toBeUndefined();
-  });
-
-  it("defaults the lead to the caller when creating a project", async () => {
-    await post({ projectName: "New", projectDescription: "Description" });
-
-    expect(savedOptions().mode).toBe("create");
-    expect(savedOptions().input.leadEmail).toBe(callerEmail);
-  });
-
-  it("keeps an explicit lead email when creating a project", async () => {
-    await post({
-      projectName: "New",
-      projectDescription: "Description",
-      lead_email: "lead@example.com",
-    });
-
-    expect(savedOptions().mode).toBe("create");
-    expect(savedOptions().input.leadEmail).toBe("lead@example.com");
+  it('keeps an explicit lead email when creating a project', async () => {
+    await post({ projectName: 'New', leadEmail: 'lead@example.com' });
+    expect(savedInput().leadEmail).toBe('lead@example.com');
   });
 });

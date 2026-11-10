@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { getProjectEditAccess } from "@/lib/projects/access";
+// Edit rights are derived from the verified user; the team email columns are
+// not readable by client roles, so the lookup uses the service client.
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import {
   normalizeProjectWriteInput,
   saveProjectSubmission,
@@ -26,6 +30,26 @@ export async function POST(request: Request) {
         { error: "Invalid request", details: parsed.error.flatten() },
         { status: 400 }
       );
+    }
+
+    // Updating an existing project requires the same edit rights as PATCH
+    // /api/projects/[projectId] (PUB-011: public projects are readable by
+    // anyone, so a non-member "update" used to look successful).
+    if (parsed.data.projectId) {
+      const accessResult = await getProjectEditAccess(createSupabaseServiceClient(), {
+        projectId: parsed.data.projectId,
+        userId: user.id,
+        userEmail: user.email,
+      });
+      if (!accessResult.access) {
+        return NextResponse.json({ error: accessResult.error }, { status: accessResult.status });
+      }
+      if (!accessResult.access.canEdit) {
+        return NextResponse.json(
+          { error: "You don't have permission to edit this project" },
+          { status: 403 }
+        );
+      }
     }
 
     const result = await saveProjectSubmission(supabase, {
