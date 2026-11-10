@@ -1,14 +1,27 @@
-//Auto assign judges or mentors to projects
-//interface should show which judges are assigned to which projects and how many judges are assigned to each project
-//functionally a bilateral graph
+// Auto-assign judges or mentors to the event's submitted projects.
 
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
-import { shuffle } from "@/lib/utils/shuffle";
+
+const bodySchema = z.object({
+  eventId: z.string().uuid(),
+  role: z.enum([EventRole.Judge, EventRole.Mentor]),
+  rolesPerProject: z.number().int().min(1).max(50),
+  // JUDGE-008: the Assign Roles tab can put organizers into the pool.
+  includeOrganizers: z.boolean().optional().default(false),
+});
 
 export async function POST(req: Request) {
-  const { eventId, role, rolesPerProject } = await req.json();
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+  const { eventId, role, rolesPerProject, includeOrganizers } = parsed.data;
 
   const supabase = await createSupabaseClient();
   const {
@@ -20,114 +33,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: authRole } = await supabase
-    .from("user_event_roles")
-    .select("role")
-    .eq("user_id", user?.id)
-    .eq("event_id", eventId)
-    .maybeSingle();
+  // JUDGE-008: permission (can_manage_event: owner, organizer, global admin),
+  // pool/project selection, delete and insert all happen in one transaction,
+  // serialized per event, inside public.auto_assign_event_roles
+  // (supabase/migrations/202611080405_c_round2.sql).
+  const { data, error } = await supabase.rpc("auto_assign_event_roles", {
+    p_event_id: eventId,
+    p_role: role,
+    p_per_project: rolesPerProject,
+    p_include_organizers: includeOrganizers,
+  });
 
-  if (
-    !authRole ||
-    (authRole?.role !== EventRole.Admin &&
-      authRole?.role !== EventRole.Organizer)
-  ) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { data: projects, error: projectsError } = await supabase
-    .from("projects")
-    .select(
-      `
-        id 
-      `
-    )
-    .eq("event_id", eventId)
-    .eq("submitted", true);
-
-  if (projectsError) {
-    return NextResponse.json(
-      { error: "Error fetching projects" },
-      { status: 500 }
-    );
-  }
-
-  const projectIds = projects.map((project) => project.id);
-
-  const { data: roleToAssign, error: roleToAssignError } = await supabase
-    .from("user_event_roles")
-    .select("user_id, role")
-    .eq("event_id", eventId)
-    .eq("role", role);
-
-  // need a different algorithm for if the number of judges per project = number of judges
-
-  // to ensure judges don't get assigned to the same project more than once, need to group them
-
-  if (roleToAssignError) {
-    return NextResponse.json(
-      { error: "Error fetching roles to assign" },
-      { status: 500 }
-    );
-  }
-
-  if (roleToAssign.length < rolesPerProject) {
-    return NextResponse.json(
-      { error: "Not enough roles to assign" },
-      { status: 400 }
-    );
-  }
-
-  const { data: existingAssignments } =
-    await supabase
-      .from("project_assignments")
-      .select("id")
-      .eq("event_id", eventId)
-      .eq("role", role);
-
-  if (existingAssignments && existingAssignments.length > 0) {
-    // Remove existing assignments for this event and role prior to reshuffling if they exist
-    const { error: deleteError } = await supabase
-      .from("project_assignments")
-      .delete()
-      .eq("event_id", eventId)
-      .eq("role", role);
-
-    if (deleteError) {
+  if (error) {
+    if (error.code === "42501") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (error.code === "28000") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const notEnough = /^not_enough_roles:(\d+)$/.exec(error.message ?? "");
+    if (notEnough) {
+      const available = Number(notEnough[1]);
       return NextResponse.json(
-        { error: "Failed to clear previous assignments" },
-        { status: 500 }
+        {
+          error: `Only ${available} ${role}${available === 1 ? "" : "s"} available; lower the number per project to ${Math.max(1, available)} or fewer.`,
+        },
+        { status: 400 }
       );
     }
+    console.error("Error auto-assigning roles:", error);
+    return NextResponse.json(
+      { error: "Failed to save assignments. Existing assignments were kept." },
+      { status: 500 }
+    );
   }
 
-  // Shuffle to avoid bias
-  const shuffledProjects = shuffle(projectIds);
-  const userIdsToAssign = shuffle(roleToAssign.map((r) => r.user_id));
-
-
-  // Assign groups of size rolesPerProject to each project using wrap-around (modulo)
-  for (let pIndex = 0; pIndex < shuffledProjects.length; pIndex++) {
-    const projectId = shuffledProjects[pIndex];
-
-    for (let k = 0; k < rolesPerProject; k++) {
-      const userIndex = (pIndex * rolesPerProject + k) % userIdsToAssign.length;
-      const userId = userIdsToAssign[userIndex];
-
-      await supabase.from("project_assignments").upsert(
-        {
-          project_id: projectId,
-          user_id: userId,
-          role: role,
-          event_id: eventId,
-        },
-        { onConflict: "event_id,project_id,user_id,role" }
-      );
-    }
+  const result = (data ?? {}) as { assigned?: number; projects?: number; skipped?: boolean };
+  if (result.skipped) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      assignedCount: 0,
+      message: "No submitted projects yet; existing assignments were left unchanged.",
+    });
   }
 
   return NextResponse.json({
     success: true,
     message: "Roles assigned successfully",
+    assignedCount: result.assigned ?? 0,
   });
 }

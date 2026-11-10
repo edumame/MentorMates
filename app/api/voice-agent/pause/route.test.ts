@@ -21,7 +21,8 @@ beforeEach(() => {
   currentUser = "owner";
   meetingLookupFails = false;
   process.env.SCREEN_VISION_WORKER_URL = "http://worker.test/";
-  workerFetch.mockResolvedValue({ json: async () => ({ ok: true }) });
+  process.env.SCREEN_VISION_WORKER_SECRET = "worker-secret";
+  workerFetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
   global.fetch = workerFetch as unknown as typeof fetch;
   jest.spyOn(console, "error").mockImplementation(() => {});
   (createSupabaseClient as jest.Mock).mockResolvedValue({
@@ -62,9 +63,9 @@ describe.each([["pause", pause], ["resume", resume]] as const)("voice-agent %s",
     expect(workerFetch).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when the meeting lookup fails", async () => {
+  it("fails closed when the meeting lookup fails", async () => {
     meetingLookupFails = true;
-    expect((await handler(request())).status).toBe(500);
+    expect((await handler(request())).status).toBe(502);
     expect(workerFetch).not.toHaveBeenCalled();
   });
 
@@ -74,7 +75,16 @@ describe.each([["pause", pause], ["resume", resume]] as const)("voice-agent %s",
     expect(await response.json()).toEqual({ ok: true });
     expect(workerFetch).toHaveBeenCalledWith(
       `http://worker.test/session/${action}`,
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ meetingId: id }) })
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ meetingId: id }),
+        headers: expect.objectContaining({ Authorization: "Bearer worker-secret" }),
+      })
     );
+  });
+
+  it("reports a worker failure", async () => {
+    workerFetch.mockResolvedValue({ ok: false, json: async () => ({}) });
+    expect((await handler(request())).status).toBe(502);
   });
 });

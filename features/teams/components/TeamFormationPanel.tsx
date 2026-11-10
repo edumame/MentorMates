@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTeamEmails, getUserProjectIds } from "@/lib/projects/membership";
 import { createClient } from "@/app/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
   patchTeam,
   RosterUser,
 } from "../api/teamsClient";
+import { LeadRemovalDialog } from "./LeadRemovalDialog";
 import { TeamMemberRow } from "./TeamMemberRow";
 import { TeammatePicker } from "./TeammatePicker";
 
@@ -52,6 +54,7 @@ export function TeamFormationPanel({ eventId }: TeamFormationPanelProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   // Add-teammate state (existing team).
   const [addIds, setAddIds] = useState<string[]>([]);
+  const [confirmLeadLeave, setConfirmLeadLeave] = useState(false);
 
   const isLead = useMemo(
     () => !!myTeam && !!userId && myTeam.created_by === userId,
@@ -85,11 +88,16 @@ export function TeamFormationPanel({ eventId }: TeamFormationPanelProps) {
       setUserId(uid);
       const email = data.user?.email;
       if (email) {
-        const { data: projects } = await supabase
-          .from("projects")
-          .select("id, project_name")
-          .eq("event_id", eventId)
-          .eq("lead_email", email);
+        // Team email columns are not client-readable: find the caller's
+        // projects via my_project_ids, then keep the ones they lead.
+        const { ids } = await getUserProjectIds(supabase, eventId);
+        const teamEmails = await getTeamEmails(supabase, ids ?? []);
+        const ledIds = (ids ?? []).filter(
+          (id) => teamEmails.get(id)?.lead_email.toLowerCase() === email.toLowerCase()
+        );
+        const { data: projects } = ledIds.length
+          ? await supabase.from("projects").select("id, project_name").in("id", ledIds)
+          : { data: [] };
         setLeadProjects(projects ?? []);
       }
     });
@@ -174,9 +182,13 @@ export function TeamFormationPanel({ eventId }: TeamFormationPanelProps) {
     if (!myTeam || !userId) return;
     setBusy(true);
     try {
-      await deleteTeamOrMember(eventId, myTeam.id, userId);
+      const { dissolved } = await deleteTeamOrMember(
+        eventId,
+        myTeam.id,
+        userId
+      );
       setMyTeam(null);
-      toast({ title: "You left the team" });
+      toast({ title: dissolved ? "Team dissolved" : "You left the team" });
     } catch (err) {
       toast({
         title: "Couldn't leave team",
@@ -361,7 +373,11 @@ export function TeamFormationPanel({ eventId }: TeamFormationPanelProps) {
         )}
 
         <div className="flex gap-2 pt-2 border-t border-[rgba(0,0,0,0.08)]">
-          <Button variant="outline" onClick={handleLeave} disabled={busy}>
+          <Button
+            variant="outline"
+            onClick={() => (isLead ? setConfirmLeadLeave(true) : handleLeave())}
+            disabled={busy}
+          >
             Leave team
           </Button>
           {isLead && (
@@ -374,6 +390,14 @@ export function TeamFormationPanel({ eventId }: TeamFormationPanelProps) {
             </Button>
           )}
         </div>
+        <LeadRemovalDialog
+          open={confirmLeadLeave}
+          onOpenChange={setConfirmLeadLeave}
+          teamName={myTeam.name}
+          memberCount={myTeam.members.length}
+          reason="You are the team lead, so leaving dissolves the team."
+          onConfirm={handleLeave}
+        />
       </CardContent>
     </Card>
   );

@@ -69,7 +69,32 @@ function extractOverallScore(summary: string): number {
 }
 
 export const meetingsProcessing = inngest.createFunction(
-  { id: "meetings/processing" },
+  {
+    id: "meetings/processing",
+    // Once retries are exhausted nothing else moves a meeting out of processing.
+    // Mirror the pre-dispatch release in submit-transcript so the user can
+    // resubmit, and never undo a meeting another run has already completed.
+    onFailure: async ({ event }) => {
+      const meetingId = event.data.event.data?.meetingId;
+      if (!meetingId) {
+        console.error("meetings/processing failed without a meetingId");
+        return;
+      }
+
+      const supabase = await createSupabaseServiceClient();
+      const { error } = await supabase
+        .from("meetings")
+        .update({
+          status: "upcoming",
+          ended_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", meetingId)
+        .eq("status", "processing");
+
+      if (error) throw error;
+    },
+  },
   { event: "meetings/processing" },
   async ({ event, step }) => {
     // agentId should be provided on the event; fall back to "summarizer"
@@ -89,7 +114,12 @@ export const meetingsProcessing = inngest.createFunction(
         throw new Error("Missing transcriptUrl and transcriptText on event data");
       }
 
-      return fetch(event.data.transcriptUrl).then((res) => res.text());
+      const res = await fetch(event.data.transcriptUrl);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch transcript: HTTP ${res.status}`);
+      }
+
+      return res.text();
     });
 
     const transcript = await step.run("parse-transcript", async () => {
