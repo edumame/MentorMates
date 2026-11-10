@@ -189,9 +189,11 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
         // The typed select narrows nested tracks (no event_id/created_at);
         // EventDetails is the UI shape used everywhere else.
+        // On a failed lessons load leave them undefined so it is not mistaken
+        // for an event with no lessons; ContentTab retries.
         const eventDetails = {
           ...(eventData as unknown as EventDetails),
-          event_lessons: lessonsData || [],
+          event_lessons: lessonsError ? undefined : lessonsData || [],
         } as EventDetails;
         setEvent(eventDetails);
 
