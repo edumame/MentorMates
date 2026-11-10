@@ -697,7 +697,10 @@ export default function DraftProjectSubmissionFormSinglePage({
       const { data } = await updateProjectTeamClient(projectId, validEmails);
 
       if (data) {
-        setProject(data);
+        // `data` is a raw projects row (`private`, no `is_private` or hydrated
+        // submission fields). Storing it whole would flip isPrivate to false
+        // and autosave the project as public, so merge only the team.
+        setProject((prev) => ({ ...prev, teammates: data.teammates }));
       }
     } catch {
       toast({
@@ -720,7 +723,8 @@ export default function DraftProjectSubmissionFormSinglePage({
       );
 
       if (data) {
-        setProject(data);
+        // Same raw row as handleTeammatesChange: merge only the team.
+        setProject((prev) => ({ ...prev, teammates: data.teammates }));
         toast({
           title: "Team member removed",
           description: `${teammateEmail} has been removed from the team`,

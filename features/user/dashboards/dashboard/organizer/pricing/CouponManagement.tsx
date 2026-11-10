@@ -13,7 +13,9 @@ import { Coupon, CouponWithCodes, CreateCouponRequest, CouponDuration } from "@/
 import {
   DEFAULT_PAYMENT_CURRENCY,
   PAYMENT_CURRENCY_OPTIONS,
-  formatPrice,
+  formatCouponAmount,
+  isZeroDecimalCurrency,
+  toMinorUnits,
 } from "@/lib/utils/pricing";
 
 interface CouponManagementProps {
@@ -28,6 +30,8 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { toast } = useToast();
 
+  // amount_off stays as typed here and is converted on submit, because the
+  // currency can only be picked after the amount has been entered.
   const [newCoupon, setNewCoupon] = useState<CreateCouponRequest>({
     couponName: "",
     eventId,
@@ -105,6 +109,9 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
         },
         body: JSON.stringify({
           ...newCoupon,
+          amount_off: newCoupon.amount_off
+            ? toMinorUnits(newCoupon.amount_off, newCoupon.currency)
+            : undefined,
           // datetime-local has no timezone, so resolve it in the organizer's browser.
           redeem_by: newCoupon.redeem_by
             ? new Date(newCoupon.redeem_by).toISOString()
@@ -188,7 +195,7 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
       return `${coupon.percent_off}% off`;
     }
     if (coupon.amount_off && coupon.currency) {
-      return `${formatPrice(coupon.amount_off, coupon.currency)} off`;
+      return `${formatCouponAmount(coupon.amount_off, coupon.currency)} off`;
     }
     return "Unknown discount";
   };
@@ -320,12 +327,12 @@ export function CouponManagement({ eventId, onCouponsChange }: CouponManagementP
                       id="amount-off"
                       type="number"
                       min="0"
-                      step="0.01"
-                      value={newCoupon.amount_off ? newCoupon.amount_off / 100 : ""}
+                      step={isZeroDecimalCurrency(newCoupon.currency) ? "1" : "0.01"}
+                      value={newCoupon.amount_off || ""}
                       onChange={(e) =>
                         setNewCoupon({
                           ...newCoupon,
-                          amount_off: Math.round(parseFloat(e.target.value) * 100) || undefined,
+                          amount_off: parseFloat(e.target.value) || undefined,
                           currency: newCoupon.currency || DEFAULT_PAYMENT_CURRENCY,
                           percent_off: undefined, // Clear percent_off when setting amount_off
                         })

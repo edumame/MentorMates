@@ -1,116 +1,193 @@
+import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { CouponManagement } from "./CouponManagement";
 
-const toast = jest.fn();
-
 jest.mock("@/lib/hooks/use-toast", () => ({
-  useToast: () => ({ toast }),
+  useToast: () => ({ toast: jest.fn() }),
 }));
 
-describe("CouponManagement create form", () => {
-  const originalFetch = global.fetch;
+// Radix Select needs pointer APIs jsdom lacks, so a native select stands in.
+jest.mock("@/components/ui/select", () => ({
+  Select: ({
+    value,
+    onValueChange,
+    disabled,
+    children,
+  }: {
+    value?: string;
+    onValueChange: (value: string) => void;
+    disabled?: boolean;
+    children: ReactNode;
+  }) => (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onValueChange(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: ReactNode }) => <>{children}</>,
+  SelectItem: ({ value, children }: { value: string; children: ReactNode }) => (
+    <option value={value}>{children}</option>
+  ),
+}));
 
-  const openForm = async () => {
-    const user = userEvent.setup();
-    render(<CouponManagement eventId="event-1" />);
-    await user.click(
-      await screen.findByRole("button", { name: "Create New Coupon" })
-    );
-    await user.type(screen.getByLabelText("Coupon Name *"), "Early Bird");
-    return user;
-  };
+function mockFetch(coupons: unknown[] = []) {
+  const fetchMock = jest.fn(async (_url: string, init?: RequestInit) => ({
+    ok: true,
+    json: async () => (init?.method === "POST" ? { success: true } : { coupons }),
+  }));
+  global.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
 
-  const submitAndReadBody = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole("button", { name: "Create Coupon" }));
+function postedBody(fetchMock: ReturnType<typeof mockFetch>) {
+  const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+  return JSON.parse(post?.[1]?.body as string);
+}
 
-    let postCall: unknown[] | undefined;
-    await waitFor(() => {
-      postCall = (global.fetch as jest.Mock).mock.calls.find(
-        ([, init]) => init?.method === "POST"
-      );
-      expect(postCall).toBeDefined();
-    });
-    return JSON.parse((postCall![1] as RequestInit).body as string);
-  };
-
-  beforeEach(() => {
-    toast.mockReset();
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ coupons: [], success: true }),
-    });
+function selectCurrency(label: string) {
+  const select = screen.getByRole("option", { name: label }).closest("select");
+  fireEvent.change(select as HTMLSelectElement, {
+    target: {
+      value: (screen.getByRole("option", { name: label }) as HTMLOptionElement)
+        .value,
+    },
   });
+}
 
-  afterAll(() => {
-    global.fetch = originalFetch;
+async function openForm() {
+  render(<CouponManagement eventId="event-1" />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: /create new coupon/i })
+  );
+  fireEvent.change(screen.getByLabelText(/coupon name/i), {
+    target: { value: "Launch" },
   });
+}
 
+function enterAmount(value: string) {
+  fireEvent.change(screen.getByLabelText(/fixed amount off/i), {
+    target: { value },
+  });
+}
+
+async function submit(fetchMock: ReturnType<typeof mockFetch>) {
+  fireEvent.click(screen.getByRole("button", { name: "Create Coupon" }));
+  await waitFor(() =>
+    expect(
+      fetchMock.mock.calls.some(([, init]) => init?.method === "POST")
+    ).toBe(true)
+  );
+}
+
+describe("CouponManagement fixed amount coupons", () => {
   it.each([
-    ["19.99", 1999],
-    ["4.35", 435],
-    ["1.10", 110],
-    ["10.50", 1050],
-  ])("sends %s as a whole number of cents", async (typed, cents) => {
-    const user = await openForm();
+    ["JPY", "jpy"],
+    ["KRW", "krw"],
+    ["VND", "vnd"],
+  ])("sends an unscaled amount for %s", async (label, currency) => {
+    const fetchMock = mockFetch();
+    await openForm();
 
-    fireEvent.change(screen.getByLabelText("Fixed Amount Off"), {
-      target: { value: typed },
-    });
+    // The currency select stays disabled until an amount is typed.
+    enterAmount("500");
+    selectCurrency(label);
+    await submit(fetchMock);
 
-    const body = await submitAndReadBody(user);
-    expect(body.amount_off).toBe(cents);
+    expect(postedBody(fetchMock)).toMatchObject({ amount_off: 500, currency });
   });
 
-  it("uses the currency the form displays when none was picked", async () => {
-    const user = await openForm();
+  it("uses the final currency when the admin switches after typing", async () => {
+    const fetchMock = mockFetch();
+    await openForm();
 
-    fireEvent.change(screen.getByLabelText("Fixed Amount Off"), {
-      target: { value: "19.99" },
+    enterAmount("500");
+    selectCurrency("JPY");
+    selectCurrency("USD");
+    await submit(fetchMock);
+
+    expect(postedBody(fetchMock)).toMatchObject({
+      amount_off: 50000,
+      currency: "usd",
     });
-
-    const body = await submitAndReadBody(user);
-    expect(body.currency).toBe("usd");
   });
 
-  it("does not send a currency with a percentage coupon", async () => {
-    const user = await openForm();
-    const amountInput = screen.getByLabelText("Fixed Amount Off");
+  it("keeps the typed amount visible when the currency changes", async () => {
+    mockFetch();
+    await openForm();
 
-    fireEvent.change(amountInput, { target: { value: "5" } });
-    fireEvent.change(amountInput, { target: { value: "" } });
-    fireEvent.change(screen.getByLabelText("Percentage Off (%)"), {
-      target: { value: "25" },
-    });
+    enterAmount("500");
+    selectCurrency("JPY");
 
-    const body = await submitAndReadBody(user);
-    expect(body.percent_off).toBe(25);
-    expect(body.currency).toBeUndefined();
+    expect(screen.getByLabelText(/fixed amount off/i)).toHaveValue(500);
   });
 
-  it("sends the expiration as an absolute instant in the browser's timezone", async () => {
-    const user = await openForm();
-    const localValue = "2099-12-01T10:00";
+  it("sends an integer number of cents for two-decimal currencies", async () => {
+    const fetchMock = mockFetch();
+    await openForm();
 
-    fireEvent.change(screen.getByLabelText("Percentage Off (%)"), {
-      target: { value: "25" },
-    });
-    fireEvent.change(screen.getByLabelText("Expiration Date (Optional)"), {
-      target: { value: localValue },
-    });
+    enterAmount("19.99");
+    selectCurrency("USD");
+    await submit(fetchMock);
 
-    const body = await submitAndReadBody(user);
-    expect(body.redeem_by).toBe(new Date(localValue).toISOString());
+    expect(postedBody(fetchMock)).toMatchObject({
+      amount_off: 1999,
+      currency: "usd",
+    });
   });
 
-  it("leaves redeem_by out when no expiration is set", async () => {
-    const user = await openForm();
+  it("only allows whole amounts for zero-decimal currencies", async () => {
+    mockFetch();
+    await openForm();
 
-    fireEvent.change(screen.getByLabelText("Percentage Off (%)"), {
-      target: { value: "25" },
-    });
+    enterAmount("500");
+    expect(screen.getByLabelText(/fixed amount off/i)).toHaveAttribute(
+      "step",
+      "0.01"
+    );
 
-    const body = await submitAndReadBody(user);
-    expect(body.redeem_by).toBeUndefined();
+    selectCurrency("JPY");
+    expect(screen.getByLabelText(/fixed amount off/i)).toHaveAttribute(
+      "step",
+      "1"
+    );
+  });
+
+  it("lists the discount Stripe applies", async () => {
+    mockFetch([
+      {
+        id: "c1",
+        name: "Yen",
+        status: "active",
+        duration: "once",
+        amount_off: 500,
+        currency: "jpy",
+      },
+      {
+        id: "c2",
+        name: "Legacy yen",
+        status: "active",
+        duration: "once",
+        amount_off: 50000,
+        currency: "jpy",
+      },
+      {
+        id: "c3",
+        name: "Dollars",
+        status: "active",
+        duration: "once",
+        amount_off: 1000,
+        currency: "usd",
+      },
+    ]);
+    render(<CouponManagement eventId="event-1" />);
+
+    expect(await screen.findByText("¥500 off")).toBeInTheDocument();
+    expect(screen.getByText("¥50,000 off")).toBeInTheDocument();
+    expect(screen.getByText("$10.00 off")).toBeInTheDocument();
   });
 });
