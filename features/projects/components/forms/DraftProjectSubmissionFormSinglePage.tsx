@@ -1,4 +1,6 @@
 "use client";
+
+import { ProjectSaveStatus } from "./components/ProjectSaveStatus";
 import { SoloSubmissionConfirmation, needsSoloConfirmation } from "./components/SoloSubmissionConfirmation";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
@@ -576,7 +578,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     setIsPrivate(Boolean(project.is_private));
   }, [project.is_private]);
 
-  const { lastSaved, flushSave } = useProjectSubmissionAutosave({
+  const { lastSaved, flushSave, isSaving, saveError, hasUnsavedChanges } = useProjectSubmissionAutosave({
     enabled: true,
     projectId,
     fields: effectiveSubmissionFields,
@@ -1066,40 +1068,13 @@ export default function DraftProjectSubmissionFormSinglePage({
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap">
-          <div className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              viewBox="0 0 24 24"
-              width="24px"
-              fill="#1f1f1f"
-            >
-              <g>
-                <rect fill="none" height="24" width="24" />
-                <path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" />
-              </g>
-            </svg>
-            <p className="text-[#4c4c4c] text-base font-medium tracking-[-0.06em]">
-              Your project is automatically saved as you edit
-            </p>
-          </div>
-          {lastSaved && (
-            <div className="bg-transparent px-2.5 py-1 ml-6 sm:m-0">
-              <p className="text-[#7f7f7f] text-sm font-medium">
-                Saved at{" "}
-                {lastSaved.toLocaleDateString("en-US", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}{" "}
-                {lastSaved.toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </p>
-            </div>
-          )}
+          <ProjectSaveStatus
+            isSaving={isSaving}
+            saveError={saveError}
+            hasUnsavedChanges={hasUnsavedChanges}
+            lastSaved={lastSaved}
+            onRetry={flushSave}
+          />
         </div>
       </div>
 

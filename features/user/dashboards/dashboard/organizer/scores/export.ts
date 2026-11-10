@@ -1,5 +1,10 @@
 import type { EventScoringConfig, ScoringCriterion } from "@/lib/types";
 import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
+import {
+  competitionRanks,
+  computeWeightedScore,
+  isNumericCriterion,
+} from "@/lib/judging/weighted-score";
 
 export interface DashboardProjectScore {
   project_id: string;
@@ -40,9 +45,29 @@ export interface RawScoreExportData {
 export interface JudgeScoreSummary {
   judgeId: string;
   judgeName: string;
+  /** This judge's weighted score (shared formula, lib/judging/weighted-score). */
   totalScore: number;
   submittedAt: string | null;
   choiceAnswers: Record<string, string>;
+  /**
+   * Why this judge's row does not count toward the averages:
+   * "former_judge" (no longer a judge/organizer of the event) or
+   * "incomplete" (a weighted criterion is unanswered, out of range or not
+   * numeric; see lib/judging/weighted-score).
+   */
+  excludedReason?: "former_judge" | "incomplete";
+  /** Criteria whose stored value was outside the rubric range or not numeric. */
+  invalidCriterionIds?: string[];
+  /** Weighted criteria the judge left unanswered. */
+  missingCriterionIds?: string[];
+}
+
+export interface BuildTrackScoresOptions {
+  /**
+   * User ids who currently hold a scoring role for the event. When given,
+   * scores from anyone else are listed but excluded from averages (JUDGE-017).
+   */
+  activeJudgeIds?: Set<string> | null;
 }
 
 export interface TrackScore {
@@ -52,7 +77,7 @@ export interface TrackScore {
   averageScore: number;
   totalScore: number;
   numberOfJudges: number;
-  criterionScores: Record<string, { total: number; average: number }>;
+  criterionScores: Record<string, { total: number; average: number; count: number }>;
   judgeScores: JudgeScoreSummary[];
   choiceCounts?: Record<string, Record<string, number>>;
 }
@@ -96,7 +121,8 @@ function getTrackConfig(
 function addProjectScore(
   trackScoresMap: TrackScores,
   score: DashboardProjectScore,
-  scoringConfig: EventScoringConfig
+  scoringConfig: EventScoringConfig,
+  options: BuildTrackScoresOptions = {}
 ) {
   if (!trackScoresMap[score.track_id]) {
     trackScoresMap[score.track_id] = [];
@@ -131,95 +157,80 @@ function addProjectScore(
     return;
   }
 
-  let totalScore = 0;
-
-  Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
-    const criterion = trackConfig.criteria.find(
-      (item: ScoringCriterion) => item.id === criterionId
-    );
-    if (!criterion) return;
-
-    if (criterion.type === "multiplechoice") {
-      const value = String(scoreValue);
-      if (!projectScore.choiceCounts) projectScore.choiceCounts = {};
-      if (!projectScore.choiceCounts[criterionId]) {
-        projectScore.choiceCounts[criterionId] = {};
-      }
-      const counts = projectScore.choiceCounts[criterionId];
-      counts[value] = (counts[value] || 0) + 1;
-      return;
-    }
-
-    const numeric =
-      typeof scoreValue === "number"
-        ? scoreValue
-        : parseFloat(String(scoreValue));
-
-    if (Number.isNaN(numeric)) return;
-
-    totalScore += numeric * (criterion.weight || 1);
-
-    if (!projectScore.criterionScores[criterionId]) {
-      projectScore.criterionScores[criterionId] = {
-        total: 0,
-        average: 0,
-      };
-    }
-
-    projectScore.criterionScores[criterionId].total += numeric;
-  });
-
-  projectScore.totalScore += totalScore;
-  projectScore.numberOfJudges += 1;
-  projectScore.averageScore =
-    projectScore.totalScore / projectScore.numberOfJudges;
-
   const judgeKey =
     score.judge_id?.trim() ||
     score.judge_name?.trim() ||
-    `judge-${projectScore.numberOfJudges}`;
+    `judge-${projectScore.judgeScores.length + 1}`;
   const judgeName = score.judge_name?.trim() || score.judge_id?.trim() || judgeKey;
-  const existingJudgeScore = projectScore.judgeScores.find(
-    (judgeScore) => judgeScore.judgeId === judgeKey
-  );
+  const isFormerJudge =
+    !!options.activeJudgeIds &&
+    !!score.judge_id &&
+    !options.activeJudgeIds.has(score.judge_id);
 
-  if (existingJudgeScore) {
-    existingJudgeScore.judgeName = judgeName;
-    existingJudgeScore.totalScore = totalScore;
-    existingJudgeScore.submittedAt = score.created_at ?? null;
-  } else {
-    projectScore.judgeScores.push({
-      judgeId: judgeKey,
-      judgeName,
-      totalScore,
-      submittedAt: score.created_at ?? null,
-      choiceAnswers: {},
-    });
+  // One formula everywhere (JUDGE-007): weight-normalised mean of valid values.
+  const weighted = computeWeightedScore(score.scores, trackConfig.criteria);
+  const excludedReason: JudgeScoreSummary["excludedReason"] = isFormerJudge
+    ? "former_judge"
+    : weighted.score === null
+      ? "incomplete"
+      : undefined;
+
+  const choiceAnswers: Record<string, string> = {};
+  for (const criterion of trackConfig.criteria) {
+    if (isNumericCriterion(criterion)) continue;
+    const value = score.scores[criterion.id];
+    if (value === undefined || value === null || value === "") continue;
+    choiceAnswers[criterion.id] = String(value);
+    if (excludedReason === "former_judge") continue;
+    if (!projectScore.choiceCounts) projectScore.choiceCounts = {};
+    const counts = (projectScore.choiceCounts[criterion.id] ??= {});
+    counts[String(value)] = (counts[String(value)] || 0) + 1;
   }
 
-  Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
-    const criterion = trackConfig.criteria.find(
-      (item: ScoringCriterion) => item.id === criterionId
-    );
-    if (!criterion || criterion.type !== "multiplechoice") {
-      return;
+  const summary: JudgeScoreSummary = {
+    judgeId: judgeKey,
+    judgeName,
+    totalScore: weighted.score ?? 0,
+    submittedAt: score.created_at ?? null,
+    choiceAnswers,
+    ...(excludedReason ? { excludedReason } : {}),
+    ...(weighted.invalidCriterionIds.length
+      ? { invalidCriterionIds: weighted.invalidCriterionIds }
+      : {}),
+    ...(weighted.missingCriterionIds.length
+      ? { missingCriterionIds: weighted.missingCriterionIds }
+      : {}),
+  };
+  const existingIndex = projectScore.judgeScores.findIndex(
+    (judgeScore) => judgeScore.judgeId === judgeKey
+  );
+  if (existingIndex >= 0) {
+    projectScore.judgeScores[existingIndex] = summary;
+  } else {
+    projectScore.judgeScores.push(summary);
+  }
+
+  if (!excludedReason) {
+    for (const [criterionId, value] of Object.entries(weighted.validValues)) {
+      const entry = (projectScore.criterionScores[criterionId] ??= {
+        total: 0,
+        average: 0,
+        count: 0,
+      });
+      entry.total += value;
+      entry.count += 1;
+      entry.average = entry.total / entry.count;
     }
+  }
 
-    const judgeScore = projectScore.judgeScores.find(
-      (item) => item.judgeId === judgeKey
-    );
-    if (!judgeScore) {
-      return;
-    }
+  recomputeProjectTotals(projectScore);
+}
 
-    judgeScore.choiceAnswers[criterionId] = String(scoreValue);
-  });
-
-  Object.keys(projectScore.criterionScores).forEach((criterionId) => {
-    projectScore.criterionScores[criterionId].average =
-      projectScore.criterionScores[criterionId].total /
-      projectScore.numberOfJudges;
-  });
+function recomputeProjectTotals(projectScore: TrackScore) {
+  const counted = projectScore.judgeScores.filter((judge) => !judge.excludedReason);
+  projectScore.numberOfJudges = counted.length;
+  projectScore.totalScore = counted.reduce((sum, judge) => sum + judge.totalScore, 0);
+  projectScore.averageScore = counted.length > 0 ? projectScore.totalScore / counted.length : 0;
 }
 
 function sortTrackScores(trackScoresMap: TrackScores) {
@@ -243,7 +254,8 @@ function sortTrackScores(trackScoresMap: TrackScores) {
 
 export function buildTrackScores(
   scoreData: DashboardProjectScore[],
-  scoringConfig: EventScoringConfig
+  scoringConfig: EventScoringConfig,
+  options: BuildTrackScoresOptions = {}
 ): TrackScores {
   if (!scoreData.length) {
     return {};
@@ -252,7 +264,7 @@ export function buildTrackScores(
   const trackScoresMap: TrackScores = {};
 
   scoreData.forEach((score) => {
-    addProjectScore(trackScoresMap, score, scoringConfig);
+    addProjectScore(trackScoresMap, score, scoringConfig, options);
   });
 
   return sortTrackScores(trackScoresMap);
@@ -260,7 +272,8 @@ export function buildTrackScores(
 
 export function buildTrackScoresByRound(
   scoreData: DashboardProjectScore[],
-  scoringConfig: EventScoringConfig
+  scoringConfig: EventScoringConfig,
+  options: BuildTrackScoresOptions = {}
 ): TrackScoresByRound {
   if (!scoreData.length) {
     return {};
@@ -274,7 +287,7 @@ export function buildTrackScoresByRound(
       trackScoresByRound[roundNumber] = {};
     }
 
-    addProjectScore(trackScoresByRound[roundNumber], score, scoringConfig);
+    addProjectScore(trackScoresByRound[roundNumber], score, scoringConfig, options);
   });
 
   Object.keys(trackScoresByRound).forEach((roundKey) => {
@@ -294,11 +307,12 @@ export function buildScoreExportRows(params: {
   choiceCriteria: ScoringCriterion[];
 }) {
   const { roundNumber, scores, numericCriteria, choiceCriteria } = params;
+  const ranks = getRanksByProjectId(scores);
 
   return scores.map((score, index) => {
     const row: Record<string, string | number> = {
       Round: roundNumber,
-      Rank: index + 1,
+      Rank: ranks.get(score.projectId) ?? index + 1,
       Project: score.projectName,
       Lead: score.leadName,
       "Total Average": score.averageScore.toFixed(2),
@@ -331,8 +345,9 @@ export function buildScoreExportRows(params: {
 export function buildRawScoreExportRows(params: {
   scoreData: RawScoreExportData[];
   scoringConfig: EventScoringConfig;
+  activeJudgeIds?: Set<string> | null;
 }) {
-  const { scoreData, scoringConfig } = params;
+  const { scoreData, scoringConfig, activeJudgeIds } = params;
 
   return scoreData.map((score) => {
     const trackName = score.event_tracks.name || "";
@@ -342,8 +357,6 @@ export function buildRawScoreExportRows(params: {
       trackName,
       score.round_number
     );
-    let totalScore = 0;
-    let hasNumericScore = false;
     const baseData: Record<string, string | number | null> = {
       "Project Name": score.projects.project_name || "",
       Track: score.event_tracks.name || "",
@@ -355,28 +368,19 @@ export function buildRawScoreExportRows(params: {
       "Lead Email": score.projects.lead_email || "",
     };
 
+    let weightedScore: number | null = null;
+    let invalidCriterionIds: string[] = [];
+    let missingCriterionIds: string[] = [];
     if (score.scores && trackConfig) {
       Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
         const criterion = trackConfig.criteria.find((item) => item.id === criterionId);
         const criterionName = criterion ? criterion.name : criterionId;
         baseData[criterionName] = scoreValue as string | number | null;
-
-        if (!criterion || criterion.type === "multiplechoice") {
-          return;
-        }
-
-        const numeric =
-          typeof scoreValue === "number"
-            ? scoreValue
-            : parseFloat(String(scoreValue));
-
-        if (Number.isNaN(numeric)) {
-          return;
-        }
-
-        totalScore += numeric * (criterion.weight || 1);
-        hasNumericScore = true;
       });
+      const weighted = computeWeightedScore(score.scores, trackConfig.criteria);
+      weightedScore = weighted.score;
+      invalidCriterionIds = weighted.invalidCriterionIds;
+      missingCriterionIds = weighted.missingCriterionIds;
     } else if (score.scores) {
       Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
         baseData[`Score_${criterionId}`] = scoreValue as
@@ -386,10 +390,42 @@ export function buildRawScoreExportRows(params: {
       });
     }
 
-    baseData["Total Score"] = hasNumericScore ? totalScore : null;
+    const isFormerJudge =
+      !!activeJudgeIds && !!score.judge_id && !activeJudgeIds.has(score.judge_id);
+    const notes: string[] = [];
+    if (isFormerJudge) notes.push("Former judge (excluded from rankings)");
+    if (invalidCriterionIds.length > 0 && trackConfig) {
+      const names = invalidCriterionIds.map(
+        (id) => trackConfig.criteria.find((item) => item.id === id)?.name || id
+      );
+      notes.push(`Out-of-range values ignored: ${names.join(", ")}`);
+    }
+    if (missingCriterionIds.length > 0 && trackConfig) {
+      const names = missingCriterionIds.map(
+        (id) => trackConfig.criteria.find((item) => item.id === id)?.name || id
+      );
+      notes.push(`Incomplete, not counted (missing: ${names.join(", ")})`);
+    } else if (weightedScore === null && invalidCriterionIds.length > 0) {
+      notes.push("Incomplete, not counted");
+    }
+
+    // Normalised weighted score on the 0-10 scale (same formula as the leaderboard).
+    baseData["Total Score"] =
+      weightedScore === null ? null : Number(weightedScore.toFixed(4));
+    baseData["Score Notes"] = notes.join("; ");
 
     return baseData;
   });
+}
+
+/**
+ * Competition ranks by average score (ties share a rank), independent of how
+ * the caller sorted the rows for display.
+ */
+export function getRanksByProjectId(scores: TrackScore[]): Map<string, number> {
+  const ordered = [...scores].sort((a, b) => b.averageScore - a.averageScore);
+  const ranks = competitionRanks(ordered.map((score) => score.averageScore));
+  return new Map(ordered.map((score, index) => [score.projectId, ranks[index]]));
 }
 
 function sanitizeFilePart(value: string) {
@@ -403,6 +439,7 @@ export function buildScoreExportFiles(params: {
   eventId: string;
   linkTracksEnabled?: boolean;
   mainTrackId?: string | null;
+  activeJudgeIds?: Set<string> | null;
 }): ScoreExportFile[] {
   const {
     scoreData,
@@ -411,9 +448,12 @@ export function buildScoreExportFiles(params: {
     eventId,
     linkTracksEnabled = false,
     mainTrackId = null,
+    activeJudgeIds = null,
   } = params;
 
-  const trackScoresByRound = buildTrackScoresByRound(scoreData, scoringConfig);
+  const trackScoresByRound = buildTrackScoresByRound(scoreData, scoringConfig, {
+    activeJudgeIds,
+  });
   const roundsToExport = Object.keys(trackScoresByRound)
     .map(Number)
     .sort((a, b) => a - b);
@@ -502,8 +542,9 @@ export function buildRawScoreExportFiles(params: {
   rawScoreData: RawScoreExportData[];
   scoringConfig: EventScoringConfig;
   eventId: string;
+  activeJudgeIds?: Set<string> | null;
 }): ScoreExportFile[] {
-  const { rawScoreData, scoringConfig, eventId } = params;
+  const { rawScoreData, scoringConfig, eventId, activeJudgeIds = null } = params;
 
   if (rawScoreData.length === 0) {
     return [];
@@ -540,6 +581,7 @@ export function buildRawScoreExportFiles(params: {
           rows: buildRawScoreExportRows({
             scoreData: trackData,
             scoringConfig,
+            activeJudgeIds,
           }),
         })
       )
