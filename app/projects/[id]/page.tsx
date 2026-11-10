@@ -4,6 +4,7 @@ import { ProjectDetailTabs } from "@/features/projects/components/displays/Proje
 import { ProjectLoadError } from "@/features/projects/components/displays/ProjectLoadError";
 
 import { saveProjectMaterials } from "@/features/projects/client-actions/client-materials";
+import { keepSubmissionConfig } from "@/features/projects/utils/effectiveSubmission";
 import { useEffect, useState, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useParams, useRouter } from "next/navigation";
@@ -149,7 +150,7 @@ export default function ProjectPage() {
       additional_materials_url: nextProject.additional_materials_url,
     });
     setProject((prev) => ({
-      ...nextProject,
+      ...keepSubmissionConfig(nextProject, prev),
       artifacts:
         nextProject.artifacts ||
         (prev?.id === nextProject.id ? prev.artifacts : undefined) ||

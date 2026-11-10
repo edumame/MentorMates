@@ -345,6 +345,28 @@ export function buildNullLegacyProjectPayload(): Record<string, null> {
   };
 }
 
+// Direct row updates return projects without the hydrated submission config.
+// Keep it so later saves still go through the event's configured fields.
+export function keepSubmissionConfig(
+  nextProject: Project,
+  previousProject: Project | null | undefined
+): Project {
+  if (
+    !previousProject ||
+    nextProject.has_submission_field_config !== undefined ||
+    previousProject.event_id !== nextProject.event_id
+  ) {
+    return nextProject;
+  }
+
+  return {
+    ...nextProject,
+    has_submission_field_config: previousProject.has_submission_field_config,
+    submission_fields: previousProject.submission_fields,
+    submission_answers: previousProject.submission_answers,
+  };
+}
+
 export function buildSyntheticArtifactsFromSubmissionValues(
   fields: EffectiveSubmissionField[],
   values: Record<string, SubmissionValue>
