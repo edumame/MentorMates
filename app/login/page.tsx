@@ -2,9 +2,14 @@
 
 import { OPEN_SOURCE } from "@/lib/config/open-source";
 import { useEffect, useState, Suspense } from "react";
+import {
+  getNetworkErrorMessage,
+  getPasswordResetErrorMessage,
+  getSignUpErrorMessage,
+} from "./auth-messages";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { ensureUserProfile } from "@/features/user/profiles/ensure-user-profile";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -207,7 +212,10 @@ function LoginContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState("");
+  // Success notices are not errors: they get their own (non-red) region.
+  const [notice, setNotice] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
@@ -217,6 +225,9 @@ function LoginContent({
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
   const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+
+  // Prevent native pre-hydration edits from being erased by controlled state.
+  useEffect(() => { setIsReady(true); }, []);
 
   useEffect(() => {
     const mode = searchParams.get("mode");
@@ -242,19 +253,6 @@ function LoginContent({
     check();
   }, [consumeReturnUrl, router, searchParams]);
 
-  const syncUserProfile = async (user: User) => {
-    if (!user) return null;
-    const { error } = await supabase.from("user_profiles").upsert(
-      {
-        uid: user.id,
-        email: user.email,
-        display_name: user.email?.split("@")[0],
-        created_at: new Date().toISOString(),
-      },
-      { onConflict: "uid" }
-    );
-    return error ?? null;
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -264,10 +262,10 @@ function LoginContent({
     }
     setLoading(true);
     setError("");
+    setNotice("");
     const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
 
-    const networkErrorMessage =
-      "Cannot reach Supabase. Check: 1) Supabase project not paused (Dashboard → Restore). 2) .env.local has NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. 3) Restart dev server after changing env.";
+    const networkErrorMessage = getNetworkErrorMessage();
 
     if (isSignUp) {
       if (password.length < 6) {
@@ -287,8 +285,7 @@ function LoginContent({
         });
 
         if (error) {
-          const errorMessage = "Error signing up. Please try again.";
-          setError(errorMessage);
+          setError(getSignUpErrorMessage(error));
           setLoading(false);
           return;
         }
@@ -322,7 +319,7 @@ function LoginContent({
           return;
         }
         if (data?.user) {
-          const profileError = await syncUserProfile(data.user);
+          const profileError = await ensureUserProfile(supabase, data.user);
           if (profileError) {
             const message =
               "Error signing in. Please sign up instead or try again.";
@@ -352,13 +349,19 @@ function LoginContent({
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${cleanBaseUrl}/auth/reset-request`,
-    });
-    setLoading(false);
-    setError(
-      error ? error.message : "Password reset instructions sent to your email!"
-    );
+    setError("");
+    setNotice("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${cleanBaseUrl}/auth/reset-request`,
+      });
+      if (error) setError(getPasswordResetErrorMessage(error));
+      else setNotice("If an account exists for that email, password reset instructions are on their way.");
+    } catch {
+      setError(getNetworkErrorMessage());
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOAuthSignIn = async (provider: "google" | "github") => {
@@ -421,9 +424,16 @@ function LoginContent({
             </h1>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              {!isReady && <p role="status" className="text-sm text-slate-600">Preparing sign-in…</p>}
+              <fieldset disabled={!isReady} aria-busy={!isReady} className="space-y-5">
               {error && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div role="alert" aria-live="assertive" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {error}
+                </div>
+              )}
+              {notice && !error && (
+                <div role="status" aria-live="polite" className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                  {notice}
                 </div>
               )}
 
@@ -435,6 +445,7 @@ function LoginContent({
                   required
                   autoComplete="email"
                   placeholder="Email"
+                  aria-label="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-lg border border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -449,6 +460,7 @@ function LoginContent({
                   required
                   autoComplete={isSignUp ? "new-password" : "current-password"}
                   placeholder="Password"
+                  aria-label="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-lg border border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -600,6 +612,7 @@ function LoginContent({
                   {isSignUp ? "Log in" : "Sign up"}
                 </a>
               </p>
+              </fieldset>
             </form>
           </div>
         </div>
