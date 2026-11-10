@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CompactScoringForm } from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
+import {
+  CompactScoringForm,
+  type TrackDetailsById,
+} from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
 import { JudgingSidebar } from "@/features/user/dashboards/dashboard/organizer/tracks/JudgingSidebar";
 import { buildEventTrackScoringCriteriaFromConfig } from "@/lib/judging/scoring-config";
 import { classifyTrackEntries } from "./classify-track-entries";
@@ -9,6 +12,15 @@ import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
 import { JudgePreviewDeck } from "./JudgePreviewDeck";
+
+const TRACKS_WITH_PRIZES_SELECT = `
+  *,
+  prizes (
+    id,
+    prize_amount,
+    prize_description
+  )
+`;
 
 interface TracksTabProps {
   eventId: string;
@@ -46,9 +58,10 @@ export function TracksTab({
   );
 
   const fetchTracks = useCallback(async () => {
+    // Include prizes so the track cards can list them (JUDGE-018).
     const { data, error } = await supabase
       .from("event_tracks")
-      .select("*")
+      .select(TRACKS_WITH_PRIZES_SELECT)
       .eq("event_id", eventId);
 
     if (error) {
@@ -59,7 +72,7 @@ export function TracksTab({
         variant: "destructive",
       });
     } else {
-      setTracks(data || []);
+      setTracks((data || []) as unknown as EventTrack[]);
     }
   }, [eventId, toast]);
 
@@ -67,19 +80,30 @@ export function TracksTab({
     fetchTracks();
   }, [eventId, toast, fetchTracks]);
 
-  const handleScoreUpdate = async (config: EventScoringConfig) => {
+  const handleScoreUpdate = async (
+    config: EventScoringConfig,
+    details?: TrackDetailsById
+  ) => {
     try {
       setSaving(true);
       setScoringConfig(config);
 
       const existingDbTrackIds = new Set(tracks.map((t) => t.track_id));
+      const savedDescriptions = new Map(
+        tracks.map((t) => [t.track_id, t.description ?? ""])
+      );
       const { existing, newTracks } = classifyTrackEntries(
         Object.keys(config.tracks),
         existingDbTrackIds,
         eventId,
         (trackId) => ({
           name: config.tracks[trackId].name,
-          description: config.tracks[trackId].name,
+          // JUDGE-006: never derive the description from the name; keep the
+          // edited value, else the stored one.
+          description:
+            details?.descriptions[trackId] ??
+            savedDescriptions.get(trackId) ??
+            "",
           scoring_criteria: buildEventTrackScoringCriteriaFromConfig({
             trackId,
             trackConfig: config.tracks[trackId],
@@ -106,16 +130,7 @@ export function TracksTab({
 
       const { data: refreshedTracks } = await supabase
         .from("event_tracks")
-        .select(
-          `
-          *,
-          prizes (
-            id,
-            prize_amount,
-            prize_description
-          )
-        `
-        )
+        .select(TRACKS_WITH_PRIZES_SELECT)
         .eq("event_id", eventId);
 
       if (refreshedTracks && event) {
