@@ -1,5 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
 import express, { Request, Response } from "express";
-import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import { StreamClient } from "@stream-io/node-sdk";
 import { RealtimeClient } from "@stream-io/openai-realtime-api";
@@ -11,6 +11,7 @@ type SessionRecord = {
   lastSummary?: string | null;
   lastPushedAt?: number;
   paused?: boolean;
+  cleanup?: () => void;
 };
 
 type RealtimeVoice = string | { id: string };
@@ -54,27 +55,7 @@ function normalizeRealtimeVoice(input: unknown): RealtimeVoice | undefined {
 
 const app = express();
 
-// Configure CORS to allow requests from your frontend
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-].filter(Boolean); // Remove undefined values
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
-
+// Browser clients use the authenticated Next proxy; worker endpoints are server-only.
 app.use(express.json({ limit: "2mb" }));
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4001;
@@ -99,6 +80,7 @@ const streamVideo = new StreamClient(
 
 const sessions = new Map<string, SessionRecord>();
 
+const starting = new Map<string, { cancelled: boolean }>();
 const captionReady = new Set<string>();
 const captionStore = new Map<string, { text: string; updatedAt: number }>();
 
@@ -106,25 +88,30 @@ app.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+// CORS is not authentication. Only the Next server can access worker operations.
+app.use((req, res, next) => {
+  const secret = process.env.SCREEN_VISION_WORKER_SECRET;
+  const actual = Buffer.from(req.headers.authorization || "");
+  const expected = Buffer.from(`Bearer ${secret || ""}`);
+  if (!secret || actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+});
+
 app.post("/session/start", async (req: Request, res: Response) => {
   const { meetingId, callId, agentUserId, instructions, voice } = req.body || {};
+  let pending: { cancelled: boolean } | undefined;
+  let connected: RealtimeClient | undefined;
   try {
     if (!meetingId || !agentUserId || !callId)
       return res.status(400).json({ error: "missing params" });
 
-    // Stop existing if present (keyed by meetingId)
-    if (sessions.has(meetingId)) {
-      const existing = sessions.get(meetingId)!;
-      if (existing.intervalId) clearInterval(existing.intervalId);
-      try {
-        existing.realtimeClient?.disconnect?.();
-      } catch {}
-      sessions.delete(meetingId);
-    }
-
-    setTimeout(() => {
-      captionReady.add(meetingId);
-    }, 3000);
+    // Claim before the first await. Duplicate start webhooks must not replace a live session.
+    if (sessions.has(meetingId)) return res.json({ ok: true });
+    if (starting.has(meetingId)) return res.status(202).json({ ok: true, starting: true });
+    pending = { cancelled: false };
+    starting.set(meetingId, pending);
 
     const call = streamVideo.video.call("default", callId);
 
@@ -133,6 +120,15 @@ app.post("/session/start", async (req: Request, res: Response) => {
       openAiApiKey: process.env.OPENAI_API_KEY || "",
       agentUserId,
     });
+
+    connected = realtimeClient;
+    if (pending.cancelled) {
+      realtimeClient.disconnect();
+      return res.json({ ok: true, cancelled: true });
+    }
+    const readyTimer = setTimeout(() => {
+      if (!pending?.cancelled) captionReady.add(meetingId);
+    }, 3000);
 
     // Agent caption buffer - accumulates text deltas across the response
     let outputBuffer = "";
@@ -187,6 +183,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
         const speakingDuration = estimateSpeakingDuration(sentence);
 
         const timeout = setTimeout(() => {
+          if (pending?.cancelled) return;
           // Show this sentence
           captionStore.set(meetingId, {
             text: sentence.trim(),
@@ -204,6 +201,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       const clearDelay = totalDuration + 4000;
 
       const clearDisplayTimeout = setTimeout(() => {
+        if (pending?.cancelled) return;
         captionStore.set(meetingId, {
           text: "",
           updatedAt: Date.now(),
@@ -219,6 +217,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
     if (ws) {
       const originalOnMessage = ws.onmessage;
       ws.onmessage = (event: MessageEvent) => {
+        if (pending?.cancelled) return;
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const data = JSON.parse(event.data) as any;
@@ -290,6 +289,13 @@ app.post("/session/start", async (req: Request, res: Response) => {
       lastUpdatedAt: null,
       lastSummary: null,
       paused: true,
+      cleanup: () => {
+        if (pending) pending.cancelled = true;
+        clearTimeout(readyTimer);
+        sentenceTimeouts.forEach(clearTimeout);
+        captionReady.delete(meetingId);
+        captionStore.delete(meetingId);
+      },
     };
     sessions.set(meetingId, record);
 
@@ -313,7 +319,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
           .eq("meeting_id", meetingId)
           .maybeSingle();
 
-        if (error || !data) return;
+        if (error || !data || pending?.cancelled) return;
 
         const summary = (data.summary || "").trim();
         const updatedAt = data.updated_at;
@@ -373,8 +379,16 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
     res.json({ ok: true });
   } catch (err) {
+    if (pending) pending.cancelled = true;
+    sessions.get(meetingId)?.cleanup?.();
+    sessions.delete(meetingId);
+    try { connected?.disconnect(); } catch {}
+    captionReady.delete(meetingId);
+    captionStore.delete(meetingId);
     console.error("/session/start error", err);
     res.status(500).json({ error: "internal" });
+  } finally {
+    if (pending && starting.get(meetingId) === pending) starting.delete(meetingId);
   }
 });
 
@@ -383,8 +397,13 @@ app.post("/session/stop", async (req: Request, res: Response) => {
     const { meetingId } = req.body || {};
     if (!meetingId) return res.status(400).json({ error: "missing meetingId" });
 
+    const pending = starting.get(meetingId);
+    if (pending) pending.cancelled = true;
+    captionReady.delete(meetingId);
+    captionStore.delete(meetingId);
     const record = sessions.get(meetingId);
     if (!record) return res.json({ ok: true });
+    record.cleanup?.();
 
     if (record.intervalId) clearInterval(record.intervalId);
     try {
@@ -482,6 +501,8 @@ app.get("/captions/stream", (req, res) => {
     return res.status(400).json({ error: "meetingId required" });
   }
 
+  if (!sessions.has(meetingId)) return res.status(404).json({ error: "Session not found" });
+
   // Set up SSE headers
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -501,6 +522,7 @@ app.get("/captions/stream", (req, res) => {
 
   // Check for updates and push only when changed
   const interval = setInterval(() => {
+    if (!sessions.has(meetingId)) { clearInterval(interval); res.end(); return; }
     const caption = captionStore.get(meetingId);
     if (caption && (caption.text !== lastSentText || caption.updatedAt !== lastSentTime)) {
       res.write(`data: ${JSON.stringify({ text: caption.text, updatedAt: caption.updatedAt })}\n\n`);

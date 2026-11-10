@@ -1,15 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { authorizeMeetingRequest } from "@/lib/meetings/route-access";
+import { workerControlResult, workerHeaders } from "@/lib/meetings/worker";
 
-export async function POST(request: NextRequest) {
-  const { meetingId } = await request.json();
-  const workerUrl = process.env.SCREEN_VISION_WORKER_URL;
-  if (!workerUrl) {
-    return NextResponse.json({ error: "SCREEN_VISION_WORKER_URL is not set" }, { status: 500 });
+export async function POST(request: Request) {
+  try {
+    const access = await authorizeMeetingRequest(request);
+    if (access.response) return access.response;
+    const workerUrl = process.env.SCREEN_VISION_WORKER_URL;
+    if (!workerUrl) throw new Error("Worker unavailable");
+    const response = await fetch(`${workerUrl.replace(/\/$/, "")}/session/resume`, {
+      method: "POST", headers: workerHeaders(),
+      body: JSON.stringify({ meetingId: access.meeting.id }), signal: AbortSignal.timeout(10_000),
+    });
+    const result = await workerControlResult(response);
+    return NextResponse.json(result.body, { status: result.status });
+  } catch {
+    return NextResponse.json({ error: "Voice control unavailable" }, { status: 502 });
   }
-  const response = await fetch(`${workerUrl.replace(/\/$/, "")}/session/resume`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ meetingId }),
-  });
-  return NextResponse.json(await response.json(), { status: response.status });
 }

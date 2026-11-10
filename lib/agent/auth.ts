@@ -3,6 +3,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { hashApiKey } from "./crypto";
+import { checkArchivedEventChildWrite } from "@/lib/events/event-write-guard";
 
 export { generateApiKey, hashApiKey } from "./crypto";
 
@@ -18,6 +19,21 @@ export interface AgentEventAuthorization {
   isAdmin: boolean;
   isOwner: boolean;
   userRole: EventRole | null;
+  /** Current moderation state, for the shared write guard (XL-001). */
+  visibility: string | null;
+  approvalStatus: string | null;
+  featured: boolean | null;
+}
+
+export interface AuthorizeAgentEventAccessOptions {
+  /**
+   * "write": refuse when the event is archived (read-only for non-admins,
+   * same rule as the guard_archived_event_child_write trigger, which the
+   * service-role client bypasses). "read" (default) does not. The events
+   * PATCH route uses "read" and runs checkEventUpdate() itself, so a manager
+   * can still unarchive.
+   */
+  intent?: "read" | "write";
 }
 
 interface AuthenticateAgentRequestOptions {
@@ -240,7 +256,8 @@ export function requireScope(auth: AgentAuthContext, scope: string): NextRespons
  */
 export async function authorizeAgentEventAccess(
   auth: AgentAuthContext,
-  minimumRole: EventRole = EventRole.Organizer
+  minimumRole: EventRole = EventRole.Organizer,
+  { intent = "read" }: AuthorizeAgentEventAccessOptions = {}
 ): Promise<AgentEventAuthorization | NextResponse> {
   if (!auth.eventId) {
     return NextResponse.json(
@@ -260,7 +277,7 @@ export async function authorizeAgentEventAccess(
     await Promise.all([
       supabase
         .from("events")
-        .select("owner_id")
+        .select("owner_id, visibility, approval_status, featured")
         .eq("event_id", auth.eventId)
         .maybeSingle(),
       supabase
@@ -295,11 +312,21 @@ export async function authorizeAgentEventAccess(
     isOrganizerOrOwner ||
     (userRole && canAccessRole(userRole, minimumRole))
   ) {
+    const visibility = event.visibility ?? null;
+    if (intent === "write") {
+      const guard = checkArchivedEventChildWrite({ isAdmin, visibility });
+      if (!guard.ok) {
+        return NextResponse.json({ error: guard.error }, { status: guard.status });
+      }
+    }
     return {
       eventId: auth.eventId,
       isAdmin,
       isOwner,
       userRole,
+      visibility,
+      approvalStatus: event.approval_status ?? null,
+      featured: event.featured ?? null,
     };
   }
 

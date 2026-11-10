@@ -15,6 +15,8 @@ const mockRealtimeClient = {
   disconnect: jest.fn(),
 };
 const mockMaybeSingle = jest.fn();
+// The worker rejects any request without the shared Next-server secret.
+const WORKER_SECRET = "test-worker-secret";
 
 jest.mock("cors", () => () => (_req: unknown, _res: unknown, next: () => void) => next(), {
   virtual: true,
@@ -50,7 +52,10 @@ describe("worker POST /session/resume", () => {
   const post = async (path: string, body: unknown) => {
     const response = await fetch(`${baseUrl}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${WORKER_SECRET}`,
+      },
       body: JSON.stringify(body),
     });
     return { status: response.status, body: await response.json() };
@@ -68,6 +73,7 @@ describe("worker POST /session/resume", () => {
   };
 
   beforeAll(async () => {
+    process.env.SCREEN_VISION_WORKER_SECRET = WORKER_SECRET;
     // The worker starts listening on import, so capture its app instead of binding its port.
     const listen = jest
       .spyOn(express.application, "listen")

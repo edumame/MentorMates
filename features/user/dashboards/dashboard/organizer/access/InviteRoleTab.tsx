@@ -15,7 +15,7 @@ interface InviteRoleTabProps {
   ariaLabel: string;
   loadingLabel: string;
   successTitle: string;
-  successDescription: (email: string, userExists: boolean) => string;
+  successDescription: (email: string) => string;
 }
 
 export function InviteRoleTab({
@@ -96,7 +96,7 @@ export function InviteRoleTab({
 
       toast({
         title: successTitle,
-        description: successDescription(trimmedEmail, Boolean(data.userExists)),
+        description: successDescription(trimmedEmail),
       });
       setEmail("");
     } catch {

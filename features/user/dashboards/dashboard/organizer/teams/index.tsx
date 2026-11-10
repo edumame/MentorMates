@@ -19,6 +19,7 @@ import {
   patchTeam,
   RosterUser,
 } from "@/features/teams/api/teamsClient";
+import { LeadRemovalDialog } from "@/features/teams/components/LeadRemovalDialog";
 import { TeamMemberRow } from "@/features/teams/components/TeamMemberRow";
 import { TeammatePicker } from "@/features/teams/components/TeammatePicker";
 
@@ -44,6 +45,9 @@ export function OrganizerTeamsTab({
   const [newMemberIds, setNewMemberIds] = useState<string[]>([]);
   // Per-team add-member selections, keyed by team id.
   const [addByTeam, setAddByTeam] = useState<Record<string, string[]>>({});
+  // Team whose lead the organizer is about to remove, pending confirmation.
+  const [leadRemovalTeam, setLeadRemovalTeam] =
+    useState<TeamWithMembers | null>(null);
 
   const enabled = Boolean(event.team_formation_enabled);
 
@@ -151,9 +155,9 @@ export function OrganizerTeamsTab({
   const handleRemove = async (teamId: string, userId: string) => {
     setBusy(true);
     try {
-      await deleteTeamOrMember(eventId, teamId, userId);
+      const { dissolved } = await deleteTeamOrMember(eventId, teamId, userId);
       await load();
-      toast({ title: "Member removed" });
+      toast({ title: dissolved ? "Team dissolved" : "Member removed" });
     } catch (err) {
       toast({
         title: "Couldn't remove member",
@@ -294,7 +298,11 @@ export function OrganizerTeamsTab({
                       <TeamMemberRow
                         key={m.user_id}
                         member={m}
-                        onRemove={(uid) => handleRemove(team.id, uid)}
+                        onRemove={(uid) =>
+                          uid === team.created_by
+                            ? setLeadRemovalTeam(team)
+                            : handleRemove(team.id, uid)
+                        }
                         removing={busy}
                       />
                     ))
@@ -325,6 +333,21 @@ export function OrganizerTeamsTab({
           ))}
         </div>
       )}
+
+      <LeadRemovalDialog
+        open={leadRemovalTeam !== null}
+        onOpenChange={(open) => {
+          if (!open) setLeadRemovalTeam(null);
+        }}
+        teamName={leadRemovalTeam?.name ?? ""}
+        memberCount={leadRemovalTeam?.members.length ?? 0}
+        reason="Removing the team lead dissolves the team."
+        onConfirm={() => {
+          if (leadRemovalTeam?.created_by) {
+            handleRemove(leadRemovalTeam.id, leadRemovalTeam.created_by);
+          }
+        }}
+      />
     </div>
   );
 }
