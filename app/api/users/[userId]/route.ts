@@ -1,24 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { z } from "zod";
+import { webUrlSchema } from "@/lib/users/profile-links";
 
 // Schema for social links validation
 const SocialLinksSchema = z
   .object({
-    linkedin: z.string().url().optional().nullable(),
-    github: z.string().url().optional().nullable(),
-    twitter: z.string().url().optional().nullable(),
-    facebook: z.string().url().optional().nullable(),
-    instagram: z.string().url().optional().nullable(),
-    youtube: z.string().url().optional().nullable(),
-    portfolio: z.string().url().optional().nullable(),
+    linkedin: webUrlSchema().optional().nullable(),
+    github: webUrlSchema().optional().nullable(),
+    twitter: webUrlSchema().optional().nullable(),
+    facebook: webUrlSchema().optional().nullable(),
+    instagram: webUrlSchema().optional().nullable(),
+    youtube: webUrlSchema().optional().nullable(),
+    portfolio: webUrlSchema().optional().nullable(),
   })
   .partial();
 
 // Schema for profile update request
 const ProfileUpdateSchema = z.object({
   display_name: z.string().min(1).max(100).optional(),
-  avatar_url: z.string().url().optional().nullable(),
+  avatar_url: webUrlSchema().optional().nullable(),
   bio: z.string().max(500).optional().nullable(),
   links: SocialLinksSchema.optional(),
   // New name for the former `school` column (supports school/company/other)
