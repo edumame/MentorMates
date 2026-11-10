@@ -33,6 +33,18 @@ describe("event navigation", () => {
     ).toBe(true);
   });
 
+  it("keeps judges on internal routes because scoring only exists there", () => {
+    expect(canUseInternalEventRoute({ userRole: EventRole.Judge })).toBe(true);
+    expect(isEventManagerRole(EventRole.Judge)).toBe(false);
+  });
+
+  it.each([EventRole.Participant, EventRole.Mentor, null, undefined])(
+    "keeps sending %s out of internal routes",
+    (userRole) => {
+      expect(canUseInternalEventRoute({ userRole })).toBe(false);
+    }
+  );
+
   it("links external events out for non-manager roles when redirects are enabled", () => {
     expect(
       getEventNavigationTarget({
@@ -85,6 +97,21 @@ describe("event navigation", () => {
         slug: "partner-event",
         external_url: "https://partner.example.com/hack",
         userRole: EventRole.Organizer,
+      })
+    ).toEqual({
+      href: "/events/partner-event/overview",
+      isExternal: false,
+    });
+  });
+
+  it("keeps external events internal for judges", () => {
+    expect(
+      getEventNavigationTarget({
+        event_id: "event-123",
+        slug: "partner-event",
+        external_url: "https://partner.example.com/hack",
+        external_redirect_enabled: true,
+        userRole: EventRole.Judge,
       })
     ).toEqual({
       href: "/events/partner-event/overview",

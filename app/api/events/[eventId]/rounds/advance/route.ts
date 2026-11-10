@@ -6,6 +6,7 @@ import { EventRole, type EventScoringConfig, type EventTrack } from "@/lib/types
 import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import {
+  filterScoresToCurrentProjectTracks,
   getProjectIdsForRound,
   replaceAdvancements,
 } from "@/lib/judging/rounds";
@@ -166,8 +167,19 @@ export async function GET(
     const first = <T,>(value: Joined<T>): T | null =>
       Array.isArray(value) ? value[0] ?? null : value;
 
+    let currentProjectTracks: Array<{ project_id: string; track_id: string }> = [];
+    if (eligibleProjectIds.length > 0) {
+      const { data, error: projectTracksErr } = await supabase
+        .from("project_tracks")
+        .select("project_id, track_id")
+        .in("project_id", eligibleProjectIds);
+      if (projectTracksErr) throw projectTracksErr;
+      currentProjectTracks = data ?? [];
+    }
+
     const rankedProjects = rankProjectsForAdvancement(
-      ((scoreResult.data ?? []) as Array<{
+      filterScoresToCurrentProjectTracks(
+        (scoreResult.data ?? []) as Array<{
         project_id: string;
         judge_id: string | null;
         track_id: string | null;
@@ -178,7 +190,10 @@ export async function GET(
           event_id?: string | null;
         }>;
         event_tracks: Joined<{ name?: string | null }>;
-      }>)
+      }>,
+        // A track the project has left must not affect its rank.
+        currentProjectTracks
+      )
         // Rank eligible projects only, so competition ranks have no gaps.
         .filter((row) => eligibleProjectIdSet.has(row.project_id))
         .map((row) => {

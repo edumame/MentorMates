@@ -55,11 +55,25 @@ describe("GalleryContent", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/projects?eventId=ev-1"));
   });
 
-  it("shows an empty gallery (no crash) when the listing fails", async () => {
+  it("shows an error, not the empty board, when the listing fails", async () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     mockFetch({ ok: false });
     render(<GalleryContent eventId="ev-1" slug="ev" hasJoined={false} isSignedIn={false} />);
-    await waitFor(() => expect(console.error).toHaveBeenCalled());
-    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/may be private or unavailable/i);
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("shows an error when the network request fails", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    global.fetch = jest.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
+    render(<GalleryContent eventId="ev-1" slug="ev" hasJoined isSignedIn />);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("keeps the empty board (no alert) when an event genuinely has no projects", async () => {
+    mockFetch({ ok: true, body: { projects: [] } });
+    render(<GalleryContent eventId="ev-1" slug="ev" hasJoined={false} isSignedIn={false} />);
+    expect(await screen.findByRole("list")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

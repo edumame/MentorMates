@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { EventVisibility } from "@/lib/types";
+import { ApprovalStatus, EventVisibility } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -42,7 +42,14 @@ interface ArchiveEventDialogProps {
   event: LifecycleEvent;
   /** Renders the trigger; must be a single element accepting a ref (e.g. Button). */
   trigger: TriggerRenderer;
-  onVisibilityChange: (visibility: EventVisibility) => void;
+  /**
+   * Archiving withdraws a pending submission, so the route also returns the
+   * resulting approval status; store it so the badge matches the database.
+   */
+  onVisibilityChange: (
+    visibility: EventVisibility,
+    approvalStatus?: ApprovalStatus
+  ) => void;
   onBusyChange?: (busy: boolean) => void;
 }
 
@@ -75,7 +82,10 @@ export function ArchiveEventDialog({
         throw new Error(await readError(res, `Failed to ${action} event`));
       }
       const result = await res.json();
-      onVisibilityChange(result.newVisibility as EventVisibility);
+      onVisibilityChange(
+        result.newVisibility as EventVisibility,
+        (result.approvalStatus ?? undefined) as ApprovalStatus | undefined
+      );
       toast({ title: "Success", description: `Event ${action}d successfully` });
       router.refresh();
     } catch (error) {

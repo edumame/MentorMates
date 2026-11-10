@@ -40,6 +40,8 @@ import {
   buildSubmissionFormValues,
   findMissingRequiredSubmissionField,
   buildSubmissionAnswersPayload,
+  normalizeSubmissionValue,
+  splitUrlRows,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
 import { isMultiValueSubmissionFieldType } from "@/features/projects/utils/submission";
@@ -294,22 +296,25 @@ export function NewProjectSubmissionFormSinglePage({
         case "project_description":
           return formData.projectDescription;
         case "project_url":
-          return formData.projectUrl;
+          return isMultiValueSubmissionFieldType(field.field_type)
+            ? [formData.projectUrl, ...extraProjectUrls]
+            : formData.projectUrl;
         case "video_url":
-          return formData.videoUrl;
+          return isMultiValueSubmissionFieldType(field.field_type)
+            ? [formData.videoUrl, ...extraVideoUrls]
+            : formData.videoUrl;
         case "cover_image":
           return formData.coverImageUrl;
         case "additional_materials":
-          return [
-            formData.additionalMaterialsUrl,
-            ...extraMaterialsUrls,
-          ].filter((value) => value.trim().length > 0);
+          return [formData.additionalMaterialsUrl, ...extraMaterialsUrls];
         default:
           return submissionAnswers[field.id] ?? "";
       }
     },
     [
       extraMaterialsUrls,
+      extraProjectUrls,
+      extraVideoUrls,
       formData.additionalMaterialsUrl,
       formData.coverImageUrl,
       formData.projectDescription,
@@ -341,18 +346,20 @@ export function NewProjectSubmissionFormSinglePage({
             projectDescription: typeof value === "string" ? value : value[0] || "",
           }));
           return;
-        case "project_url":
-          setFormData((prev) => ({
-            ...prev,
-            projectUrl: typeof value === "string" ? value : value[0] || "",
-          }));
+        case "project_url": {
+          const { primary, extras } = splitUrlRows(value);
+          setFormData((prev) => ({ ...prev, projectUrl: primary }));
+          // A plain url field sends a string and does not own the extra rows.
+          if (Array.isArray(value)) setExtraProjectUrls(extras);
           return;
-        case "video_url":
-          setFormData((prev) => ({
-            ...prev,
-            videoUrl: typeof value === "string" ? value : value[0] || "",
-          }));
+        }
+        case "video_url": {
+          const { primary, extras } = splitUrlRows(value);
+          setFormData((prev) => ({ ...prev, videoUrl: primary }));
+          // A plain url field sends a string and does not own the extra rows.
+          if (Array.isArray(value)) setExtraVideoUrls(extras);
           return;
+        }
         case "cover_image":
           setFormData((prev) => ({
             ...prev,
@@ -360,16 +367,9 @@ export function NewProjectSubmissionFormSinglePage({
           }));
           return;
         case "additional_materials": {
-          const urls = Array.isArray(value)
-            ? value
-            : value.trim().length > 0
-              ? [value]
-              : [];
-          setFormData((prev) => ({
-            ...prev,
-            additionalMaterialsUrl: urls[0] || "",
-          }));
-          setExtraMaterialsUrls(urls.slice(1));
+          const { primary, extras } = splitUrlRows(value);
+          setFormData((prev) => ({ ...prev, additionalMaterialsUrl: primary }));
+          setExtraMaterialsUrls(extras);
           return;
         }
         default: {
@@ -457,8 +457,10 @@ export function NewProjectSubmissionFormSinglePage({
   // Anything the user entered that a draft must keep. The prefilled lead details
   // and the privacy default don't count, so an untouched form stays blank.
   const hasDraftContent =
+    // Multi-value fields keep blank rows while editing (#987), so a row only
+    // counts once it has text.
     Object.values(submissionFieldValues).some((value) =>
-      Array.isArray(value) ? value.length > 0 : value.trim().length > 0
+      (Array.isArray(value) ? value : [value]).some((row) => row.trim().length > 0)
     ) ||
     [...extraProjectUrls, ...extraVideoUrls].some((url) => url.trim().length > 0) ||
     formData.teammates.length > 0 ||
@@ -1111,7 +1113,10 @@ export function NewProjectSubmissionFormSinglePage({
                         targetField &&
                         isMultiValueSubmissionFieldType(targetField.field_type)
                       ) {
-                        const currentValue = submissionFieldValues[fieldKey];
+                        const currentValue = normalizeSubmissionValue(
+                          targetField,
+                          submissionFieldValues[fieldKey]
+                        );
                         handleSubmissionFieldChange(fieldKey, [
                           ...(Array.isArray(currentValue) ? currentValue : []),
                           ...uploadedUrls,
