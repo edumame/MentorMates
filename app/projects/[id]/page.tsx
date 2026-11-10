@@ -759,11 +759,9 @@ export default function ProjectPage() {
     }
 
     try {
-      const updatedTeammates = [...currentTeammates, normalizedEmail];
-      const { error } = await updateProjectTeamClient(
-        projectId,
-        updatedTeammates
-      );
+      const { data, error } = await updateProjectTeamClient(projectId, {
+        add: [normalizedEmail],
+      });
 
       if (error) {
         toast({
@@ -774,7 +772,12 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject((prev) => prev && { ...prev, teammates: updatedTeammates });
+      // Merge only the stored team into hydrated state; the raw row lacks
+      // submission answers and artifacts.
+      setProject(
+        (prev) =>
+          prev && { ...prev, teammates: data?.teammates ?? prev.teammates }
+      );
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -791,14 +794,9 @@ export default function ProjectPage() {
   const handleRemoveTeammate = async (teammateEmail: string) => {
     setIsUpdating(true);
     try {
-      const currentTeammates = project?.teammates || [];
-      const updatedTeammates = currentTeammates.filter(
-        (email) => email !== teammateEmail
-      );
-      const { error } = await updateProjectTeamClient(
-        projectId,
-        updatedTeammates
-      );
+      const { data, error } = await updateProjectTeamClient(projectId, {
+        remove: [teammateEmail],
+      });
 
       if (error) {
         toast({
@@ -809,7 +807,12 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject((prev) => prev && { ...prev, teammates: updatedTeammates });
+      // Merge only the stored team into hydrated state; the raw row lacks
+      // submission answers and artifacts.
+      setProject(
+        (prev) =>
+          prev && { ...prev, teammates: data?.teammates ?? prev.teammates }
+      );
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,
@@ -1681,54 +1684,23 @@ export default function ProjectPage() {
                                   (p) =>
                                     `${p.display_name || p.email} (${p.email})`
                                 )}
-                                onTagsChange={(tags) => {
-                                  // Extract emails from tags
-                                  const emails = tags.map((tag) => {
-                                    const emailMatch = tag.match(/\((.+?)\)$/);
-                                    return emailMatch ? emailMatch[1] : tag;
-                                  });
-
+                                onTagsChange={(_tags, { added, removed }) => {
                                   // Get list of participant emails for validation
                                   const participantEmails = participants.map((p) =>
                                     p.email.toLowerCase()
                                   );
 
-                                  // Only process emails that are actual event participants
-                                  const validEmails = emails.filter((email) =>
-                                    participantEmails.includes(email.toLowerCase())
-                                  );
-
-                                  // Find newly added emails (only from valid participants)
-                                  const currentTeammates = project?.teammates || [];
-                                  const newEmails = validEmails.filter(
-                                    (email) =>
-                                      !currentTeammates.some(
-                                        (t) =>
-                                          t.toLowerCase() === email.toLowerCase()
-                                      )
-                                  );
-
-                                  // Find removed emails
-                                  const removedEmails = currentTeammates.filter(
-                                    (email) =>
-                                      !validEmails.some(
-                                        (e) => e.toLowerCase() === email.toLowerCase()
-                                      )
-                                  );
-
                                   // Handle additions (only for event participants)
-                                  if (newEmails.length > 0) {
-                                    newEmails.forEach((email) =>
-                                      handleAddTeammate(email)
-                                    );
-                                  }
+                                  added
+                                    .filter((email) =>
+                                      participantEmails.includes(email.toLowerCase())
+                                    )
+                                    .forEach((email) => handleAddTeammate(email));
 
                                   // Handle removals
-                                  if (removedEmails.length > 0) {
-                                    removedEmails.forEach((email) =>
-                                      handleRemoveTeammate(email)
-                                    );
-                                  }
+                                  removed.forEach((email) =>
+                                    handleRemoveTeammate(email)
+                                  );
                                 }}
                                 initialTags={(project?.teammates || []).map((email) => {
                                   const participant = participants.find(

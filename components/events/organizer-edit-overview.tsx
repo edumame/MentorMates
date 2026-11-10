@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useTransition } from "react";
+import { useCallback, useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -38,6 +38,7 @@ import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details
 import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/FAQTab";
 import { IntakeResponsesTab } from "@/features/user/dashboards/dashboard/organizer/registration";
 
+import { withdrawSubmissionUpdate } from "@/lib/events/approval-visibility";
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -97,6 +98,15 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
     null
+  );
+  // Refs don't trigger renders, so the button's disabled state needs real state.
+  const [basicInfoSaveReady, setBasicInfoSaveReady] = useState(false);
+  const registerBasicInfoSaveHandler = useCallback(
+    (fn: null | (() => Promise<void> | void)) => {
+      basicInfoSaveHandlerRef.current = fn;
+      setBasicInfoSaveReady(fn !== null);
+    },
+    []
   );
 
   const [peopleCount, setPeopleCount] = useState<number>(0);
@@ -204,9 +214,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   const handleAccessVisibilityChange = async (value: EventVisibility) => {
     try {
+      const withdrawal = withdrawSubmissionUpdate(event?.approval_status, value);
       const { error } = await supabase
         .from("events")
-        .update({ visibility: value })
+        .update({ visibility: value, ...withdrawal })
         .eq("event_id", eventId);
 
       if (error) {
@@ -220,7 +231,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       setEvent((prev) => {
         if (!prev) return prev;
-        return { ...prev, visibility: value };
+        return { ...prev, visibility: value, ...withdrawal };
       });
 
       toast({
@@ -561,8 +572,18 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 <ArchiveEventDialog
                   event={event}
                   onBusyChange={setArchiving}
-                  onVisibilityChange={(visibility) =>
-                    setEvent((prev) => (prev ? { ...prev, visibility } : prev))
+                  onVisibilityChange={(visibility, approvalStatus) =>
+                    setEvent((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            visibility,
+                            ...(approvalStatus !== undefined
+                              ? { approval_status: approvalStatus }
+                              : {}),
+                          }
+                        : prev
+                    )
                   }
                   trigger={({ busy, isArchived }) => (
                     <Button
@@ -609,7 +630,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       archiving ||
                       deleting ||
                       event.visibility === EventVisibility.Archived ||
-                      !basicInfoSaveHandlerRef.current
+                      !basicInfoSaveReady
                     }
                     onClick={() => {
                       void basicInfoSaveHandlerRef.current?.();
@@ -821,9 +842,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                               setSaving={setSaving}
                               toast={toast}
                               router={router}
-                              registerSaveHandler={(fn) => {
-                                basicInfoSaveHandlerRef.current = fn;
-                              }}
+                              registerSaveHandler={registerBasicInfoSaveHandler}
                             />
                           )}
                         </TabsContent>

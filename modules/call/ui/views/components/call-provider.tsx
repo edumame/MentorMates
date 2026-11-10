@@ -9,9 +9,10 @@ import { CallConnect } from "./call-connect";
 interface Props {
     meetingId: string;
     meetingName: string;
+    meetingOwnerId: string | null;
 };
 
-export const CallProvider = ({ meetingId, meetingName }: Props) => {
+export const CallProvider = ({ meetingId, meetingName, meetingOwnerId }: Props) => {
     const [session, setSession] = useState<Session | null>(null);
     const [isPending, setIsPending] = useState(true);
 
@@ -45,6 +46,7 @@ export const CallProvider = ({ meetingId, meetingName }: Props) => {
         <CallConnect
             meetingId={meetingId}
             meetingName={meetingName}
+            meetingOwnerId={meetingOwnerId}
             userId={user.id}
             userName={userName}
             userImage={userImage}

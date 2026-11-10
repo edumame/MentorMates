@@ -804,7 +804,8 @@ export function BasicInfoTab({
             className="h-[44px] font-mono text-sm bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
           />
           <p className="text-xs text-gray-500">
-            URL-friendly identifier for your event (lowercase, hyphens only)
+            URL-friendly identifier for your event (lowercase, hyphens only).
+            Changing it breaks links already shared with the old URL.
           </p>
         </div>
 
@@ -983,8 +984,18 @@ export function BasicInfoTab({
           </div>
           <ArchiveEventDialog
             event={event}
-            onVisibilityChange={(visibility) =>
-              setEvent((prev) => (prev ? { ...prev, visibility } : prev))
+            onVisibilityChange={(visibility, approvalStatus) =>
+              setEvent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      visibility,
+                      ...(approvalStatus !== undefined
+                        ? { approval_status: approvalStatus }
+                        : {}),
+                    }
+                  : prev
+              )
             }
             trigger={({ busy, isArchived: archived }) => (
               <Button
