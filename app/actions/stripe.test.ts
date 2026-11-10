@@ -39,6 +39,7 @@ describe("fetchClientSecret", () => {
   it("records the buyer and event on the session so /return can find the payment row", async () => {
     const tableData: Record<string, unknown> = {
       user_profiles: { stripe_customer_id: "cus_1" },
+      events: { visibility: "public", approval_status: "approved" },
       pricing_tiers: { stripe_price_id: "price_1", is_active: true },
     };
     const from = (table: string) => queryResolving(tableData[table]);
