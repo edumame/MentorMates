@@ -28,14 +28,14 @@ type Row = Record<string, unknown>;
 // Applies eq() filters so a query that forgets to scope by event sees the row.
 const query = (rows: Row[]) => {
   const filters: Array<[string, unknown]> = [];
-  // Paged reads (fetchAllRows) apply .range(); unpaged reads get every row.
   let window: [number, number] | null = null;
   const result = () => {
-    const matched = rows.filter((row) =>
+    const matching = rows.filter((row) =>
       filters.every(([column, value]) => row[column] === undefined || row[column] === value),
     );
+    // Paged reads (fetchAllRows) stop on an empty page, so honour range().
     return {
-      data: window ? matched.slice(window[0], window[1] + 1) : matched,
+      data: window ? matching.slice(window[0], window[1] + 1) : matching,
       error: null,
     };
   };
@@ -53,10 +53,6 @@ const query = (rows: Row[]) => {
       filters.push([column, value]);
       return builder;
     }),
-    range: jest.fn((from: number, to: number) => {
-      window = [from, to];
-      return builder;
-    }),
     maybeSingle: jest.fn(() => ({
       overrideTypes: jest.fn(() => Promise.resolve(single())),
       then: (
@@ -65,6 +61,10 @@ const query = (rows: Row[]) => {
       ) => Promise.resolve(single()).then(resolve, reject),
     })),
   };
+  builder.range = jest.fn((from: number, to: number) => {
+    window = [from, to];
+    return builder;
+  });
   for (const method of ["select", "in", "order", "limit"]) {
     builder[method] = jest.fn().mockReturnValue(builder);
   }
