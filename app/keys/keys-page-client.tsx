@@ -41,6 +41,7 @@ export interface KeyEventOption {
 
 interface GeneratedKeyState {
   apiKey: string;
+  accessMode: "participant" | "organizer";
   eventId: string | null;
   label: string | null;
   prefix: string;
@@ -96,6 +97,10 @@ export default function KeysPageClient({
     [managedEventOptions, participantEventOptions]
   );
 
+  // A generated key is only shown on the tab that created it, so it never
+  // appears under the other role's env var.
+  const visibleGeneratedKey = generatedKey?.accessMode === activeTab ? generatedKey : null;
+
   const currentEventOptions = activeTab === "organizer"
     ? managedEventOptions
     : participantEventOptions;
@@ -144,10 +149,11 @@ export default function KeysPageClient({
   const buildCopyableMarkdown = () => {
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-    // Include the real key when one has just been generated so the user can
-    // copy the page and paste it directly into their shell. Falls back to a
-    // placeholder if no key has been generated yet.
-    const keyValue = generatedKey?.apiKey || "mm_sk_...";
+    // Security: never embed the raw key in the Copy Page markdown. The Copy
+    // Page is meant to be pasted into an AI agent chat, which would leak the
+    // key into conversation history. Users copy the key from the dashboard
+    // into their own shell instead.
+    const keyPlaceholder = "mm_sk_...";
     const installBlock = [
       "**Claude Code**",
       "```",
@@ -227,7 +233,7 @@ export default function KeysPageClient({
       "",
       "### 2. Set env var (in YOUR shell, not in the agent)",
       "```bash",
-      `export ${envVar}="${keyValue}"`,
+      `export ${envVar}="${keyPlaceholder}"`,
       "```",
       "",
       "> The key itself is intentionally omitted here. Copy it from the dashboard into your own shell. Do not paste it into an agent chat — it will end up in conversation history.",
@@ -305,6 +311,7 @@ export default function KeysPageClient({
       setKeys((current) => [createdKey, ...current]);
       setGeneratedKey({
         apiKey: json.api_key,
+        accessMode: activeTab,
         eventId: createdKey.event_id,
         label: createdKey.label,
         prefix: createdKey.key_prefix,
@@ -407,9 +414,9 @@ export default function KeysPageClient({
           Run this in <span className="font-medium">your own terminal</span>, not in an agent chat. Pasting the raw key into an agent puts it in conversation history.
         </p>
         <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{generatedKey?.apiKey ?? "mm_sk_..."}&quot;
+          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{visibleGeneratedKey?.apiKey ?? "mm_sk_..."}&quot;
         </div>
-        {generatedKey?.apiKey ? (
+        {visibleGeneratedKey ? (
           <p className="text-[11px] text-[#9c6300]">
             Your newly generated key is filled in above. Copy this line, run it in your shell, then close this tab or clear the key from your clipboard.
           </p>
@@ -769,7 +776,7 @@ export default function KeysPageClient({
       {renderKeyCreation()}
 
       {/* Generated key banner */}
-      {generatedKey && (
+      {visibleGeneratedKey && (
         <Card className="border-emerald-200 bg-emerald-50">
           <CardHeader>
             <CardTitle className="text-emerald-900 text-base">Key created</CardTitle>
@@ -780,12 +787,12 @@ export default function KeysPageClient({
           <CardContent>
             <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3">
               <code className="flex-1 overflow-x-auto font-mono text-sm select-all">
-                {generatedKey.apiKey}
+                {visibleGeneratedKey.apiKey}
               </code>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => copyToClipboard(generatedKey.apiKey, "new-key")}
+                onClick={() => copyToClipboard(visibleGeneratedKey.apiKey, "new-key")}
               >
                 {copiedField === "new-key" ? (
                   <Check className="h-4 w-4 text-emerald-600" />
