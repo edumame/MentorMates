@@ -7,6 +7,9 @@ const mockToast = jest.fn();
 const mockInsert = jest.fn();
 const mockFetchLessons = jest.fn();
 const mockDeleteLessons = jest.fn();
+const mockPaywallRpc = jest.fn(() =>
+  Promise.resolve({ data: null as string | null, error: null })
+);
 
 jest.mock("react-markdown", () => ({
   __esModule: true,
@@ -24,6 +27,8 @@ jest.mock("@/lib/hooks/use-toast", () => ({
 }));
 jest.mock("@/lib/supabase", () => ({
   supabase: {
+    // Paywall content loads through get_event_paywall_content (PUB-002).
+    rpc: () => mockPaywallRpc(),
     from: () => ({
       // Return only the selected columns, as the database would.
       select: (columns: string) => ({
@@ -364,6 +369,32 @@ describe("ContentTab lesson fetch on mount", () => {
 
     expect(latestEvent?.paywall_content).toBe("Typed early");
     expect(titles()).toEqual(["Fetched"]);
+  });
+
+  it("loads the saved exclusive content when nothing was typed", async () => {
+    mockPaywallRpc.mockReturnValueOnce(
+      Promise.resolve({ data: "Saved text", error: null })
+    );
+    mockFetchLessons.mockResolvedValue({ data: [], error: null });
+    render(<Harness initial={baseEvent([])} />);
+
+    await waitFor(() => expect(latestEvent?.paywall_content).toBe("Saved text"));
+  });
+
+  it("keeps exclusive content typed before the saved content loads", async () => {
+    const paywall = deferred<{ data: string | null; error: null }>();
+    mockPaywallRpc.mockReturnValueOnce(paywall.promise);
+    mockFetchLessons.mockResolvedValue({ data: [], error: null });
+    render(<Harness initial={baseEvent([])} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Add content (markdown supported)"), {
+      target: { value: "Typed early" },
+    });
+    await act(async () => {
+      paywall.resolve({ data: "Saved text", error: null });
+    });
+
+    expect(latestEvent?.paywall_content).toBe("Typed early");
   });
 
   it("does not start an upload the pending fetch would discard", async () => {

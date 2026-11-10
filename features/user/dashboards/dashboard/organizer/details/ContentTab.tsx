@@ -1,7 +1,7 @@
 "use client";
 
 import { EventDetails, Lesson } from "@/lib/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
@@ -83,6 +83,9 @@ export function ContentTab({
           console.error("Error fetching lessons:", error);
         } else {
           // Update event with fetched lessons
+          // Functional update: the paywall RPC below also writes to event
+          // concurrently; spreading a stale `event` would drop its result.
+          // A fetch for a previous event is ignored.
           setEvent((prev) =>
             prev?.event_id === eventId
               ? { ...prev, event_lessons: (lessonsData || []) as Lesson[] }
@@ -98,6 +101,32 @@ export function ContentTab({
 
     fetchLessons();
   }, [event.event_id]); // Only re-fetch when event_id changes
+
+  // Set once the organizer edits the paywall text, so a slow load of the saved
+  // text cannot overwrite what they typed.
+  const paywallEditedRef = useRef(false);
+
+  // Paywall content is members-only (PUB-002): it is not part of the event
+  // row selected by the dashboard, so load it through the gated RPC.
+  useEffect(() => {
+    let active = true;
+    paywallEditedRef.current = false;
+    supabase
+      .rpc("get_event_paywall_content", { p_event_id: event.event_id })
+      .then(({ data, error }) => {
+        if (!active || paywallEditedRef.current) return;
+        if (error) {
+          console.error("Error fetching paywall content:", error);
+          return;
+        }
+        setEvent((prev) =>
+          prev ? { ...prev, paywall_content: data ?? undefined } : prev
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [event.event_id, setEvent]);
 
   const addLesson = () => {
     const newLesson: Lesson = {
@@ -330,9 +359,10 @@ export function ContentTab({
               id="paywall_content"
               value={event.paywall_content || ""}
               disabled={isArchived}
-              onChange={(e) =>
-                setEvent((prev) => prev && { ...prev, paywall_content: e.target.value })
-              }
+              onChange={(e) => {
+                paywallEditedRef.current = true;
+                setEvent((prev) => prev && { ...prev, paywall_content: e.target.value });
+              }}
               placeholder="Add content (markdown supported)"
               className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
             />

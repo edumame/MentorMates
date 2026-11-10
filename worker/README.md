@@ -52,3 +52,9 @@ Endpoints
 - `POST /session/stop` body: `{ meetingId }`
 - `POST /session/pause` body: `{ meetingId }`
 - `POST /session/resume` body: `{ meetingId }`
+
+### Authenticated worker deployment
+
+Set the same strong `SCREEN_VISION_WORKER_SECRET` on the Next server and worker. All worker session/caption operations require `Authorization: Bearer <secret>`; missing configuration fails closed. `/health` remains public. Never prefix this secret with `NEXT_PUBLIC_`. Deploy the matching Next proxy/client changes with the worker: browsers now use `/api/voice-agent/captions` and do not receive the worker credential.
+
+Session deduplication is process-local. Run one worker instance per routed meeting (sticky routing) until sessions are moved to a shared coordinator. Duplicate starts in one instance are idempotent, and stop cancels an in-flight start and clears caption timers/state.

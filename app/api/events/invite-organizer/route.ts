@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server';
 import { EventRole } from '@/lib/types';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
-import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { sendOrganizerInviteEmails } from '@/lib/events/invite-emails';
+import { reserveInviteQuota } from '@/lib/email/invite-quota';
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -14,8 +15,6 @@ function getResend(): Resend | null {
 }
 
 export async function POST(request: Request) {
-  // TODO: Consider implementing rate limiting to prevent invite spam
-  // Example: Allow max 10 invites per organizer per hour
   const supabase = await createSupabaseClient();
   const { data: auth } = await supabase.auth.getUser();
 
@@ -81,61 +80,20 @@ export async function POST(request: Request) {
     ? `${inviterProfile.display_name}`.trim()
     : 'A MentorMates organizer';
 
+  const inviteEmail = email.trim().toLowerCase();
+
+  // The account lookup only picks the email wording (sign up vs sign in).
+  // user_profiles.email mirrors the verified auth email (MENT-008 migration).
   const { data: user } = await serviceSupabase
     .from('user_profiles')
     .select('uid')
-    .eq('email', email.trim().toLowerCase())
+    .eq('email', inviteEmail)
     .maybeSingle();
 
-  // If user exists, add them directly as organizer
-  if (user) {
-    const { error } = await supabase.from('user_event_roles').upsert(
-      {
-        user_id: user.uid,
-        event_id: eventId,
-        role: EventRole.Organizer,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,event_id' },
-    );
-
-    if (error) {
-      return NextResponse.json({ error: 'Failed to invite organizer' }, { status: 500 });
-    }
-
-    // Send invitation email for existing user
-    const resend = getResend();
-    if (resend) {
-      try {
-        const emailTemplate = getOrganizerInvitationEmailTemplate(
-          eventData.event_name,
-          eventId,
-          inviterName,
-          eventData.slug,
-          false // isNewUser
-        );
-
-        const { error: emailError } = await resend.emails.send({
-          from: NOTIFICATIONS_EMAIL_FROM,
-          to: email.trim(),
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
-
-        if (emailError) {
-          console.error('Failed to send organizer invitation email:', emailError);
-          // Don't fail the entire request if email fails, but log it
-        }
-      } catch (emailError) {
-        console.error('Error sending organizer invitation email:', emailError);
-        // Don't fail the entire request if email fails
-      }
-    }
-
-    return NextResponse.json({ success: true, userExists: true });
-  }
-
-  // User doesn't exist - send magic link invite
+  // ORG-012: never grant the organizer role here. Every invitee, existing
+  // account or not, receives a signed invitation and becomes an organizer only
+  // after accepting it while signed in with this email
+  // (app/api/events/[eventId]/accept-invite).
   const resend = getResend();
   if (!resend) {
     return NextResponse.json(
@@ -143,33 +101,33 @@ export async function POST(request: Request) {
       { status: 503 }
     );
   }
-  try {
-    const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventData.slug || eventId}/accept-organizer?email=${encodeURIComponent(email.trim())}`;
 
-    const emailTemplate = getOrganizerInvitationEmailTemplate(
-      eventData.event_name,
-      eventId,
-      inviterName,
-      eventData.slug,
-      true, // isNewUser
-      acceptUrl
-    );
+  // ORG-012: per-inviter and per-event daily caps.
+  const quotaResponse = await reserveInviteQuota(serviceSupabase, auth.user.id, eventId);
+  if (quotaResponse) return quotaResponse;
 
-    const { error: emailError } = await resend.emails.send({
-      from: NOTIFICATIONS_EMAIL_FROM,
-      to: email.trim(),
-      subject: emailTemplate.subject,
-      html: emailTemplate.html,
-    });
+  const summary = await sendOrganizerInviteEmails({
+    appOrigin: process.env.NEXT_PUBLIC_APP_URL ?? '',
+    eventId,
+    eventName: eventData.event_name,
+    eventSlug: eventData.slug,
+    inviterName,
+    existingOrganizerEmails: user ? [inviteEmail] : [],
+    newOrganizerEmails: user ? [] : [inviteEmail],
+    sendEmail: async (message) => {
+      const { error } = await resend.emails.send({
+        from: NOTIFICATIONS_EMAIL_FROM,
+        ...message,
+      });
+      if (error) console.error('Failed to send organizer invitation email:', error);
+      return !error;
+    },
+  });
 
-    if (emailError) {
-      console.error('Failed to send organizer invitation email:', emailError);
-      return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
-    }
-  } catch (emailError) {
-    console.error('Error sending organizer invitation email:', emailError);
+  if (summary.failed.length > 0) {
     return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, userExists: false });
+  // Uniform response: whether the address has an account is not disclosed.
+  return NextResponse.json({ success: true });
 }
