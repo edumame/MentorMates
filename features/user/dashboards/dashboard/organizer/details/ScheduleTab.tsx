@@ -298,7 +298,6 @@ export function ScheduleTab({
 
   const persistScheduleOrder = (newSchedule: ScheduleDay[]) => {
     persistQueueRef.current = persistQueueRef.current.then(async () => {
-      console.log("Persisting schedule order:", newSchedule);
       const { error } = await supabase
         .from("events")
         .update({ event_schedule: newSchedule })

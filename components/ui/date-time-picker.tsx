@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { formatInTimeZone } from "date-fns-tz";
+import { zonedLocalToUtc } from "@/lib/utils/zoned-time";
 
 export type DateTimePickerProps = {
   value?: string;
@@ -77,6 +78,7 @@ export function DateTimePicker({
 
   const timeInputId = React.useId();
   const [open, setOpen] = React.useState(false);
+  const [timeError, setTimeError] = React.useState<string | null>(null);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     value ? new Date(value) : undefined
   );
@@ -146,38 +148,23 @@ export function DateTimePicker({
     }
   };
 
+  // Shared conversion with the create-event wizard (ORG-015): DST-gap times
+  // are rejected with a message, ambiguous ones use the earlier instant.
   const updateDateTime = (date: Date, time: string, tz: string) => {
     const [hours, minutes] = time.split(":").map(Number);
-    
-    try {
-      // Create a date string in the selected timezone
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const hoursStr = String(hours || 0).padStart(2, "0");
-      const minutesStr = String(minutes || 0).padStart(2, "0");
-      
-      // Parse as a date in the selected timezone
-      const dateTimeStr = `${year}-${month}-${day} ${hoursStr}:${minutesStr}`;
-      const zonedDate = fromZonedTime(dateTimeStr, tz);
-      
-      // Convert to ISO string (UTC)
-      const isoString = zonedDate.toISOString();
-      onChange?.(isoString);
-    } catch (error) {
-      console.error("Error updating date/time:", error);
-      // Fallback to UTC
-      const utcDate = new Date(Date.UTC(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        hours || 0,
-        minutes || 0,
-        0,
-        0
-      ));
-      onChange?.(utcDate.toISOString());
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hoursStr = String(hours || 0).padStart(2, "0");
+    const minutesStr = String(minutes || 0).padStart(2, "0");
+
+    const result = zonedLocalToUtc(`${year}-${month}-${day}T${hoursStr}:${minutesStr}`, tz);
+    if (!result.ok) {
+      setTimeError(result.error);
+      return;
     }
+    setTimeError(null);
+    onChange?.(result.iso);
   };
 
   const formatDisplayDateTime = (date: Date | undefined, tz: string) => {
@@ -319,6 +306,11 @@ export function DateTimePicker({
             ))}
           </SelectContent>
         </Select>
+      )}
+      {timeError && (
+        <p role="alert" className="text-sm text-red-600">
+          {timeError}
+        </p>
       )}
     </div>
   );
