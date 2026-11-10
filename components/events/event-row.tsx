@@ -7,6 +7,7 @@ import { EventItem, EventRole } from "@/lib/types";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
 import { getEventNavigationTarget } from "@/lib/events/navigation";
+import { EventNavigationFeedback } from "./event-navigation-feedback";
 
 export type EventWithRole = EventItem & {
   userRole?: EventRole | null;
@@ -95,6 +96,7 @@ export function EventRow({ event }: { event: EventWithRole }) {
           {isExternal && (
             <ExternalLink className="h-3.5 w-3.5 text-[rgba(0,0,0,0.4)] shrink-0" />
           )}
+          {!isExternal && <EventNavigationFeedback />}
         </div>
         <p className="mt-[2px] text-[14px] text-[rgba(0,0,0,0.55)]">{datetime}</p>
         {event.location && (

@@ -1,7 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import {
   Card,
   CardContent,
@@ -13,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Award, CheckCircle2, Sparkles } from "lucide-react";
 import { EventDetails } from "@/lib/types";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ success?: string; canceled?: string }>;
@@ -65,18 +65,16 @@ function formatUsd(amount: number) {
 
 async function getEvent(id: string) {
   const supabase = await createSupabaseClient();
-  const isUUID = isValidUUID(id);
 
   let query = supabase
     .from("events")
     .select("event_id, event_name, slug, sponsorship_tiers")
     .limit(1);
 
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  query = query.eq("event_id", routeEventId);
 
   const { data, error } = await query.single();
   if (error || !data) return null;
