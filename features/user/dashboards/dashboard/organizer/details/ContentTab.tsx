@@ -2,6 +2,7 @@
 
 import { EventDetails, Lesson } from "@/lib/types";
 import { useState, useEffect } from "react";
+import { flushSync } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import {
@@ -17,6 +18,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/lib/hooks/use-toast";
+
+/** Includes `id` so an in-flight upload can find its lesson after a reload. */
+export const EVENT_LESSON_COLUMNS =
+  "id,title,cover_image_url,url,description,duration_minutes";
+
+let lastLessonClientId = 0;
+const createLessonClientId = () => `lesson-${++lastLessonClientId}`;
+
+// A reload replaces every lesson object, so only the database id survives it.
+// Unsaved lessons have no row yet and fall back to a client-only id.
+const lessonKey = (lesson: Lesson) => lesson.id ?? lesson.client_id;
 
 interface ContentTabProps {
   event: EventDetails;
@@ -35,8 +47,27 @@ export function ContentTab({
   const [savingContent, setSavingContent] = useState(false);
   const [loadingLessons, setLoadingLessons] = useState(false);
   const [lessonsLoadFailed, setLessonsLoadFailed] = useState(false);
-  const [uploadingImages, setUploadingImages] = useState<Record<number, boolean>>({});
+  const [uploadingImages, setUploadingImages] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
+  const hasActiveUpload = Object.values(uploadingImages).some(Boolean);
+
+  // Always apply lesson changes to the latest event: an async caller's `event`
+  // may be stale, and writing it back would revert everything changed since.
+  const setLessons = (update: (lessons: Lesson[]) => Lesson[]) => {
+    setEvent((prev) =>
+      prev ? { ...prev, event_lessons: update(prev.event_lessons || []) } : prev
+    );
+  };
+
+  const isUploading = (lesson: Lesson) => {
+    const key = lessonKey(lesson);
+    return Boolean(key && uploadingImages[key]);
+  };
+
+  // Saving deletes and reinserts every row, so a lesson's id does not outlive
+  // the save: an upload started during one could never find its lesson.
+  const isUploadDisabled = (lesson: Lesson) =>
+    isArchived || loadingLessons || savingLessons || isUploading(lesson);
 
   // undefined means the list is unknown (the parent's load failed), which is
   // different from an event that has no lessons. Saving replaces every stored
@@ -57,7 +88,7 @@ export function ContentTab({
       try {
         const { data: lessonsData, error } = await supabase
           .from("event_lessons")
-          .select("title,cover_image_url,url,description,duration_minutes")
+          .select(EVENT_LESSON_COLUMNS)
           .eq("event_id", eventId);
 
         if (error) {
@@ -119,18 +150,17 @@ export function ContentTab({
       description: "",
       duration_minutes: 5,
     };
-    setEvent({ ...event, event_lessons: [...(event.event_lessons || []), newLesson] });
+    setLessons((lessons) => [...lessons, newLesson]);
   };
 
   const updateLesson = (index: number, updates: Partial<Lesson>) => {
-    const next = [...(event.event_lessons || [])];
-    next[index] = { ...next[index], ...updates } as Lesson;
-    setEvent({ ...event, event_lessons: next });
+    setLessons((lessons) =>
+      lessons.map((lesson, i) => (i === index ? { ...lesson, ...updates } : lesson))
+    );
   };
 
   const removeLesson = (index: number) => {
-    const next = (event.event_lessons || []).filter((_, i) => i !== index);
-    setEvent({ ...event, event_lessons: next });
+    setLessons((lessons) => lessons.filter((_, i) => i !== index));
   };
 
   const handleImageUpload = async (index: number, file: File) => {
@@ -153,8 +183,16 @@ export function ContentTab({
       return;
     }
 
+    // Lessons can be removed, reordered or reloaded during the upload, so track
+    // this one by a stable id instead of its index.
+    const target = event.event_lessons?.[index];
+    const uploadKey = (target && lessonKey(target)) ?? createLessonClientId();
+    if (!target?.id) {
+      updateLesson(index, { client_id: uploadKey });
+    }
+
     try {
-      setUploadingImages(prev => ({ ...prev, [index]: true }));
+      setUploadingImages(prev => ({ ...prev, [uploadKey]: true }));
 
       // Create form data
       const formData = new FormData();
@@ -173,13 +211,29 @@ export function ContentTab({
 
       const data = await response.json();
 
-      // Update lesson with the uploaded image URL
-      updateLesson(index, { cover_image_url: data.url });
-
-      toast({
-        title: "Success",
-        description: "Image uploaded successfully",
+      // Update lesson with the uploaded image URL, if it still exists. flushSync
+      // runs the updater now, so we know the outcome before reporting it.
+      let applied = false;
+      flushSync(() => {
+        setLessons((lessons) =>
+          lessons.map((lesson) => {
+            if (lessonKey(lesson) !== uploadKey) return lesson;
+            applied = true;
+            return { ...lesson, cover_image_url: data.url };
+          })
+        );
       });
+
+      toast(
+        applied
+          ? { title: "Success", description: "Image uploaded successfully" }
+          : {
+              title: "Image not added",
+              description:
+                "The lesson was removed or reloaded during the upload. Please upload the image again if you still need it.",
+              variant: "destructive",
+            }
+      );
     } catch (error) {
       console.error('Error uploading image:', error);
       toast({
@@ -188,7 +242,7 @@ export function ContentTab({
         variant: "destructive",
       });
     } finally {
-      setUploadingImages(prev => ({ ...prev, [index]: false }));
+      setUploadingImages(prev => ({ ...prev, [uploadKey]: false }));
     }
   };
 
@@ -320,7 +374,7 @@ export function ContentTab({
               value={event.paywall_content || ""}
               disabled={isArchived}
               onChange={(e) =>
-                setEvent({ ...event, paywall_content: e.target.value })
+                setEvent((prev) => prev && { ...prev, paywall_content: e.target.value })
               }
               placeholder="Add content (markdown supported)"
               className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
@@ -426,7 +480,7 @@ export function ContentTab({
                     type="url"
                     placeholder="Image URL"
                     value={lesson.cover_image_url}
-                    disabled={isArchived || uploadingImages[index]}
+                    disabled={isArchived || isUploading(lesson)}
                     onChange={(e) => updateLesson(index, { cover_image_url: e.target.value })}
                     className="flex-1 h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]"
                   />
@@ -434,7 +488,7 @@ export function ContentTab({
                     <Input
                       type="file"
                       accept="image/*"
-                      disabled={isArchived || uploadingImages[index]}
+                      disabled={isUploadDisabled(lesson)}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
@@ -447,11 +501,11 @@ export function ContentTab({
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={isArchived || uploadingImages[index]}
+                      disabled={isUploadDisabled(lesson)}
                       onClick={() => document.getElementById(`file-upload-${index}`)?.click()}
                       className="h-[44px] border border-[rgba(0,0,0,0.15)] bg-white"
                     >
-                      {uploadingImages[index] ? "Uploading..." : "Upload"}
+                      {isUploading(lesson) ? "Uploading..." : "Upload"}
                     </Button>
                   </div>
                 </div>
@@ -507,7 +561,7 @@ export function ContentTab({
           </Alert>
         )}
 
-        <Button onClick={saveLessons} disabled={isArchived || savingLessons || lessonsUnknown} className="w-full">
+        <Button onClick={saveLessons} disabled={isArchived || savingLessons || lessonsUnknown || hasActiveUpload} className="w-full">
           {savingLessons ? "Saving Lessons..." : "Save Lessons"}
         </Button>
           </TabsContent>

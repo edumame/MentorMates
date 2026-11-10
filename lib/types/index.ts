@@ -193,6 +193,16 @@ export interface Resource {
 
 export interface Lesson {
   /**
+   * Database id, absent until the lesson is saved. Saving replaces every row,
+   * so it changes on each save.
+   */
+  id?: string;
+  /**
+   * Client-only id that follows an unsaved lesson while the editor changes the
+   * list. Not a database column, so never include it when saving.
+   */
+  client_id?: string;
+  /**
    * Title of the lesson, shown to users
    */
   title: string;
