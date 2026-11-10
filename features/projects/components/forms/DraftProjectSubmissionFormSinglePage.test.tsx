@@ -1,175 +1,237 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import type { Session } from "@supabase/supabase-js";
+import type { Project } from "@/lib/types";
+import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
+import { supabase } from "@/lib/supabase";
 import DraftProjectSubmissionFormSinglePage from "./DraftProjectSubmissionFormSinglePage";
-import type { EventSubmissionField, Project } from "@/lib/types";
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), refresh: jest.fn() }),
+}));
+jest.mock("@/lib/hooks/use-toast", () => ({ toast: jest.fn() }));
+jest.mock("@/features/projects/client-actions/client-update", () => ({
+  updateProjectTeamClient: jest.fn(),
+}));
+jest.mock("@/features/projects/client-actions/client-delete", () => ({
+  deleteProjectClient: jest.fn(),
 }));
 jest.mock("@/lib/supabase", () => {
   const query = {
     select: () => query,
     eq: () => query,
     order: () => query,
-    then: (resolve: (result: { data: []; error: null }) => void) =>
-      resolve({ data: [], error: null }),
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({ data: [], error: null }).then(resolve),
   };
-  return { supabase: { from: () => query } };
+  return { supabase: { from: jest.fn(() => query) } };
 });
-jest.mock("@/components/utils/UserSearchWithInvite", () => ({
-  __esModule: true,
-  default: () => null,
-}));
+// react-markdown ships ESM that Jest does not transform.
 jest.mock("@/components/projects/ProjectDescription", () => ({
   ProjectDescription: () => null,
-}));
-jest.mock("@/features/intake-forms/components/ParticipantIntakeDialog", () => ({
-  ParticipantIntakeDialog: () => null,
 }));
 jest.mock("@/features/projects/components/displays/ProjectFieldEntriesSection", () => ({
   ProjectFieldEntriesSection: jest.requireActual("react").forwardRef(() => null),
 }));
-jest.mock("@mui/icons-material", () => ({ TextFields: () => null }));
+jest.mock("@/components/utils/UserSearchWithInvite", () => ({
+  __esModule: true,
+  default: ({ onTagsChange }: { onTagsChange: (tags: string[]) => void }) => (
+    <button onClick={() => onTagsChange(["mate@x.com", "new@x.com"])}>
+      Add teammate
+    </button>
+  ),
+}));
 
-const MATERIALS = [
-  "https://example.com/one",
-  "https://example.com/two",
-  "https://example.com/three",
-];
+const PROJECT_ID = "project-1";
+const leadSession = { user: { id: "u1", email: "lead@x.com" } } as Session;
 
-const buildField = (
-  id: string,
-  key: string,
-  field_type: EventSubmissionField["field_type"]
-): EventSubmissionField => ({
-  id,
+const hydratedProject = (overrides: Partial<Project> = {}): Project => ({
+  id: PROJECT_ID,
+  project_name: "Secret project",
+  project_description: "Not for public eyes",
+  lead_name: "Lead",
+  lead_email: "lead@x.com",
+  is_private: true,
+  teammates: ["mate@x.com"],
   event_id: "event-1",
-  key,
-  label: key,
-  field_type,
-  required: false,
-  sort_order: 0,
-  is_active: true,
+  track_ids: [],
+  created_at: "2026-01-01T00:00:00Z",
+  has_submission_field_config: false,
+  ...overrides,
 });
 
-const nameField = buildField("field-name", "project_name", "short_text");
-const materialsField = buildField(
-  "field-materials",
-  "additional_materials",
-  "multi_url"
-);
-
-const buildProject = (
-  fields: EventSubmissionField[] = [nameField, materialsField]
-): Project =>
+// What `.from("projects").update().select().single()` actually returns: the DB
+// column is `private`, and none of the API's hydrated fields are present.
+const rawProjectRow = (teammates: string[]) =>
   ({
-    id: "project-1",
+    id: PROJECT_ID,
+    project_name: "Secret project",
+    project_description: "Not for public eyes",
+    lead_name: "Lead",
+    lead_email: "lead@x.com",
+    private: true,
+    teammates,
     event_id: "event-1",
-    project_name: "Demo",
-    project_description: "",
-    project_url: "",
-    additional_materials_url: MATERIALS[0],
-    lead_email: "lead@example.test",
-    teammates: [],
-    has_submission_field_config: true,
-    submission_fields: fields,
-    submission_values: { project_name: "Demo", additional_materials: MATERIALS },
-    submission_answers: [
-      { event_submission_field_id: nameField.id, answer: "Demo" },
-      { event_submission_field_id: materialsField.id, answer: MATERIALS },
-    ],
+    created_at: "2026-01-01T00:00:00Z",
   }) as unknown as Project;
 
-let patchBodies: Array<Record<string, unknown>>;
+const patchBodies = () =>
+  (fetch as jest.Mock).mock.calls
+    .filter(([, init]) => init?.method === "PATCH")
+    .map(([, init]) => JSON.parse(init.body));
 
-const materialsAnswers = () =>
-  patchBodies.map((body) =>
-    (
-      body.submission_answers as Array<{
-        eventSubmissionFieldId: string;
-        answer: string | string[];
-      }>
-    ).find((answer) => answer.eventSubmissionFieldId === materialsField.id)?.answer
+const artifactFetchCount = () =>
+  (supabase.from as jest.Mock).mock.calls.filter(
+    ([table]) => table === "project_artifacts"
+  ).length;
+
+const privacySelect = () =>
+  within(screen.getByText("Project visibility").parentElement!).getByRole(
+    "combobox"
   );
 
-const renderForm = async (project = buildProject()) => {
-  render(
-    <DraftProjectSubmissionFormSinglePage
-      projectId="project-1"
-      session={null}
-      project={project}
-      canEdit
-    />
-  );
-  // Let the mount-time event, track and field-config fetches settle.
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
+const clickRemoveTeammate = () => {
+  const row = screen.getAllByText("mate@x.com")[0].parentElement!.parentElement!;
+  fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
 };
 
-beforeEach(() => {
-  patchBodies = [];
-  global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
-    if (init?.method === "PATCH") {
-      patchBodies.push(JSON.parse(String(init.body)));
-      return { ok: true, json: async () => ({}) };
-    }
-    if (url.includes("/submission-fields")) {
-      return {
-        ok: true,
-        json: async () => ({ fields: buildProject().submission_fields }),
-      };
-    }
-    return { ok: true, json: async () => ({ users: [], form: null }) };
-  }) as unknown as typeof fetch;
-});
+const clickAddTeammate = () =>
+  fireEvent.click(screen.getByRole("button", { name: "Add teammate" }));
 
-describe("DraftProjectSubmissionFormSinglePage additional materials", () => {
-  it("loads every saved item on a configured event", async () => {
-    await renderForm();
-
-    for (const url of MATERIALS) {
-      expect(screen.getByDisplayValue(url)).toBeInTheDocument();
-    }
+const settle = () =>
+  act(async () => {
+    await jest.advanceTimersByTimeAsync(0);
   });
 
-  it("keeps every saved item when publishing an unedited form", async () => {
-    await renderForm();
+async function renderForm(project: Project) {
+  const onProjectUpdate = jest.fn();
+  render(
+    <DraftProjectSubmissionFormSinglePage
+      projectId={PROJECT_ID}
+      session={leadSession}
+      project={project}
+      canEdit
+      onProjectUpdate={onProjectUpdate}
+    />
+  );
+  await settle();
+  return { onProjectUpdate };
+}
 
-    fireEvent.click(screen.getByRole("button", { name: "Publish project" }));
-
-    await waitFor(() => expect(patchBodies).toHaveLength(1));
-    expect(materialsAnswers()).toEqual([MATERIALS]);
-  });
-
-  it("keeps every saved item when autosaving an unrelated edit", async () => {
-    await renderForm();
-
-    fireEvent.change(screen.getByDisplayValue("Demo"), {
-      target: { value: "Renamed" },
+describe("DraftProjectSubmissionFormSinglePage team changes", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ project: hydratedProject(), participants: [] }),
     });
-
-    await waitFor(() => expect(patchBodies).toHaveLength(1), { timeout: 3000 });
-    expect(materialsAnswers()).toEqual([MATERIALS]);
+    (updateProjectTeamClient as jest.Mock).mockImplementation(
+      async (_projectId: string, teammates: string[]) => ({
+        data: rawProjectRow(teammates),
+        error: null,
+      })
+    );
   });
 
-  it("drops only the item the submitter edits away", async () => {
-    await renderForm();
-
-    fireEvent.change(screen.getByDisplayValue(MATERIALS[1]), {
-      target: { value: "" },
-    });
-
-    await waitFor(() => expect(patchBodies).toHaveLength(1), { timeout: 3000 });
-    expect(materialsAnswers()).toEqual([[MATERIALS[0], MATERIALS[2]]]);
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.clearAllMocks();
   });
 
-  it("writes nothing when the form only loads", async () => {
-    await renderForm();
+  const changes: Array<[string, () => void, string[]]> = [
+    ["removing a teammate", clickRemoveTeammate, []],
+    ["adding a teammate", clickAddTeammate, ["mate@x.com", "new@x.com"]],
+  ];
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 2100));
+  it.each(changes)(
+    "keeps a private project private after %s",
+    async (_name, changeTeam, expectedTeammates) => {
+      const { onProjectUpdate } = await renderForm(hydratedProject());
+
+      changeTeam();
+      await settle();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(2000);
+      });
+
+      expect(updateProjectTeamClient).toHaveBeenCalledWith(
+        PROJECT_ID,
+        expectedTeammates
+      );
+      expect(patchBodies()).not.toContainEqual(
+        expect.objectContaining({ private: false })
+      );
+      expect(privacySelect()).toHaveTextContent("Private");
+      expect(onProjectUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          is_private: true,
+          teammates: expectedTeammates,
+        })
+      );
+    }
+  );
+
+  it.each(changes)(
+    "keeps a public project public after %s",
+    async (_name, changeTeam) => {
+      await renderForm(hydratedProject({ is_private: false }));
+
+      changeTeam();
+      await settle();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(2000);
+      });
+
+      expect(patchBodies()).not.toContainEqual(
+        expect.objectContaining({ private: true })
+      );
+      expect(privacySelect()).toHaveTextContent("Public");
+    }
+  );
+
+  it.each(changes)(
+    "does not re-run artifact hydration, which would overwrite unsaved links, after %s",
+    async (_name, changeTeam) => {
+      await renderForm(hydratedProject());
+      const fetchesAfterLoad = artifactFetchCount();
+      expect(fetchesAfterLoad).toBeGreaterThan(0);
+
+      changeTeam();
+      await settle();
+
+      expect(artifactFetchCount()).toBe(fetchesAfterLoad);
+    }
+  );
+
+  it("shows the new team list and leaves project fields alone", async () => {
+    const { onProjectUpdate } = await renderForm(
+      hydratedProject({ cover_image_url: "https://example.com/cover.png" })
+    );
+
+    clickRemoveTeammate();
+    await settle();
+
+    expect(screen.queryByText("mate@x.com")).toBeNull();
+    expect(onProjectUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cover_image_url: "https://example.com/cover.png",
+        has_submission_field_config: false,
+        teammates: [],
+      })
+    );
+  });
+
+  it("keeps the current team when the update returns no row", async () => {
+    (updateProjectTeamClient as jest.Mock).mockResolvedValue({
+      data: null,
+      error: { message: "denied" },
     });
+    await renderForm(hydratedProject());
 
-    expect(patchBodies).toHaveLength(0);
+    clickRemoveTeammate();
+    await settle();
+
+    expect(screen.getAllByText("mate@x.com").length).toBeGreaterThan(0);
+    expect(privacySelect()).toHaveTextContent("Private");
   });
 });
