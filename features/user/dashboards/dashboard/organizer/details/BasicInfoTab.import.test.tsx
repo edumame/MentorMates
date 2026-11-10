@@ -6,6 +6,11 @@ import { BasicInfoTab } from "./BasicInfoTab";
 import type { EventDetails } from "@/lib/types";
 
 jest.mock("@/lib/supabase", () => ({ supabase: {} }));
+// The archive/delete dialogs need the app router and are not under test here.
+jest.mock("./EventLifecycleDialogs", () => ({
+  ArchiveEventDialog: () => null,
+  DeleteEventDialog: () => null,
+}));
 jest.mock("react-markdown", () => ({ __esModule: true, default: () => null }));
 jest.mock("@/components/markdown/plugins", () => ({
   markdownRemarkPlugins: [],

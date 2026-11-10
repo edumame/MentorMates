@@ -14,7 +14,7 @@ type Contributor = {
 const contributors: Contributor[] = [
   {
     name: "Matthew Law",
-    imageUrl: "/img/Matthew.png",
+    imageUrl: "/img/Matthew.jpg",
     profileUrl: "https://www.linkedin.com/in/matthew-law-0x251/",
     role: "Research Intern",
   },

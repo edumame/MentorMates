@@ -8,6 +8,7 @@ import {
   ParticipantRequestStatus,
 } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import { isApprovableRole } from "@/lib/roles/approval-requests";
 import {
   Table,
   TableBody,
@@ -329,6 +330,7 @@ export function ApprovalRequestsTab({
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
+                  <TableHead>Requested role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Actions</TableHead>
@@ -360,12 +362,31 @@ export function ApprovalRequestsTab({
                         </div>
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          isApprovableRole(request.requested_role)
+                            ? "capitalize"
+                            : "capitalize text-amber-600 bg-amber-500/10"
+                        }
+                      >
+                        {request.requested_role}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{getStatusBadge(request.status)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(request.created_at)}
                     </TableCell>
                     <TableCell>
+                      {!isApprovableRole(request.requested_role) &&
+                        request.status !== ParticipantRequestStatus.Approved && (
+                          <p className="text-sm text-muted-foreground">
+                            Staff roles require an invitation
+                          </p>
+                        )}
                       {request.status === ParticipantRequestStatus.Pending &&
+                        isApprovableRole(request.requested_role) &&
                         !isArchived && (
                           <div className="flex items-center gap-2">
                             <Button
@@ -417,7 +438,7 @@ export function ApprovalRequestsTab({
                               Reason: {request.rejection_reason}
                             </p>
                           )}
-                          {!isArchived && (
+                          {!isArchived && isApprovableRole(request.requested_role) && (
                             <Button
                               size="sm"
                               variant="outline"

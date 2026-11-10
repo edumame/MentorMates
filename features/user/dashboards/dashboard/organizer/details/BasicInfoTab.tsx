@@ -17,6 +17,12 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { EventDetails, EventVisibility } from "@/lib/types";
+import { EVENT_NAME_MAX_LENGTH } from "@/lib/types/wizard";
+import {
+  DUPLICATE_EVENT_SLUG_MESSAGE,
+  isDuplicateEventSlugError,
+} from "@/lib/events/event-slug";
+import { validateBasicInfo } from "./basic-info-validation";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -48,6 +54,12 @@ import {
 } from "lucide-react";
 import { getFileNameFromUrl } from "@/lib/utils/file";
 import { scrapedEventFields } from "./scrapedEventFields";
+import { ArchiveEventDialog, DeleteEventDialog } from "./EventLifecycleDialogs";
+import {
+  EVENT_COVER_ACCEPT,
+  uploadEventCoverImage,
+  validateCoverImage,
+} from "./cover-image";
 
 interface BasicInfoTabProps {
   event: EventDetails;
@@ -73,8 +85,6 @@ export function BasicInfoTab({
   );
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [updateSlug, setUpdateSlug] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [archiving, setArchiving] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
@@ -114,37 +124,41 @@ export function BasicInfoTab({
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
 
+    // ORG-014/015/016: same name, slug and submission-window rules as the
+    // create-event wizard.
+    const validation = validateBasicInfo(event);
+    if (!validation.ok) {
+      toast({ title: validation.title, description: validation.message, variant: "destructive" });
+      return;
+    }
+    const { event_name: eventName, slug } = validation.values;
+
     try {
       setSaving(true);
       let coverImageUrl = event.cover_image_url;
+      // ORG-022: a failed cover upload must not throw away the other edits.
+      let coverUploadError: string | null = null;
 
-      // Handle file upload if there's a new file selected
       if (selectedCoverImage) {
-        const fileExt = selectedCoverImage.name.split(".").pop();
-        const fileName = `${Math.random()
-          .toString(36)
-          .substring(2)}.${fileExt}`;
-        const filePath = `event-covers/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("event-materials")
-          .upload(filePath, selectedCoverImage);
-
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("event-materials").getPublicUrl(filePath);
-
-        coverImageUrl = publicUrl;
+        try {
+          coverImageUrl = await uploadEventCoverImage(
+            supabase,
+            event.event_id,
+            selectedCoverImage
+          );
+        } catch (uploadError) {
+          console.error("Error uploading cover image:", uploadError);
+          coverUploadError =
+            uploadError instanceof Error ? uploadError.message : "Upload failed";
+        }
       }
 
       // Update event with new cover image URL if it changed
       const { error } = await supabase
         .from("events")
         .update({
-          event_name: event.event_name,
-          slug: event.slug,
+          event_name: eventName,
+          slug,
           event_date: event.event_date,
           location: event.location,
           event_description: event.event_description,
@@ -152,7 +166,8 @@ export function BasicInfoTab({
           external_url: event.external_url?.trim() || null,
           external_redirect_enabled: event.external_redirect_enabled ?? false,
           event_type: event.event_type,
-          paywall_content: event.paywall_content,
+          // paywall_content is saved by ContentTab only (it is loaded there
+          // through get_event_paywall_content); never overwrite it here.
           cover_image_url: coverImageUrl ?? null,
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
@@ -162,30 +177,52 @@ export function BasicInfoTab({
         })
         .eq("event_id", event.event_id);
 
-      if (error) throw error;
+      if (error) {
+        if (isDuplicateEventSlugError(error)) {
+          toast({
+            title: "Check the URL slug",
+            description: DUPLICATE_EVENT_SLUG_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
 
       // Update local state
       setEvent({
         ...event,
+        event_name: eventName,
+        slug: slug ?? undefined,
         cover_image_url: coverImageUrl ?? undefined,
         external_url: event.external_url?.trim() || null,
         external_redirect_enabled: event.external_redirect_enabled ?? false,
       });
-      setSelectedCoverImage(null);
-      setPreviewUrl(null);
+      if (!coverUploadError) {
+        setSelectedCoverImage(null);
+        setPreviewUrl(null);
+      }
 
       // Refresh the page to update the overview
       router.refresh();
 
       if (updateSlug) {
         setUpdateSlug(false);
-        router.push(`/events/${event.slug}/overview`);
+        router.push(`/events/${slug || event.event_id}/overview`);
       }
 
-      toast({
-        title: "Success",
-        description: "Changes saved successfully",
-      });
+      if (coverUploadError) {
+        toast({
+          title: "Saved without the new cover image",
+          description: `Your other changes were saved, but the cover image could not be uploaded: ${coverUploadError}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Changes saved successfully",
+        });
+      }
     } catch (error) {
       console.error("Error updating event:", error);
       toast({
@@ -195,54 +232,6 @@ export function BasicInfoTab({
       });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleArchiveToggle = async () => {
-    if (!event) return;
-
-    try {
-      setArchiving(true);
-      const action =
-        event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
-
-      const res = await fetch(`/api/events/${event.event_id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || `Failed to ${action} event`);
-      }
-
-      const result = await res.json();
-
-      // Update local state
-      setEvent({ ...event, visibility: result.newVisibility });
-
-      toast({
-        title: "Success",
-        description: `Event ${action}d successfully`,
-      });
-
-      // Refresh the page to update any cached data
-      router.refresh();
-    } catch (error) {
-      console.error(
-        `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
-        error
-      );
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setArchiving(false);
     }
   };
 
@@ -266,7 +255,8 @@ export function BasicInfoTab({
           </AlertTitle>
           <AlertDescription>
             This event is archived and cannot be edited. To make changes, you
-            must first unarchive the event using the controls below.
+            must first unarchive it with the Unarchive button at the top of the
+            page or in the Archive section below.
           </AlertDescription>
         </Alert>
       )}
@@ -279,6 +269,8 @@ export function BasicInfoTab({
           setEvent({ ...event, event_name: e.target.value })
         }
         disabled={isArchived}
+        maxLength={EVENT_NAME_MAX_LENGTH}
+        aria-label="Event title"
         placeholder="Event Title"
         className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full min-w-0 bg-transparent border-none outline-none focus:ring-0 p-0 disabled:opacity-50"
         style={{
@@ -544,13 +536,21 @@ export function BasicInfoTab({
                 onClick={() => {
                   const input = document.createElement("input");
                   input.type = "file";
-                  input.accept = "image/*";
+                  input.accept = EVENT_COVER_ACCEPT;
                   input.onchange = (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0];
-                    if (file) {
-                      setSelectedCoverImage(file);
-                      setPreviewUrl(URL.createObjectURL(file));
+                    if (!file) return;
+                    const validationError = validateCoverImage(file);
+                    if (validationError) {
+                      toast({
+                        title: "Invalid cover image",
+                        description: validationError,
+                        variant: "destructive",
+                      });
+                      return;
                     }
+                    setSelectedCoverImage(file);
+                    setPreviewUrl(URL.createObjectURL(file));
                   };
                   input.click();
                 }}
@@ -583,7 +583,7 @@ export function BasicInfoTab({
             </div>
           </div>
           <p className="text-xs text-gray-500">
-            *Upload an image to showcase your project (Max 10MB).
+            *Upload a PNG, JPEG, WebP or GIF cover image (max 5MB).
           </p>
 
           {(previewUrl || event.cover_image_url) && (
@@ -909,45 +909,27 @@ export function BasicInfoTab({
                 : "Archive this event to prevent further editing while keeping it visible."}
             </p>
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
+          <ArchiveEventDialog
+            event={event}
+            onVisibilityChange={(visibility) =>
+              setEvent((prev) => (prev ? { ...prev, visibility } : prev))
+            }
+            trigger={({ busy, isArchived: archived }) => (
               <Button
                 variant="destructive"
-                disabled={archiving}
+                disabled={busy}
                 className="shrink-0 whitespace-nowrap w-full sm:w-auto"
               >
-                {archiving
-                  ? event.visibility === EventVisibility.Archived
+                {busy
+                  ? archived
                     ? "Unarchiving..."
                     : "Archiving..."
-                  : event.visibility === EventVisibility.Archived
+                  : archived
                     ? "Unarchive"
                     : "Archive"}
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {event.visibility === EventVisibility.Archived
-                    ? "Unarchive this event?"
-                    : "Archive this event?"}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {event.visibility === EventVisibility.Archived
-                    ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                    : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleArchiveToggle}>
-                  {event.visibility === EventVisibility.Archived
-                    ? "Confirm Unarchive"
-                    : "Confirm Archive"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            )}
+          />
         </div>
       </div>
 
@@ -961,60 +943,18 @@ export function BasicInfoTab({
             </p>
           </div>
           <div className="w-full sm:w-auto flex flex-col gap-2">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <DeleteEventDialog
+              event={event}
+              trigger={({ busy }) => (
                 <Button
                   variant="delete"
-                  disabled={deleting}
+                  disabled={busy}
                   className="shrink-0 whitespace-nowrap w-full sm:w-auto"
                 >
-                  {deleting ? "Deleting..." : "Delete Event"}
+                  {busy ? "Deleting..." : "Delete Event"}
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently remove the event and related data
-                    (tickets, payments, tracks, feedback). This cannot be
-                    undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={async () => {
-                      try {
-                        setDeleting(true);
-                        const res = await fetch(`/api/events/${event.event_id}`, {
-                          method: "DELETE",
-                        });
-                        if (!res.ok) {
-                          const body = await res.json().catch(() => ({}));
-                          throw new Error(
-                            body?.error || "Failed to delete event"
-                          );
-                        }
-                        toast({ title: "Event deleted" });
-                        // Navigate back to events list
-                        router.push("/events");
-                      } catch (err) {
-                        console.error(err);
-                        toast({
-                          title: "Error",
-                          description: (err as Error).message,
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setDeleting(false);
-                      }
-                    }}
-                  >
-                    Confirm Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              )}
+            />
 
             {/* Duplicate Event (shown under Delete Event button) */}
             <AlertDialog>

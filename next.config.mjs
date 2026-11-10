@@ -6,8 +6,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // shipcue ships ES modules only; listing it also lets next/jest transform it.
-  transpilePackages: ["shipcue"],
+  // shipcue and jose ship ES modules only; listing them also lets next/jest
+  // transform them.
+  transpilePackages: ["shipcue", "jose"],
   turbopack: {
     root: __dirname,
   },

@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
-import { EventRole } from "@/lib/types";
+import { EventRole, type EventScoringConfig, type EventTrack } from "@/lib/types";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import {
   getProjectIdsForRound,
-  rankProjectsForAdvancement,
   replaceAdvancements,
 } from "@/lib/judging/rounds";
+import { rankProjectsForAdvancement } from "@/lib/judging/advancement-ranking";
 
 const bodySchema = z.object({
   fromRound: z.number().int().positive(),
@@ -97,48 +99,102 @@ export async function GET(
       .eq("round_number", toRound);
     if (advancedErr) throw advancedErr;
 
-    const { data: scoreRows, error: scoreErr } = await supabase
-      .from("project_scores")
-      .select(
-        `
-        project_id,
-        scores,
-        projects:projects!inner (
-          project_name,
-          lead_name,
-          event_id
-        )
-      `
-      )
-      .eq("event_id", eventId)
-      .eq("round_number", fromRound);
-    if (scoreErr) throw scoreErr;
+    const [scoreResult, tracksResult, eventResult, scorerRolesResult] = await Promise.all([
+      // Paged: PostgREST silently truncates a select at max_rows (1000).
+      fetchAllRows((from, to) =>
+        supabase
+          .from("project_scores")
+          .select(
+            `
+            project_id,
+            judge_id,
+            track_id,
+            scores,
+            projects:projects!inner (
+              project_name,
+              lead_name,
+              event_id
+            ),
+            event_tracks:event_tracks!fk_project_scores_track (
+              name
+            )
+          `
+          )
+          .eq("event_id", eventId)
+          .eq("round_number", fromRound)
+          .order("id")
+          .range(from, to)
+      ),
+      supabase
+        .from("event_tracks")
+        .select("track_id, name, scoring_criteria")
+        .eq("event_id", eventId),
+      supabase
+        .from("events")
+        .select("scoring_config")
+        .eq("event_id", eventId)
+        .maybeSingle(),
+      // Current scorers (JUDGE-017): rows from former judges are not ranked,
+      // matching the organizer leaderboard and CSV export.
+      supabase
+        .from("user_event_roles")
+        .select("user_id")
+        .eq("event_id", eventId)
+        .in("role", ["judge", "organizer", "admin"]),
+    ]);
+    if (scoreResult.error) throw scoreResult.error;
+    if (tracksResult.error) throw tracksResult.error;
+    if (eventResult.error) throw eventResult.error;
+
+    let activeJudgeIds: Set<string> | null = null;
+    if (scorerRolesResult.error) {
+      // Same fallback as the leaderboard: count every score rather than hide valid ones.
+      console.error("Error fetching current judges:", scorerRolesResult.error);
+    } else {
+      activeJudgeIds = new Set(
+        (scorerRolesResult.data ?? []).map((row) => String(row.user_id))
+      );
+    }
+
+    const scoringConfig = buildEventScoringConfig({
+      event_tracks: (tracksResult.data ?? []) as EventTrack[],
+      scoring_config:
+        (eventResult.data?.scoring_config as EventScoringConfig | null) ?? null,
+    });
+
+    type Joined<T> = T | T[] | null;
+    const first = <T,>(value: Joined<T>): T | null =>
+      Array.isArray(value) ? value[0] ?? null : value;
 
     const rankedProjects = rankProjectsForAdvancement(
-      ((scoreRows ?? []) as Array<{
+      ((scoreResult.data ?? []) as Array<{
         project_id: string;
+        judge_id: string | null;
+        track_id: string | null;
         scores: Record<string, unknown> | null;
-        projects:
-          | {
-              project_name?: string | null;
-              lead_name?: string | null;
-              event_id?: string | null;
-            }
-          | {
-              project_name?: string | null;
-              lead_name?: string | null;
-              event_id?: string | null;
-            }[];
-      }>).map((row) => {
-        const project = Array.isArray(row.projects) ? row.projects[0] : row.projects;
-        return {
-          project_id: row.project_id,
-          scores: row.scores,
-          project_name: project?.project_name ?? "",
-          lead_name: project?.lead_name ?? "",
-        };
-      })
-    ).filter((project) => eligibleProjectIdSet.has(project.projectId));
+        projects: Joined<{
+          project_name?: string | null;
+          lead_name?: string | null;
+          event_id?: string | null;
+        }>;
+        event_tracks: Joined<{ name?: string | null }>;
+      }>)
+        // Rank eligible projects only, so competition ranks have no gaps.
+        .filter((row) => eligibleProjectIdSet.has(row.project_id))
+        .map((row) => {
+          const project = first(row.projects);
+          return {
+            project_id: row.project_id,
+            judge_id: row.judge_id,
+            track_id: row.track_id,
+            track_name: first(row.event_tracks)?.name ?? "",
+            scores: row.scores,
+            project_name: project?.project_name ?? "",
+            lead_name: project?.lead_name ?? "",
+          };
+        }),
+      { scoringConfig, roundNumber: fromRound, activeJudgeIds }
+    );
 
     const rankedIds = new Set(rankedProjects.map((project) => project.projectId));
     let eligibleProjects: Array<{
@@ -162,10 +218,8 @@ export async function GET(
     }
 
     const candidates = [
-      ...rankedProjects.map((project, index) => ({
-        rank: index + 1,
-        ...project,
-      })),
+      // rank is the competition rank from rankProjectsForAdvancement (ties share a rank).
+      ...rankedProjects,
       ...eligibleProjects
         .filter((project) => !rankedIds.has(project.id))
         .sort((a, b) =>

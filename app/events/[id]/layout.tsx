@@ -2,10 +2,10 @@ import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { isValidUUID } from "@/app/utils/supabase/queries";
+import { getEventForRoute } from "@/lib/events/server-event";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
-import { canUseInternalEventRoute } from "@/lib/events/navigation";
+import { canUseInternalEventRoute, getExternalRedirectUrl } from "@/lib/events/navigation";
 
 // add authentication check for non private/public events
 
@@ -17,44 +17,15 @@ export default async function Layout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await Promise.resolve(params);
-  const supabase = await createSupabaseClient();
-
-  // Check if user is authenticated
-  const isUUID = isValidUUID(id);
-
-  let query = supabase.from("events").select(`
-    event_id,
-    slug,
-    event_name,
-    event_date,
-    location,
-    event_blurb,
-    event_description,
-    cover_image_url,
-    submission_time_start,
-    submission_time_cutoff,
-    visibility,
-    external_url,
-    external_redirect_enabled
-  `);
-
-  if (isUUID) {
-    // If it's a UUID, check both slug and event_id
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    // If it's not a UUID, only check slug
-    query = query.eq("slug", id);
-  }
-
-  const { data: event } = await query.maybeSingle();
+  const { data: event } = await getEventForRoute(id);
 
   if (!event) {
     notFound();
   }
 
-  const externalUrl = event.external_url?.trim();
-  const externalRedirectEnabled = event.external_redirect_enabled === true;
-  if (externalUrl && externalRedirectEnabled) {
+  const externalUrl = getExternalRedirectUrl(event);
+  if (externalUrl) {
+    const supabase = await createSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -85,7 +56,19 @@ export default async function Layout({
 
   return (
     <RouteBasedLayoutConfig>
-      <ConditionalEventLayout event={event}>
+      <ConditionalEventLayout event={{
+        event_id: event.event_id,
+        event_name: event.event_name,
+        event_date: event.event_date,
+        location: event.location,
+        event_blurb: event.event_blurb,
+        event_description: event.event_description,
+        cover_image_url: event.cover_image_url,
+        slug: event.slug,
+        submission_time_start: event.submission_time_start,
+        submission_time_cutoff: event.submission_time_cutoff,
+        visibility: event.visibility,
+      }}>
         {children}
       </ConditionalEventLayout>
     </RouteBasedLayoutConfig>
@@ -98,23 +81,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await Promise.resolve(params);
-  const supabase = await createSupabaseClient();
-
-  const isUUID = isValidUUID(id);
-
-  let query = supabase
-    .from("events")
-    .select("event_name, slug, event_blurb, event_description, cover_image_url");
-
-  if (isUUID) {
-    // If it's a UUID, check both slug and event_id
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    // If it's not a UUID, only check slug
-    query = query.eq("slug", id);
-  }
-
-  const { data: event } = await query.single();
+  const { data: event } = await getEventForRoute(id);
 
   const path = event?.slug ? `/events/${event.slug}` : `/events/${id}`;
   const description = event?.event_blurb || event?.event_description || undefined;
