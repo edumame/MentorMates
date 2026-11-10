@@ -24,12 +24,15 @@ export function PublicProjectsGallery() {
   const searchParams = useSearchParams();
 
   const [publicEvents, setPublicEvents] = useState<PublicEventOption[]>([]);
-  const [isPublicEventsLoading, setIsPublicEventsLoading] = useState(false);
+  // Starts true so no project request goes out before the event list has
+  // resolved which event is selected (PUB-010).
+  const [isPublicEventsLoading, setIsPublicEventsLoading] = useState(true);
 
+  // No hard-coded default here: the preferred event is chosen once the event
+  // list is known, otherwise a request for a possibly missing default slug
+  // could race (and overwrite) the real one.
   const [selectedEventSlug, setSelectedEventSlug] = useState<string>(
-    searchParams.get("event") ??
-      searchParams.get("eventSlug") ??
-      DEFAULT_PUBLIC_EVENT_SLUG
+    searchParams.get("event") ?? searchParams.get("eventSlug") ?? ""
   );
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
@@ -88,6 +91,8 @@ export function PublicProjectsGallery() {
 
   // Fetch public projects. Prefer eventId once it’s known.
   useEffect(() => {
+    // Only the latest selection may write state; earlier requests are aborted.
+    const controller = new AbortController();
     const loadPublicProjects = async () => {
       if (
         isPublicEventsLoading ||
@@ -116,7 +121,8 @@ export function PublicProjectsGallery() {
           return;
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         if (!response.ok) {
           let message =
             "Couldn’t load projects for this event. It may be private or unavailable.";
@@ -126,22 +132,26 @@ export function PublicProjectsGallery() {
           } catch {
             // ignore parse issues
           }
+          if (controller.signal.aborted) return;
           setPublicProjectsError(message);
           setPublicProjects([]);
           return;
         }
 
         const data = (await response.json()) as { projects?: Project[] };
+        if (controller.signal.aborted) return;
         setPublicProjects(data.projects || []);
       } catch {
+        if (controller.signal.aborted) return;
         setPublicProjectsError("Couldn’t load projects right now. Please try again.");
         setPublicProjects([]);
       } finally {
-        setIsPublicProjectsLoading(false);
+        if (!controller.signal.aborted) setIsPublicProjectsLoading(false);
       }
     };
 
     void loadPublicProjects();
+    return () => controller.abort();
   }, [
     publicEvents,
     isPublicEventsLoading,
