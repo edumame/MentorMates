@@ -1,7 +1,7 @@
 "use client";
 
 import { EventDetails, Lesson } from "@/lib/types";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { flushSync } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
@@ -45,6 +45,7 @@ export function ContentTab({
   const [savingLessons, setSavingLessons] = useState(false);
   const [savingContent, setSavingContent] = useState(false);
   const [loadingLessons, setLoadingLessons] = useState(false);
+  const [lessonsLoadFailed, setLessonsLoadFailed] = useState(false);
   const [uploadingImages, setUploadingImages] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const hasActiveUpload = Object.values(uploadingImages).some(Boolean);
@@ -67,12 +68,22 @@ export function ContentTab({
   const isUploadDisabled = (lesson: Lesson) =>
     isArchived || loadingLessons || savingLessons || isUploading(lesson);
 
-  // Fetch lessons from database when component mounts
+  // undefined means the list is unknown (the parent's load failed), which is
+  // different from an event that has no lessons. Saving replaces every stored
+  // lesson, so nothing may be saved or added until the list is known.
+  const lessonsUnknown = event.event_lessons === undefined;
+
+  // The parent owns event_lessons and they survive this tab being unmounted, so
+  // only load here when the parent has none. Reloading on every mount would
+  // overwrite unsaved drafts.
   useEffect(() => {
+    if (!lessonsUnknown) return;
+
     const eventId = event.event_id;
 
     async function fetchLessons() {
       setLoadingLessons(true);
+      setLessonsLoadFailed(false);
       try {
         const { data: lessonsData, error } = await supabase
           .from("event_lessons")
@@ -81,52 +92,54 @@ export function ContentTab({
 
         if (error) {
           console.error("Error fetching lessons:", error);
+          setLessonsLoadFailed(true);
         } else {
-          // Update event with fetched lessons
-          // Functional update: the paywall RPC below also writes to event
-          // concurrently; spreading a stale `event` would drop its result.
-          // A fetch for a previous event is ignored.
+          // Functional update: other fields may have changed during the fetch.
           setEvent((prev) =>
-            prev?.event_id === eventId
+            prev && prev.event_id === eventId && prev.event_lessons === undefined
               ? { ...prev, event_lessons: (lessonsData || []) as Lesson[] }
               : prev
           );
         }
       } catch (err) {
         console.error("Exception fetching lessons:", err);
+        setLessonsLoadFailed(true);
       } finally {
         setLoadingLessons(false);
       }
     }
 
     fetchLessons();
-  }, [event.event_id]); // Only re-fetch when event_id changes
-
-  // Set once the organizer edits the paywall text, so a slow load of the saved
-  // text cannot overwrite what they typed.
-  const paywallEditedRef = useRef(false);
+  }, [event.event_id, lessonsUnknown, setEvent]);
 
   // Paywall content is members-only (PUB-002): it is not part of the event
   // row selected by the dashboard, so load it through the gated RPC.
+  // Like lessons, the parent keeps paywall_content across this tab being
+  // unmounted, so only load it while it is still unknown; reloading on every
+  // mount (or applying a late result) would revert unsaved edits.
+  const paywallUnknown = event.paywall_content === undefined;
   useEffect(() => {
+    if (!paywallUnknown) return;
     let active = true;
-    paywallEditedRef.current = false;
+    const eventId = event.event_id;
     supabase
-      .rpc("get_event_paywall_content", { p_event_id: event.event_id })
+      .rpc("get_event_paywall_content", { p_event_id: eventId })
       .then(({ data, error }) => {
-        if (!active || paywallEditedRef.current) return;
+        if (!active) return;
         if (error) {
           console.error("Error fetching paywall content:", error);
           return;
         }
         setEvent((prev) =>
-          prev ? { ...prev, paywall_content: data ?? undefined } : prev
+          prev && prev.event_id === eventId && prev.paywall_content === undefined
+            ? { ...prev, paywall_content: data ?? undefined }
+            : prev
         );
       });
     return () => {
       active = false;
     };
-  }, [event.event_id, setEvent]);
+  }, [event.event_id, paywallUnknown, setEvent]);
 
   const addLesson = () => {
     const newLesson: Lesson = {
@@ -263,7 +276,7 @@ export function ContentTab({
   };
 
   const saveLessons = async () => {
-    if (isArchived) return;
+    if (isArchived || lessonsUnknown) return;
 
     try {
       setSavingLessons(true);
@@ -359,10 +372,9 @@ export function ContentTab({
               id="paywall_content"
               value={event.paywall_content || ""}
               disabled={isArchived}
-              onChange={(e) => {
-                paywallEditedRef.current = true;
-                setEvent((prev) => prev && { ...prev, paywall_content: e.target.value });
-              }}
+              onChange={(e) =>
+                setEvent((prev) => prev && { ...prev, paywall_content: e.target.value })
+              }
               placeholder="Add content (markdown supported)"
               className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
             />
@@ -415,7 +427,7 @@ export function ContentTab({
               </TabsList>
               <Button 
                 variant="outline" 
-                disabled={isArchived || loadingLessons} 
+                disabled={isArchived || loadingLessons || lessonsUnknown} 
                 onClick={addLesson}
                 className="border border-[rgba(0,0,0,0.15)] bg-white"
               >
@@ -427,6 +439,10 @@ export function ContentTab({
           <TabsContent value="edit" className="mt-0">
             {loadingLessons ? (
               <p className="text-sm text-gray-500">Loading lessons...</p>
+            ) : lessonsUnknown && lessonsLoadFailed ? (
+              <p className="text-sm text-red-600">
+                Lessons could not be loaded. Reload the page to try again. Saving lessons is disabled so existing lessons are not overwritten.
+              </p>
             ) : (event.event_lessons || []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No lessons yet. Click &quot;Add Lesson&quot; to create one.</p>
             ) : null}
@@ -546,7 +562,7 @@ export function ContentTab({
           </Alert>
         )}
 
-        <Button onClick={saveLessons} disabled={isArchived || savingLessons || hasActiveUpload} className="w-full">
+        <Button onClick={saveLessons} disabled={isArchived || savingLessons || lessonsUnknown || hasActiveUpload} className="w-full">
           {savingLessons ? "Saving Lessons..." : "Save Lessons"}
         </Button>
           </TabsContent>

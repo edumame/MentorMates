@@ -40,7 +40,7 @@ interface SessionCaps {
     agent_caps: Record<string, number | null>;
 }
 
-type AgentRow = { id: string; name?: string | null; avatar_url?: string | null };
+type AgentRow = { id: string; name?: string | null; avatar_url?: string | null; requires_project?: boolean | null };
 type UserProfileRow = Record<string, unknown>;
 
 export const meetingsRouter = createTRPCRouter({
@@ -362,6 +362,7 @@ export const meetingsRouter = createTRPCRouter({
                     id,
                     name: (a.name as string | undefined) ?? null,
                     avatar_url: (a.avatar_url as string | undefined) ?? null,
+                    requires_project: (a.requires_project as boolean | undefined) ?? null,
                 };
                 return acc;
             }, {});

@@ -53,7 +53,7 @@ Available EventData fields you can patch:
   }
 
 IMPORTANT:
-- The first two fields (id: "project_name" and "project_description") are LOCKED and must ALWAYS be included unchanged at the start of the array.
+- The fields with id "project_name" and "project_description" are LOCKED and must ALWAYS be included unchanged, in the same position relative to the other fields as in the current array.
 - When adding a field, append it to the existing array. When removing, filter it out.
 - Always return the FULL submission_fields array in the patch, not just the changed field.
 - Generate sensible IDs using lowercase_snake_case (e.g., "tech_stack", "demo_video", "project_categories").`;

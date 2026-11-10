@@ -22,6 +22,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Delete, EmojiEvents, Close } from "@mui/icons-material";
 import { EventDetails, Prize, Project } from "@/lib/types";
@@ -63,6 +73,14 @@ export function PrizesTab({
     []
   );
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [prizeToDelete, setPrizeToDelete] = useState<{
+    id: string;
+    trackId: string;
+    title: string;
+  } | null>(null);
+  const winnersOfPrizeToDelete =
+    prizesWithWinners.find((p) => p.id === prizeToDelete?.id)?.prize_winners ??
+    [];
 
   // Fetch projects and prizes with winners
   useEffect(() => {
@@ -213,6 +231,69 @@ export function PrizesTab({
       setSaving(false);
     }
   };
+
+  const refreshPrizesWithWinners = async () => {
+    const response = await fetch(`/api/prizes?eventId=${event.event_id}`);
+    if (response.ok) {
+      const data = await response.json();
+      setPrizesWithWinners(data.prizes || []);
+    }
+  };
+
+  // force overrides the server's winner check, so it is only sent for winners
+  // the organizer has seen listed in the confirmation dialog.
+  const handleDeletePrize = async (
+    prizeId: string,
+    trackId: string,
+    force: boolean
+  ) => {
+    try {
+      setSaving(true);
+      const response = await fetch(
+        `/api/prizes?prizeId=${prizeId}${force ? "&force=true" : ""}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        // The winner list here was out of date, so reload it for the next try.
+        if (response.status === 409) {
+          await refreshPrizesWithWinners();
+        }
+        throw new Error(errorData.error || "Failed to delete prize");
+      }
+
+      const newTracks = [...event.event_tracks!];
+      const trackIndex = newTracks.findIndex((t) => t.track_id === trackId);
+      if (trackIndex > -1 && newTracks[trackIndex].prizes) {
+        newTracks[trackIndex].prizes = newTracks[trackIndex].prizes!.filter(
+          (p) => p.id !== prizeId
+        );
+        setEvent({
+          ...event,
+          event_tracks: newTracks,
+        });
+      }
+
+      toast({
+        title: "Prize deleted",
+        description: "Prize has been removed successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting prize:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to delete prize",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handlePrizesUpdate = async () => {
     if (!event || !event.event_tracks || event.event_tracks.length === 0)
       return;
@@ -330,13 +411,7 @@ export function PrizesTab({
       }
 
       // Refresh the prizes data to get the latest state
-      const updatedPrizesResponse = await fetch(
-        `/api/prizes?eventId=${event.event_id}`
-      );
-      if (updatedPrizesResponse.ok) {
-        const updatedPrizesData = await updatedPrizesResponse.json();
-        setPrizesWithWinners(updatedPrizesData.prizes || []);
-      }
+      await refreshPrizesWithWinners();
 
       toast({
         title: "Success",
@@ -431,59 +506,14 @@ export function PrizesTab({
                         variant="ghost"
                         disabled={isArchived}
                         size="sm"
-                        onClick={async () => {
+                        aria-label="Delete prize"
+                        onClick={() => {
                           if (isDatabasePrize(prize.id)) {
-                            try {
-                              setSaving(true);
-                              const response = await fetch(
-                                `/api/prizes?prizeId=${prize.id}`,
-                                {
-                                  method: "DELETE",
-                                }
-                              );
-
-                              if (!response.ok) {
-                                const errorData = await response.json();
-                                throw new Error(
-                                  errorData.error || "Failed to delete prize"
-                                );
-                              }
-
-                              const newTracks = [...event.event_tracks!];
-                              const trackIndex = newTracks.findIndex(
-                                (t) => t.track_id === track.track_id
-                              );
-                              if (
-                                trackIndex > -1 &&
-                                newTracks[trackIndex].prizes
-                              ) {
-                                newTracks[trackIndex].prizes = newTracks[
-                                  trackIndex
-                                ].prizes!.filter((p) => p.id !== prize.id);
-                                setEvent({
-                                  ...event,
-                                  event_tracks: newTracks,
-                                });
-                              }
-
-                              toast({
-                                title: "Prize deleted",
-                                description:
-                                  "Prize has been removed successfully",
-                              });
-                            } catch (error) {
-                              console.error("Error deleting prize:", error);
-                              toast({
-                                title: "Error",
-                                description:
-                                  error instanceof Error
-                                    ? error.message
-                                    : "Failed to delete prize",
-                                variant: "destructive",
-                              });
-                            } finally {
-                              setSaving(false);
-                            }
+                            setPrizeToDelete({
+                              id: prize.id,
+                              trackId: track.track_id,
+                              title: `Prize ${prizeIndex + 1} from ${track.name}`,
+                            });
                           } else {
                             // Just remove from local state if local prize (not saved to DB yet)
                             const newTracks = [...event.event_tracks!];
@@ -732,6 +762,50 @@ export function PrizesTab({
           </p>
         </div>
       )}
+
+      <AlertDialog
+        open={prizeToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPrizeToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {prizeToDelete?.title}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {winnersOfPrizeToDelete.length > 0
+                ? "This prize has been awarded to the projects below. Deleting it removes their win, and their certificates, including links already shared, will stop showing it. This cannot be undone."
+                : "This will permanently remove the prize. This cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {winnersOfPrizeToDelete.length > 0 && (
+            <ul className="list-disc pl-5 text-sm">
+              {winnersOfPrizeToDelete.map((winner) => (
+                <li key={winner.id}>
+                  {winner.projects.project_name}, led by{" "}
+                  {winner.projects.lead_name}
+                </li>
+              ))}
+            </ul>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (prizeToDelete) {
+                  handleDeletePrize(
+                    prizeToDelete.id,
+                    prizeToDelete.trackId,
+                    winnersOfPrizeToDelete.length > 0
+                  );
+                }
+              }}
+            >
+              Confirm Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
