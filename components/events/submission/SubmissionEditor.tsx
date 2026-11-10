@@ -16,6 +16,7 @@ import {
   createSubmissionTemplateFields,
   createLockedStarterSubmissionFields,
   createMLHSubmissionTemplateFields,
+  normalizeAiSubmissionFields,
   BUILT_IN_FIELD_IDS,
 } from "./types";
 import {
@@ -127,7 +128,12 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          event: { submission_fields: editorFields },
+          event: {
+            submission_fields:
+              editorFields.length > 0
+                ? editorFields
+                : createLockedStarterSubmissionFields(),
+          },
           history: chatMessages,
           context: "submission",
         }),
@@ -149,7 +155,21 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
       ]);
 
       if (data.patch?.submission_fields && Array.isArray(data.patch.submission_fields)) {
-        onChange(data.patch.submission_fields);
+        const normalized = normalizeAiSubmissionFields(
+          data.patch.submission_fields,
+          editorFields
+        );
+        if (normalized) {
+          onChange(normalized);
+        } else {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: "That change included a field I can't use, so your form was not changed. Please try rephrasing.",
+            },
+          ]);
+        }
       }
     } catch {
       setChatMessages((prev) => [
