@@ -27,7 +27,10 @@ import {
   getCardNavigationDirection,
   getNextProjectId,
   isProjectFullyScored,
+  removeTrackScores,
+  setTrackScores,
   truncateWithEllipsis,
+  type ScoreValuesByProject,
 } from "./utils";
 import { computeWeightedScore } from "@/lib/judging/weighted-score";
 import { getActiveRound } from "@/lib/judging/rounds";
@@ -123,9 +126,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     Map<string, Set<string>>
   >(new Map());
   // Stores actual numeric scores per project per track: Map<projectId, Map<trackId, scoresObject>>
-  const [scoreValues, setScoreValues] = useState<
-    Map<string, Map<string, Record<string, number>>>
-  >(new Map());
+  const [scoreValues, setScoreValues] = useState<ScoreValuesByProject>(
+    new Map()
+  );
   const [navigatorSort, setNavigatorSort] = useState<NavigatorSort>("default");
   const [judgeId, setJudgeId] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -332,13 +335,26 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
         return updated;
       });
+      setScoreValues((prev) => removeTrackScores(prev, projectId, trackId));
     },
     []
   );
 
   const advanceAfterTrackSubmit = useCallback(
-    (project: Project, submittedTrackId: string) => {
+    (
+      project: Project,
+      submittedTrackId: string,
+      scores: Record<string, number | string>
+    ) => {
       const updatedTrackIds = markTrackAsScored(project.id, submittedTrackId);
+      setScoreValues((prev) =>
+        setTrackScores(
+          prev,
+          project.id,
+          submittedTrackId,
+          scores as Record<string, number>
+        )
+      );
 
       const nextUnscoredTrackId = project.track_ids.find(
         (trackId) => !updatedTrackIds.has(trackId)
@@ -1229,8 +1245,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                       roundNumber={activeRound}
                                       finalistFeatureEnabled={finalistFeatureEnabled}
                                       hideProjectHeader
-                                      onScoreSaved={() =>
-                                        advanceAfterTrackSubmit(currentProject, trackId)
+                                      onScoreSaved={(scores) =>
+                                        advanceAfterTrackSubmit(currentProject, trackId, scores)
                                       }
                                       onScoreDeleted={() =>
                                         markTrackAsUnscored(currentProject.id, trackId)
@@ -1348,8 +1364,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                 roundNumber={activeRound}
                                 finalistFeatureEnabled={finalistFeatureEnabled}
                                 hideProjectHeader
-                                onScoreSaved={() =>
-                                  advanceAfterTrackSubmit(currentProject, trackId)
+                                onScoreSaved={(scores) =>
+                                  advanceAfterTrackSubmit(currentProject, trackId, scores)
                                 }
                                 onScoreDeleted={() =>
                                   markTrackAsUnscored(currentProject.id, trackId)

@@ -45,7 +45,7 @@ interface DefaultScoringProps {
   scoringConfig?: EventScoringConfig | null;
   roundNumber?: number;
   finalistFeatureEnabled?: boolean;
-  onScoreSaved?: () => void;
+  onScoreSaved?: (scores: FormValues["scores"]) => void;
   onScoreDeleted?: () => void;
   /** Lets a parent that owns the round reload it. Without one, the form reloads itself. */
   onRoundChanged?: () => void;
@@ -278,7 +278,7 @@ export function DefaultScoring({
         if (insertError) throw insertError;
       }
       setHasExistingScore(true);
-      onScoreSaved?.();
+      onScoreSaved?.(values.scores);
 
       toast({
         title: "Score submitted",
