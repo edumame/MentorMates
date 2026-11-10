@@ -23,6 +23,14 @@ interface InstallData {
   };
 }
 
+// The key only exists in this page's response, and the install route needs a
+// browser session, so the terminal command must carry the content itself rather
+// than fetch it. Single quotes keep event names from being run as shell syntax.
+function buildInstallCommand(skillContent: string): string {
+  const quoted = `'${skillContent.replace(/'/g, `'\\''`)}'`;
+  return `mkdir -p .claude/commands && printf '%s' ${quoted} > .claude/commands/mentormates.md`;
+}
+
 export default function SkillInstallPage() {
   const params = useParams();
   const eventId = params.id as string;
@@ -133,6 +141,8 @@ export default function SkillInstallPage() {
     );
   }
 
+  const installCommand = buildInstallCommand(data.skill_content);
+
   return (
     <div className="max-w-2xl mx-auto py-16 px-4 space-y-6">
       <Card className="border-green-200 bg-green-50">
@@ -166,13 +176,10 @@ export default function SkillInstallPage() {
           </Button>
           <div className="text-center text-xs text-gray-500">or copy the command:</div>
           <div className="flex items-center gap-2 bg-gray-900 text-green-400 rounded-lg px-4 py-3 font-mono text-sm">
-            <code className="flex-1 break-all">
-              mkdir -p .claude/commands && curl -sL &quot;{typeof window !== "undefined" ? window.location.origin : ""}/api/agent/install&quot; -X POST -H &quot;Content-Type: application/json&quot; -d &apos;{`{"event_id":"${eventId}"}`}&apos; | jq -r .skill_content &gt; .claude/commands/mentormates.md
+            <code className="flex-1 break-all whitespace-pre-wrap max-h-40 overflow-y-auto">
+              {installCommand}
             </code>
-            <CopyButton
-              text={`mkdir -p .claude/commands && curl -sL "${typeof window !== "undefined" ? window.location.origin : ""}/api/agent/install" -X POST -H "Content-Type: application/json" -d '{"event_id":"${eventId}"}' | jq -r .skill_content > .claude/commands/mentormates.md`}
-              field="curl"
-            />
+            <CopyButton text={installCommand} field="curl" />
           </div>
         </CardContent>
       </Card>

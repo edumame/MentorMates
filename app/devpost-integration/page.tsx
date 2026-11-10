@@ -1,6 +1,5 @@
 import type React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowRight,
   CheckCircle,
@@ -73,13 +72,9 @@ const DevpostIntegrationPage: React.FC = () => {
                 MentorMates
               </div>
               <span className="text-gray-400 text-2xl">×</span>
-              <Image
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSDoVbDqO8NGA73bz-BIDZstUea7bFlCFs17A&s"
-                alt="Devpost Logo"
-                width={32}
-                height={32}
-                className="h-8 w-auto"
-              />
+              {/* Text wordmark: never hot-link third-party image thumbnails
+                  (the old gstatic URL is not an allowed next/image host). */}
+              <div className="text-2xl font-bold text-gray-900">Devpost</div>
             </div>
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight mb-4">

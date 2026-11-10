@@ -1,4 +1,4 @@
-import Papa from "papaparse";
+import { toSpreadsheetSafeCsv } from "@/lib/utils/csv";
 
 export interface ExportableParticipant {
   display_name: string;
@@ -43,7 +43,8 @@ export function buildParticipantsCsv(
   participants: ExportableParticipant[],
   teamByEmail: Map<string, string>
 ): string {
-  return Papa.unparse(
+  // Spreadsheet-safe: names/affiliations are user data (ORG-001).
+  return toSpreadsheetSafeCsv(
     participants.map((participant) => ({
       Name: participant.display_name,
       Email: participant.email,
