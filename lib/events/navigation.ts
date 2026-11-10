@@ -21,7 +21,12 @@ export function canUseInternalEventRoute({
   userRole,
   canManageEvent,
 }: Pick<EventNavigationItem, "userRole" | "canManageEvent">) {
-  return Boolean(canManageEvent) || isEventManagerRole(userRole);
+  // Judges score from the internal event page, which has no external equivalent.
+  return (
+    Boolean(canManageEvent) ||
+    isEventManagerRole(userRole) ||
+    userRole === EventRole.Judge
+  );
 }
 
 export function getInternalEventHref(event: Pick<EventNavigationItem, "event_id" | "slug">) {
