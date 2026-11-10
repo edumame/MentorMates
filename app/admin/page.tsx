@@ -323,6 +323,13 @@ export default function AdminPage() {
             if (field === "approval_status" && value === ApprovalStatus.Approved) {
               updated.visibility = EventVisibility.Public;
             }
+            if (
+              field === "approval_status" &&
+              value === ApprovalStatus.Rejected &&
+              updated.visibility === EventVisibility.Public
+            ) {
+              updated.visibility = EventVisibility.Draft;
+            }
             if (field === "approval_status" && value === ApprovalStatus.Rejected && rejectionReason) {
               (updated as EventItem & { rejection_reason?: string }).rejection_reason = rejectionReason;
             } else if (field === "approval_status" && value !== ApprovalStatus.Rejected) {
