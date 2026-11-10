@@ -28,12 +28,17 @@ type Row = Record<string, unknown>;
 // Applies eq() filters so a query that forgets to scope by event sees the row.
 const query = (rows: Row[]) => {
   const filters: Array<[string, unknown]> = [];
-  const result = () => ({
-    data: rows.filter((row) =>
+  // Paged reads (fetchAllRows) apply .range(); unpaged reads get every row.
+  let window: [number, number] | null = null;
+  const result = () => {
+    const matched = rows.filter((row) =>
       filters.every(([column, value]) => row[column] === undefined || row[column] === value),
-    ),
-    error: null,
-  });
+    );
+    return {
+      data: window ? matched.slice(window[0], window[1] + 1) : matched,
+      error: null,
+    };
+  };
   const single = () => {
     const { data, error } = result();
     return { data: data[0] ?? null, error };
@@ -46,6 +51,10 @@ const query = (rows: Row[]) => {
     overrideTypes: jest.fn(() => Promise.resolve(result())),
     eq: jest.fn((column: string, value: unknown) => {
       filters.push([column, value]);
+      return builder;
+    }),
+    range: jest.fn((from: number, to: number) => {
+      window = [from, to];
       return builder;
     }),
     maybeSingle: jest.fn(() => ({

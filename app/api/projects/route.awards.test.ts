@@ -118,7 +118,19 @@ function client() {
         filters.single = true;
         return chain;
       };
-      chain.then = (resolve: (value: unknown) => void) => resolve(result());
+      // Paged reads (fetchAllRows) apply .range(); unpaged reads get every row.
+      let window: [number, number] | null = null;
+      chain.range = (from: number, to: number) => {
+        window = [from, to];
+        return chain;
+      };
+      const paged = () => {
+        const page = result();
+        return window && Array.isArray(page.data)
+          ? { ...page, data: page.data.slice(window[0], window[1] + 1) }
+          : page;
+      };
+      chain.then = (resolve: (value: unknown) => void) => resolve(paged());
       return chain;
     },
   };
