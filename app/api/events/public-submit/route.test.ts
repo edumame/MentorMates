@@ -13,9 +13,17 @@ const insertMock = jest.fn<
     single: insertSingleMock,
   })),
 }));
-const fromMock = jest.fn(() => ({
-  insert: insertMock,
-}));
+const submissionInsertMock = jest.fn<
+  Promise<{ error: { message: string } | null }>,
+  [Database["public"]["Tables"]["event_submissions"]["Insert"]]
+>(async () => ({ error: null }));
+const deleteEqMock = jest.fn(async () => ({ error: null }));
+const deleteMock = jest.fn(() => ({ eq: deleteEqMock }));
+const fromMock = jest.fn((table: string) =>
+  table === "event_submissions"
+    ? { insert: submissionInsertMock }
+    : { insert: insertMock, delete: deleteMock }
+);
 
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(async () => ({
@@ -59,6 +67,52 @@ describe("POST /api/events/public-submit", () => {
     insertMock.mockClear();
     fromMock.mockClear();
     (sendEventApprovalNotification as jest.Mock).mockClear();
+    submissionInsertMock.mockClear();
+    deleteMock.mockClear();
+    deleteEqMock.mockClear();
+  });
+
+  it("stores the submission as draft (not publicly reachable or redirecting) until admin approval", async () => {
+    insertSingleMock.mockResolvedValueOnce({ data: { event_id: "evt-1" }, error: null });
+
+    const res = await POST(
+      makeRequest({ ...VALID_PAYLOAD, link: "https://phish.example.test/login" })
+    );
+
+    expect(res.status).toBe(201);
+    const insertPayload = insertMock.mock.calls[0][0];
+    expect(insertPayload.visibility).toBe("draft");
+    expect(insertPayload.approval_status).toBe("submitted");
+  });
+
+  it("keeps submitter contact details off the public events row", async () => {
+    insertSingleMock.mockResolvedValueOnce({ data: { event_id: "evt-2" }, error: null });
+
+    await POST(makeRequest({ ...VALID_PAYLOAD, affiliation: "Example U", expected_attendance: 50 }));
+
+    const insertPayload = insertMock.mock.calls[0][0];
+    expect(insertPayload).not.toHaveProperty("submitter_email");
+    expect(insertPayload).not.toHaveProperty("submitter_name");
+    expect(insertPayload).not.toHaveProperty("organizer_affiliation");
+    expect(insertPayload).not.toHaveProperty("expected_attendance");
+    expect(submissionInsertMock).toHaveBeenCalledWith({
+      event_id: "evt-2",
+      submitter_email: "submitter@example.com",
+      submitter_name: "Sample Submitter",
+      organizer_affiliation: "Example U",
+      expected_attendance: 50,
+    });
+  });
+
+  it("removes the event and returns 500 when the contact row cannot be stored", async () => {
+    insertSingleMock.mockResolvedValueOnce({ data: { event_id: "evt-3" }, error: null });
+    submissionInsertMock.mockResolvedValueOnce({ error: { message: "boom" } });
+
+    const res = await POST(makeRequest(VALID_PAYLOAD));
+
+    expect(res.status).toBe(500);
+    expect(deleteMock).toHaveBeenCalled();
+    expect(deleteEqMock).toHaveBeenCalledWith("event_id", "evt-3");
   });
 
   it("populates NOT NULL columns ('rules') so the DB insert does not fail with 23502", async () => {
@@ -112,6 +166,15 @@ describe("POST /api/events/public-submit", () => {
     );
     expect(insertMock).not.toHaveBeenCalled();
   });
+
+  it.each(["javascript:alert(1)", "JAVASCRIPT:alert(1)", "data:text/html,hi"])(
+    "rejects non-http(s) link %p before inserting (PUB-001)",
+    async (link) => {
+      const res = await POST(makeRequest({ ...VALID_PAYLOAD, link }));
+      expect(res.status).toBe(400);
+      expect(insertMock).not.toHaveBeenCalled();
+    }
+  );
 
   it("returns 400 when email is malformed", async () => {
     const res = await POST(makeRequest({ ...VALID_PAYLOAD, email: "not-an-email" }));

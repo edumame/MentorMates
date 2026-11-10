@@ -12,9 +12,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Copy, Key, Trash2, ExternalLink, Check } from "lucide-react";
+import { useToast } from "@/lib/hooks/use-toast";
 
 interface ApiKey {
   id: string;
+  /** null = account-wide key (works for every event the user manages). */
+  event_id?: string | null;
   key_prefix: string;
   label: string | null;
   scopes: string[] | null;
@@ -34,17 +37,27 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const { toast } = useToast();
+
+  const showError = useCallback(
+    (description: string) =>
+      toast({ title: "Error", description, variant: "destructive" }),
+    [toast]
+  );
+
   const fetchKeys = useCallback(async () => {
     try {
       const res = await fetch(`/api/agent/keys?event_id=${eventId}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to load API keys");
       setKeys(data.keys || []);
-    } catch {
-      // Ignore fetch errors silently
+    } catch (error) {
+      console.error("Error loading API keys:", error);
+      showError(error instanceof Error ? error.message : "Failed to load API keys");
     } finally {
       setLoading(false);
     }
-  }, [eventId]);
+  }, [eventId, showError]);
 
   useEffect(() => {
     fetchKeys();
@@ -58,32 +71,52 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event_id: eventId,
+          // ORG-023: keys created here only work for this event.
+          scope_mode: "event",
           label: label || "default",
         }),
       });
-      const data = await res.json();
-      if (data.api_key) {
-        setNewKey(data.api_key);
-        setLabel("");
-        fetchKeys();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.api_key) {
+        throw new Error(data.error || "Failed to create API key");
       }
-    } catch {
-      // Ignore create errors silently
+      setNewKey(data.api_key);
+      setLabel("");
+      fetchKeys();
+    } catch (error) {
+      console.error("Error creating API key:", error);
+      showError(error instanceof Error ? error.message : "Failed to create API key");
     } finally {
       setCreating(false);
     }
   };
 
-  const handleRevoke = async (keyId: string) => {
+  const handleRevoke = async (key: ApiKey) => {
+    // ORG-023: account-wide keys may be used by other events' integrations.
+    if (
+      !key.event_id &&
+      !window.confirm(
+        "This key works for all events you manage. Revoking it stops every integration that uses it. Revoke anyway?"
+      )
+    ) {
+      return;
+    }
+    const keyId = key.id;
     try {
-      await fetch("/api/agent/keys", {
+      const res = await fetch("/api/agent/keys", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key_id: keyId }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to revoke API key");
+      }
+      toast({ title: "API key revoked", description: "The key can no longer be used." });
       fetchKeys();
-    } catch {
-      // Ignore revoke errors silently
+    } catch (error) {
+      console.error("Error revoking API key:", error);
+      showError(error instanceof Error ? error.message : "Failed to revoke API key");
     }
   };
 
@@ -184,6 +217,11 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Active API Keys</CardTitle>
+          <CardDescription>
+            New keys created here only work for this event. Keys marked
+            &ldquo;All your events&rdquo; were created before keys were
+            event-scoped and work for every event you manage.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -200,8 +238,13 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
                   className="flex items-center justify-between gap-3 border rounded-lg px-4 py-3"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-medium flex flex-wrap items-center gap-2">
                       {key.label || "default"}
+                      {!key.event_id ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-normal text-amber-800">
+                          All your events
+                        </span>
+                      ) : null}
                     </p>
                     <p className="text-xs text-gray-500 font-mono">
                       {key.key_prefix}...
@@ -219,7 +262,8 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
                     variant="ghost"
                     size="sm"
                     className="shrink-0 text-red-500 hover:text-red-700"
-                    onClick={() => handleRevoke(key.id)}
+                    aria-label={`Revoke API key ${key.label || "default"}`}
+                    onClick={() => handleRevoke(key)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,9 @@ import {
   Send,
 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import { getClaimTicketEmailTemplate } from "@/lib/email_templates/claim-ticket";
+import { User } from "@supabase/supabase-js";
 
 interface EventTicket {
   id: string;
@@ -39,10 +42,12 @@ interface EventTicketProps {
 }
 
 export function EventTicket({ eventId }: EventTicketProps) {
+  const emailRequestId = useRef<string | null>(null);
   const [tickets, setTickets] = useState<EventTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [ticketEmails, setTicketEmails] = useState<Record<string, string>>({});
+  const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   const fetchMyTickets = useCallback(async () => {
@@ -61,6 +66,8 @@ export function EventTicket({ eventId }: EventTicketProps) {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) return;
+
+      setUser(session.user);
 
       try {
         const tickets = await fetchMyTickets();
@@ -117,15 +124,40 @@ export function EventTicket({ eventId }: EventTicketProps) {
 
       if (updateError) throw updateError;
 
-      // The server builds this email and sends it to the ticket's assignee.
-      const response = await fetch(`/api/tickets/${ticketId}/send-claim-email`, {
+      // Get event and user info for email
+      const { data: eventData } = await supabase
+        .from("events")
+        .select("event_name")
+        .eq("event_id", eventId)
+        .single();
+
+      const email = getClaimTicketEmailTemplate(
+        eventData?.event_name || "Event",
+        ticketId,
+        user?.user_metadata?.display_name || user?.email || "Someone"
+      );
+
+      // Send claim ticket email
+      const response = await fetch("/api/email_notification", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestId: emailRequestId.current ||= crypto.randomUUID(),
+          ticketId,
+          to: ticketEmail,
+          from: NOTIFICATIONS_EMAIL_FROM,
+          subject: email.subject,
+          html: email.html,
+        }),
       });
 
       if (!response.ok) {
         throw new Error("Failed to send invitation email");
       }
 
+      emailRequestId.current = null;
       const updatedTickets = await fetchMyTickets();
       setTickets(updatedTickets);
 

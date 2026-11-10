@@ -1,3 +1,5 @@
+import { escapeHtml, escapeUrl, plainTextSubject } from "./escape-html";
+
 const ADMIN_DASHBOARD_URL =
   process.env.NEXT_PUBLIC_BASE_URL
     ? `${process.env.NEXT_PUBLIC_BASE_URL}/admin`
@@ -18,9 +20,18 @@ export function getEventApprovalRequestEmailTemplate(
   const eventUrl = process.env.NEXT_PUBLIC_BASE_URL
     ? `${process.env.NEXT_PUBLIC_BASE_URL}/events/${data.eventId}/overview`
     : `https://mentormates.ai/events/${data.eventId}/overview`;
+  // Every interpolated value is escaped (all fields come from the organizer).
+  const h = {
+    data_eventName: escapeHtml(data.eventName),
+    data_organizerName: escapeHtml(data.organizerName),
+    data_organizerEmail: escapeHtml(data.organizerEmail),
+    data_eventDate: escapeHtml(data.eventDate),
+    data_location: escapeHtml(data.location),
+    eventUrl: escapeUrl(eventUrl),
+  };
 
   return {
-    subject: `[IMPORTANT] Action Required: Approve Event — "${data.eventName}"`,
+    subject: plainTextSubject(`[IMPORTANT] Action Required: Approve Event — "${data.eventName}"`),
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
@@ -34,24 +45,24 @@ export function getEventApprovalRequestEmailTemplate(
         <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
           <tr>
             <td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 140px;">Event Name</td>
-            <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${data.eventName}</td>
+            <td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${h.data_eventName}</td>
           </tr>
           <tr>
             <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Submitted By</td>
-            <td style="padding: 8px 0; color: #111827; font-size: 14px;">${data.organizerName} (${data.organizerEmail})</td>
+            <td style="padding: 8px 0; color: #111827; font-size: 14px;">${h.data_organizerName} (${h.data_organizerEmail})</td>
           </tr>
           <tr>
             <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Event Date</td>
-            <td style="padding: 8px 0; color: #111827; font-size: 14px;">${data.eventDate}</td>
+            <td style="padding: 8px 0; color: #111827; font-size: 14px;">${h.data_eventDate}</td>
           </tr>
           <tr>
             <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Location</td>
-            <td style="padding: 8px 0; color: #111827; font-size: 14px;">${data.location}</td>
+            <td style="padding: 8px 0; color: #111827; font-size: 14px;">${h.data_location}</td>
           </tr>
         </table>
 
         <div style="margin: 24px 0;">
-          <a href="${eventUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-right: 12px;">
+          <a href="${h.eventUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-right: 12px;">
             View Event
           </a>
           <a href="${ADMIN_DASHBOARD_URL}" style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">

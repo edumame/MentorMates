@@ -1,4 +1,5 @@
 import { EventRole } from "@/lib/types";
+import { isApprovedApprovalStatus, safeExternalHref } from "./approval";
 
 // Set by middleware: layouts cannot otherwise see the path being requested.
 export const REQUEST_PATHNAME_HEADER = "x-mentormates-pathname";
@@ -17,6 +18,7 @@ export type EventNavigationItem = {
   slug?: string | null;
   external_url?: string | null;
   external_redirect_enabled?: boolean | null;
+  approval_status?: string | null;
   userRole?: EventNavigationRole;
   canManageEvent?: boolean | null;
 };
@@ -36,12 +38,24 @@ export function getInternalEventHref(event: Pick<EventNavigationItem, "event_id"
   return `/events/${event.slug || event.event_id}/overview`;
 }
 
+/**
+ * The external URL visitors should be redirected to, or null when the event
+ * should stay on its internal page. Allow-list: only http(s) URLs of events an
+ * admin approved (anyone can create an unreviewed event; PUB-001).
+ */
+export function getExternalRedirectUrl(
+  event: Pick<EventNavigationItem, "external_url" | "external_redirect_enabled" | "approval_status">
+) {
+  if (event.external_redirect_enabled !== true) return null;
+  if (!isApprovedApprovalStatus(event.approval_status)) return null;
+  return safeExternalHref(event.external_url) ?? null;
+}
+
 export function getEventNavigationTarget(event: EventNavigationItem) {
-  const externalUrl = event.external_url?.trim();
-  const externalRedirectEnabled = event.external_redirect_enabled === true;
+  const externalUrl = getExternalRedirectUrl(event);
   const internalHref = getInternalEventHref(event);
 
-  if (externalUrl && externalRedirectEnabled && !canUseInternalEventRoute(event)) {
+  if (externalUrl && !canUseInternalEventRoute(event)) {
     return { href: externalUrl, isExternal: true };
   }
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getTeamEmails } from "@/lib/projects/membership";
 import type { Database, Json } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 import { createContextusProject } from "@/lib/integrations/contextus";
@@ -17,6 +18,7 @@ import {
   hydrateProjectsWithSubmissionData,
   type ProjectBaseRow,
 } from "@/lib/projects/query";
+import { applyTeammateChanges } from "@/lib/projects/teammates";
 
 const projectWriteSchema = z.object({
   projectId: z.string().uuid().optional(),
@@ -25,6 +27,8 @@ const projectWriteSchema = z.object({
   leadEmail: z.string().email().max(320).optional(),
   projectDescription: z.string().max(20000).optional(),
   teammates: z.array(z.string()).optional(),
+  addTeammates: z.array(z.string()).optional(),
+  removeTeammates: z.array(z.string()).optional(),
   projectUrl: z.string().optional(),
   coverImageUrl: z.string().optional(),
   additionalMaterialsUrl: z.string().optional(),
@@ -39,6 +43,29 @@ const projectWriteSchema = z.object({
   extraVideoUrls: z.array(z.string()).optional(),
   extraMaterialsUrls: z.array(z.string()).optional(),
 });
+
+
+/**
+ * Database guards on projects (lane A1): moving a project to another event is
+ * refused once it has scores/prizes/votes (23514) or when the target event was
+ * not joined (42501). Surface those as client errors instead of a 500.
+ */
+export function mapProjectUpdateError(error: { code?: string | null; message?: string | null }) {
+  if (error.code === "23514") {
+    return {
+      error:
+        "This project can't be moved to another event because it already has scores, prizes or votes.",
+      status: 400 as const,
+    };
+  }
+  if (error.code === "42501") {
+    return {
+      error: "You can only move a project to an event you have joined.",
+      status: 403 as const,
+    };
+  }
+  return null;
+}
 
 export type NormalizedProjectWriteInput = z.infer<typeof projectWriteSchema>;
 
@@ -93,6 +120,8 @@ export function normalizeProjectWriteInput(body: unknown) {
           (item): item is string => typeof item === "string",
         )
       : undefined,
+    addTeammates: normalizeStringArray(payload.addTeammates),
+    removeTeammates: normalizeStringArray(payload.removeTeammates),
     projectUrl: normalizeString(payload.projectUrl ?? payload.project_url),
     coverImageUrl: normalizeString(
       payload.coverImageUrl ?? payload.cover_image_url,
@@ -544,11 +573,12 @@ export async function saveProjectSubmission(
   let existingProjectEventId: string | null | undefined = input.eventId;
   let existingProjectName: string | null = null;
   let existingProjectDescription: string | null = null;
+  let existingTeammates: string[] | null = null;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description",
+        "id, event_id, contextus_project_id, project_name, project_description, teammates",
       )
       .eq("id", projectId)
       .single()
@@ -560,6 +590,7 @@ export async function saveProjectSubmission(
           | "contextus_project_id"
           | "project_name"
           | "project_description"
+          | "teammates"
         >
       >();
     if (error || !existingProject) {
@@ -573,6 +604,7 @@ export async function saveProjectSubmission(
     existingProjectEventId = input.eventId ?? existingProject.event_id;
     existingProjectName = existingProject.project_name ?? null;
     existingProjectDescription = existingProject.project_description ?? null;
+    existingTeammates = existingProject.teammates;
   }
 
   const validation = await validateProjectEventContext(
@@ -631,7 +663,14 @@ export async function saveProjectSubmission(
     updateData.cover_image_url = input.coverImageUrl;
   if (input.leadName !== undefined) updateData.lead_name = input.leadName;
   if (input.leadEmail !== undefined) updateData.lead_email = input.leadEmail;
-  if (input.teammates !== undefined) updateData.teammates = input.teammates;
+  if (input.teammates !== undefined) {
+    updateData.teammates = input.teammates;
+  } else if (input.addTeammates?.length || input.removeTeammates?.length) {
+    updateData.teammates = applyTeammateChanges(existingTeammates, {
+      add: input.addTeammates,
+      remove: input.removeTeammates,
+    });
+  }
   if (input.videoUrl !== undefined) updateData.video_url = input.videoUrl;
   if (input.eventId !== undefined) updateData.event_id = input.eventId;
   if (input.isPrivate !== undefined) updateData.private = input.isPrivate;
@@ -697,7 +736,7 @@ export async function saveProjectSubmission(
       ...updateData,
       lead_name: input.leadName ?? "",
       lead_email: input.leadEmail ?? null,
-      teammates: input.teammates || [],
+      teammates: updateData.teammates ?? [],
       event_id: input.eventId || null,
       submitted: submitted ?? true,
       submitted_at: submitted === false ? null : new Date().toISOString(),
@@ -719,16 +758,27 @@ export async function saveProjectSubmission(
 
     finalProjectId = createdProject.id;
   } else {
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("projects")
       .update(updateData)
-      .eq("id", finalProjectId!);
+      .eq("id", finalProjectId!)
+      .select("id");
     if (error) {
+      const mapped = mapProjectUpdateError(error);
+      if (mapped) return mapped;
       console.error("[submit] update project failed", {
         projectId: finalProjectId,
         error,
       });
       return { error: "Failed to update project", status: 500 as const };
+    }
+    // RLS filters an unauthorised UPDATE to zero rows without an error; that
+    // must not be reported as a successful save (PUB-011).
+    if (!updatedRows || updatedRows.length === 0) {
+      return {
+        error: "You don't have permission to edit this project",
+        status: 403 as const,
+      };
     }
   }
 
@@ -868,9 +918,7 @@ export async function saveProjectSubmission(
       id,
       project_name,
       lead_name,
-      lead_email,
       project_description,
-      teammates,
       project_url,
       video_url,
       additional_materials_url,
@@ -909,7 +957,14 @@ export async function saveProjectSubmission(
     return { error: "Failed to fetch updated project", status: 500 as const };
   }
 
-  const updatedProject = updatedProjectRow;
+  // Team emails are not client-readable columns; the saver is a team member
+  // or organizer, so project_team_emails returns them.
+  const savedTeamEmails = (await getTeamEmails(supabase, [finalProjectId])).get(finalProjectId);
+  const updatedProject: ProjectBaseRow = {
+    ...updatedProjectRow,
+    lead_email: savedTeamEmails?.lead_email ?? null,
+    teammates: savedTeamEmails?.teammates ?? null,
+  };
 
   const contextusProjectId = await maybeCreateContextusProject(supabase, {
     projectId: finalProjectId,

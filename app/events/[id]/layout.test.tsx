@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { getEventForRoute } from "@/lib/events/server-event";
 import { REQUEST_PATHNAME_HEADER } from "@/lib/events/navigation";
 import Layout from "./layout";
 
@@ -16,6 +16,11 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
+}));
+
+// The layout resolves the event through the shared, request-cached lookup.
+jest.mock("@/lib/events/server-event", () => ({
+  getEventForRoute: jest.fn(),
 }));
 
 jest.mock("./RouteBasedLayoutConfig", () => ({
@@ -35,15 +40,7 @@ function mockRequest(pathname: string | null, event: unknown = null) {
     new Headers(pathname ? { [REQUEST_PATHNAME_HEADER]: pathname } : {})
   );
 
-  const query = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    or: jest.fn().mockReturnThis(),
-    maybeSingle: jest.fn().mockResolvedValue({ data: event }),
-  };
-  (createSupabaseClient as jest.Mock).mockResolvedValue({
-    from: jest.fn(() => query),
-  });
+  (getEventForRoute as jest.Mock).mockResolvedValue({ data: event });
 }
 
 function renderLayout(id: string) {

@@ -14,11 +14,14 @@ describe("event links in emails", () => {
   } as unknown as EventDetails;
 
   it("links existing organizers to the event id", () => {
+    const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "https://mentormates.ai";
     const { html } = getOrganizerInvitationEmailTemplate(
       "Hack Night",
       "event-123",
       "Casey"
     );
+    process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
 
     expect(html).toContain("/events/event-123/overview");
     expect(html).not.toContain("old-slug");
@@ -35,7 +38,11 @@ describe("event links in emails", () => {
   });
 
   it("links event update notifications to the event id", () => {
-    const { html } = getEventUpdateNotificationEmail("Hack Night", "event-123");
+    const { html } = getEventUpdateNotificationEmail(
+      "Hack Night",
+      "event-123",
+      { slug: "old-slug" } as EventDetails
+    );
 
     expect(html).toContain("/events/event-123/overview");
   });

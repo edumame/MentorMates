@@ -8,9 +8,20 @@ import { randomUUID } from "crypto";
 import { Resend } from "resend";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import {
+  normalizeInviteEmails,
   sendEventInviteEmails,
   sendOrganizerInviteEmails,
 } from "@/lib/events/invite-emails";
+import { EVENT_CARD_COLUMNS } from "@/lib/events/event-card-columns";
+import { resolveCreateModeration } from "@/lib/events/create-moderation";
+import { isHttpUrl } from "@/lib/events/approval";
+import { reserveInviteQuota } from "@/lib/email/invite-quota";
+import { EVENT_ROW_COLUMNS } from "@/lib/events/event-columns";
+import {
+  DUPLICATE_EVENT_SLUG_MESSAGE,
+  getEventSlugError,
+  isDuplicateEventSlugError,
+} from "@/lib/events/event-slug";
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -18,40 +29,33 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
+// Listing (PUB-013): everyone sees listed events (public + approved). Signed-in
+// users additionally see events they hold a role in (including private, draft
+// and archived ones RLS lets them read). Private events are unlisted and are
+// never enumerated for non-members. Card columns only — never select("*").
 export async function GET() {
   const supabase = await createSupabaseClient();
 
   try {
-    // Check if user is authenticated
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      // If not authenticated, only return public and private events (exclude archived) that are approved
-      const { data: visibleEvents, error: visibleError } = await supabase
+    const listedEvents = () =>
+      supabase
         .from("events")
-        .select(
-          `event_id, 
-          event_name, 
-          slug, 
-          event_blurb, 
-          cover_image_url,
-          event_date,
-          visibility,
-          featured,
-          approval_status`
-        )
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .select(EVENT_CARD_COLUMNS)
+        .eq("visibility", EventVisibility.Public)
         .eq("approval_status", ApprovalStatus.Approved);
 
+    if (!user) {
+      const { data: visibleEvents, error: visibleError } = await listedEvents();
       if (visibleError) throw visibleError;
       return NextResponse.json({ events: visibleEvents });
     }
 
     const userId = user.id;
 
-    // Get user's roles in all events
     const { data: userRoles, error: rolesError } = await supabase
       .from("user_event_roles")
       .select("event_id, role")
@@ -59,46 +63,35 @@ export async function GET() {
 
     if (rolesError) throw rolesError;
 
-    // Check if user is an admin in any event via DB function
     const { data: isAdmin } = await supabase.rpc("is_admin_user", {
       user_id: userId,
     });
 
-    // Get event IDs where user is an organizer
-    const organizerEventIds = userRoles
-      .filter((role) => role.role === EventRole.Organizer)
-      .map((role) => role.event_id);
+    const memberEventIds = Array.from(
+      new Set((userRoles ?? []).map((role) => role.event_id).filter(isUuid))
+    );
 
-    // Build query for events based on visibility and user role
-    let query = supabase.from("events").select("*");
-
+    let query;
     if (isAdmin) {
-      // Admins can see all events (public, private, draft, demo, test)
-      // No additional filter needed
-    } else if (organizerEventIds.length > 0) {
-      // For organizers:
-      // - Public and private events (visible to everyone)
-      // - Draft events where user is an organizer
-      // - Archived events where user is an organizer
-      // - No demo or test events
-      query = query.or(
-        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` +
-          `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")})),` +
-          `and(visibility.eq.${EventVisibility.Archived},event_id.in.(${organizerEventIds.join(",")}))`
-      );
+      // Admins can see all events (RLS also allows it).
+      query = supabase.from("events").select(EVENT_CARD_COLUMNS);
+    } else if (memberEventIds.length > 0) {
+      query = supabase
+        .from("events")
+        .select(EVENT_CARD_COLUMNS)
+        .or(
+          `and(visibility.eq.${EventVisibility.Public},approval_status.eq.${ApprovalStatus.Approved}),` +
+            `event_id.in.(${memberEventIds.join(",")})`
+        );
     } else {
-      // Regular users only see public and private events (exclude archived) that are approved
-      query = query
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
-        .eq("approval_status", ApprovalStatus.Approved);
+      query = listedEvents();
     }
 
     const { data: events, error: eventsError } = await query;
 
     if (eventsError) throw eventsError;
 
-    // Include user role with each event
-    const eventsWithRole = events.map((event) => {
+    const eventsWithRole = (events ?? []).map((event) => {
       const userRole =
         userRoles.find((role) => role.event_id === event.event_id)?.role ||
         null;
@@ -115,21 +108,53 @@ export async function GET() {
   }
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(value: string | null | undefined): value is string {
+  return typeof value === "string" && UUID_PATTERN.test(value);
+}
+
+// Submission window values must be absolute instants. A naive
+// "YYYY-MM-DDTHH:mm" would be stored as UTC by the timestamptz column and
+// shift the window by the organizer's offset (ORG-015).
+const isoInstantWithOffset = (field: string) =>
+  z
+    .string()
+    .refine(
+      (v) => /(Z|[+-]\d{2}:?\d{2})$/i.test(v.trim()) && !Number.isNaN(Date.parse(v)),
+      { message: `${field} must be an ISO 8601 date-time with a time zone offset` }
+    );
+
 const eventSchema = z.object({
-  event_name: z.string().min(3, "Event name must be at least 3 characters"),
+  event_name: z
+    .string()
+    .trim()
+    .min(3, "Event name must be at least 3 characters")
+    .max(120, "Event name must be at most 120 characters"),
   event_date: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
     message: "Invalid event_date - expected ISO date string",
   }),
   location: z.string().min(1, "Location is required"),
   visibility: z.nativeEnum(EventVisibility).optional(),
-  slug: z.string().min(1).optional(),
+  slug: z
+    .string()
+    .trim()
+    .superRefine((slug, ctx) => {
+      const message = getEventSlugError(slug);
+      if (message) ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    })
+    .optional(),
   cover_image_url: z.string().url().optional(),
   event_description: z.string().optional(),
   event_blurb: z.string().optional(),
-  external_url: z.string().url("external_url must be a valid URL").optional(),
+  external_url: z
+    .string()
+    .trim()
+    .url("external_url must be a valid URL")
+    .refine(isHttpUrl, "external_url must start with http:// or https://")
+    .optional(),
   external_redirect_enabled: z.boolean().optional(),
-  submission_time_start: z.string().optional(),
-  submission_time_cutoff: z.string().optional(),
+  submission_time_start: isoInstantWithOffset("submission_time_start").optional(),
+  submission_time_cutoff: isoInstantWithOffset("submission_time_cutoff").optional(),
   participant_capacity: z.number().int().nonnegative().optional(),
   paid: z.boolean().optional(),
   stripe_price_id: z.string().optional(),
@@ -181,6 +206,18 @@ const eventSchema = z.object({
   approval_status: z.nativeEnum(ApprovalStatus).optional(),
   featured: z.boolean().optional(),
   event_type: z.array(z.string()).optional(),
+}).superRefine((event, ctx) => {
+  if (
+    event.submission_time_start &&
+    event.submission_time_cutoff &&
+    Date.parse(event.submission_time_cutoff) <= Date.parse(event.submission_time_start)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["submission_time_cutoff"],
+      message: "Submissions must close after they open",
+    });
+  }
 });
 
 const payloadSchema = z.object({
@@ -232,14 +269,23 @@ export async function POST(req: Request) {
       organizerEmails = [],
     } = parsed.data;
 
+    // Visibility/approval/featured are moderation fields: never trust the
+    // client on create (ORG-002). Non-admins get draft or private, unapproved.
+    const { data: isAdmin } = await supabase.rpc("is_admin_user", { user_id: user.id });
+    const moderation = resolveCreateModeration({
+      isAdmin: isAdmin === true,
+      visibility: event.visibility,
+      approvalStatus: event.approval_status,
+      featured: event.featured,
+    });
+
     // Build insert payload, providing sane defaults
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
       rules: ((event.rules ?? []) as unknown as Json),
-      visibility: (event.visibility ??
-        EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
+      visibility: moderation.visibility as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
       cover_image_url: event.cover_image_url ?? null,
       event_description: event.event_description ?? null,
@@ -255,23 +301,23 @@ export async function POST(req: Request) {
       event_resources: (event.event_resources as Json) ?? ([] as Json),
       faq: (event.faq as Json) ?? null,
       owner_id: user.id, // Set the creator as the owner
-      approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
-      featured: event.featured ?? false,
+      approval_status: moderation.approval_status,
+      featured: moderation.featured,
       event_type: (event.event_type ?? []) as string[],
     };
 
     const { data: createdEvent, error: insertError } = await supabase
       .from("events")
       .insert(insertPayload)
-      .select("*")
+      .select(EVENT_ROW_COLUMNS)
       .single();
 
     if (insertError || !createdEvent) {
       console.error("Error creating event:", insertError);
 
-      if (insertError?.message?.toLowerCase().includes("events_slug_key")) {
+      if (isDuplicateEventSlugError(insertError)) {
         return NextResponse.json(
-          { error: "Event slug already exists. Please try a different slug." },
+          { error: DUPLICATE_EVENT_SLUG_MESSAGE },
           { status: 400 }
         );
       }
@@ -282,7 +328,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: creatorRoleError } = await supabase
+    // RLS only lets users self-assign the participant role.
+    const { error: creatorRoleError } = await serviceSupabase
       .from("user_event_roles")
       .upsert(
         {
@@ -378,78 +425,15 @@ export async function POST(req: Request) {
       "A MentorMates organizer";
     const inviterEmail = user.email?.trim().toLowerCase() || null;
 
-    let assignedCount = 1;
-    const missingEmails: string[] = [];
-    const existingOrganizerInviteEmails: string[] = [];
-    const newOrganizerInviteEmails: string[] = [];
-
-    if (organizerEmails.length > 0) {
-      const normalizedEmails = Array.from(
-        new Set(
-          organizerEmails
-            .map((e) => e.trim().toLowerCase())
-            .filter((email) => email && email !== inviterEmail)
-        )
-      );
-
-      // Fetch all users by email in one query
-      const { data: usersByEmail, error: usersError } = await serviceSupabase
-        .from("user_profiles")
-        .select("uid, email")
-        .in("email", normalizedEmails);
-
-      if (usersError) {
-        console.error("Error fetching organizer users:", usersError);
-        return NextResponse.json(
-          { error: "Failed to look up organizer emails" },
-          { status: 500 }
-        );
-      }
-
-      const foundEmails = new Set(
-        (usersByEmail || []).map((u) => (u.email || "").toLowerCase())
-      );
-      for (const email of normalizedEmails) {
-        if (!foundEmails.has(email)) {
-          missingEmails.push(email);
-          newOrganizerInviteEmails.push(email);
-        }
-      }
-
-      if (usersByEmail && usersByEmail.length > 0) {
-        const upserts = usersByEmail
-          .filter((u) => u.uid !== user.id)
-          .map((u) => ({
-          user_id: u.uid,
-          event_id: createdEvent.event_id,
-          role: EventRole.Organizer,
-          updated_at: new Date().toISOString(),
-        }));
-
-        if (upserts.length > 0) {
-          const { error: upsertError } = await supabase
-            .from("user_event_roles")
-            .upsert(upserts, { onConflict: "user_id,event_id" });
-
-          if (upsertError) {
-            console.error("Error assigning organizers:", upsertError);
-            return NextResponse.json(
-              { error: "Event created but assigning organizers failed" },
-              { status: 500 }
-            );
-          }
-
-          assignedCount += upserts.length;
-        }
-
-        existingOrganizerInviteEmails.push(
-          ...usersByEmail
-            .filter((u) => u.uid !== user.id)
-            .map((u) => (u.email || "").trim().toLowerCase())
-            .filter(Boolean)
-        );
-      }
-    }
+    // Co-organizers are never granted access directly by email (ORG-012 /
+    // MENT-008): user_profiles.email is user-editable, and a direct grant would
+    // also silently convert an existing participant and reveal which addresses
+    // have accounts. Every invitee gets a signed invitation link instead; the
+    // role is granted only when they accept it while signed in with that
+    // verified auth email (app/api/events/[eventId]/accept-invite).
+    const pendingOrganizerInviteEmails = normalizeInviteEmails(organizerEmails).filter(
+      (email) => email !== inviterEmail
+    );
 
     const resend = getResend();
     const sendEmail = resend
@@ -475,15 +459,38 @@ export async function POST(req: Request) {
         }
       : undefined;
 
-    const organizerInviteSummary = await sendOrganizerInviteEmails({
+    // Same daily invitation caps as the invite-organizer route (A2 helper).
+    // Emails past the cap are reported as failed instead of sent.
+    const quotaAllowedOrganizerEmails: string[] = [];
+    const quotaLimitedOrganizerEmails: string[] = [];
+    if (sendEmail) {
+      for (const email of pendingOrganizerInviteEmails) {
+        if (quotaLimitedOrganizerEmails.length > 0) {
+          quotaLimitedOrganizerEmails.push(email);
+          continue;
+        }
+        const quotaResponse = await reserveInviteQuota(serviceSupabase, user.id, createdEvent.event_id);
+        if (quotaResponse) quotaLimitedOrganizerEmails.push(email);
+        else quotaAllowedOrganizerEmails.push(email);
+      }
+    } else {
+      quotaAllowedOrganizerEmails.push(...pendingOrganizerInviteEmails);
+    }
+
+    const sentOrganizerInviteSummary = await sendOrganizerInviteEmails({
       appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
       eventId: createdEvent.event_id,
       eventName: createdEvent.event_name,
       inviterName,
-      existingOrganizerEmails: existingOrganizerInviteEmails,
-      newOrganizerEmails: newOrganizerInviteEmails,
+      // Invitees have no access until they accept, so they all get the
+      // "accept invitation" copy rather than "already activated".
+      newOrganizerEmails: quotaAllowedOrganizerEmails,
       sendEmail,
     });
+    const organizerInviteSummary = {
+      ...sentOrganizerInviteSummary,
+      failed: [...sentOrganizerInviteSummary.failed, ...quotaLimitedOrganizerEmails],
+    };
 
     const inviteSummary = await sendEventInviteEmails({
       appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
@@ -501,8 +508,13 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         event: createdEvent,
-        organizersAssigned: assignedCount,
-        missingOrganizerEmails: missingEmails,
+        organizersAssigned: 1,
+        // Kept for response compatibility; never reveals which emails have accounts.
+        missingOrganizerEmails: [],
+        pendingOrganizerInvites: pendingOrganizerInviteEmails.length,
+        // true when a public listing was requested: the event was created as
+        // private and needs admin approval (POST /api/events/request-approval).
+        publicListingRequiresApproval: moderation.publicRequestDeferred,
         organizerInviteSummary,
         inviteSummary,
         skippedPrizeTrackIds: skippedPrizes,

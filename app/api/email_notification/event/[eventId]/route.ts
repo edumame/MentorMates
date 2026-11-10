@@ -7,16 +7,17 @@ import {
   EMAIL_TYPES,
   ADMIN_EMAIL,
 } from "@/lib/email_templates/constants";
-import { EventDetails, EventRole } from "@/lib/types";
+import { ApprovalStatus, EventDetails, EventRole } from "@/lib/types";
 import {
   getEventScheduleUpdateNotificationEmail,
   getEventUpdateNotificationEmail,
 } from "@/lib/email_templates/event-notifications";
+import { getOrganizerCustomEmailTemplate } from "@/lib/email_templates/organizer-custom";
 
+import { EVENT_ROW_COLUMNS } from "@/lib/events/event-columns";
 //allow custom messages
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null as unknown as Resend;
+// Created per request so configuration is read at send time.
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
 type UserEmail = {
   user_id: string;
@@ -41,7 +42,11 @@ export async function POST(
     );
   }
 
-  const { emailType, emailContent } = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  const { emailType, emailContent } = body;
 
   const customEmailContent = emailContent || "";
 
@@ -58,22 +63,24 @@ export async function POST(
     .select("role")
     .eq("user_id", user.id)
     .eq("event_id", eventId)
-    .single();
+    .maybeSingle();
 
   if (roleError) {
     return NextResponse.json({ error: "Error fetching role" }, { status: 500 });
   }
 
+  // Signed in but not staff of this event (including no role at all) is a
+  // permission failure, not a server error.
   if (
-    roleData.role !== EventRole.Organizer &&
-    roleData.role !== EventRole.Admin
+    roleData?.role !== EventRole.Organizer &&
+    roleData?.role !== EventRole.Admin
   ) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { data: eventData, error: eventError } = await supabase
     .from("events")
-    .select("*")
+    .select(EVENT_ROW_COLUMNS)
     .eq("event_id", eventId)
     .single();
 
@@ -85,6 +92,16 @@ export async function POST(
   }
 
   const eventDetails = eventData as EventDetails;
+
+  // Event-wide email is only available once the platform approved the event:
+  // anyone can create an event and become its organizer, so unreviewed events
+  // must not be able to mass-mail from the platform sender.
+  if (eventDetails.approval_status !== ApprovalStatus.Approved) {
+    return NextResponse.json(
+      { error: "Event-wide email is available after the event is approved." },
+      { status: 403 }
+    );
+  }
 
   const eventName = eventDetails.event_name;
 
@@ -126,6 +143,7 @@ export async function POST(
   }
 
   const MAX_RECIPIENTS_PER_BATCH = 50;
+  const resend = getResend();
 
   // Check if we need to batch
   if (participantsEmails.length <= MAX_RECIPIENTS_PER_BATCH) {
@@ -213,13 +231,23 @@ const getEventEmail = (
         eventInformation
       );
     case EMAIL_TYPES.EVENT_UPDATE:
-      return getEventUpdateNotificationEmail(eventName, eventId);
+      return getEventUpdateNotificationEmail(
+        eventName,
+        eventId,
+        eventInformation
+      );
     case EMAIL_TYPES.EVENT_CUSTOM_UPDATE:
-      return {
-        subject: `Custom Message for "${eventName}" - MentorMates`,
-        html: emailContent,
-      };
+      // Organizer text is escaped (sent as plain text with line breaks), never
+      // relayed as raw HTML.
+      return getOrganizerCustomEmailTemplate(
+        `Custom Message for "${eventName}" - MentorMates`,
+        typeof emailContent === "string" ? emailContent : ""
+      );
     default:
-      return getEventUpdateNotificationEmail(eventName, eventId);
+      return getEventUpdateNotificationEmail(
+        eventName,
+        eventId,
+        eventInformation
+      );
   }
 };

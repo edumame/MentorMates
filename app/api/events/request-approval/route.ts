@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { sendEventApprovalNotification } from "@/lib/email/send-event-approval-notification";
 
+import { EVENT_ROW_COLUMNS } from "@/lib/events/event-columns";
 const eventSchema = z.object({
   event_name: z.string().min(3, "Event name must be at least 3 characters"),
   event_date: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
@@ -66,7 +67,12 @@ const eventSchema = z.object({
 const payloadSchema = z
   .object({
     event: eventSchema.optional(),
-    organizerEmails: z.array(z.string().email()).optional(),
+    // Co-organizers are invited with signed links (POST /api/events or the
+    // Access tab); this route must never grant roles by email (ORG-012).
+    organizerEmails: z
+      .array(z.string().email())
+      .max(0, "Invite co-organizers from the event's Access tab")
+      .optional(),
     eventId: z.string().uuid().optional(),
   })
   .refine((data) => data.event || data.eventId, {
@@ -99,7 +105,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { event, organizerEmails = [], eventId } = parsed.data;
+    const { event, eventId } = parsed.data;
 
     // If eventId is provided, update existing event instead of creating new one
     if (eventId) {
@@ -149,7 +155,7 @@ export async function POST(req: Request) {
         .from("events")
         .update({ approval_status: ApprovalStatus.Submitted })
         .eq("event_id", eventId)
-        .select("*")
+        .select(EVENT_ROW_COLUMNS)
         .single();
 
       if (updateError || !updatedEvent) {
@@ -204,8 +210,9 @@ export async function POST(req: Request) {
       event_date: event.event_date,
       location: event.location,
       rules: (event.rules ?? []) as unknown as Json,
-      visibility: (event.visibility ??
-        EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
+      // Never create a public event before review (ORG-002): the submission is
+      // created private (unlisted) and an admin approval publishes it.
+      visibility: EventVisibility.Private as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
       cover_image_url: event.cover_image_url ?? null,
       event_description: event.event_description ?? null,
@@ -225,7 +232,7 @@ export async function POST(req: Request) {
     const { data: createdEvent, error: insertError } = await supabase
       .from("events")
       .insert(insertPayload)
-      .select("*")
+      .select(EVENT_ROW_COLUMNS)
       .single();
 
     if (insertError || !createdEvent) {
@@ -237,7 +244,8 @@ export async function POST(req: Request) {
     }
 
     // Automatically assign the creator as an organizer
-    const { error: roleError } = await supabase.from("user_event_roles").upsert(
+    // RLS only lets users self-assign the participant role.
+    const { error: roleError } = await serviceSupabase.from("user_event_roles").upsert(
       {
         user_id: user.id,
         event_id: createdEvent.event_id,
@@ -320,63 +328,6 @@ export async function POST(req: Request) {
       }
     }
 
-    let assignedCount = 1;
-    const missingEmails: string[] = [];
-
-    if (organizerEmails.length > 0) {
-      const normalizedEmails = Array.from(
-        new Set(organizerEmails.map((e) => e.trim().toLowerCase())),
-      );
-
-      // Fetch all users by email in one query
-      const { data: usersByEmail, error: usersError } = await serviceSupabase
-        .from("user_profiles")
-        .select("uid, email")
-        .in("email", normalizedEmails);
-
-      if (usersError) {
-        console.error("Error fetching organizer users:", usersError);
-        return NextResponse.json(
-          { error: "Failed to look up organizer emails" },
-          { status: 500 },
-        );
-      }
-
-      const foundEmails = new Set(
-        (usersByEmail || []).map((u) => (u.email || "").toLowerCase()),
-      );
-      for (const email of normalizedEmails) {
-        if (!foundEmails.has(email)) missingEmails.push(email);
-      }
-
-      if (usersByEmail && usersByEmail.length > 0) {
-        const upserts = usersByEmail
-          .filter((u) => u.uid !== user.id)
-          .map((u) => ({
-            user_id: u.uid,
-            event_id: createdEvent.event_id,
-            role: EventRole.Organizer,
-            updated_at: new Date().toISOString(),
-          }));
-
-        if (upserts.length > 0) {
-          const { error: upsertError } = await supabase
-            .from("user_event_roles")
-            .upsert(upserts, { onConflict: "user_id,event_id" });
-
-          if (upsertError) {
-            console.error("Error assigning organizers:", upsertError);
-            return NextResponse.json(
-              { error: "Event created but assigning organizers failed" },
-              { status: 500 },
-            );
-          }
-
-          assignedCount += upserts.length;
-        }
-      }
-    }
-
     // Create an approval log entry
     await supabase.from("event_approval_logs").insert({
       event_id: createdEvent.event_id,
@@ -401,8 +352,8 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         event: createdEvent,
-        organizersAssigned: assignedCount,
-        missingOrganizerEmails: missingEmails,
+        organizersAssigned: 1,
+        missingOrganizerEmails: [],
         skippedPrizeTrackIds: skippedPrizes,
       },
       { status: 201 },

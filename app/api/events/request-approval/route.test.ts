@@ -12,8 +12,11 @@ jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
 }));
 
+// The creator's organizer role is assigned with the service client.
 jest.mock("@/lib/supabase/service", () => ({
-  createSupabaseServiceClient: jest.fn(() => ({})),
+  createSupabaseServiceClient: jest.fn(() => ({
+    from: () => ({ upsert: jest.fn().mockResolvedValue({ error: null }) }),
+  })),
 }));
 
 jest.mock("@/lib/email/send-event-approval-notification", () => ({
