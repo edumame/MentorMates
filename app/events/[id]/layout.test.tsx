@@ -15,6 +15,14 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
 }));
+// getEventForRoute wraps React's server-only cache(); call the lookup directly.
+jest.mock("@/lib/events/server-event", () => ({
+  getEventForRoute: async (id: string) => {
+    const { createSupabaseClient } = jest.requireMock("@/app/utils/supabase/server");
+    const supabase = await createSupabaseClient();
+    return supabase.from("events").select("*").eq("slug", id).maybeSingle();
+  },
+}));
 jest.mock("./conditional-event-layout", () => ({
   ConditionalEventLayout: () => null,
 }));
@@ -165,15 +173,17 @@ describe("event layout approval gate", () => {
     ApprovalStatus.Submitted,
     ApprovalStatus.Rejected,
   ])(
-    "leaves organizer-configured redirects on %s private events alone",
+    // getExternalRedirectUrl only follows approved external links (allow-list).
+    "renders %s private events internally without redirecting or hiding them",
     async (approval_status) => {
       mockSupabase({
         event: { visibility: EventVisibility.Private, approval_status },
       });
 
-      await expect(renderLayout()).rejects.toThrow("NEXT_REDIRECT");
+      await expect(renderLayout()).resolves.toBeTruthy();
 
-      expect(redirect).toHaveBeenCalledWith(ATTACKER_URL);
+      expect(redirect).not.toHaveBeenCalled();
+      expect(notFound).not.toHaveBeenCalled();
     }
   );
 

@@ -2,13 +2,13 @@ import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { isValidUUID } from "@/app/utils/supabase/queries";
+import { getEventForRoute } from "@/lib/events/server-event";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
 import {
   canUseInternalEventRoute,
+  getExternalRedirectUrl,
   isPublicEventHiddenByReview,
-  isUnapprovedPublicEvent,
 } from "@/lib/events/navigation";
 
 // add authentication check for non private/public events
@@ -21,54 +21,18 @@ export default async function Layout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await Promise.resolve(params);
-  const supabase = await createSupabaseClient();
-
-  // Check if user is authenticated
-  const isUUID = isValidUUID(id);
-
-  let query = supabase.from("events").select(`
-    event_id,
-    slug,
-    event_name,
-    event_date,
-    location,
-    event_blurb,
-    event_description,
-    cover_image_url,
-    submission_time_start,
-    submission_time_cutoff,
-    visibility,
-    approval_status,
-    owner_id,
-    external_url,
-    external_redirect_enabled
-  `);
-
-  if (isUUID) {
-    // If it's a UUID, check both slug and event_id
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    // If it's not a UUID, only check slug
-    query = query.eq("slug", id);
-  }
-
-  const { data: event } = await query.maybeSingle();
+  const { data: event } = await getEventForRoute(id);
 
   if (!event) {
     notFound();
   }
 
-  const externalUrl = event.external_url?.trim();
-  // Submitted URLs are unreviewed, so the redirect only goes live on approval.
-  const redirectUrl =
-    externalUrl &&
-    event.external_redirect_enabled === true &&
-    !isUnapprovedPublicEvent(event)
-      ? externalUrl
-      : null;
+  const externalUrl = getExternalRedirectUrl(event);
+  // Submitted or rejected public events are not live: only people who manage
+  // the event (or its submitter) may open them by direct link.
   const hiddenByReview = isPublicEventHiddenByReview(event);
-
-  if (redirectUrl || hiddenByReview) {
+  if (externalUrl || hiddenByReview) {
+    const supabase = await createSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -92,20 +56,41 @@ export default async function Layout({
       });
     }
 
-    // A signed-in submitter owns the event but has no organizer role.
-    const isOwner = Boolean(user && event.owner_id === user.id);
-    if (hiddenByReview && !canUseInternalEventPage && !isOwner) {
-      notFound();
+    if (hiddenByReview && !canUseInternalEventPage) {
+      // A signed-in submitter owns the event but has no organizer role.
+      // owner_id is not part of the shared route columns, so look it up here.
+      let isOwner = false;
+      if (user) {
+        const { data: ownership } = await supabase
+          .from("events")
+          .select("owner_id")
+          .eq("event_id", event.event_id)
+          .maybeSingle();
+        isOwner = ownership?.owner_id === user.id;
+      }
+      if (!isOwner) notFound();
     }
 
-    if (redirectUrl && !canUseInternalEventPage) {
-      redirect(redirectUrl);
+    if (externalUrl && !canUseInternalEventPage) {
+      redirect(externalUrl);
     }
   }
 
   return (
     <RouteBasedLayoutConfig>
-      <ConditionalEventLayout event={event}>
+      <ConditionalEventLayout event={{
+        event_id: event.event_id,
+        event_name: event.event_name,
+        event_date: event.event_date,
+        location: event.location,
+        event_blurb: event.event_blurb,
+        event_description: event.event_description,
+        cover_image_url: event.cover_image_url,
+        slug: event.slug,
+        submission_time_start: event.submission_time_start,
+        submission_time_cutoff: event.submission_time_cutoff,
+        visibility: event.visibility,
+      }}>
         {children}
       </ConditionalEventLayout>
     </RouteBasedLayoutConfig>
@@ -118,25 +103,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await Promise.resolve(params);
-  const supabase = await createSupabaseClient();
-
-  const isUUID = isValidUUID(id);
-
-  let query = supabase
-    .from("events")
-    .select(
-      "event_name, slug, event_blurb, event_description, cover_image_url, visibility, approval_status"
-    );
-
-  if (isUUID) {
-    // If it's a UUID, check both slug and event_id
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    // If it's not a UUID, only check slug
-    query = query.eq("slug", id);
-  }
-
-  const { data: event } = await query.single();
+  const { data: event } = await getEventForRoute(id);
 
   // The 404 for these events must not carry the unreviewed title or blurb.
   if (event && isPublicEventHiddenByReview(event)) {

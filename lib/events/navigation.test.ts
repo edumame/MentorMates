@@ -4,8 +4,8 @@ import {
   getInternalEventHref,
   isEventManagerRole,
   canUseInternalEventRoute,
+  getExternalRedirectUrl,
   isPublicEventHiddenByReview,
-  isUnapprovedPublicEvent,
 } from "./navigation";
 
 describe("event navigation", () => {
@@ -41,6 +41,7 @@ describe("event navigation", () => {
         slug: "partner-event",
         external_url: " https://partner.example.com/hack ",
         external_redirect_enabled: true,
+        approval_status: "approved",
         userRole: EventRole.Participant,
       })
     ).toEqual({
@@ -106,24 +107,41 @@ describe("event navigation", () => {
       isExternal: false,
     });
   });
+
+  describe("getExternalRedirectUrl", () => {
+    const base = { external_url: "https://partner.example.com/hack", external_redirect_enabled: true };
+
+    it("redirects only admin-approved external events (allow-list)", () => {
+      expect(getExternalRedirectUrl({ ...base, approval_status: "approved" })).toBe(base.external_url);
+      expect(getExternalRedirectUrl({ ...base, approval_status: "not_submitted" })).toBeNull();
+      expect(getExternalRedirectUrl({ ...base, approval_status: null })).toBeNull();
+      expect(getExternalRedirectUrl({ ...base })).toBeNull();
+    });
+
+    it.each(["submitted", "rejected"])("never redirects %s (unreviewed) submissions", (approval_status) => {
+      expect(getExternalRedirectUrl({ ...base, approval_status })).toBeNull();
+      expect(
+        getEventNavigationTarget({ event_id: "e", slug: "s", ...base, approval_status })
+      ).toEqual({ href: "/events/s/overview", isExternal: false });
+    });
+
+    it.each(["javascript:alert(1)", "JAVASCRIPT:alert(1)", "data:text/html,x", "not a url", "  "])(
+      "rejects non-http(s) external URL %p",
+      (external_url) => {
+        expect(getExternalRedirectUrl({ ...base, approval_status: "approved", external_url })).toBeNull();
+      }
+    );
+
+    it("requires redirects to be enabled", () => {
+      expect(getExternalRedirectUrl({ ...base, approval_status: "approved", external_redirect_enabled: false })).toBeNull();
+    });
+  });
 });
 
 describe("event review gating", () => {
   const publicEvent = (approval_status: ApprovalStatus | null) => ({
     visibility: EventVisibility.Public,
     approval_status,
-  });
-
-  it("treats every non-approved public event as unapproved", () => {
-    expect(isUnapprovedPublicEvent(publicEvent(ApprovalStatus.Approved))).toBe(false);
-    for (const status of [
-      ApprovalStatus.NotSubmitted,
-      ApprovalStatus.Submitted,
-      ApprovalStatus.Rejected,
-      null,
-    ]) {
-      expect(isUnapprovedPublicEvent(publicEvent(status))).toBe(true);
-    }
   });
 
   it("hides only submitted and rejected public events", () => {
@@ -139,7 +157,6 @@ describe("event review gating", () => {
       visibility: EventVisibility.Private,
       approval_status: ApprovalStatus.Submitted,
     };
-    expect(isUnapprovedPublicEvent(privateEvent)).toBe(false);
     expect(isPublicEventHiddenByReview(privateEvent)).toBe(false);
   });
 });

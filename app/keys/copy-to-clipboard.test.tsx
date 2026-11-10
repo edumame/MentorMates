@@ -2,8 +2,12 @@
  * @jest-environment jsdom
  */
 
-// Tests for copyToClipboard and buildCopyableMarkdown logic from keys-page-client.tsx.
-// We test functions directly to avoid rendering the full page (heavy server deps).
+// The copyToClipboard tests exercise a local copy of the logic from
+// keys-page-client.tsx. The generated key tests render the real component.
+
+import "@testing-library/jest-dom";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import KeysPageClient from "./keys-page-client";
 
 // --- copyToClipboard: current broken version (no try-catch) ---
 async function copyBroken(text: string): Promise<string> {
@@ -26,53 +30,6 @@ async function copyFixed(text: string): Promise<string> {
     document.body.removeChild(textarea);
   }
   return "copied";
-}
-
-// --- buildCopyableMarkdown: mirrors the real function structure ---
-function buildCopyableMarkdown(opts: {
-  isOrg: boolean;
-  generatedApiKey: string | null;
-}): string {
-  const { isOrg, generatedApiKey } = opts;
-  const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-  // FIXED: include the real key when available
-  const keyValue = generatedApiKey || "mm_sk_...";
-  return [
-    "# MentorMates Developer API",
-    "",
-    `## Role: ${isOrg ? "Organizer" : "Participant"}`,
-    "",
-    "### 1. Create a key",
-    "Visit https://www.mentormates.ai/keys and generate a key for this role.",
-    "",
-    "### 2. Set env var (in YOUR shell, not in the agent)",
-    "```bash",
-    `export ${envVar}="${keyValue}"`,
-    "```",
-  ].join("\n");
-}
-
-// --- buildCopyableMarkdown: broken version (always placeholder) ---
-function buildCopyableMarkdownBroken(opts: {
-  isOrg: boolean;
-  generatedApiKey: string | null;
-}): string {
-  const { isOrg } = opts;
-  const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-  const keyPlaceholder = "mm_sk_...";
-  return [
-    "# MentorMates Developer API",
-    "",
-    `## Role: ${isOrg ? "Organizer" : "Participant"}`,
-    "",
-    "### 1. Create a key",
-    "Visit https://www.mentormates.ai/keys and generate a key for this role.",
-    "",
-    "### 2. Set env var (in YOUR shell, not in the agent)",
-    "```bash",
-    `export ${envVar}="${keyPlaceholder}"`,
-    "```",
-  ].join("\n");
 }
 
 describe("copyToClipboard", () => {
@@ -148,47 +105,182 @@ describe("copyToClipboard", () => {
   });
 });
 
-describe("buildCopyableMarkdown", () => {
+describe("KeysPageClient generated key handling", () => {
   const realKey = "mm_sk_b38ba5722b97141515c6a1bee4f8413bab0001bd";
+  const managedEvents = [{ id: "event-1", name: "Hack Day", eventDate: null }];
+  const originalClipboard = navigator.clipboard;
+  const originalFetch = global.fetch;
+  let writeText: jest.Mock;
 
-  describe("broken version (always uses placeholder)", () => {
-    it("never includes the real API key in the output", () => {
-      const md = buildCopyableMarkdownBroken({
-        isOrg: true,
-        generatedApiKey: realKey,
-      });
+  function renderPage() {
+    return render(
+      <KeysPageClient
+        initialKeys={[]}
+        managedEventOptions={managedEvents}
+        participantEventOptions={[]}
+      />
+    );
+  }
+
+  async function createKey() {
+    fireEvent.click(screen.getByRole("button", { name: "Create Key" }));
+    await screen.findByText("Key created");
+  }
+
+  function switchTab(name: "Participant" | "Organizer") {
+    fireEvent.click(screen.getByRole("button", { name }));
+  }
+
+  async function copyPage(): Promise<string> {
+    writeText.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Copy page" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    // Flush the "Copied" state update before the next interaction.
+    await screen.findByRole("button", { name: "Copied" });
+    return writeText.mock.calls[0][0] as string;
+  }
+
+  beforeEach(() => {
+    writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        api_key: realKey,
+        message: "Key created",
+        key: {
+          id: "key-1",
+          event_id: null,
+          prefix: "mm_sk_b38b",
+          label: null,
+          scopes: ["event:read"],
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      }),
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: originalClipboard,
+      writable: true,
+      configurable: true,
+    });
+    global.fetch = originalFetch;
+  });
+
+  describe("Copy page", () => {
+    it("uses the placeholder when no key has been generated", async () => {
+      renderPage();
+
+      const md = await copyPage();
+      expect(md).toContain('export MENTORMATES_PARTICIPANT_API_KEY="mm_sk_..."');
+    });
+
+    it("never embeds a generated key, matching its 'omitted' notice", async () => {
+      renderPage();
+      switchTab("Organizer");
+      await createKey();
+
+      const md = await copyPage();
       expect(md).not.toContain(realKey);
       expect(md).toContain('export MENTORMATES_API_KEY="mm_sk_..."');
+      expect(md).toContain("The key itself is intentionally omitted here.");
+    });
+
+    it("does not embed the generated key after switching tabs", async () => {
+      renderPage();
+      switchTab("Organizer");
+      await createKey();
+      switchTab("Participant");
+
+      const md = await copyPage();
+      expect(md).not.toContain(realKey);
+      expect(md).toContain('export MENTORMATES_PARTICIPANT_API_KEY="mm_sk_..."');
     });
   });
 
-  describe("fixed version", () => {
-    it("includes the real key when a key has been generated", () => {
-      const md = buildCopyableMarkdown({
-        isOrg: true,
-        generatedApiKey: realKey,
-      });
-      expect(md).toContain(realKey);
-      expect(md).toContain(`export MENTORMATES_API_KEY="${realKey}"`);
+  describe("on-screen key", () => {
+    it("shows the key under the env var of the tab that created it", async () => {
+      const { container } = renderPage();
+      switchTab("Organizer");
+      await createKey();
+
+      expect(container).toHaveTextContent(
+        `export MENTORMATES_API_KEY="${realKey}"`
+      );
+      expect(
+        screen.getByText(/Your newly generated key is filled in above/)
+      ).toBeInTheDocument();
     });
 
-    it("uses participant env var for participant role", () => {
-      const md = buildCopyableMarkdown({
-        isOrg: false,
-        generatedApiKey: realKey,
-      });
-      expect(md).toContain(
-        `export MENTORMATES_PARTICIPANT_API_KEY="${realKey}"`
+    it("hides an organizer key on the participant tab", async () => {
+      const { container } = renderPage();
+      switchTab("Organizer");
+      await createKey();
+      switchTab("Participant");
+
+      expect(container).not.toHaveTextContent(realKey);
+      expect(container).toHaveTextContent(
+        'export MENTORMATES_PARTICIPANT_API_KEY="mm_sk_..."'
+      );
+      expect(screen.queryByText("Key created")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Your newly generated key is filled in above/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides a participant key on the organizer tab", async () => {
+      const { container } = renderPage();
+      await createKey();
+      switchTab("Organizer");
+
+      expect(container).not.toHaveTextContent(realKey);
+      expect(container).toHaveTextContent(
+        'export MENTORMATES_API_KEY="mm_sk_..."'
       );
     });
 
-    it("falls back to placeholder when no key has been generated", () => {
-      const md = buildCopyableMarkdown({
-        isOrg: true,
-        generatedApiKey: null,
+    it("keeps the one-time key available on return to its own tab", async () => {
+      const { container } = renderPage();
+      switchTab("Organizer");
+      await createKey();
+      switchTab("Participant");
+      switchTab("Organizer");
+
+      expect(container).toHaveTextContent(
+        `export MENTORMATES_API_KEY="${realKey}"`
+      );
+      expect(screen.getByText("Key created")).toBeInTheDocument();
+    });
+
+    it("attributes the key to the tab it was requested from, even if the tab changes mid-request", async () => {
+      let resolveFetch: (value: unknown) => void = () => {};
+      const response = await (global.fetch as jest.Mock)();
+      (global.fetch as jest.Mock).mockClear();
+      (global.fetch as jest.Mock).mockReturnValue(
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        })
+      );
+
+      const { container } = renderPage();
+      switchTab("Organizer");
+      fireEvent.click(screen.getByRole("button", { name: "Create Key" }));
+      switchTab("Participant");
+      await act(async () => {
+        resolveFetch(response);
       });
-      expect(md).toContain('export MENTORMATES_API_KEY="mm_sk_..."');
-      expect(md).not.toContain(realKey);
+
+      expect(container).not.toHaveTextContent(realKey);
+      switchTab("Organizer");
+      expect(container).toHaveTextContent(
+        `export MENTORMATES_API_KEY="${realKey}"`
+      );
     });
   });
 });

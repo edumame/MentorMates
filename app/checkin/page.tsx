@@ -24,6 +24,9 @@ export default function CheckinPage() {
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-8">
           Event Check-in
         </h1>
+        <p className="-mt-6 mb-6 text-center text-sm text-gray-800">
+          Scan an attendee&apos;s ticket QR code. Only organizers of that event can verify tickets.
+        </p>
         <QRScanner mode="checkin" onTokenScanned={handleTokenScanned} />
         <CheckinStatus
           token={scannedToken}
