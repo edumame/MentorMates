@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -775,11 +776,11 @@ export function CompactScoringForm({
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500">Weight</label>
-                                    <Input
-                                      type="number" min={0} step={0.01}
-                                      value={criterion.weight}
+                                    <NumberInput
+                                      min={0} step={0.01}
+                                      value={criterion.weight ?? 1}
                                       disabled={isArchived}
-                                      onChange={(e) => updateCriterion(trackId, idx, { weight: parseFloat(e.target.value) || 1 })}
+                                      onValueChange={(weight) => updateCriterion(trackId, idx, { weight })}
                                       className="h-9 text-center"
                                     />
                                   </div>
@@ -857,19 +858,19 @@ export function CompactScoringForm({
                                   ) : (
                                     <div className="flex items-center gap-2">
                                       <span className="text-xs text-gray-500 w-24 shrink-0">Score range</span>
-                                      <Input
-                                        type="number" min={0}
+                                      <NumberInput
+                                        integer min={0}
                                         value={criterion.min ?? 0}
                                         disabled={isArchived}
-                                        onChange={(e) => updateCriterion(trackId, idx, { min: parseInt(e.target.value) || 0 })}
+                                        onValueChange={(min) => updateCriterion(trackId, idx, { min })}
                                         className="w-14 h-7 text-xs text-center"
                                       />
                                       <span className="text-xs text-gray-300">to</span>
-                                      <Input
-                                        type="number" min={1}
+                                      <NumberInput
+                                        integer min={1}
                                         value={criterion.max ?? 10}
                                         disabled={isArchived}
-                                        onChange={(e) => updateCriterion(trackId, idx, { max: parseInt(e.target.value) || 10 })}
+                                        onValueChange={(max) => updateCriterion(trackId, idx, { max })}
                                         className="w-14 h-7 text-xs text-center"
                                       />
                                     </div>

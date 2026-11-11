@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { isPrizeFromEvent, type PrizeWithEvent } from "@/lib/projects/awards";
 import { Prize } from "@/lib/types";
 import { getTeamEmails, getUserProjectIds } from "@/lib/projects/membership";
 import { PROJECT_CLIENT_COLUMNS } from "@/lib/projects/columns";
@@ -80,6 +81,7 @@ export async function GET() {
           track_id,
           prize_amount,
           prize_description,
+          event_tracks ( event_id ),
           prize_winners!inner (
             id,
             project_id,
@@ -103,11 +105,23 @@ export async function GET() {
         );
       }
 
-      // Group prizes by project_id
+      // Group prizes by project_id, counting only prizes from the project's
+      // current event so status does not follow a project that changed event
+      const projectEventIds = new Map(
+        allProjects.map((p) => [p.id, p.event_id as string | null | undefined])
+      );
       const prizesByProject = (prizesData || []).reduce(
         (acc, prize) => {
           prize.prize_winners.forEach((winner) => {
             const projectId = winner.project_id;
+            if (
+              !isPrizeFromEvent(
+                prize as unknown as PrizeWithEvent,
+                projectEventIds.get(projectId)
+              )
+            ) {
+              return;
+            }
             if (!acc[projectId]) acc[projectId] = [];
             acc[projectId].push({
               ...prize,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getTeamEmails } from "@/lib/projects/membership";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { RoundsEditor } from "@/components/events/rounds-editor";
 import {
+  filterScoresToRoundEligibleProjects,
   getActiveRound,
 } from "@/lib/judging/rounds";
 import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
@@ -132,6 +133,10 @@ export function ScoresTab({
   >([]);
   const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  // Lets a saved advancement selection reload scores without re-running the
+  // fetch effect: that would re-create the realtime channels under the same
+  // topics while the old ones are still leaving.
+  const refetchScoresRef = useRef<() => void>(() => {});
 
   // Link tracks to main track feature
   const [linkTracksEnabled, setLinkTracksEnabled] = useState(false);
@@ -571,7 +576,13 @@ export function ScoresTab({
           return;
         }
 
-        const scoreRows = (data || []) as ProjectScoreQueryRow[];
+        // Scores outlive a project's place in a round (re-picked rounds keep
+        // them), so rank only projects eligible for each score's round.
+        const scoreRows = await filterScoresToRoundEligibleProjects(
+          supabase,
+          eventId,
+          (data || []) as ProjectScoreQueryRow[]
+        );
 
         // Lead emails are not client-readable columns; organizers get them
         // through project_team_emails.
@@ -706,6 +717,7 @@ export function ScoresTab({
     }
 
     fetchData();
+    refetchScoresRef.current = fetchData;
 
     // Subscribe to real-time score updates
     const judgeScoresSubscription = supabase
@@ -785,6 +797,7 @@ export function ScoresTab({
               eventId={eventId}
               scoringConfig={scoringConfig}
               onSaved={(next) => onScoringConfigSaved?.(next)}
+              onAdvancementsSaved={() => refetchScoresRef.current()}
             />
 
             <Card className="w-full min-w-0 border shadow-none">
@@ -1032,7 +1045,7 @@ export function ScoresTab({
                                             <div className="break-words flex items-center justify-end">
                                               <span>
                                                 {c.name}
-                                                {c.weight && c.weight !== 1 && (
+                                                {c.weight != null && c.weight !== 1 && (
                                                   <span className="text-xs text-muted-foreground ml-1">
                                                     (×{c.weight})
                                                   </span>
