@@ -1,172 +1,145 @@
 #!/usr/bin/env python3
-"""Test the pricing tier sold-count migration in a disposable PostgreSQL container.
+"""Offline-only PostgreSQL regression for pricing_tiers.current_quantity.
 
-No database URL or production connection is accepted. Requires Docker and Python3.
-Run from repository root.
+Applies the real checkout migration (202611060301) and the fix (202611110202)
+to a minimal fixture in a disposable Docker PostgreSQL container, then drives
+purchases through register_event_checkout / apply_event_checkout. Never
+accepts a database URL. Requires Docker.
 """
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-import time
+from rls_test_harness import Database, Checks
 
-from test_scraper_quota import CONTAINER, docker, sql
+FIX = "202611110202_sync_pricing_tier_current_quantity.sql"
+E = "00000000-0000-0000-0000-0000000000e1"
+SINGLE = "00000000-0000-0000-0000-0000000000a1"  # bundle_size 1
+TEAM = "00000000-0000-0000-0000-0000000000a3"  # bundle_size 3
 
-MIGRATION = Path(__file__).resolve().parents[1] / "supabase/migrations/202611050093_sync_pricing_tier_current_quantity.sql"
-
-SCHEMA = """
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE authenticated NOLOGIN;
-CREATE TYPE public.payment_status AS ENUM ('processing', 'paid', 'canceled', 'refunded');
-CREATE TABLE public.pricing_tiers (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  max_quantity integer,
-  current_quantity integer DEFAULT 0,
-  bundle_size integer DEFAULT 1
-);
-ALTER TABLE public.pricing_tiers ENABLE ROW LEVEL SECURITY;
-CREATE TABLE public.user_event_payments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  event_id uuid NOT NULL,
-  payment_status public.payment_status NOT NULL DEFAULT 'processing',
-  pricing_id uuid REFERENCES public.pricing_tiers(id) ON DELETE SET NULL,
-  UNIQUE (user_id, event_id)
-);
-GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT SELECT, INSERT, UPDATE ON public.user_event_payments TO authenticated;
+SCHEMA = f"""
+CREATE ROLE service_role NOLOGIN;
+CREATE TYPE payment_status AS ENUM ('processing','paid','canceled','refunded');
+CREATE TABLE pricing_tiers(id uuid PRIMARY KEY,event_id uuid,name text,bundle_size integer,is_active boolean,
+  max_quantity integer,current_quantity integer DEFAULT 0);
+CREATE TABLE user_event_payments(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,event_id uuid,
+  stripe_customer_id text,stripe_session_id text,stripe_payment_intent_id text,pricing_id uuid,
+  payment_status payment_status,amount_paid integer,currency text DEFAULT 'usd',updated_at timestamptz,
+  UNIQUE(user_id,event_id));
+CREATE TABLE event_tickets(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),event_id uuid,payment_id uuid,
+  purchased_by_user_id uuid,ticket_status text,assigned_to_user_id uuid,assigned_at timestamptz);
+CREATE TABLE user_event_roles(event_id uuid,user_id uuid,role text,UNIQUE(user_id,event_id));
+INSERT INTO pricing_tiers VALUES
+  ('{SINGLE}','{E}','Single',1,true,50,0),
+  ('{TEAM}','{E}','Team',3,true,10,0);
 """
 
 
-def tier(current=0, bundle=1, max_quantity="NULL"):
-    return sql(f"INSERT INTO public.pricing_tiers (current_quantity, bundle_size, max_quantity) "
-               f"VALUES ({current}, {bundle}, {max_quantity}) RETURNING id;").stdout.strip()
-
-
-def payment(tier_id, status="processing"):
-    pricing_id = "NULL" if tier_id is None else f"'{tier_id}'"
-    return sql(f"INSERT INTO public.user_event_payments (user_id, event_id, payment_status, pricing_id) "
-               f"VALUES (gen_random_uuid(), gen_random_uuid(), '{status}', {pricing_id}) RETURNING id;").stdout.strip()
-
-
-def set_status(payment_id, status):
-    sql(f"UPDATE public.user_event_payments SET payment_status = '{status}' WHERE id = '{payment_id}';")
-
-
-def sold(tier_id):
-    return int(sql(f"SELECT current_quantity FROM public.pricing_tiers WHERE id = '{tier_id}';").stdout.strip())
+def user(n):
+    return f"00000000-0000-0000-0001-{n:012d}"
 
 
 def main():
-    migration = MIGRATION.read_text()
-    docker("pull", "postgres:16.15", timeout=600)
-    try:
-        docker("run", "--detach", "--name", CONTAINER, "--network", "none",
-               "--tmpfs", "/var/lib/postgresql/data:rw", "--env",
-               "POSTGRES_HOST_AUTH_METHOD=trust", "postgres:16.15")
-        for _ in range(60):
-            if docker("exec", CONTAINER, "pg_isready", "-h", "127.0.0.1", "-U", "postgres", check=False).returncode == 0:
-                break
-            time.sleep(0.5)
-        else:
-            raise RuntimeError("Disposable PostgreSQL failed to start")
-        sql(SCHEMA)
+    checks = Checks()
+    with Database("pricing-tier-quantity") as db:
+        db.sql(SCHEMA)
+        db.migrate("202611060301_checkout_attempts.sql")
 
-        # Backfill counts existing paid rows only, replaces stale values, and
-        # re-running the migration neither doubles the count nor stacks triggers.
-        backfilled = tier(current=7, bundle=2)
-        untouched = tier(current=4)
-        for status in ("paid", "paid", "processing", "canceled", "refunded"):
-            payment(backfilled, status)
-        payment(None, "paid")
-        sql(migration)
-        assert sold(backfilled) == 4, "Two paid bundles of two tickets"
-        assert sold(untouched) == 0, "A tier with no paid payments has sold nothing"
-        sql(migration)
-        assert sold(backfilled) == 4, "Re-applying the migration must not change the count"
+        def register(n, tier, session):
+            db.sql(f"SELECT register_event_checkout('{user(n)}','{E}','{tier}','cus','{session}')")
 
-        # Paid transition counts once, however many times the webhook is delivered.
-        limited = tier(max_quantity=2)
-        first = payment(limited)
-        assert sold(limited) == 0, "An open checkout is not a sale"
-        set_status(first, "paid")
-        assert sold(limited) == 1
-        set_status(first, "paid")
-        assert sold(limited) == 1, "A retried webhook must not count twice"
+        def apply(session, intent, status):
+            sess = "NULL" if session is None else f"'{session}'"
+            return db.sql(f"SELECT apply_event_checkout({sess},'{intent}','{status}',100,'usd')")
 
-        # Refund releases the ticket once; a repeated refund event does not.
-        set_status(first, "refunded")
-        assert sold(limited) == 0
-        set_status(first, "refunded")
-        assert sold(limited) == 0
+        def count(tier):
+            return db.sql(f"SELECT current_quantity FROM pricing_tiers WHERE id='{tier}'")
 
-        # Tier reaches its limit, which is what the checkout sold-out check reads.
-        for _ in range(2):
-            set_status(payment(limited), "paid")
-        assert sold(limited) == 2
+        def paid_sum(tier):
+            return db.sql("SELECT coalesce(sum(bundle_size),0) FROM payment_checkout_attempts "
+                          f"WHERE pricing_id='{tier}' AND status='paid'")
 
-        # Abandoned checkouts do not change the count.
-        abandoned = payment(limited)
-        set_status(abandoned, "canceled")
-        assert sold(limited) == 2
+        # Existing sales before the fix: the count never moves (the bug).
+        register(1, SINGLE, "cs_old1")
+        apply("cs_old1", "pi_old1", "paid")
+        register(2, TEAM, "cs_old2")
+        apply("cs_old2", "pi_old2", "paid")
+        checks.expect("bug: paid purchase does not count before the fix", count(SINGLE), "0")
+        db.sql(f"UPDATE pricing_tiers SET current_quantity=40 WHERE id='{TEAM}'")  # stale, as if hand-edited
 
-        # Bundles count every ticket, and refund the same number.
-        bundled = tier(bundle=5)
-        bundle_payment = payment(bundled)
-        set_status(bundle_payment, "paid")
-        assert sold(bundled) == 5
-        set_status(bundle_payment, "refunded")
-        assert sold(bundled) == 0
+        db.migrate(FIX)
+        checks.expect("backfill counts existing single sale", count(SINGLE), "1")
+        checks.expect("backfill counts bundle in tickets and fixes stale count", count(TEAM), "3")
+        checks.expect("backfill log has before/after per changed tier",
+                      db.sql("SELECT string_agg(tier_name||':'||before_quantity||'->'||after_quantity, ',' ORDER BY tier_name) "
+                             "FROM pricing_tier_quantity_backfill_log"),
+                      "Single:0->1,Team:40->3")
+        db.migrate(FIX)  # Re-running must not double count.
+        checks.expect("re-running the migration keeps the count", count(TEAM), "3")
+        checks.expect("re-run logs nothing new", db.sql("SELECT count(*) FROM pricing_tier_quantity_backfill_log"), "2")
 
-        # A paid row moved to another tier moves its count with it.
-        source, target = tier(), tier()
-        moved = payment(source, "paid")
-        assert sold(source) == 1
-        sql(f"UPDATE public.user_event_payments SET pricing_id = '{target}' WHERE id = '{moved}';")
-        assert (sold(source), sold(target)) == (0, 1)
+        db.sql(f"UPDATE pricing_tiers SET current_quantity=9 WHERE id='{TEAM}'")
+        checks.expect("dry-run recount reports drift",
+                      db.sql("SELECT before_quantity||'->'||after_quantity||':'||changed "
+                             f"FROM recount_pricing_tier_current_quantity(false) WHERE pricing_id='{TEAM}'"),
+                      "9->3:true")
+        checks.expect("dry-run recount does not write", count(TEAM), "9")
+        db.sql("SELECT count(*) FROM recount_pricing_tier_current_quantity(true)")
+        checks.expect("applied recount writes", count(TEAM), "3")
 
-        # Deleting a paid row releases it, and the count never goes negative.
-        sql(f"DELETE FROM public.user_event_payments WHERE id = '{moved}';")
-        assert sold(target) == 0
-        drifted = tier()
-        drifted_payment = payment(drifted, "paid")
-        sql(f"UPDATE public.pricing_tiers SET current_quantity = 0 WHERE id = '{drifted}';")
-        set_status(drifted_payment, "refunded")
-        assert sold(drifted) == 0, "Count must clamp at zero"
+        # Live transitions.
+        register(3, TEAM, "cs3")
+        checks.expect("processing checkout does not count", count(TEAM), "3")
+        apply("cs3", "pi3", "paid")
+        checks.expect("paid adds bundle_size", count(TEAM), "6")
+        apply("cs3", "pi3", "paid")
+        db.sql("UPDATE payment_checkout_attempts SET status='paid' WHERE session_id='cs3'")
+        checks.expect("paid -> paid retries are no-ops", count(TEAM), "6")
+        apply("cs3", "pi3", "canceled")
+        checks.expect("late cancel of a paid checkout is ignored", count(TEAM), "6")
+        register(4, TEAM, "cs4")
+        apply("cs4", "pi4", "canceled")
+        checks.expect("canceled checkout does not count", count(TEAM), "6")
+        apply("cs4", "pi4", "paid")
+        checks.expect("canceled -> paid counts", count(TEAM), "9")
+        apply(None, "pi3", "refunded")
+        checks.expect("refund subtracts bundle_size", count(TEAM), "6")
+        apply(None, "pi3", "refunded")
+        checks.expect("refund retry is a no-op", count(TEAM), "6")
+        db.sql(f"UPDATE pricing_tiers SET current_quantity=1 WHERE id='{TEAM}'")
+        apply(None, "pi4", "refunded")
+        checks.expect("refund never goes below zero", count(TEAM), "0")
+        db.sql("SELECT count(*) FROM recount_pricing_tier_current_quantity(true)")
 
-        # A NULL count from older rows is treated as zero.
-        null_count = tier()
-        sql(f"UPDATE public.pricing_tiers SET current_quantity = NULL WHERE id = '{null_count}';")
-        payment(null_count, "paid")
-        assert sold(null_count) == 1
+        # Moving a paid attempt between tiers moves the count.
+        db.sql(f"UPDATE payment_checkout_attempts SET pricing_id='{SINGLE}' WHERE session_id='cs_old2'")
+        checks.expect("tier move removes from old tier", count(TEAM), "0")
+        checks.expect("tier move adds to new tier", count(SINGLE), "4")
+        db.sql(f"UPDATE payment_checkout_attempts SET pricing_id='{TEAM}' WHERE session_id='cs_old2'")
 
-        # Deleting a tier leaves the payment and does not fail the cascade.
-        deleted = tier()
-        orphan = payment(deleted, "paid")
-        sql(f"DELETE FROM public.pricing_tiers WHERE id = '{deleted}';")
-        set_status(orphan, "refunded")
+        # Concurrency: 20 buyers, each webhook delivered 3 times at once.
+        for n in range(100, 120):
+            register(n, TEAM, f"cs{n}")
+        jobs = [f"cs{n}" for n in range(100, 120) for _ in range(3)]
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            list(pool.map(lambda s: apply(s, "pi" + s[2:], "paid"), jobs))
+        checks.expect("concurrent purchases and retries are all counted once", count(TEAM), paid_sum(TEAM))
+        checks.expect("concurrent total is 21 bundles of 3", count(TEAM), "63")
+        refunds = [f"pi{n}" for n in range(100, 110) for _ in range(2)]
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            list(pool.map(lambda i: apply(None, i, "refunded"), refunds))
+        checks.expect("concurrent refunds and retries subtract once", count(TEAM), "33")
+        checks.expect("count matches paid attempts after refunds", count(TEAM), paid_sum(TEAM))
 
-        # Checkout writes as the buyer, who has no access to pricing_tiers.
-        buyer_tier = tier()
-        buyer_payment = payment(buyer_tier, "paid")
-        denied = sql(f"SET ROLE authenticated; UPDATE public.pricing_tiers SET current_quantity = 9 WHERE id = '{buyer_tier}';", check=False)
-        assert denied.returncode != 0 and "permission denied" in denied.stderr, denied.stderr
-        sql(f"SET ROLE authenticated; UPDATE public.user_event_payments SET payment_status = 'processing' WHERE id = '{buyer_payment}';")
-        assert sold(buyer_tier) == 0
-
-        # Trigger functions are not callable, and nobody else may try.
-        for role in ("anon", "authenticated"):
-            call = sql(f"SET ROLE {role}; SELECT public.sync_pricing_tier_current_quantity();", check=False)
-            assert call.returncode != 0 and "permission denied" in call.stderr, (role, call.stderr)
-
-        # Thirty independent sessions pay at once; no increment may be lost.
-        raced = tier()
-        payments = [payment(raced) for _ in range(30)]
-        with ThreadPoolExecutor(max_workers=30) as pool:
-            list(pool.map(lambda payment_id: set_status(payment_id, "paid"), payments))
-        assert sold(raced) == 30
-
-        print("PASS: backfill, idempotent transitions, refunds, bundles, tier moves, buyer writes, and concurrency")
-    finally:
-        docker("rm", "--force", CONTAINER, check=False)
+        # Privileges.
+        checks.expect("API roles cannot call the trigger or recount functions",
+                      db.sql("SELECT bool_or(has_function_privilege(r, f, 'execute')) FROM "
+                             "unnest(array['anon','authenticated']) r, unnest(array["
+                             "'public.sync_pricing_tier_current_quantity()',"
+                             "'public.recount_pricing_tier_current_quantity(boolean)']) f"),
+                      "f")
+        checks.expect("API roles cannot read the backfill log",
+                      db.sql("SELECT bool_or(has_table_privilege(r, 'public.pricing_tier_quantity_backfill_log', 'select')) "
+                             "FROM unnest(array['anon','authenticated']) r"),
+                      "f")
+    checks.finish()
 
 
 if __name__ == "__main__":
