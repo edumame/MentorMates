@@ -32,21 +32,26 @@ const parseResponse = {
   json: async () => ({ success: true, config: parsedConfig }),
 };
 
-let currentConfig: EventScoringConfig | null;
-let setParentConfig: React.Dispatch<
-  React.SetStateAction<EventScoringConfig | null>
->;
+let currentConfig: EventScoringConfig;
+let setParentConfig: React.Dispatch<React.SetStateAction<EventScoringConfig>>;
 
-// Mirrors the parent dashboards: JudgingSidebar writes to shared useState.
+const EMPTY_CONFIG: EventScoringConfig = {
+  tracks: {},
+  defaultMin: 0,
+  defaultMax: 10,
+  defaultWeight: 1,
+};
+
+// Mirrors TracksTab: JudgingSidebar writes to the shared, non-null draft.
 function Parent({ initial }: { initial: EventScoringConfig | null }) {
-  const [config, setConfig] = useState(initial);
+  const [config, setConfig] = useState<EventScoringConfig>(
+    initial ?? EMPTY_CONFIG
+  );
   currentConfig = config;
   setParentConfig = setConfig;
   return (
     <JudgingSidebar
-      config={
-        config || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
-      }
+      config={config}
       onConfigChange={setConfig}
       eventId="event-1"
     />
@@ -77,8 +82,10 @@ describe("JudgingSidebar rubric upload", () => {
     uploadRubric(container);
     await screen.findByText(/Parsed 1 track\(s\)/);
 
+    // Parsed tracks are added to the draft (mergeParsedRubric), not swapped in.
     expect(currentConfig).toEqual({
       ...parsedConfig,
+      tracks: { ...multiRoundConfig.tracks, ...parsedConfig.tracks },
       rounds: multiRoundConfig.rounds,
       activeRound: 2,
     });
@@ -96,15 +103,18 @@ describe("JudgingSidebar rubric upload", () => {
     uploadRubric(container);
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     act(() => {
-      setParentConfig((prev) => prev && { ...prev, activeRound: 1 });
+      setParentConfig((prev) => ({ ...prev, activeRound: 1 }));
     });
     await act(async () => {
       resolveFetch(parseResponse);
     });
     await screen.findByText(/Parsed 1 track\(s\)/);
 
-    expect(currentConfig?.activeRound).toBe(1);
-    expect(currentConfig?.tracks).toEqual(parsedConfig.tracks);
+    expect(currentConfig.activeRound).toBe(1);
+    expect(currentConfig.tracks).toEqual({
+      ...multiRoundConfig.tracks,
+      ...parsedConfig.tracks,
+    });
   });
 
   it("applies the parsed config when the event has no config yet", async () => {

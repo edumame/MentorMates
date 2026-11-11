@@ -142,6 +142,33 @@ jest.mock("@/components/ui/select", () => {
   };
 });
 
+function ControlledForm({
+  initialConfig,
+  ...props
+}: { initialConfig: EventScoringConfig } & Pick<
+  React.ComponentProps<typeof CompactScoringForm>,
+  "onSave"
+> &
+  Partial<
+    Omit<
+      React.ComponentProps<typeof CompactScoringForm>,
+      "config" | "onConfigChange" | "onSave"
+    >
+  >) {
+  const [config, setConfig] = React.useState(initialConfig);
+
+  return (
+    <CompactScoringForm
+      config={config}
+      onConfigChange={setConfig}
+      isArchived={false}
+      eventId="event-1"
+      onTrackDeleted={jest.fn()}
+      {...props}
+    />
+  );
+}
+
 describe("CompactScoringForm", () => {
   const multiRoundConfig: EventScoringConfig = {
     tracks: {
@@ -184,13 +211,7 @@ describe("CompactScoringForm", () => {
     const onSave = jest.fn();
 
     render(
-      <CompactScoringForm
-        initialConfig={multiRoundConfig}
-        onSave={onSave}
-        isArchived={false}
-        eventId="event-1"
-        onTrackDeleted={jest.fn()}
-      />
+      <ControlledForm initialConfig={multiRoundConfig} onSave={onSave} />
     );
 
     fireEvent.change(screen.getByRole("combobox"), {
@@ -239,15 +260,12 @@ describe("CompactScoringForm", () => {
     const onSave = jest.fn();
 
     render(
-      <CompactScoringForm
+      <ControlledForm
         initialConfig={{
           ...multiRoundConfig,
           rounds: [{ round_number: 1, name: "Only Round" }],
         }}
         onSave={onSave}
-        isArchived={false}
-        eventId="event-1"
-        onTrackDeleted={jest.fn()}
       />
     );
 
@@ -273,15 +291,12 @@ describe("CompactScoringForm", () => {
 
   it("hides the round selector when the event does not have multiple rounds", () => {
     render(
-      <CompactScoringForm
+      <ControlledForm
         initialConfig={{
           ...multiRoundConfig,
           rounds: [{ round_number: 1, name: "Only Round" }],
         }}
         onSave={jest.fn()}
-        isArchived={false}
-        eventId="event-1"
-        onTrackDeleted={jest.fn()}
       />
     );
 
@@ -317,7 +332,7 @@ describe("CompactScoringForm", () => {
 
     const renderForm = () =>
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={multiRoundConfig}
           onSave={jest.fn()}
           isArchived={false}
@@ -407,7 +422,7 @@ describe("CompactScoringForm", () => {
     it("shows the DB name/description and saves them unchanged", () => {
       const onSave = jest.fn();
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={{ ...multiRoundConfig, rounds: undefined }}
           onSave={onSave}
           isArchived={false}
@@ -432,7 +447,7 @@ describe("CompactScoringForm", () => {
     it("saves an edited description", () => {
       const onSave = jest.fn();
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={{ ...multiRoundConfig, rounds: undefined }}
           onSave={onSave}
           isArchived={false}
@@ -450,7 +465,7 @@ describe("CompactScoringForm", () => {
 
     it("lists the track's prizes instead of a placeholder", () => {
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={{ ...multiRoundConfig, rounds: undefined }}
           onSave={jest.fn()}
           isArchived={false}
@@ -488,7 +503,7 @@ describe("CompactScoringForm", () => {
 
     const renderForm = (onSave = jest.fn()) =>
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={sharedIdConfig}
           onSave={onSave}
           isArchived={false}

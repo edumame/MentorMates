@@ -123,7 +123,9 @@ export interface TrackDetailsById {
 }
 
 interface CompactScoringFormProps {
-  initialConfig?: EventScoringConfig | null;
+  /** The draft is owned by TracksTab so the judging sidebar reads and writes the same config. */
+  config: EventScoringConfig;
+  onConfigChange: React.Dispatch<React.SetStateAction<EventScoringConfig>>;
   onSave: (config: EventScoringConfig, details: TrackDetailsById) => void;
   isSubmitting?: boolean;
   isArchived: boolean;
@@ -135,7 +137,8 @@ interface CompactScoringFormProps {
 // ── Main Component ────────────────────────────────────────────────────
 
 export function CompactScoringForm({
-  initialConfig,
+  config,
+  onConfigChange: setConfig,
   onSave,
   isSubmitting = false,
   isArchived,
@@ -143,56 +146,27 @@ export function CompactScoringForm({
   tracks: savedTracks = [],
   onTrackDeleted,
 }: CompactScoringFormProps) {
-  const [config, setConfig] = useState<EventScoringConfig>(
-    initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
-  );
-
-  // Sync external config changes (from AI sidebar) into the internal state.
-  // Uses a ref to avoid re-syncing when the user edits the form locally.
-  const lastExternalConfig = useRef(initialConfig);
-  const deletedTrackIds = useRef(new Set<string>());
-  useEffect(() => {
-    // A delete also removes the track from the parent's config. The form has
-    // already dropped it, and syncing would discard unsaved edits to other tracks.
-    const previousConfig = lastExternalConfig.current;
-    const isOwnDelete =
-      deletedTrackIds.current.size > 0 &&
-      !!previousConfig &&
-      JSON.stringify(
-        [...deletedTrackIds.current].reduce(
-          (remaining, trackId) => withoutTrack(remaining, trackId),
-          previousConfig
-        )
-      ) === JSON.stringify(initialConfig);
-    deletedTrackIds.current.clear();
-
-    if (
-      !isOwnDelete &&
-      initialConfig &&
-      initialConfig !== lastExternalConfig.current &&
-      JSON.stringify(initialConfig) !== JSON.stringify(config)
-    ) {
-      setConfig(initialConfig);
-      // Auto-expand new tracks that weren't there before
-      const newTrackIds = Object.keys(initialConfig.tracks).filter(
-        (id) => !config.tracks[id]
-      );
-      if (newTrackIds.length > 0) {
-        setExpandedTracks((prev) => {
-          const next = new Set(prev);
-          newTrackIds.forEach((id) => next.add(id));
-          return next;
-        });
-      }
-    }
-    lastExternalConfig.current = initialConfig;
-  }, [initialConfig]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const [expandedTracks, setExpandedTracks] = useState<Set<string>>(() => {
     // Auto-expand the first track or all tracks if ≤ 2
-    const ids = Object.keys(initialConfig?.tracks || {});
+    const ids = Object.keys(config.tracks);
     return new Set(ids.length <= 2 ? ids : ids.slice(0, 1));
   });
+
+  // Auto-expand tracks added from outside the form (AI sidebar)
+  const knownTrackIds = useRef(new Set(Object.keys(config.tracks)));
+  useEffect(() => {
+    const trackIds = Object.keys(config.tracks);
+    const newTrackIds = trackIds.filter((id) => !knownTrackIds.current.has(id));
+    knownTrackIds.current = new Set(trackIds);
+    if (newTrackIds.length > 0) {
+      setExpandedTracks((prev) => {
+        const next = new Set(prev);
+        newTrackIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  }, [config.tracks]);
+
   const [editingCritId, setEditingCritId] = useState<string | null>(null);
   const [isAssigningProjects, setIsAssigningProjects] = useState(false);
   const [selectedTrackForBulkAssign, setSelectedTrackForBulkAssign] = useState("");
@@ -461,7 +435,6 @@ export function CompactScoringForm({
         return next;
       });
       setSelectedTrackForBulkAssign((prev) => (prev === id ? "" : prev));
-      deletedTrackIds.current.add(id);
       onTrackDeleted(id);
     }
   };

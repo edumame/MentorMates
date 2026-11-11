@@ -19,6 +19,12 @@ import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
 import { JudgePreviewDeck } from "./JudgePreviewDeck";
 
+const EMPTY_SCORING_CONFIG: EventScoringConfig = {
+  tracks: {},
+  defaultMin: 0,
+  defaultMax: 10,
+  defaultWeight: 1,
+};
 const POSTGRES_UNIQUE_VIOLATION = "23505";
 
 const TRACKS_WITH_PRIZES_SELECT = `
@@ -61,6 +67,32 @@ export function TracksTab({
 }: TracksTabProps) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [tracks, setTracks] = useState<EventTrack[]>([]);
+
+  // Unsaved edits, shared by the form and the sidebar. Kept apart from
+  // scoringConfig because the scores tab reads that as the saved config.
+  // Null until the first edit, so the saved config shows once it has loaded.
+  const [editedConfig, setEditedConfig] = useState<EventScoringConfig | null>(
+    null
+  );
+  const savedConfig = scoringConfig ?? EMPTY_SCORING_CONFIG;
+  const draftConfig = editedConfig ?? savedConfig;
+
+  const updateDraftConfig = useCallback(
+    (update: React.SetStateAction<EventScoringConfig>) => {
+      setEditedConfig((prev) => {
+        const current = prev ?? savedConfig;
+        return typeof update === "function" ? update(current) : update;
+      });
+    },
+    [savedConfig]
+  );
+
+  // Saving can re-key tracks (#895: client UUIDs become track_id). The draft
+  // must adopt those keys, or the next save would insert the tracks again.
+  const adoptSavedConfig = (config: EventScoringConfig) => {
+    setScoringConfig(config);
+    setEditedConfig(config);
+  };
 
   const fetchTracks = useCallback(async () => {
     // Include prizes so the track cards can list them (JUDGE-018).
@@ -166,14 +198,14 @@ export function TracksTab({
     try {
       setSaving(true);
       const config = withUuidTrackIds(submittedConfig);
-      setScoringConfig(config);
+      adoptSavedConfig(config);
       let trackDetails = rekeyTrackDescriptions(details, submittedConfig, config);
 
       const savedTrackIds = new Set(tracks.map((t) => t.track_id));
       let insertError = await writeTracks(config, savedTrackIds, trackDetails);
       if (insertError?.code === POSTGRES_UNIQUE_VIOLATION) {
         const resolved = await resolveTrackIdCollision(config, savedTrackIds);
-        setScoringConfig(resolved.config);
+        adoptSavedConfig(resolved.config);
         trackDetails = rekeyTrackDescriptions(trackDetails, config, resolved.config);
         insertError = await writeTracks(
           resolved.config,
@@ -262,7 +294,7 @@ export function TracksTab({
 
       {mode === "preview" ? (
         <JudgePreviewDeck
-          scoringConfig={scoringConfig}
+          scoringConfig={draftConfig}
           onClose={() => setMode("edit")}
         />
       ) : (
@@ -308,7 +340,8 @@ export function TracksTab({
 
               {/* Compact scoring form */}
               <CompactScoringForm
-                initialConfig={scoringConfig}
+                config={draftConfig}
+                onConfigChange={updateDraftConfig}
                 isSubmitting={saving}
                 onSave={handleScoreUpdate}
                 isArchived={isArchived}
@@ -321,15 +354,8 @@ export function TracksTab({
 
           {/* Right: Judging sidebar (upload + AI chat) */}
           <JudgingSidebar
-            config={
-              scoringConfig || {
-                tracks: {},
-                defaultMin: 0,
-                defaultMax: 10,
-                defaultWeight: 1,
-              }
-            }
-            onConfigChange={(newConfig) => setScoringConfig(newConfig)}
+            config={draftConfig}
+            onConfigChange={updateDraftConfig}
             eventId={eventId}
           />
         </div>
