@@ -21,5 +21,10 @@
     "@types/node": "^18.16.18",
     "tsx": "^3.12.7",
     "typescript": "5.4.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "proxy-addr@<2.0.8": "^2.0.8"
+    }
   }
 }

@@ -1,0 +1,87 @@
+name: Validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:unit --ci --runInBand
+      - name: Build production app with non-production placeholders
+        run: pnpm build --webpack
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: build-placeholder
+          OPENAI_API_KEY: build-placeholder
+          RESEND_API_KEY: re_build_placeholder
+          NEXT_PUBLIC_STREAM_CHAT_API_KEY: build-placeholder
+          STREAM_CHAT_SECRET_KEY: build-placeholder
+          NEXT_PUBLIC_STREAM_VIDEO_API_KEY: build-placeholder
+          STREAM_VIDEO_SCRET_KEY: build-placeholder
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Verify homepage content is prerendered
+        run: node scripts/check-homepage-prerender.mjs
+
+  scraper-quota:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test scraper quota in disposable PostgreSQL
+        run: python3 scripts/test_scraper_quota.py
+      - name: Test event role policies in disposable PostgreSQL
+        run: python3 scripts/test_event_role_rls.py
+      - name: Test meeting and agent read policies in disposable PostgreSQL
+        run: python3 scripts/test_meeting_agent_rls.py
+      - name: Test admission hardening and capacity in disposable PostgreSQL
+        run: python3 scripts/test_admission_security.py
+      - name: Test atomic voting, booking and project membership
+        run: python3 scripts/test_atomic_flows.py
+      - name: Test meeting provider field controls
+        run: python3 scripts/test_meeting_provider_controls.py
+      - name: Test payment fulfillment and chat retry controls
+        run: python3 scripts/test_payment_fulfillment.py
+      - name: Test trusted paid-ticket claims
+        run: python3 scripts/test_ticket_claim.py
+      - name: Test project event move guard for round advancements
+        run: python3 scripts/test_project_event_awards.py
+      - name: Test auto conversations for linked agents in disposable PostgreSQL
+        run: python3 scripts/test_auto_conversations_linked_agents.py
+      - name: Test internal API reservation in disposable PostgreSQL
+        run: python3 scripts/test_internal_api_reservation.py
+      - name: Test meeting_screen_context RLS in disposable PostgreSQL
+        run: python3 scripts/test_meeting_screen_context_rls.py
+
+  promo-code-view:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test promo code view removal in disposable PostgreSQL
+        run: python3 scripts/test_coupons_with_codes_view.py
+
+  agent-global-restriction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test global agent restriction in disposable PostgreSQL
+        run: python3 scripts/test_agent_global_restriction.py

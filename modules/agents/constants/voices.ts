@@ -29,12 +29,6 @@ export function getBuiltInVoiceOption(value: string) {
   return BUILT_IN_VOICE_OPTION_BY_VALUE.get(value);
 }
 
-export function formatBuiltInVoiceLabel(value: string): string {
-  const voice = getBuiltInVoiceOption(value);
-  if (!voice) return value;
-  return `${voice.label} (${voice.description})`;
-}
-
 export const BUILT_IN_VOICE_PROMPT_OPTIONS = BUILT_IN_VOICE_OPTIONS
   .map((voice) => `${voice.value} (${voice.description.toLowerCase()})`)
   .join(", ");

@@ -1,15 +1,27 @@
 "use client";
 
+import { OPEN_SOURCE } from "@/lib/config/open-source";
 import { useEffect, useState, Suspense } from "react";
+import {
+  getNetworkErrorMessage,
+  getPasswordResetErrorMessage,
+  getSignUpErrorMessage,
+} from "./auth-messages";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { ensureUserProfile } from "@/features/user/profiles/ensure-user-profile";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TESTIMONIALS } from "@/lib/constants/testimonials";
 import Link from "next/link";
 import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
+import {
+  appendConsentParams,
+  buildSignupConsentMetadata,
+  CONSENT_QUERY_PARAMS,
+} from "@/features/user/authentication/signup-consent";
+import { getPostAuthRedirectPath } from "@/features/user/onboarding/metadata";
 
 const supabase = createClient();
 
@@ -182,13 +194,16 @@ function TestimonialPanelMobile() {
 
       {/* © moved below the blue card on mobile */}
       <div className="px-6 mt-4 text-xs text-slate-500 text-center lg:text-left">
-        © 2025 MentorMates
+        © {new Date().getFullYear()} {OPEN_SOURCE.COPYRIGHT_HOLDER}
       </div>
     </section>
   );
 }
 
 // auth
+
+const termsRequiredMessage =
+  "Please accept the Terms of Service and Privacy Policy to create an account.";
 
 function LoginContent({
   onModeChange,
@@ -198,20 +213,31 @@ function LoginContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState("");
+  // Success notices are not errors: they get their own (non-red) region.
+  const [notice, setNotice] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const { consumeReturnUrl } = useRedirect();
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
   const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+
+  // Prevent native pre-hydration edits from being erased by controlled state.
+  useEffect(() => { setIsReady(true); }, []);
 
   useEffect(() => {
     const mode = searchParams.get("mode");
     const up = mode === "signup";
     setIsSignUp(up);
     onModeChange?.(up);
+    if (up && searchParams.get(CONSENT_QUERY_PARAMS.required) === "1") {
+      setError(termsRequiredMessage);
+    }
   }, [searchParams, onModeChange]);
 
   useEffect(() => {
@@ -228,28 +254,39 @@ function LoginContent({
     check();
   }, [consumeReturnUrl, router, searchParams]);
 
-  const syncUserProfile = async (user: User) => {
-    if (!user) return null;
-    const { error } = await supabase.from("user_profiles").upsert(
-      {
-        uid: user.id,
-        email: user.email,
-        display_name: user.email?.split("@")[0],
-        created_at: new Date().toISOString(),
-      },
-      { onConflict: "uid" }
+  const getAuthCallbackUrl = (returnUrl: string) =>
+    `${cleanBaseUrl}/auth/callback?returnUrl=${encodeURIComponent(returnUrl)}`;
+
+  // Password auth never hits /auth/callback, so apply its onboarding check here.
+  const getPostAuthTarget = async (userId: string, returnUrl: string) => {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("onboarding_metadata")
+      .eq("uid", userId)
+      .maybeSingle();
+    if (error) {
+      // Onboarding is optional, so a failed lookup must not block a valid login.
+      console.error("Error checking onboarding state:", error);
+      return returnUrl;
+    }
+    return getPostAuthRedirectPath(
+      data?.onboarding_metadata as Record<string, unknown> | null | undefined,
+      returnUrl
     );
-    return error ?? null;
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSignUp && !acceptedTerms) {
+      setError(termsRequiredMessage);
+      return;
+    }
     setLoading(true);
     setError("");
+    setNotice("");
     const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
 
-    const networkErrorMessage =
-      "Cannot reach Supabase. Check: 1) Supabase project not paused (Dashboard → Restore). 2) .env.local has NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. 3) Restart dev server after changing env.";
+    const networkErrorMessage = getNetworkErrorMessage();
 
     if (isSignUp) {
       if (password.length < 6) {
@@ -259,18 +296,32 @@ function LoginContent({
       }
 
       try {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${cleanBaseUrl}${redirectTarget}`,
+            emailRedirectTo: getAuthCallbackUrl(redirectTarget),
+            data: buildSignupConsentMetadata({ acceptedTerms, marketingOptIn }),
           },
         });
 
         if (error) {
-          const errorMessage = "Error signing up. Please try again.";
-          setError(errorMessage);
+          setError(getSignUpErrorMessage(error));
           setLoading(false);
+          return;
+        }
+
+        // A session means email confirmation is off: no email was sent and the
+        // user is already signed in, so continue as a sign-in would.
+        if (data?.session) {
+          const { user } = data.session;
+          const profileError = await ensureUserProfile(supabase, user);
+          if (profileError) {
+            console.error("Error syncing user profile:", profileError);
+          }
+          const target = await getPostAuthTarget(user.id, redirectTarget);
+          setLoading(false);
+          router.push(target);
           return;
         }
 
@@ -303,7 +354,7 @@ function LoginContent({
           return;
         }
         if (data?.user) {
-          const profileError = await syncUserProfile(data.user);
+          const profileError = await ensureUserProfile(supabase, data.user);
           if (profileError) {
             const message =
               "Error signing in. Please sign up instead or try again.";
@@ -311,6 +362,8 @@ function LoginContent({
             setLoading(false);
             return;
           }
+          router.push(await getPostAuthTarget(data.user.id, redirectTarget));
+          return;
         }
         router.push(redirectTarget);
       } catch (err) {
@@ -333,24 +386,38 @@ function LoginContent({
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${cleanBaseUrl}/auth/reset-request`,
-    });
-    setLoading(false);
-    setError(
-      error ? error.message : "Password reset instructions sent to your email!"
-    );
+    setError("");
+    setNotice("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${cleanBaseUrl}/auth/reset-request`,
+      });
+      if (error) setError(getPasswordResetErrorMessage(error));
+      else setNotice("If an account exists for that email, password reset instructions are on their way.");
+    } catch {
+      setError(getNetworkErrorMessage());
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOAuthSignIn = async (provider: "google" | "github") => {
+    if (isSignUp && !acceptedTerms) {
+      setError(termsRequiredMessage);
+      return;
+    }
     setLoading(true);
+    setError("");
     const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
+    const callbackUrl = getAuthCallbackUrl(redirectTarget);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${cleanBaseUrl}/auth/callback?returnUrl=${encodeURIComponent(
-          redirectTarget
-        )}`,
+        // Consent is only collected in sign-up mode. The callback sends a new
+        // account that signed in here back to sign-up to accept the terms.
+        redirectTo: isSignUp
+          ? appendConsentParams(callbackUrl, { acceptedTerms, marketingOptIn })
+          : callbackUrl,
       },
     });
     if (error) {
@@ -392,9 +459,16 @@ function LoginContent({
             </h1>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              {!isReady && <p role="status" className="text-sm text-slate-600">Preparing sign-in…</p>}
+              <fieldset disabled={!isReady} aria-busy={!isReady} className="space-y-5">
               {error && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div role="alert" aria-live="assertive" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {error}
+                </div>
+              )}
+              {notice && !error && (
+                <div role="status" aria-live="polite" className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                  {notice}
                 </div>
               )}
 
@@ -406,6 +480,7 @@ function LoginContent({
                   required
                   autoComplete="email"
                   placeholder="Email"
+                  aria-label="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-lg border border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -420,6 +495,7 @@ function LoginContent({
                   required
                   autoComplete={isSignUp ? "new-password" : "current-password"}
                   placeholder="Password"
+                  aria-label="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-lg border border-slate-300 px-4 py-3 text-base placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -447,8 +523,59 @@ function LoginContent({
                   </button>
                 </div>
               ) : (
-                <div className="text-xs text-slate-600">
-                  Use at least 6 characters. Strong &amp; unique is best.
+                <div className="space-y-3">
+                  <div className="text-xs text-slate-600">
+                    Use at least 6 characters. Strong &amp; unique is best.
+                  </div>
+                  <label className="flex items-start gap-2 text-sm text-slate-800">
+                    <input
+                      id="accept-terms"
+                      name="accept-terms"
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => {
+                        setAcceptedTerms(e.target.checked);
+                        if (e.target.checked) setError("");
+                      }}
+                      aria-required="true"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      I agree to the{" "}
+                      <Link
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-700 underline"
+                      >
+                        Terms of Service
+                      </Link>{" "}
+                      and{" "}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-700 underline"
+                      >
+                        Privacy Policy
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-sm text-slate-800">
+                    <input
+                      id="marketing-opt-in"
+                      name="marketing-opt-in"
+                      type="checkbox"
+                      checked={marketingOptIn}
+                      onChange={(e) => setMarketingOptIn(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      Send me occasional emails about hackathons, events, and
+                      MentorMates updates. You can unsubscribe anytime.
+                    </span>
+                  </label>
                 </div>
               )}
 
@@ -520,6 +647,7 @@ function LoginContent({
                   {isSignUp ? "Log in" : "Sign up"}
                 </a>
               </p>
+              </fieldset>
             </form>
           </div>
         </div>
@@ -528,7 +656,7 @@ function LoginContent({
 
         <div className="px-6 pb-6 hidden lg:block">
           <div className="text-xs text-slate-500 text-center lg:text-left">
-            © 2025 MentorMates
+            © {new Date().getFullYear()} {OPEN_SOURCE.COPYRIGHT_HOLDER}
           </div>
         </div>
       </main>

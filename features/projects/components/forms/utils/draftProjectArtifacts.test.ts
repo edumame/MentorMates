@@ -1,11 +1,24 @@
 import {
   buildDraftArtifactsPayload,
+  getInitialAdditionalMaterialUrls,
   hasDraftUrlListChanged,
   normalizeDraftUrls,
+  resolveDraftPrimaryUrl,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
 
 describe("draft project artifact helpers", () => {
+  it("keeps the saved column URL over a stale primary artifact", () => {
+    expect(resolveDraftPrimaryUrl("https://new.example", "https://old.example")).toBe(
+      "https://new.example"
+    );
+  });
+
+  it("falls back to the primary artifact when no column URL is saved", () => {
+    expect(resolveDraftPrimaryUrl("", "https://artifact.example")).toBe("https://artifact.example");
+    expect(resolveDraftPrimaryUrl(null, "https://artifact.example")).toBe("https://artifact.example");
+  });
+
   it("builds payload with primary and extra links for every artifact kind", () => {
     const artifacts = buildDraftArtifactsPayload({
       projectUrl: " https://project-primary.example ",
@@ -117,3 +130,60 @@ describe("draft project artifact helpers", () => {
   });
 });
 
+describe("getInitialAdditionalMaterialUrls", () => {
+  const urls = ["https://one.example", "https://two.example", "https://three.example"];
+
+  it("returns every saved value for a configured multi-value field", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: urls[0],
+        submission_values: { additional_materials: urls },
+      })
+    ).toEqual(urls);
+  });
+
+  it("wraps a configured single-value field", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: urls[0],
+        submission_values: { additional_materials: urls[0] },
+      })
+    ).toEqual([urls[0]]);
+  });
+
+  it("stays empty when a configured field has no saved value", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: "",
+        submission_values: { additional_materials: [] },
+      })
+    ).toEqual([]);
+  });
+
+  it("falls back to the scalar when a configured event omits the field", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: true,
+        additional_materials_url: urls[0],
+        submission_values: {},
+      })
+    ).toEqual([urls[0]]);
+  });
+
+  it("ignores submission values on unconfigured events, which hydrate from artifacts", () => {
+    expect(
+      getInitialAdditionalMaterialUrls({
+        has_submission_field_config: false,
+        additional_materials_url: urls[0],
+        submission_values: { additional_materials: urls },
+      })
+    ).toEqual([urls[0]]);
+  });
+
+  it("handles a project with no additional materials data", () => {
+    expect(getInitialAdditionalMaterialUrls({})).toEqual([]);
+  });
+});

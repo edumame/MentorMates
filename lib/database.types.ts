@@ -643,6 +643,88 @@ export type Database = {
           },
         ]
       }
+      event_role_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          event_id: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          revoked_at: string | null
+          role: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          event_id: string
+          expires_at: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          event_id?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_role_invitations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      event_submissions: {
+        Row: {
+          created_at: string
+          event_id: string
+          expected_attendance: number | null
+          organizer_affiliation: string | null
+          submitter_email: string | null
+          submitter_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          expected_attendance?: number | null
+          organizer_affiliation?: string | null
+          submitter_email?: string | null
+          submitter_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          expected_attendance?: number | null
+          organizer_affiliation?: string | null
+          submitter_email?: string | null
+          submitter_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_submissions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
       events: {
         Row: {
           approval_status: Database["public"]["Enums"]["approval_status"] | null
@@ -686,6 +768,8 @@ export type Database = {
           submitter_name: string | null
           team_formation_enabled: boolean
           visibility: Database["public"]["Enums"]["event_visibility"]
+          voting_closes_at: string | null
+          voting_opens_at: string | null
         }
         Insert: {
           approval_status?:
@@ -731,6 +815,8 @@ export type Database = {
           submitter_name?: string | null
           team_formation_enabled?: boolean
           visibility?: Database["public"]["Enums"]["event_visibility"]
+          voting_closes_at?: string | null
+          voting_opens_at?: string | null
         }
         Update: {
           approval_status?:
@@ -776,6 +862,8 @@ export type Database = {
           submitter_name?: string | null
           team_formation_enabled?: boolean
           visibility?: Database["public"]["Enums"]["event_visibility"]
+          voting_closes_at?: string | null
+          voting_opens_at?: string | null
         }
         Relationships: [
           {
@@ -1119,6 +1207,7 @@ export type Database = {
           id: string
           name: string | null
           project_id: string | null
+          provisioning_failed: boolean
           recording_url: string | null
           score: number | null
           started_at: string | null
@@ -1137,6 +1226,7 @@ export type Database = {
           id?: string
           name?: string | null
           project_id?: string | null
+          provisioning_failed?: boolean
           recording_url?: string | null
           score?: number | null
           started_at?: string | null
@@ -1155,6 +1245,7 @@ export type Database = {
           id?: string
           name?: string | null
           project_id?: string | null
+          provisioning_failed?: boolean
           recording_url?: string | null
           score?: number | null
           started_at?: string | null
@@ -1582,6 +1673,7 @@ export type Database = {
           event_id: string
           id: string
           project_id: string
+          revoked_at: string | null
           role: Database["public"]["Enums"]["event_role"]
           updated_at: string | null
           user_id: string
@@ -1591,6 +1683,7 @@ export type Database = {
           event_id: string
           id?: string
           project_id: string
+          revoked_at?: string | null
           role: Database["public"]["Enums"]["event_role"]
           updated_at?: string | null
           user_id: string
@@ -1600,6 +1693,7 @@ export type Database = {
           event_id?: string
           id?: string
           project_id?: string
+          revoked_at?: string | null
           role?: Database["public"]["Enums"]["event_role"]
           updated_at?: string | null
           user_id?: string
@@ -2030,13 +2124,6 @@ export type Database = {
             referencedRelation: "coupons"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "promo_codes_coupon_id_fkey"
-            columns: ["coupon_id"]
-            isOneToOne: false
-            referencedRelation: "coupons_with_codes"
-            referencedColumns: ["id"]
-          },
         ]
       }
       role_passwords: {
@@ -2405,44 +2492,89 @@ export type Database = {
       }
     }
     Views: {
-      coupons_with_codes: {
-        Row: {
-          amount_off: number | null
-          created_at: string | null
-          created_by_user_id: string | null
-          currency: string | null
-          duration: string | null
-          duration_in_months: number | null
-          event_id: string | null
-          id: string | null
-          max_redemptions: number | null
-          name: string | null
-          percent_off: number | null
-          promo_codes: Json | null
-          redeem_by: string | null
-          status: Database["public"]["Enums"]["coupon_status_enum"] | null
-          stripe_coupon_id: string | null
-          updated_at: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "coupons_created_by_user_id_fkey"
-            columns: ["created_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["uid"]
-          },
-          {
-            foreignKeyName: "coupons_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["event_id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
+      claim_event_ticket: { Args: { p_ticket_id: string; p_user_id: string }; Returns: string }
+
+      // Lane C (202611080405_c_round2.sql): atomic intake submission write.
+      submit_intake_form: {
+        Args: {
+          p_event_id: string
+          p_context: "registration" | "project_submission" | "rsvp" | "post_survey"
+          p_form_version_id: string
+          p_user_id: string
+          p_project_id: string | null
+          p_answers: Json
+        }
+        Returns: string
+      }
+
+      accept_project_invitation: {
+        Args: { p_project_id: string; p_user_id: string; p_invited_by: string }
+        Returns: Json
+      }
+
+      register_event_checkout: {
+        Args: { p_user_id: string; p_event_id: string; p_pricing_id: string; p_customer: string; p_session: string }
+        Returns: string
+      }
+      apply_event_checkout: {
+        Args: { p_session: string | null; p_intent: string | null; p_status: string; p_amount?: number | null; p_currency?: string | null }
+        Returns: string
+      }
+      claim_chat_webhook: { Args: { p_message_id: string; p_token: string }; Returns: string }
+      finish_chat_webhook: { Args: { p_message_id: string; p_token: string; p_completed: boolean }; Returns: undefined }
+      reserve_scraper_request: { Args: { p_user_id: string }; Returns: { allowed: boolean; retry_after_seconds: number }[] }
+      reserve_internal_api_call: {
+        Args: {
+          p_service: string
+          p_key_id: string
+          p_invite_id: string
+          p_limit: number
+          p_window_seconds: number
+        }
+        Returns: {
+          outcome: string
+          usage_id: number | null
+          calls_in_window: number
+          oldest_in_window: string | null
+        }[]
+      }
+      consume_role_password_attempt: {
+        Args: {
+          p_user_id: string
+          p_event_id: string
+          p_role: Database["public"]["Enums"]["event_role"]
+          p_max_attempts?: number
+          p_window?: unknown
+          p_event_max?: number
+          p_event_window?: unknown
+        }
+        Returns: { allowed: boolean; retry_at: string | null; scope: string | null }[]
+      }
+      consume_invite_quota: {
+        Args: {
+          p_inviter_id: string
+          p_event_id: string
+          p_inviter_max?: number
+          p_event_max?: number
+          p_window?: unknown
+        }
+        Returns: { allowed: boolean; retry_at: string | null; scope: string | null }[]
+      }
+      event_password_roles: {
+        Args: { p_event_id: string }
+        Returns: Database["public"]["Enums"]["event_role"][]
+      }
+      remove_event_member: {
+        Args: { p_event_id: string; p_user_id: string; p_actor_id: string }
+        Returns: Json
+      }
+      clear_role_password_failures: {
+        Args: { p_user_id: string; p_event_id: string; p_role: Database["public"]["Enums"]["event_role"] }
+        Returns: undefined
+      }
       increment_internal_invite_uses: {
         Args: { p_invite_id: string }
         Returns: undefined
@@ -2482,6 +2614,14 @@ export type Database = {
         Returns: undefined
       }
       is_admin_user: { Args: { user_id: string }; Returns: boolean }
+      get_event_paywall_content: {
+        Args: { p_event_id: string }
+        Returns: string | null
+      }
+      get_event_rejection_reasons: {
+        Args: { p_event_ids: string[] }
+        Returns: { event_id: string; rejection_reason: string }[]
+      }
       is_event_judge: {
         Args: { p_event_id: string; p_user_id: string }
         Returns: boolean

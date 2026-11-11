@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
@@ -48,9 +49,11 @@ export default function RootLayout({
                 <ConditionalAnnouncement />
                 <ConditionalNavbar />
                 <AuthProvider>
-                  <ConditionalLayout>
-                    {children}
-                  </ConditionalLayout>
+                  <Suspense fallback={null}>
+                    <ConditionalLayout>
+                      {children}
+                    </ConditionalLayout>
+                  </Suspense>
                 </AuthProvider>
                 <FloatingSupportButton />
                 <ShipcueReportButton />

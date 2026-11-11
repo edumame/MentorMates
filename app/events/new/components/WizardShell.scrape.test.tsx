@@ -1,0 +1,28 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { WizardShell } from "./WizardShell";
+import type { WizardEventData } from "@/lib/types/wizard";
+let params = new URLSearchParams("url=https://event.devpost.com");
+const replace = jest.fn();
+jest.mock("next/navigation", () => ({ useSearchParams: () => params, useRouter: () => ({ replace }) }));
+jest.mock("@/lib/types/wizard", () => ({ applyScrapedData: jest.fn() }));
+const oldFetch = global.fetch;
+beforeAll(() => { HTMLElement.prototype.scrollIntoView = jest.fn(); });
+const fetchMock = jest.fn();
+beforeEach(() => { jest.clearAllMocks(); global.fetch = fetchMock; params = new URLSearchParams("url=https://event.devpost.com"); });
+afterAll(() => { global.fetch = oldFetch; });
+it("prefills shared URLs without spending quota; one manual submit survives query update and same-tick duplicate", async () => {
+  let finish: ((response: Response) => void) | undefined;
+  fetchMock.mockImplementation(() => new Promise<Response>(resolve => { finish = resolve; }));
+  const props = { event: {} as WizardEventData, setEvent: jest.fn(), children: () => <div>Step</div> };
+  const { rerender } = render(<WizardShell {...props} />);
+  const input = screen.getByPlaceholderText("Paste a hackathon URL to auto-fill...");
+  expect(input).toHaveValue("https://event.devpost.com"); expect(fetchMock).not.toHaveBeenCalled();
+  const form = input.closest("form")!;
+  act(() => { fireEvent.submit(form); fireEvent.submit(form); });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  params = new URLSearchParams("url=https://event.devpost.com"); rerender(<WizardShell {...props} />);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  await act(async () => { finish!({ ok: false, json: async () => ({ success: false, error: "retry" }) } as Response); });
+  fireEvent.submit(form); expect(fetchMock).toHaveBeenCalledTimes(2);
+  await act(async () => { finish!({ ok: true, json: async () => ({ success: true, data: {} }) } as Response); });
+});

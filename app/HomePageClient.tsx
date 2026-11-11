@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import posthog from "posthog-js";
 import { AuthHero } from "@/components/heroes/AuthHero";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { ensureUserProfile } from "@/features/user/profiles/ensure-user-profile";
 
 /**
  * Client-side wrapper that handles authenticated user routing.
@@ -18,8 +19,12 @@ import { useAuth } from "@/features/user/authentication/auth/AuthContext";
  * for search engine crawlers).
  */
 export function HomePageClient({ children }: { children: React.ReactNode }) {
-  const { session, isLoading } = useAuth();
+  const { session } = useAuth();
   const hasSyncedRef = useRef(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Match the server landing HTML even when the browser has a cached session.
+  useEffect(() => { setHasMounted(true); }, []);
 
   useEffect(() => {
     const syncUserProfile = async () => {
@@ -29,21 +34,12 @@ export function HomePageClient({ children }: { children: React.ReactNode }) {
       try {
         const user = session.user;
 
-        const profileData = {
-          uid: user.id,
-          email: user.email,
-          display_name: user.user_metadata.full_name,
-        };
-
-        const { error } = await supabase
-          .from("user_profiles")
-          .upsert(profileData, {
-            onConflict: "email",
-          })
-          .select();
+        const error = await ensureUserProfile(supabase, user);
 
         if (error) {
-          console.error("Error syncing profile:", error);
+          const msg = error.message ?? String(error);
+          const code = (error as { code?: string }).code;
+          console.error("Error syncing profile:", code ? `[${code}] ${msg}` : msg);
         }
 
         posthog.identify(user.id, {
@@ -58,15 +54,10 @@ export function HomePageClient({ children }: { children: React.ReactNode }) {
     syncUserProfile();
   }, [session]);
 
-  // Show nothing briefly while auth state initializes (no cached session)
-  if (isLoading && !session) {
-    return null;
-  }
-
   // Authenticated: show dashboard
-  if (session) {
+  if (hasMounted && session) {
     return (
-      <SidebarLayout>
+      <SidebarLayout showLogoInSidebar>
         <AuthHero />
         <ServiceWorkerRegistration />
       </SidebarLayout>

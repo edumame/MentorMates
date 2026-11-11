@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 
+import { NextRequest } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
@@ -87,7 +88,7 @@ describe("teams API", () => {
     mockCreateSupabaseServiceClient.mockReturnValue({ from: jest.fn() });
 
     const res = await GET(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`),
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`),
       params()
     );
 
@@ -99,7 +100,7 @@ describe("teams API", () => {
     mockCreateSupabaseServiceClient.mockReturnValue({ from: jest.fn() });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({ name: "Team Rocket" }),
       }),
@@ -122,7 +123,7 @@ describe("teams API", () => {
     });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({ name: "Dupes" }),
       }),
@@ -198,7 +199,7 @@ describe("teams API", () => {
     });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({ name: "Avengers" }),
       }),
@@ -283,7 +284,7 @@ describe("teams API", () => {
     });
 
     const res = await POST(
-      new Request(`http://localhost/api/events/${EVENT_ID}/teams`, {
+      new NextRequest(`http://localhost/api/events/${EVENT_ID}/teams`, {
         method: "POST",
         body: JSON.stringify({
           name: "Org Team",
@@ -331,6 +332,45 @@ describe("teams API", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ success: true });
     expect(memberDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["the lead leaving", "p1", EventRole.Participant],
+    ["an organizer removing the lead", "org1", EventRole.Organizer],
+  ])("DELETE reports a dissolve for %s", async (_label, caller, role) => {
+    mockAuthClient(caller, role);
+
+    const teamDelete = jest.fn(() => ({ error: null }));
+    mockCreateSupabaseServiceClient.mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === "teams") {
+          return chain((ops) => {
+            if (opType(ops) === "delete") return teamDelete();
+            return {
+              data: { id: "t1", event_id: EVENT_ID, created_by: "p1" },
+              error: null,
+            };
+          });
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    });
+
+    const res = await DELETE(
+      {
+        nextUrl: {
+          searchParams: new URLSearchParams({ teamId: "t1", userId: "p1" }),
+        },
+      } as unknown as Parameters<typeof DELETE>[0],
+      params()
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      success: true,
+      dissolved: true,
+    });
+    expect(teamDelete).toHaveBeenCalledTimes(1);
   });
 
   it("DELETE lets an organizer dissolve any team", async () => {

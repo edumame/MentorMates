@@ -28,6 +28,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { getProjectTeamDisplayMembers } from "@/features/projects/utils/team-display";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/hooks/use-toast";
 import QRCode from "react-qr-code";
@@ -76,7 +77,14 @@ const ProjectBoard = ({
                     ? `/projects/${project.id}`
                     : `/projects/public/${project.id}`;
 
-                const isOwner = project.lead_email === session?.user?.email;
+                const isOwner = Boolean(session?.user?.email) && project.lead_email === session?.user?.email;
+                // Public listings carry no emails, only the server-resolved roster;
+                // other callers (e.g. the profile page) pass pre-redacted labels.
+                const teammateBadges = project.team_members
+                  ? getProjectTeamDisplayMembers({ ...project, lead_email: null, teammates: null })
+                      .filter((member) => member.role === "member")
+                      .map((member) => member.displayName)
+                  : project.teammates ?? [];
 
                 return (
                   <Link
@@ -202,8 +210,7 @@ const ProjectBoard = ({
                                 {project.lead_name?.charAt(0).toUpperCase() ||
                                   "L"}
                               </div>
-                              {project.teammates &&
-                                project.teammates.slice(0, 3).map((t, i) => {
+                              {teammateBadges.slice(0, 3).map((name, i) => {
                                   const colors = [
                                     "from-purple-400 to-purple-600",
                                     "from-pink-400 to-pink-600",
@@ -213,16 +220,15 @@ const ProjectBoard = ({
                                     <div
                                       key={i}
                                       className={`w-9 h-9 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs shadow-sm`}
-                                      title={t}
+                                      title={name}
                                     >
-                                      {t.charAt(0).toUpperCase()}
+                                      {name.charAt(0).toUpperCase()}
                                     </div>
                                   );
                                 })}
-                              {project.teammates &&
-                                project.teammates.length > 3 && (
+                              {teammateBadges.length > 3 && (
                                   <div className="w-9 h-9 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium shadow-sm">
-                                    +{project.teammates.length - 3}
+                                    +{teammateBadges.length - 3}
                                   </div>
                                 )}
                             </div>

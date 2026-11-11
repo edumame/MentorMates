@@ -24,39 +24,41 @@ export function SidebarLayout({ children, showLogoInSidebar }: SidebarLayoutProp
     };
   }, [isAuthenticated, showLogoInSidebar]);
 
+  // Keep the page subtree at a stable React position when a session expires.
+  // The former authenticated/anonymous branches used different wrapper trees,
+  // which remounted an in-progress editor and discarded unsaved input.
   return (
-    <>
-      {isAuthenticated ? (
-        <div
-          className="fixed inset-0 flex h-screen min-h-screen flex-col bg-[#fbfcfe]"
-          style={{ minHeight: "100dvh", height: "100dvh" }}
-        >
-          <MobileSidebarHeader showLogoInSidebar={showLogoInSidebar} />
+    <div
+      className={isAuthenticated
+        ? "fixed inset-0 flex min-h-0 h-[100dvh] max-h-[100dvh] flex-col bg-[#fbfcfe]"
+        : "w-full"}
+      style={isAuthenticated ? { minHeight: "100dvh" } : undefined}
+    >
+      {isAuthenticated && <MobileSidebarHeader showLogoInSidebar={showLogoInSidebar} />}
 
-          <div className="relative flex min-h-0 flex-1 flex-col">
-            {/* Desktop Sidebar - 灰底铺满到底部，与右侧白底同高 */}
+      <div className={isAuthenticated ? "relative flex min-h-0 flex-1 flex-col overflow-hidden" : "contents"}>
+        {/* Desktop Sidebar - 灰底铺满到底部，与右侧白底同高 */}
+        {isAuthenticated && (
             <aside
               className="fixed bottom-0 left-0 top-0 z-10 hidden w-[var(--sidebar-width,280px)] overflow-y-auto bg-[#fbfcfe] lg:block"
               style={{ minHeight: "100dvh", height: "100dvh" }}
             >
               <SideNav showLogoAtTop={showLogoInSidebar} />
             </aside>
+        )}
 
-            {/* 右侧区域：桌面距屏幕顶部 16px 外边距；移动端在顶栏下方铺满 */}
-            <div
-              className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:ml-[var(--sidebar-width,280px)] lg:mt-4 lg:rounded-tl-[32px] lg:border-t lg:border-l lg:border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
-            >
-              <div className="flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]">
-                <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip overflow-y-auto pt-0">
-                  {children}
-                </main>
-              </div>
-            </div>
+        {/* 右侧区域：桌面距屏幕顶部 16px 外边距；移动端在顶栏下方铺满 */}
+        <div className={isAuthenticated
+          ? "relative z-20 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:ml-[var(--sidebar-width,280px)] lg:mt-4 lg:rounded-tl-[32px] lg:border-t lg:border-l lg:border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
+          : "contents"}
+        >
+          <div className={isAuthenticated ? "flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]" : "contents"}>
+            <main className={isAuthenticated ? "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip overflow-y-auto overscroll-y-contain pt-0" : "contents"}>
+              {children}
+            </main>
           </div>
         </div>
-      ) : (
-        <div className="w-full">{children}</div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }

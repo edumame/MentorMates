@@ -79,7 +79,7 @@ export function Navbar() {
   }, []);
 
   const handleLoginClick = () => {
-    setReturnUrl(pathname);
+    setReturnUrl(pathname + window.location.search);
     router.push("/login");
   };
 
@@ -238,6 +238,8 @@ export function Navbar() {
             onClick={toggleMenu}
             className="text-gray-600 hover:text-gray-900 flex lg:hidden"
             aria-label="Toggle menu"
+            aria-expanded={isOpen}
+            aria-controls="public-mobile-menu"
           >
             {isOpen ? (
               <svg
@@ -275,6 +277,7 @@ export function Navbar() {
 
         {/* Mobile Menu (<lg only) */}
         <div
+          id="public-mobile-menu"
           className={`${isOpen ? "block" : "hidden"} bg-white lg:hidden min-h-screen`}
         >
           <div className="px-6 py-6 space-y-1">

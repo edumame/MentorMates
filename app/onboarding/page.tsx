@@ -1,5 +1,6 @@
 "use client";
 
+import { OPEN_SOURCE } from "@/lib/config/open-source";
 import { useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -651,7 +652,7 @@ export default function OnboardingPage() {
         </div>
         <div className="px-6 pb-6 hidden lg:block">
           <div className="text-xs text-slate-500 text-center lg:text-left">
-            © 2025 MentorMates
+            © {new Date().getFullYear()} {OPEN_SOURCE.COPYRIGHT_HOLDER}
           </div>
         </div>
       </main>

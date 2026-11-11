@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTRPC } from "@/trpc/client";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { keepPreviousData, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { useConfirm } from "@/lib/hooks/use-confirm";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { MeetingStatus } from "@/modules/meetings/types";
+import { DEFAULT_PAGE } from "@/lib/config/constants";
 
 const statusIconMap = {
   upcoming: ClockArrowUpIcon,
@@ -41,13 +43,35 @@ export function MentorCards() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const { data: allData } = useQuery(trpc.meetings.getMany.queryOptions({}));
-  const { data, refetch, isPending, isError } = useQuery(
-    trpc.meetings.getMany.queryOptions({
+  const [page, setPage] = useState(DEFAULT_PAGE);
+
+  // meetings.* are protected procedures: don't fire them (and log 401s)
+  // for signed-out visitors of /learn.
+  const { isAuthenticated } = useAuth();
+  const { data: filterOptions } = useQuery({
+    ...trpc.meetings.getFilterOptions.queryOptions(),
+    enabled: isAuthenticated,
+  });
+  const { data, refetch, isPending, isError, isPlaceholderData } = useQuery({
+    ...trpc.meetings.getMany.queryOptions({
+      page,
       eventId: selectedEventId ?? undefined,
       projectId: selectedProjectId ?? undefined,
-    })
-  );
+    }),
+    // Keeps the filters and page controls mounted while the next page loads.
+    placeholderData: keepPreviousData,
+    enabled: isAuthenticated,
+  });
+
+  const totalPages = data?.totalPages ?? 0;
+
+  // Removing the last meeting on the last page leaves the current page empty.
+  useEffect(() => {
+    if (isPlaceholderData || !data) return;
+    if (page > DEFAULT_PAGE && page > totalPages) {
+      setPage(Math.max(DEFAULT_PAGE, totalPages));
+    }
+  }, [data, isPlaceholderData, page, totalPages]);
 
   const [eventOptions, setEventOptions] = useState<{ id: string; name: string }[]>([]);
   const [projectOptions, setProjectOptions] = useState<{ id: string; name: string }[]>([]);
@@ -55,9 +79,8 @@ export function MentorCards() {
   useEffect(() => {
     const fetchNames = async () => {
       try {
-        const items = (allData?.items || []) as Array<{ event_id?: string | null; project_id?: string | null }>;
-        const eventIds = Array.from(new Set(items.map((m) => m.event_id).filter(Boolean) as string[]));
-        const projectIds = Array.from(new Set(items.map((m) => m.project_id).filter(Boolean) as string[]));
+        const eventIds = filterOptions?.eventIds ?? [];
+        const projectIds = filterOptions?.projectIds ?? [];
 
         if (eventIds.length > 0) {
           const { data: eventsRows } = await supabase
@@ -91,7 +114,7 @@ export function MentorCards() {
     };
 
     fetchNames();
-  }, [allData]);
+  }, [filterOptions]);
 
   const [updateMeetingDialogOpen, setUpdateMeetingDialogOpen] = useState(false);
   const [initialValues, setInitialValues] = useState({});
@@ -144,6 +167,7 @@ export function MentorCards() {
   const removeMeeting = useMutation(trpc.meetings.remove.mutationOptions({
     onSuccess: async () => {
       await queryClient.invalidateQueries(trpc.meetings.getMany.queryOptions({}));
+      await queryClient.invalidateQueries(trpc.meetings.getFilterOptions.queryOptions());
       refetch();
     },
   }));
@@ -185,7 +209,10 @@ export function MentorCards() {
         <label className="text-sm text-gray-700">Filter:</label>
         <select
           value={selectedEventId ?? ""}
-          onChange={(e) => setSelectedEventId(e.target.value || null)}
+          onChange={(e) => {
+            setSelectedEventId(e.target.value || null);
+            setPage(DEFAULT_PAGE);
+          }}
           className="border px-2 py-1 rounded"
         >
           <option value="">All events</option>
@@ -194,7 +221,10 @@ export function MentorCards() {
 
         <select
           value={selectedProjectId ?? ""}
-          onChange={(e) => setSelectedProjectId(e.target.value || null)}
+          onChange={(e) => {
+            setSelectedProjectId(e.target.value || null);
+            setPage(DEFAULT_PAGE);
+          }}
           className="border px-2 py-1 rounded"
         >
           <option value="">All projects</option>
@@ -277,7 +307,7 @@ export function MentorCards() {
             </div>
             <div>
               <div className="-mt-px flex divide-x divide-gray-200">
-                {(meeting.status === "upcoming") && (meeting.project_id || !((meeting.agent as { requires_project?: boolean })?.requires_project === true)) && (
+                {(meeting.status === "upcoming") && (meeting.project_id || !(meeting.agent?.requires_project === true)) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <Link
                       href={`/chat/${meeting.id}`}
@@ -288,7 +318,7 @@ export function MentorCards() {
                     </Link>
                   </div>
                 )}
-                {(meeting.status === "upcoming" || meeting.status === "active") && (meeting.project_id || !((meeting.agent as { requires_project?: boolean })?.requires_project === true)) && (
+                {(meeting.status === "upcoming" || meeting.status === "active") && (meeting.project_id || !(meeting.agent?.requires_project === true)) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <Link
                       href={`/call/${meeting.id}`}
@@ -299,7 +329,7 @@ export function MentorCards() {
                     </Link>
                   </div>
                 )}
-                {(meeting.status === "upcoming" || meeting.status === "active") && !meeting.project_id && ((meeting.agent as { requires_project?: boolean })?.requires_project === true) && (
+                {(meeting.status === "upcoming" || meeting.status === "active") && !meeting.project_id && (meeting.agent?.requires_project === true) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <div className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-br-lg border border-transparent py-4 text-sm font-semibold text-gray-900">
                       Please select a project to start the session
@@ -328,6 +358,29 @@ export function MentorCards() {
           </li>
         ))}
       </ul>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= DEFAULT_PAGE}
+            onClick={() => setPage((current) => Math.max(DEFAULT_PAGE, current - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-gray-700">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPlaceholderData || page >= totalPages}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </>
   )
 }

@@ -1,74 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticateScraper, claimScraperQuota, readScraperRequest, scraperError } from "@/lib/scraper/admission";
+import { MAX_RESPONSE_BYTES, SCRAPER_TIMEOUT_MS, ScraperRequestError, readBoundedJson, scraperProxyConfig } from "@/lib/scraper/request";
+import { z } from "zod";
 
-/**
- * Proxy endpoint that calls the event-scraper's deployed API.
- * This avoids Vercel timeout issues since event-scraper has maxDuration=300.
- *
- * POST /api/events/import/scrape
- * Body: { url: string, browserProfile?: "lite" | "stealth" }
- */
-
-// Allow up to 5 minutes for the proxy call
 export const maxDuration = 300;
+const responseSchema = z.object({ success: z.literal(true), data: z.record(z.unknown()), runId: z.string().optional().nullable() });
 
 export async function POST(req: NextRequest) {
-  const scraperUrl = process.env.EVENT_SCRAPER_API_URL;
-  if (!scraperUrl) {
-    return NextResponse.json(
-      { error: "EVENT_SCRAPER_API_URL not configured." },
-      { status: 500 }
-    );
-  }
-
-  let body: { url?: string; browserProfile?: string };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body." },
-      { status: 400 }
-    );
-  }
-
-  const { url, browserProfile } = body;
-
-  if (!url || typeof url !== "string") {
-    return NextResponse.json(
-      { error: "Missing required field: url" },
-      { status: 400 }
-    );
-  }
-
-  try {
-    new URL(url);
-  } catch {
-    return NextResponse.json(
-      { error: `Invalid URL: "${url}"` },
-      { status: 400 }
-    );
-  }
-
-  try {
-    const scraperEndpoint = `${scraperUrl.replace(/\/+$/, "")}/api/scrape`;
-
-    const res = await fetch(scraperEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url,
-        browserProfile: browserProfile || "lite",
-      }),
+    const userId = await authenticateScraper();
+    const input = await readScraperRequest(req);
+    // This is a separate service with shared-token auth, not our cookie-auth route.
+    const config = scraperProxyConfig(process.env.EVENT_SCRAPER_API_URL, process.env.EVENT_SCRAPER_API_TOKEN);
+    const denied = await claimScraperQuota(userId);
+    if (denied) return denied;
+    const res = await fetch(config.endpoint, {
+      method: "POST", redirect: "error", signal: AbortSignal.timeout(SCRAPER_TIMEOUT_MS),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.token}` },
+      body: JSON.stringify(input),
     });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      return NextResponse.json(
-        { error: data.error || "Scraping failed" },
-        { status: res.status >= 400 ? res.status : 502 }
-      );
+    if (!res.ok) {
+      void res.body?.cancel().catch(() => undefined);
+      throw new ScraperRequestError("Scraping service unavailable", 502);
     }
-
+    let responseBody: unknown;
+    try { responseBody = await readBoundedJson(res, MAX_RESPONSE_BYTES); } catch {
+      throw new ScraperRequestError("Invalid scraping service response", 502);
+    }
+    const parsed = responseSchema.safeParse(responseBody);
+    if (!parsed.success) throw new ScraperRequestError("Invalid scraping service response", 502);
+    const data = parsed.data;
     // Transform scraped data into MentorMates prefill format
     const scraped = data.data || {};
 
@@ -98,7 +59,7 @@ export async function POST(req: NextRequest) {
       prefill.event_schedule = scraped.event_schedule || scraped.schedule;
     }
     if (Array.isArray(scraped.tracks)) {
-      prefill.tracks = scraped.tracks.map((track: Record<string, unknown>) => ({
+      prefill.tracks = scraped.tracks.filter((track): track is Record<string, unknown> => typeof track === "object" && track !== null && !Array.isArray(track)).map((track) => ({
         name: track.name,
         description: track.description,
         criteria: Array.isArray(track.scoring_criteria)
@@ -118,11 +79,8 @@ export async function POST(req: NextRequest) {
       import: prefill,
       runId: data.runId ?? null,
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json(
-      { error: `Scraping service error: ${message}` },
-      { status: 502 }
-    );
+  } catch (error) {
+    // Never expose remote body, transport details, or credentials to the client.
+    return scraperError(error instanceof ScraperRequestError && [400,401,408,413,429,503].includes(error.status) ? error : new ScraperRequestError("Scraping service unavailable", 502));
   }
 }

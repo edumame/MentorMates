@@ -11,6 +11,7 @@ import { Featured } from "@/components/heroes/components/Featured";
 import { Impact } from "@/components/heroes/components/Impact";
 import { Customer } from "@/components/heroes/components/Customer";
 import { CTAJoin } from "@/components/layout/CTAJoin";
+import { OpenSource } from "@/components/about/OpenSource";
 import { LogoCarousel } from "./components/LogoCarousel";
 
 export function LandingHero() {
@@ -133,6 +134,7 @@ export function LandingHero() {
       <Impact />
       <Build />
       <Customer />
+      <OpenSource />
       <CTAJoin />
     </div>
   );

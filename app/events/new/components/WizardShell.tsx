@@ -33,6 +33,7 @@ export function WizardShell({ event, setEvent, children }: WizardShellProps) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   const [scrapeUrl, setScrapeUrl] = useState("");
+  const scrapeInFlight = useRef(false);
   const [scraping, setScraping] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [scraped, setScraped] = useState(false);
@@ -44,7 +45,8 @@ export function WizardShell({ event, setEvent, children }: WizardShellProps) {
 
   const doScrape = useCallback(
     async (url: string) => {
-      if (!url.trim()) return;
+      if (!url.trim() || scrapeInFlight.current) return;
+      scrapeInFlight.current = true;
       setScraping(true);
       setScrapeError(null);
 
@@ -69,20 +71,21 @@ export function WizardShell({ event, setEvent, children }: WizardShellProps) {
           err instanceof Error ? err.message : "Network error"
         );
       } finally {
+        scrapeInFlight.current = false;
         setScraping(false);
       }
     },
     [setEvent]
   );
 
-  // Auto-scrape if ?url= param is present
+  // Shared links prefill only; paid imports require an explicit submission.
   useEffect(() => {
     const urlParam = searchParams.get("url");
     if (urlParam) {
       setScrapeUrl(urlParam);
-      doScrape(urlParam);
+
     }
-  }, [searchParams, doScrape]);
+  }, [searchParams]);
 
   function handleScrapeSubmit(e: React.FormEvent) {
     e.preventDefault();
