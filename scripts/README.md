@@ -26,4 +26,4 @@ Test scripts in this folder:
 - Direct curl using an event ref:
   `curl -sS -X POST -H "Authorization: Bearer $MENTORMATES_PARTICIPANT_API_KEY" -H "Content-Type: application/json" --data @scripts/participant-project-submission.example.json "$MENTORMATES_BASE_URL/api/agent/me/events/$MENTORMATES_EVENT_REF/projects" | jq .`
 
-For full CLI testing instructions, see `/RESPONSES_CLI_TESTING.md`.
+For full CLI testing instructions, see [docs/responses-cli-testing.md](../docs/responses-cli-testing.md).

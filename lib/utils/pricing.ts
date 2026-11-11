@@ -29,6 +29,40 @@ export const PAYMENT_CURRENCY_OPTIONS = [
   { value: "aed", label: "AED" },
 ] as const;
 
+// https://docs.stripe.com/currencies#zero-decimal
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "bif",
+  "clp",
+  "djf",
+  "gnf",
+  "jpy",
+  "kmf",
+  "krw",
+  "mga",
+  "pyg",
+  "rwf",
+  "ugx",
+  "vnd",
+  "vuv",
+  "xaf",
+  "xof",
+  "xpf",
+]);
+
+export function isZeroDecimalCurrency(currency?: string | null): boolean {
+  return ZERO_DECIMAL_CURRENCIES.has(currency?.trim().toLowerCase() ?? "");
+}
+
+/**
+ * Convert a typed amount to the integer smallest-unit value Stripe expects.
+ */
+export function toMinorUnits(
+  amount: number,
+  currency = DEFAULT_PAYMENT_CURRENCY
+): number {
+  return Math.round(isZeroDecimalCurrency(currency) ? amount : amount * 100);
+}
+
 /**
  * Get available pricing tiers for an event
  * Filters out expired or sold-out tiers
@@ -104,8 +138,15 @@ export function formatPrice(
 }
 
 /**
- * Get pricing tier by UUID ID
+ * Format a coupon's amount_off, which is in Stripe's smallest currency unit.
+ * Tier prices are stored x100 for every currency, so they stay on formatPrice.
  */
-export function getPricingTierById(pricingTiers: PricingTier[], id: string): PricingTier | null {
-  return pricingTiers.find(tier => tier.id === id) || null;
+export function formatCouponAmount(
+  amountOff: number,
+  currency = DEFAULT_PAYMENT_CURRENCY
+): string {
+  return formatPrice(
+    isZeroDecimalCurrency(currency) ? amountOff * 100 : amountOff,
+    currency
+  );
 }

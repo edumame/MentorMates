@@ -51,8 +51,3 @@ export const ROLE_VIDEO_KEYS = [
   "judge",
   "organizer",
 ] as const satisfies ReadonlyArray<VideoSourceKey>;
-
-export const ROLE_VIDEOS = ROLE_VIDEO_KEYS.map((key) => ({
-  key,
-  ...VIDEO_SOURCES[key],
-}));

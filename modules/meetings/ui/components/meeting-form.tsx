@@ -1,4 +1,5 @@
 import { MeetingGetOne } from "../../types";
+import { getUserProjectIds } from "@/lib/projects/membership";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -123,29 +124,29 @@ export const MeetingForm = ({
       if (!session?.user?.email) return;
 
       try {
-        let projectsQuery = supabase
-          .from("projects")
-          .select("id, project_name, event_id, lead_email, teammates");
+        // The caller's own projects (my_project_ids); team email columns are
+        // not client-readable.
+        const { ids, error: idsError } = await getUserProjectIds(supabase, eventId ?? null);
+        if (idsError || !ids) throw idsError;
 
-        if (eventId) {
-          projectsQuery = projectsQuery.eq("event_id", eventId);
-        } else {
-          projectsQuery = projectsQuery.is("event_id", null);
-        }
-
-        const { data: projectsData, error: projectsError } =
-          await projectsQuery;
+        // Standalone meetings may only link standalone projects; the database
+        // rejects a project from a different event than the meeting.
+        const { data: projectsData, error: projectsError } = ids.length
+          ? await (eventId
+              ? supabase
+                  .from("projects")
+                  .select("id, project_name, event_id")
+                  .in("id", ids)
+              : supabase
+                  .from("projects")
+                  .select("id, project_name, event_id")
+                  .in("id", ids)
+                  .is("event_id", null))
+          : { data: [], error: null };
 
         if (projectsError) throw projectsError;
 
-        // Filter projects where user is lead or teammate
-        const userProjects = (projectsData || []).filter((project) => {
-          const isLead = project.lead_email === session.user.email;
-          const isTeammate = project.teammates?.includes(
-            session.user.email || ""
-          );
-          return isLead || isTeammate;
-        });
+        const userProjects = projectsData || [];
 
         const projectOptions: ProjectOption[] = userProjects.map((p) => ({
           id: p.id,
@@ -257,6 +258,9 @@ export const MeetingForm = ({
         await queryClient.invalidateQueries(
           trpc.meetings.getMany.queryOptions({})
         );
+        await queryClient.invalidateQueries(
+          trpc.meetings.getFilterOptions.queryOptions()
+        );
 
         if (initialValues?.id) {
           await queryClient.invalidateQueries(
@@ -284,6 +288,9 @@ export const MeetingForm = ({
       onSuccess: async () => {
         await queryClient.invalidateQueries(
           trpc.meetings.getMany.queryOptions({})
+        );
+        await queryClient.invalidateQueries(
+          trpc.meetings.getFilterOptions.queryOptions()
         );
 
         if (initialValues?.id) {

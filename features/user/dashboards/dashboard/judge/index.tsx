@@ -22,11 +22,18 @@ import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
 import Link from "next/link";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { VideoEmbed, canEmbed } from "@/components/utils";
 import {
+  buildJudgeScoreMaps,
+  getCardNavigationDirection,
   getNextProjectId,
   isProjectFullyScored,
+  removeTrackScores,
+  setTrackScores,
   truncateWithEllipsis,
+  type ScoreValuesByProject,
 } from "./utils";
+import { computeWeightedScore } from "@/lib/judging/weighted-score";
 import { getActiveRound } from "@/lib/judging/rounds";
 import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
 import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
@@ -63,7 +70,7 @@ type NavigatorSort = "default" | "score_high" | "score_low" | "unscored_first";
 
 /**
  * Compute the weighted average of a judge's scores for a single track.
- * Returns null if no scores exist or weights sum to zero.
+ * Returns null if no valid scores exist or weights sum to zero.
  */
 function computeTrackAverage(
   scores: Record<string, number> | null,
@@ -84,18 +91,8 @@ function computeTrackAverage(
   const criteria = resolvedTrackConfig?.criteria || [];
   if (criteria.length === 0) return null;
 
-  let weightedSum = 0;
-  let totalWeight = 0;
-  for (const criterion of criteria) {
-    const score = scores[criterion.id];
-    if (typeof score !== "number") continue;
-    const weight = criterion.weight || 0;
-    weightedSum += score * weight;
-    totalWeight += weight;
-  }
-
-  if (totalWeight === 0) return null;
-  return weightedSum / totalWeight;
+  // Shared with the organizer leaderboard (JUDGE-007).
+  return computeWeightedScore(scores, criteria).score;
 }
 
 /**
@@ -130,9 +127,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     Map<string, Set<string>>
   >(new Map());
   // Stores actual numeric scores per project per track: Map<projectId, Map<trackId, scoresObject>>
-  const [scoreValues, setScoreValues] = useState<
-    Map<string, Map<string, Record<string, number>>>
-  >(new Map());
+  const [scoreValues, setScoreValues] = useState<ScoreValuesByProject>(
+    new Map()
+  );
   const [navigatorSort, setNavigatorSort] = useState<NavigatorSort>("default");
   const [judgeId, setJudgeId] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -146,10 +143,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [deckFilter, setDeckFilter] = useState<"pending" | "all">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState(false);
+  const [judgeVideoEmbedFailed, setJudgeVideoEmbedFailed] = useState(false);
   const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(
     null
   );
   const [activeRound, setActiveRound] = useState(1);
+  const [queueReloadCount, setQueueReloadCount] = useState(0);
   const previousVisibleIdsRef = useRef<string[]>([]);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeEnabledRef = useRef(false);
@@ -251,6 +250,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     );
   }, [visibleProjects, activeProjectId]);
 
+  useEffect(() => {
+    setJudgeVideoEmbedFailed(false);
+  }, [currentProject?.id, currentProject?.video_url]);
+
   const currentProjectIndex = useMemo(() => {
     if (!currentProject) {
       return -1;
@@ -298,11 +301,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") {
-        navigateCards(-1);
-      } else if (event.key === "ArrowRight") {
-        navigateCards(1);
-      }
+      const direction = getCardNavigationDirection(event);
+      if (direction !== null) navigateCards(direction);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -336,13 +336,26 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
         return updated;
       });
+      setScoreValues((prev) => removeTrackScores(prev, projectId, trackId));
     },
     []
   );
 
   const advanceAfterTrackSubmit = useCallback(
-    (project: Project, submittedTrackId: string) => {
+    (
+      project: Project,
+      submittedTrackId: string,
+      scores: Record<string, number | string>
+    ) => {
       const updatedTrackIds = markTrackAsScored(project.id, submittedTrackId);
+      setScoreValues((prev) =>
+        setTrackScores(
+          prev,
+          project.id,
+          submittedTrackId,
+          scores as Record<string, number>
+        )
+      );
 
       const nextUnscoredTrackId = project.track_ids.find(
         (trackId) => !updatedTrackIds.has(trackId)
@@ -467,6 +480,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             .eq("user_id", session.user.id)
             .eq("event_id", eventId)
             .eq("role", "judge")
+            // Soft-revoked when the judge role is removed (A1, JUDGE-017).
+            .is("revoked_at", null)
             .overrideTypes<ProjectAssignmentRow[]>(),
         ]);
 
@@ -608,26 +623,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           throw new Error(`Failed to fetch scores: ${scoresError.message}`);
         }
 
-        const scoredMap = new Map<string, Set<string>>();
-        const valuesMap = new Map<
-          string,
-          Map<string, Record<string, number>>
-        >();
-        scoresData?.forEach((score) => {
-          if (!scoredMap.has(score.project_id)) {
-            scoredMap.set(score.project_id, new Set());
-          }
-          scoredMap.get(score.project_id)?.add(score.track_id);
-
-          if (score.scores && typeof score.scores === "object") {
-            if (!valuesMap.has(score.project_id)) {
-              valuesMap.set(score.project_id, new Map());
-            }
-            valuesMap
-              .get(score.project_id)
-              ?.set(score.track_id, score.scores as Record<string, number>);
-          }
-        });
+        const { scoredProjects: scoredMap, scoreValues: valuesMap } =
+          buildJudgeScoreMaps(scoresData ?? [], mappedProjects);
         setScoredProjects(scoredMap);
         setScoreValues(valuesMap);
       } catch (error) {
@@ -643,7 +640,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     };
 
     fetchData();
-  }, [eventId]);
+  }, [eventId, queueReloadCount]);
 
   useEffect(() => {
     setOpenTracksByProject((prev) => {
@@ -1032,20 +1029,66 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                     {/* Snapshot — shown in both mobile & desktop inside the card */}
                     <section className="order-1 min-w-0 space-y-4 lg:order-2">
-                      <div className="overflow-hidden rounded-2xl bg-white">
-                        {currentProject.cover_image_url ? (
-                          <CoverImageWithFallback
-                            src={currentProject.cover_image_url}
-                            alt={`${currentProject.project_name} cover`}
-                            className="h-[240px] w-full object-cover md:h-[280px]"
-                          />
-                        ) : (
-                          <div className="flex h-[240px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] md:h-[280px]">
-                            <Target className="h-8 w-8 text-[#4B89EF]" />
-                            <p className="text-sm font-medium">No project image uploaded</p>
+                      {currentProject.video_url && canEmbed(currentProject.video_url) ? (
+                        <div className="overflow-hidden rounded-2xl bg-white">
+                          {!judgeVideoEmbedFailed && (
+                            <div className="bg-black" data-no-swipe="true">
+                              <VideoEmbed
+                                url={currentProject.video_url}
+                                title={`${currentProject.project_name} demo video`}
+                                onLoadError={() => setJudgeVideoEmbedFailed(true)}
+                              />
+                            </div>
+                          )}
+                          <div
+                            className={
+                              judgeVideoEmbedFailed
+                                ? "bg-white"
+                                : "border-t border-[#E7EDF8] bg-white"
+                            }
+                          >
+                            {currentProject.cover_image_url ? (
+                              <CoverImageWithFallback
+                                src={currentProject.cover_image_url}
+                                alt={`${currentProject.project_name} cover`}
+                                className={
+                                  judgeVideoEmbedFailed
+                                    ? "h-[240px] w-full object-cover md:h-[280px]"
+                                    : "h-28 w-full object-cover md:h-32"
+                                }
+                              />
+                            ) : (
+                              <div
+                                className={`flex w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] ${
+                                  judgeVideoEmbedFailed
+                                    ? "h-[240px] md:h-[280px]"
+                                    : "h-24 md:h-28"
+                                }`}
+                              >
+                                <Target className="h-8 w-8 text-[#4B89EF]" />
+                                <p className="text-sm font-medium">
+                                  No project image uploaded
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-2xl bg-white">
+                          {currentProject.cover_image_url ? (
+                            <CoverImageWithFallback
+                              src={currentProject.cover_image_url}
+                              alt={`${currentProject.project_name} cover`}
+                              className="h-[240px] w-full object-cover md:h-[280px]"
+                            />
+                          ) : (
+                            <div className="flex h-[240px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] md:h-[280px]">
+                              <Target className="h-8 w-8 text-[#4B89EF]" />
+                              <p className="text-sm font-medium">No project image uploaded</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div className="space-y-3">
                         <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[rgba(0,0,0,0.5)]">
@@ -1185,11 +1228,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                       roundNumber={activeRound}
                                       finalistFeatureEnabled={finalistFeatureEnabled}
                                       hideProjectHeader
-                                      onScoreSaved={() =>
-                                        advanceAfterTrackSubmit(currentProject, trackId)
+                                      onScoreSaved={(scores) =>
+                                        advanceAfterTrackSubmit(currentProject, trackId, scores)
                                       }
                                       onScoreDeleted={() =>
                                         markTrackAsUnscored(currentProject.id, trackId)
+                                      }
+                                      onRoundChanged={() =>
+                                        setQueueReloadCount((count) => count + 1)
                                       }
                                     />
                                   )}
@@ -1301,11 +1347,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                 roundNumber={activeRound}
                                 finalistFeatureEnabled={finalistFeatureEnabled}
                                 hideProjectHeader
-                                onScoreSaved={() =>
-                                  advanceAfterTrackSubmit(currentProject, trackId)
+                                onScoreSaved={(scores) =>
+                                  advanceAfterTrackSubmit(currentProject, trackId, scores)
                                 }
                                 onScoreDeleted={() =>
                                   markTrackAsUnscored(currentProject.id, trackId)
+                                }
+                                onRoundChanged={() =>
+                                  setQueueReloadCount((count) => count + 1)
                                 }
                               />
                             )}

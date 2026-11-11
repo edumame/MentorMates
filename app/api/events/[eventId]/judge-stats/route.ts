@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { EventRole } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 
@@ -106,11 +107,15 @@ export async function GET(
 
     const scoresByJudge = new Map<string, Set<string>>();
     if (judgeIds.length > 0) {
-      const { data: scoreRows } = await serviceSupabase
-        .from("project_scores")
-        .select("judge_id, project_id")
-        .eq("event_id", eventId)
-        .in("judge_id", judgeIds);
+      const { data: scoreRows } = await fetchAllRows((from, to) =>
+        serviceSupabase
+          .from("project_scores")
+          .select("judge_id, project_id")
+          .eq("event_id", eventId)
+          .in("judge_id", judgeIds)
+          .order("id")
+          .range(from, to)
+      );
 
       (scoreRows || []).forEach((row) => {
         if (!row.judge_id || !row.project_id) return;

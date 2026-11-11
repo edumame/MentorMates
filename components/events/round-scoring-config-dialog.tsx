@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/ui/number-input";
 import {
   Dialog,
   DialogContent,
@@ -243,41 +244,34 @@ export function RoundScoringConfigDialog({
                       <div className="mt-3 grid gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
                           <Label>Weight</Label>
-                          <Input
-                            type="number"
+                          <NumberInput
                             min={0}
                             step={0.01}
                             value={criterion.weight ?? 1}
-                            onChange={(e) =>
-                              updateCriterion(trackId, index, {
-                                weight: parseFloat(e.target.value) || 1,
-                              })
+                            onValueChange={(weight) =>
+                              updateCriterion(trackId, index, { weight })
                             }
                           />
                         </div>
                         <div className="space-y-1">
                           <Label>Min Score</Label>
-                          <Input
-                            type="number"
+                          <NumberInput
+                            integer
                             min={0}
                             value={criterion.min ?? 1}
-                            onChange={(e) =>
-                              updateCriterion(trackId, index, {
-                                min: parseInt(e.target.value, 10) || 0,
-                              })
+                            onValueChange={(min) =>
+                              updateCriterion(trackId, index, { min })
                             }
                           />
                         </div>
                         <div className="space-y-1">
                           <Label>Max Score</Label>
-                          <Input
-                            type="number"
+                          <NumberInput
+                            integer
                             min={1}
                             value={criterion.max ?? 10}
-                            onChange={(e) =>
-                              updateCriterion(trackId, index, {
-                                max: parseInt(e.target.value, 10) || 10,
-                              })
+                            onValueChange={(max) =>
+                              updateCriterion(trackId, index, { max })
                             }
                           />
                         </div>

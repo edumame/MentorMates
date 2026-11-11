@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { EventRole, EventVisibility } from "@/lib/types";
-import { canAccessRole } from "@/features/user/roles/roles";
+import { EventVisibility } from "@/lib/types";
+import { withdrawSubmissionUpdate } from "@/lib/events/approval-visibility";
 import { z } from "zod";
+import { deleteEvent } from "./delete-event";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseClient>>;
+
+/**
+ * Owner, event organizer or global admin. Delegates to the SQL helper
+ * public.can_manage_event() (same rule as the events UPDATE RLS policy) so the
+ * API, delete_event() and the archived-events SELECT policy agree.
+ */
+async function canManageEvent(
+  supabase: SupabaseServerClient,
+  eventId: string,
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("can_manage_event", {
+    p_event_id: eventId,
+    p_user_id: userId,
+  });
+  if (error) {
+    console.error("Error checking event permissions:", error);
+    return false;
+  }
+  return data === true;
+}
 
 export async function DELETE(
   _request: NextRequest,
@@ -11,7 +35,6 @@ export async function DELETE(
   try {
     const supabase = await createSupabaseClient();
 
-    // Auth check
     const {
       data: { user },
       error: authError,
@@ -28,97 +51,11 @@ export async function DELETE(
       );
     }
 
-    // Verify permission: organizer of this event OR global admin
-    const { data: roleRow } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("event_id", eventId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    let isAllowed = false;
-    if (
-      roleRow &&
-      canAccessRole(roleRow.role as EventRole, EventRole.Organizer)
-    ) {
-      isAllowed = true;
-    } else {
-      const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-        user_id: user.id,
-      });
-      isAllowed = Boolean(isAdmin);
-    }
-
-    if (!isAllowed) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Ensure event exists
-    const { data: event } = await supabase
-      .from("events")
-      .select("event_id")
-      .eq("event_id", eventId)
-      .maybeSingle();
-    if (!event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-
-    // Manual cleanup for related tables that do NOT have ON DELETE CASCADE
-    // Order chosen to respect FKs observed in schema
-    // user_event_payments are not deleted
-    // 1) Delete event_tickets (FK -> user_event_payments, user_profiles) by event_id
-    await supabase.from("event_tickets").delete().eq("event_id", eventId);
-
-    // 2) Delete prize winners and prizes via event_tracks join
-    const { data: trackIds } = await supabase
-      .from("event_tracks")
-      .select("track_id")
-      .eq("event_id", eventId);
-    if (trackIds && trackIds.length > 0) {
-      const ids = trackIds.map((t) => t.track_id);
-      // Fetch prize IDs for those tracks
-      const { data: prizesForTracks } = await supabase
-        .from("prizes")
-        .select("id")
-        .in("track_id", ids);
-
-      const prizeIds = (prizesForTracks || []).map((p) => p.id);
-
-      if (prizeIds.length > 0) {
-        // Remove prize winners first (no cascade on prize_winners -> prizes)
-        await supabase.from("prize_winners").delete().in("prize_id", prizeIds);
-      }
-
-      // Now remove the prizes themselves
-      await supabase.from("prizes").delete().in("track_id", ids);
-      // project_scores and project_tracks FKs already cascade on track_id
-    }
-
-    // 4) Delete event_tracks for this event (prizes are already removed)
-    await supabase.from("event_tracks").delete().eq("event_id", eventId);
-
-    // 5) platform_engagement, feedback reference events without cascade
-    await supabase.from("platform_engagement").delete().eq("event_id", eventId);
-    await supabase.from("feedback").delete().eq("event_id", eventId);
-
-    // 6) role_passwords, user_event_roles have ON DELETE CASCADE; but clear anyway for safety
-    await supabase.from("role_passwords").delete().eq("event_id", eventId);
-    await supabase.from("user_event_roles").delete().eq("event_id", eventId);
-
-    // Finally, delete the event
-    const { error: deleteEventError } = await supabase
-      .from("events")
-      .delete()
-      .eq("event_id", eventId);
-
-    if (deleteEventError) {
-      return NextResponse.json(
-        { error: deleteEventError.message || "Failed to delete event" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
+    // The whole delete (permission check, feedback/engagement/tracks cleanup
+    // and the event row itself, with cascades) runs in one transaction inside
+    // public.delete_event(), so a failure can no longer leave a half-deleted
+    // event behind.
+    return await deleteEvent(supabase, eventId);
   } catch (error) {
     console.error("Error deleting event:", error);
     return NextResponse.json(
@@ -156,25 +93,11 @@ export async function PATCH(
       );
     }
 
-    const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-      user_id: user.id,
-    });
-    if (!isAdmin) {
-      const { data: userRole } = await supabase
-        .from("user_event_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("event_id", eventId)
-        .maybeSingle();
-      if (
-        !userRole ||
-        !canAccessRole(userRole.role as EventRole, EventRole.Organizer)
-      ) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
+    if (!(await canManageEvent(supabase, eventId, user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = archiveSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -185,35 +108,10 @@ export async function PATCH(
 
     const { action } = parsed.data;
 
-    // Verify permission: organizer of this event OR global admin
-    const { data: roleRow } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("event_id", eventId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    let isAllowed = false;
-    if (
-      roleRow &&
-      canAccessRole(roleRow.role as EventRole, EventRole.Organizer)
-    ) {
-      isAllowed = true;
-    } else {
-      const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-        user_id: user.id,
-      });
-      isAllowed = Boolean(isAdmin);
-    }
-
-    if (!isAllowed) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     // Get current event status
     const { data: event, error: fetchError } = await supabase
       .from("events")
-      .select("visibility")
+      .select("visibility, approval_status")
       .eq("event_id", eventId)
       .maybeSingle();
 
@@ -242,16 +140,30 @@ export async function PATCH(
       newVisibility = EventVisibility.Private;
     }
 
-    // Update the event visibility
-    const { error: updateError } = await supabase
+    // Update the event visibility, withdrawing any pending submission
+    const withdrawal = withdrawSubmissionUpdate(
+      event.approval_status,
+      newVisibility,
+    );
+    const { data: updatedRows, error: updateError } = await supabase
       .from("events")
-      .update({ visibility: newVisibility })
-      .eq("event_id", eventId);
+      .update({ visibility: newVisibility, ...withdrawal })
+      .eq("event_id", eventId)
+      .select("event_id");
 
     if (updateError) {
+      console.error(`Error trying to ${action} event:`, updateError);
       return NextResponse.json(
-        { error: updateError.message || "Failed to update event" },
+        { error: `Failed to ${action} event` },
         { status: 500 }
+      );
+    }
+
+    // RLS can silently filter the row; never report success for a no-op.
+    if (!updatedRows || updatedRows.length === 0) {
+      return NextResponse.json(
+        { error: `You don't have permission to ${action} this event` },
+        { status: 403 }
       );
     }
 
@@ -259,6 +171,7 @@ export async function PATCH(
       success: true,
       action,
       newVisibility,
+      approvalStatus: withdrawal.approval_status ?? event.approval_status,
     });
   } catch (error) {
     console.error("Error updating event:", error);

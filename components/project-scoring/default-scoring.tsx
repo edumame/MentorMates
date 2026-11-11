@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PROJECT_CLIENT_COLUMNS } from "@/lib/projects/columns";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
@@ -11,7 +12,11 @@ import {
   TrackScoringConfig,
 } from "@/lib/types";
 import { QuestionFactory } from "./question-types/question-factory";
-import { getDefaultScores } from "./scoring-defaults";
+import {
+  buildScoresPayload,
+  getDefaultScores,
+  getScoreSaveErrorMessage,
+} from "./scoring-defaults";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,8 +45,10 @@ interface DefaultScoringProps {
   scoringConfig?: EventScoringConfig | null;
   roundNumber?: number;
   finalistFeatureEnabled?: boolean;
-  onScoreSaved?: () => void;
+  onScoreSaved?: (scores: FormValues["scores"]) => void;
   onScoreDeleted?: () => void;
+  /** Lets a parent that owns the round reload it. Without one, the form reloads itself. */
+  onRoundChanged?: () => void;
   hideProjectHeader?: boolean;
   className?: string;
 }
@@ -62,6 +69,7 @@ export function DefaultScoring({
   finalistFeatureEnabled = false,
   onScoreSaved,
   onScoreDeleted,
+  onRoundChanged,
   hideProjectHeader = false,
   className = "",
 }: DefaultScoringProps) {
@@ -76,6 +84,7 @@ export function DefaultScoring({
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [hasExistingScore, setHasExistingScore] = useState(false);
+  const [reloadCount, setReloadCount] = useState(0);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -92,12 +101,13 @@ export function DefaultScoring({
         // Fetch project details
         const { data: projectData, error: projectError } = await supabase
           .from("projects")
-          .select("*")
+          // Explicit client-readable columns (team emails are not readable).
+          .select(PROJECT_CLIENT_COLUMNS)
           .eq("id", projectId)
           .single();
 
         if (projectError) throw projectError;
-        setProject(projectData);
+        setProject(projectData as unknown as Project);
 
         const [trackResponse, eventResponse] = await Promise.all([
           supabase
@@ -185,13 +195,46 @@ export function DefaultScoring({
     }
 
     fetchData();
-  }, [projectId, trackId, judgeId, toast, form, eventId, roundNumberProp, scoringConfigProp]);
+  }, [projectId, trackId, judgeId, toast, form, eventId, roundNumberProp, scoringConfigProp, reloadCount]);
 
+  // The round on screen was read when the form loaded, and a judge can leave
+  // the tab open while the organizer changes it. Confirm it before any write.
+  const roundHasChanged = async () => {
+    const { data, error } = await supabase
+      .from("events")
+      .select("scoring_config")
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const latestRound = getActiveRound(
+      (data?.scoring_config as EventScoringConfig | null) ?? null
+    );
+    if (latestRound === currentRoundNumber) return false;
+
+    toast({
+      title: "Judging round changed",
+      description:
+        "Your evaluation was not saved. Reloading the current round.",
+      variant: "destructive",
+    });
+    if (onRoundChanged) {
+      onRoundChanged();
+    } else {
+      setReloadCount((count) => count + 1);
+    }
+    return true;
+  };
 
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
+    // Only send the current rubric's criteria (the DB rejects stale/unknown keys).
+    const scoresPayload = buildScoresPayload(criteria, values.scores);
 
     try {
+      if (await roundHasChanged()) return;
+
       // Check if a score already exists
       const { data: existingScore, error: checkError } = await supabase
         .from("project_scores")
@@ -209,7 +252,7 @@ export function DefaultScoring({
         const { error: updateError } = await supabase
           .from("project_scores")
           .update({
-            scores: values.scores,
+            scores: scoresPayload,
             comments: values.comments,
             finalist_recommendation: !!values.finalist_recommendation,
             updated_at: new Date().toISOString(),
@@ -227,7 +270,7 @@ export function DefaultScoring({
             judge_id: judgeId,
             event_id: eventId,
             round_number: currentRoundNumber,
-            scores: values.scores,
+            scores: scoresPayload,
             comments: values.comments,
             finalist_recommendation: !!values.finalist_recommendation,
           });
@@ -235,7 +278,7 @@ export function DefaultScoring({
         if (insertError) throw insertError;
       }
       setHasExistingScore(true);
-      onScoreSaved?.();
+      onScoreSaved?.(values.scores);
 
       toast({
         title: "Score submitted",
@@ -245,7 +288,7 @@ export function DefaultScoring({
       console.error("Error submitting score:", error);
       toast({
         title: "Error",
-        description: "Failed to save your evaluation",
+        description: getScoreSaveErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -256,6 +299,8 @@ export function DefaultScoring({
   const onDeleteScore = async () => {
     setDeleting(true);
     try {
+      if (await roundHasChanged()) return;
+
       let query = supabase
         .from("project_scores")
         .delete()

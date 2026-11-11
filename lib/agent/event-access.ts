@@ -1,3 +1,4 @@
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 
@@ -207,10 +208,15 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
     return [] as AgentEventSummary[];
   }
 
+  const cappedEventIds = visibleCandidates
+    .filter((event) => event.participant_capacity != null)
+    .map((event) => event.event_id);
+
   const [
     { data: registrationBindings, error: bindingError },
     { data: questionnaireSubmissions, error: questionnaireError },
     { data: participantRoles, error: participantError },
+    { data: rolePasswords, error: rolePasswordError },
   ] = await Promise.all([
     supabase
       .from("event_intake_form_bindings")
@@ -225,15 +231,32 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
       .eq("context", "registration")
       .eq("submitter_user_id", userId)
       .eq("status", "submitted"),
+    fetchAllRows((from, to) =>
+      supabase
+        .from("user_event_roles")
+        .select("event_id")
+        .in("event_id", cappedEventIds)
+        .eq("role", EventRole.Participant)
+        .order("id")
+        .range(from, to),
+    ),
+    // The agent join refuses password-protected events, so do not list them.
     supabase
-      .from("user_event_roles")
+      .from("role_passwords")
       .select("event_id")
       .in("event_id", candidateEventIds)
       .eq("role", EventRole.Participant),
   ]);
 
-  if (bindingError || questionnaireError || participantError) {
-    throw bindingError || questionnaireError || participantError;
+  if (
+    bindingError ||
+    questionnaireError ||
+    participantError ||
+    rolePasswordError
+  ) {
+    throw (
+      bindingError || questionnaireError || participantError || rolePasswordError
+    );
   }
 
   const eventsRequiringQuestionnaire = new Set(
@@ -242,14 +265,22 @@ export async function listJoinableParticipantAgentEvents(userId: string) {
   const completedQuestionnaires = new Set(
     (questionnaireSubmissions || []).map((row) => row.event_id),
   );
-  const participantCounts = (participantRoles || []).reduce<
-    Record<string, number>
-  >((acc, row) => {
-    acc[row.event_id] = (acc[row.event_id] || 0) + 1;
-    return acc;
-  }, {});
+  const passwordProtectedEvents = new Set(
+    (rolePasswords || []).map((row) => row.event_id),
+  );
+  const participantCounts = participantRoles.reduce<Record<string, number>>(
+    (acc, row) => {
+      acc[row.event_id] = (acc[row.event_id] || 0) + 1;
+      return acc;
+    },
+    {},
+  );
 
   return visibleCandidates.filter((event) => {
+    if (passwordProtectedEvents.has(event.event_id)) {
+      return false;
+    }
+
     if (
       eventsRequiringQuestionnaire.has(event.event_id) &&
       !completedQuestionnaires.has(event.event_id)

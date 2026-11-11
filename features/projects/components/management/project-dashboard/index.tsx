@@ -2,6 +2,7 @@
 
 // TODO: CHECK TO SEE IF THIS IS STILL USED/NEEDED, ELSE DELETE!!!
 import { saveProjectMaterials } from "@/features/projects/client-actions/client-materials";
+import { parseUtcTimestamp } from "@/lib/utils/parse-utc-timestamp";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
@@ -914,13 +915,8 @@ export default function ProjectDashboardSection({
                       <span className="font-semibold text-gray-800">
                         {item.mentor_name || "Anonymous"}
                       </span>
-                      {item.mentor_email && (
-                        <span className="text-sm text-gray-500">
-                          ({item.mentor_email})
-                        </span>
-                      )}
                       <span className="text-sm text-gray-500">
-                        {new Date(item.created_at).toLocaleDateString()}
+                        {(parseUtcTimestamp(item.created_at) ?? new Date(item.created_at)).toLocaleDateString()}
                       </span>
                       <div className="ml-auto flex items-center"></div>
                     </div>
