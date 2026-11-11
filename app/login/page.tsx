@@ -21,6 +21,7 @@ import {
   buildSignupConsentMetadata,
   CONSENT_QUERY_PARAMS,
 } from "@/features/user/authentication/signup-consent";
+import { getPostAuthRedirectPath } from "@/features/user/onboarding/metadata";
 
 const supabase = createClient();
 
@@ -253,6 +254,26 @@ function LoginContent({
     check();
   }, [consumeReturnUrl, router, searchParams]);
 
+  const getAuthCallbackUrl = (returnUrl: string) =>
+    `${cleanBaseUrl}/auth/callback?returnUrl=${encodeURIComponent(returnUrl)}`;
+
+  // Password auth never hits /auth/callback, so apply its onboarding check here.
+  const getPostAuthTarget = async (userId: string, returnUrl: string) => {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("onboarding_metadata")
+      .eq("uid", userId)
+      .maybeSingle();
+    if (error) {
+      // Onboarding is optional, so a failed lookup must not block a valid login.
+      console.error("Error checking onboarding state:", error);
+      return returnUrl;
+    }
+    return getPostAuthRedirectPath(
+      data?.onboarding_metadata as Record<string, unknown> | null | undefined,
+      returnUrl
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -275,11 +296,11 @@ function LoginContent({
       }
 
       try {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${cleanBaseUrl}${redirectTarget}`,
+            emailRedirectTo: getAuthCallbackUrl(redirectTarget),
             data: buildSignupConsentMetadata({ acceptedTerms, marketingOptIn }),
           },
         });
@@ -287,6 +308,20 @@ function LoginContent({
         if (error) {
           setError(getSignUpErrorMessage(error));
           setLoading(false);
+          return;
+        }
+
+        // A session means email confirmation is off: no email was sent and the
+        // user is already signed in, so continue as a sign-in would.
+        if (data?.session) {
+          const { user } = data.session;
+          const profileError = await ensureUserProfile(supabase, user);
+          if (profileError) {
+            console.error("Error syncing user profile:", profileError);
+          }
+          const target = await getPostAuthTarget(user.id, redirectTarget);
+          setLoading(false);
+          router.push(target);
           return;
         }
 
@@ -327,6 +362,8 @@ function LoginContent({
             setLoading(false);
             return;
           }
+          router.push(await getPostAuthTarget(data.user.id, redirectTarget));
+          return;
         }
         router.push(redirectTarget);
       } catch (err) {
@@ -372,9 +409,7 @@ function LoginContent({
     setLoading(true);
     setError("");
     const redirectTarget = consumeReturnUrl(searchParams.get("returnUrl"), "/");
-    const callbackUrl = `${cleanBaseUrl}/auth/callback?returnUrl=${encodeURIComponent(
-      redirectTarget
-    )}`;
+    const callbackUrl = getAuthCallbackUrl(redirectTarget);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {

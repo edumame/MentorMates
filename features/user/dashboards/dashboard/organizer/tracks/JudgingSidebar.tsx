@@ -12,6 +12,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Upload, FileText, Sparkles, SendHorizonal } from "lucide-react";
 import type { EventScoringConfig, ScoringCriterion } from "@/lib/types";
+import { mergeAssistantPatch, mergeParsedRubric } from "./track-draft";
 
 // ── Chat message type ─────────────────────────────────────────────────
 
@@ -29,9 +30,7 @@ const INITIAL_MESSAGE: ChatMessage = {
 
 interface JudgingSidebarProps {
   config: EventScoringConfig;
-  onConfigChange: React.Dispatch<
-    React.SetStateAction<EventScoringConfig | null>
-  >;
+  onConfigChange: React.Dispatch<React.SetStateAction<EventScoringConfig>>;
   eventId: string;
 }
 
@@ -109,7 +108,9 @@ export function JudgingSidebar({
 
         // Apply config patch if the AI returned one
         if (data.patch && typeof data.patch === "object" && data.patch.tracks) {
-          onConfigChange({ ...config, ...data.patch });
+          onConfigChange((current) =>
+            mergeAssistantPatch(current, config, data.patch)
+          );
         }
       } catch {
         setChatMessages((prev) => [
@@ -160,10 +161,7 @@ export function JudgingSidebar({
         }
 
         if (data.config) {
-          // parse-file returns only tracks and defaults. Merge into the latest
-          // config so rounds and activeRound survive, including changes saved
-          // while the file was parsing.
-          onConfigChange((prev) => ({ ...prev, ...data.config }));
+          onConfigChange((current) => mergeParsedRubric(current, data.config));
           const trackNames = Object.values(
             (data.config as EventScoringConfig).tracks
           )

@@ -141,6 +141,39 @@ describe("POST /api/agent/events/approval-requests capacity", () => {
     expect(store.requestStatusOf("bob")).toBe("rejected");
   });
 
+  it("returns 409 when another approval takes the last seat first (database guard)", async () => {
+    const store = useStore({ requests: { bob: "pending" } });
+    const from = store.client.from;
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+      from: (table: string) => {
+        const builder = from(table as never);
+        if (table !== "participant_approval_requests") {
+          return builder;
+        }
+        return {
+          ...builder,
+          update: () => ({
+            eq: async () => ({
+              data: null,
+              error: {
+                code: "45000",
+                message: "Event is full. No seats available.",
+              },
+            }),
+          }),
+        };
+      },
+    });
+
+    const response = await review("approve");
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Event is at full capacity. Cannot approve more participants.",
+    });
+    expect(store.requestStatusOf("bob")).toBe("pending");
+  });
+
   it("does not approve when capacity cannot be verified", async () => {
     const store = useStore({ requests: { bob: "pending" } });
     const from = store.client.from;

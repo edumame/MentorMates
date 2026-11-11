@@ -39,7 +39,10 @@ jest.mock("@/lib/supabase/service", () => ({
 
 type QueryResult = { data: unknown; error: unknown };
 
-function query(result: QueryResult, onUpdate?: () => void) {
+function query(
+  result: QueryResult,
+  onUpdate?: () => QueryResult | undefined,
+) {
   const builder: Record<string, unknown> = {
     then: (
       resolve: (value: QueryResult) => unknown,
@@ -48,8 +51,8 @@ function query(result: QueryResult, onUpdate?: () => void) {
     single: jest.fn(async () => result),
     maybeSingle: jest.fn(async () => result),
     update: jest.fn(() => {
-      onUpdate?.();
-      return builder;
+      const updateResult = onUpdate?.();
+      return updateResult ? query(updateResult) : builder;
     }),
   };
 
@@ -78,14 +81,18 @@ describe("PATCH approval request capacity", () => {
     roles,
     approved,
     requestStatus = "pending",
+    updateError = null,
   }: {
     paid: boolean;
     capacity: number;
     roles: string[];
     approved: string[];
     requestStatus?: string;
+    updateError?: { code: string; message: string } | null;
   }) => {
-    const onUpdate = jest.fn();
+    const onUpdate = jest.fn(() =>
+      updateError ? { data: null, error: updateError } : undefined,
+    );
 
     (createSupabaseClient as jest.Mock).mockResolvedValue({
       auth: {
@@ -226,6 +233,45 @@ describe("PATCH approval request capacity", () => {
 
     expect((await approve(store.eventId)).status).toBe(200);
     expect(onUpdate).toHaveBeenCalled();
+  });
+
+  it("returns 409 when another approval takes the last seat first (database guard)", async () => {
+    const { onUpdate } = mockEvent({
+      paid: true,
+      capacity: 1,
+      roles: [],
+      approved: [],
+      updateError: {
+        code: "45000",
+        message: "Event is full. No seats available.",
+      },
+    });
+
+    const response = await approve();
+
+    expect(onUpdate).toHaveBeenCalled();
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Event is at full capacity. Cannot approve more participants.",
+    });
+  });
+
+  it("still reports other update failures as 500", async () => {
+    mockEvent({
+      paid: true,
+      capacity: 2,
+      roles: [],
+      approved: [],
+      updateError: { code: "42501", message: "permission denied" },
+    });
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const response = await approve();
+
+    expect(response.status).toBe(500);
+    consoleError.mockRestore();
   });
 
   it("still refuses a free event at capacity", async () => {

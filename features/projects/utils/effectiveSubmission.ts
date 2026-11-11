@@ -165,10 +165,9 @@ export function buildSubmissionFormValues(
   );
 }
 
-export function findMissingRequiredSubmissionField(
-  fields: EffectiveSubmissionField[],
-  values: Record<string, SubmissionValue>
-): EffectiveSubmissionField | undefined {
+export function findMissingRequiredSubmissionField<
+  T extends Pick<EffectiveSubmissionField, "key" | "field_type" | "required">,
+>(fields: T[], values: Record<string, SubmissionValue>): T | undefined {
   return fields.find((field) => {
     if (!field.required) return false;
     const value = normalizeSubmissionValue(field, values[field.key]);
@@ -209,7 +208,7 @@ export function hasSubmissionFieldMismatch(
 
 export function buildSubmissionValuesFromProject(
   project: Partial<Project>,
-  fields: EffectiveSubmissionField[]
+  fields: Array<Pick<EffectiveSubmissionField, "id" | "key" | "field_type">>
 ): Record<string, SubmissionValue> {
   const answerMap = buildSubmissionAnswerMapByFieldId(project.submission_answers);
   const values: Record<string, SubmissionValue> = {};
@@ -343,6 +342,28 @@ export function buildNullLegacyProjectPayload(): Record<string, null> {
     video_url: null,
     cover_image_url: null,
     additional_materials_url: null,
+  };
+}
+
+// Direct row updates return projects without the hydrated submission config.
+// Keep it so later saves still go through the event's configured fields.
+export function keepSubmissionConfig(
+  nextProject: Project,
+  previousProject: Project | null | undefined
+): Project {
+  if (
+    !previousProject ||
+    nextProject.has_submission_field_config !== undefined ||
+    previousProject.event_id !== nextProject.event_id
+  ) {
+    return nextProject;
+  }
+
+  return {
+    ...nextProject,
+    has_submission_field_config: previousProject.has_submission_field_config,
+    submission_fields: previousProject.submission_fields,
+    submission_answers: previousProject.submission_answers,
   };
 }
 

@@ -7,6 +7,7 @@ const mockSignUp = jest.fn();
 const mockSignInWithOAuth = jest.fn();
 const mockSignInWithPassword = jest.fn();
 const mockProfileUpsert = jest.fn();
+const mockProfileLookup = jest.fn();
 const mockResetPassword = jest.fn();
 let mockSearchParams = new URLSearchParams("mode=signup");
 
@@ -23,7 +24,6 @@ jest.mock("@/features/user/authentication/redirect/RedirectProvider", () => ({
 
 jest.mock("@/app/utils/supabase/client", () => ({
   createClient: () => ({
-    from: () => ({ upsert: mockProfileUpsert }),
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
       signUp: (...args: unknown[]) => mockSignUp(...args),
@@ -31,6 +31,10 @@ jest.mock("@/app/utils/supabase/client", () => ({
       signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
       resetPasswordForEmail: (...args: unknown[]) => mockResetPassword(...args),
     },
+    from: () => ({
+      upsert: (...args: unknown[]) => mockProfileUpsert(...args),
+      select: () => ({ eq: () => ({ maybeSingle: () => mockProfileLookup() }) }),
+    }),
   }),
 }));
 
@@ -57,6 +61,10 @@ beforeEach(() => {
   mockSignInWithOAuth.mockResolvedValue({ error: null });
   mockSignInWithPassword.mockResolvedValue({ data: { user: null }, error: null });
   mockProfileUpsert.mockResolvedValue({ error: null });
+  mockProfileLookup.mockResolvedValue({
+    data: { onboarding_metadata: null },
+    error: null,
+  });
 });
 
 describe("sign-up consent", () => {
@@ -158,6 +166,11 @@ describe("sign-in", () => {
       id: "returning-user", email: "dev@local.test", user_metadata: {},
       created_at: "2020-01-01T00:00:00Z",
     } }, error: null });
+    // Already onboarded, so sign-in goes straight to the return URL.
+    mockProfileLookup.mockResolvedValue({
+      data: { onboarding_metadata: { version: 3, completedAt: "2026-01-01T00:00:00.000Z" } },
+      error: null,
+    });
     render(<LoginPage />);
     fillCredentials();
     fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
@@ -191,6 +204,93 @@ describe("sign-in", () => {
     await waitFor(() => expect(mockSignInWithOAuth).toHaveBeenCalledTimes(1));
     const redirectTo = new URL(mockSignInWithOAuth.mock.calls[0][0].options.redirectTo);
     expect(redirectTo.searchParams.has("acceptTerms")).toBe(false);
+  });
+});
+
+describe("post-auth routing for email/password", () => {
+  const user = { id: "user-1", email: "dev@local.test" };
+  const onboardedProfile = {
+    data: { onboarding_metadata: { version: 3, completedAt: "2026-01-01T00:00:00.000Z" } },
+    error: null,
+  };
+
+  async function submitSignUp() {
+    render(<LoginPage />);
+    fillCredentials();
+    fireEvent.click(termsCheckbox());
+    fireEvent.click(screen.getByRole("button", { name: "Sign Up" }));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
+    return mockPush.mock.calls[0][0] as string;
+  }
+
+  async function submitSignIn() {
+    render(<LoginPage />);
+    fillCredentials();
+    fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
+    return mockPush.mock.calls[0][0] as string;
+  }
+
+  describe("sign-up", () => {
+    beforeEach(() => {
+      mockSearchParams = new URLSearchParams("mode=signup&returnUrl=/events/1");
+    });
+
+    it("routes the confirmation link through the auth callback with the return URL", async () => {
+      await submitSignUp();
+      const redirect = new URL(mockSignUp.mock.calls[0][0].options.emailRedirectTo);
+      expect(redirect.pathname).toBe("/auth/callback");
+      expect(redirect.searchParams.get("returnUrl")).toBe("/events/1");
+    });
+
+    it("sends a signed-in new user to onboarding, keeping the return URL", async () => {
+      mockSignUp.mockResolvedValue({ data: { session: { user }, user }, error: null });
+      expect(await submitSignUp()).toBe("/onboarding?returnUrl=%2Fevents%2F1");
+      expect(mockProfileUpsert).toHaveBeenCalledTimes(1);
+    });
+
+    it("still reaches onboarding when the best-effort profile sync fails", async () => {
+      const log = jest.spyOn(console, "error").mockImplementation(() => {});
+      mockSignUp.mockResolvedValue({ data: { session: { user }, user }, error: null });
+      mockProfileUpsert.mockResolvedValue({ error: new Error("db") });
+      expect(await submitSignUp()).toBe("/onboarding?returnUrl=%2Fevents%2F1");
+      log.mockRestore();
+    });
+
+    it("shows the check-your-email page only when confirmation is pending", async () => {
+      mockSignUp.mockResolvedValue({ data: { session: null, user }, error: null });
+      expect(await submitSignUp()).toMatch(/\/confirmation$/);
+      expect(mockProfileUpsert).not.toHaveBeenCalled();
+      expect(mockProfileLookup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("sign-in", () => {
+    beforeEach(() => {
+      mockSearchParams = new URLSearchParams("returnUrl=/events/1");
+      mockSignInWithPassword.mockResolvedValue({ data: { user }, error: null });
+    });
+
+    it("sends a user without onboarding state to onboarding", async () => {
+      expect(await submitSignIn()).toBe("/onboarding?returnUrl=%2Fevents%2F1");
+    });
+
+    it("sends a user with no profile row to onboarding", async () => {
+      mockProfileLookup.mockResolvedValue({ data: null, error: null });
+      expect(await submitSignIn()).toBe("/onboarding?returnUrl=%2Fevents%2F1");
+    });
+
+    it("sends an already onboarded user straight to the return URL", async () => {
+      mockProfileLookup.mockResolvedValue(onboardedProfile);
+      expect(await submitSignIn()).toBe("/events/1");
+    });
+
+    it("does not block sign-in when the onboarding lookup fails", async () => {
+      const log = jest.spyOn(console, "error").mockImplementation(() => {});
+      mockProfileLookup.mockResolvedValue({ data: null, error: new Error("db") });
+      expect(await submitSignIn()).toBe("/events/1");
+      log.mockRestore();
+    });
   });
 });
 

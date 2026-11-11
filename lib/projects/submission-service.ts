@@ -13,7 +13,12 @@ import {
   normalizeProjectArtifacts,
   submissionAnswerInputSchema,
 } from "@/features/projects/utils/submission";
-import { buildNullLegacyProjectPayload } from "@/features/projects/utils/effectiveSubmission";
+import {
+  buildNullLegacyProjectPayload,
+  buildSubmissionValuesFromProject,
+  findMissingRequiredSubmissionField,
+} from "@/features/projects/utils/effectiveSubmission";
+import type { EventSubmissionField, Project } from "@/lib/types";
 import {
   fetchArtifactsByProjectIds,
   fetchSubmissionAnswersByProjectIds,
@@ -50,14 +55,14 @@ const projectWriteSchema = z.object({
 
 /**
  * Database guards on projects (lane A1): moving a project to another event is
- * refused once it has scores/prizes/votes (23514) or when the target event was
- * not joined (42501). Surface those as client errors instead of a 500.
+ * refused once it has scores/prizes/votes or a round advancement (23514) or
+ * when the target event was not joined (42501). Surface those as client errors instead of a 500.
  */
 export function mapProjectUpdateError(error: { code?: string | null; message?: string | null }) {
   if (error.code === "23514") {
     return {
       error:
-        "This project can't be moved to another event because it already has scores, prizes or votes.",
+        "This project can't be moved to another event because it already has scores, prizes, votes or a round advancement.",
       status: 400 as const,
     };
   }
@@ -498,7 +503,7 @@ async function validateProjectEventContext(
   const { data: configuredSubmissionFields, error: fieldsError } =
     await supabase
     .from("event_submission_fields")
-    .select("id, event_id, key, field_type, is_active")
+    .select("id, event_id, key, label, field_type, required, is_active")
       .eq("event_id", eventId)
       .eq("is_active", true)
       // Multi-entry fields live in project_field_entries, not the
@@ -510,7 +515,9 @@ async function validateProjectEventContext(
           id: string;
           event_id: string;
           key: string;
-          field_type: string;
+          label: string;
+          field_type: EventSubmissionField["field_type"];
+          required: boolean;
           is_active: boolean;
         }>
       >();
@@ -653,6 +660,7 @@ export async function saveProjectSubmission(
     (input.extraVideoUrls?.length || 0) > 0 ||
     (input.extraMaterialsUrls?.length || 0) > 0;
 
+  const hasSubmissionAnswersPayload = Array.isArray(input.submissionAnswers);
   const parsedAnswers = Array.isArray(input.submissionAnswers)
     ? input.submissionAnswers
         .map((item) => submissionAnswerInputSchema.safeParse(item))
@@ -663,13 +671,23 @@ export async function saveProjectSubmission(
   let existingProjectEventId: string | null | undefined = input.eventId;
   let existingProjectName: string | null = null;
   let existingProjectDescription: string | null = null;
+  let existingLegacySubmissionFields: Partial<
+    Pick<
+      Database["public"]["Tables"]["projects"]["Row"],
+      | "project_url"
+      | "video_url"
+      | "additional_materials_url"
+      | "cover_image_url"
+    >
+  > = {};
+  let isMovingToAnotherEvent = false;
   let existingProjectIsDraft = false;
   let existingTeammates: string[] | null = null;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description, teammates, submitted",
+        "id, event_id, contextus_project_id, project_name, project_description, project_url, video_url, additional_materials_url, cover_image_url, teammates, submitted",
       )
       .eq("id", projectId)
       .single()
@@ -681,6 +699,10 @@ export async function saveProjectSubmission(
           | "contextus_project_id"
           | "project_name"
           | "project_description"
+          | "project_url"
+          | "video_url"
+          | "additional_materials_url"
+          | "cover_image_url"
           | "teammates"
           | "submitted"
         >
@@ -709,6 +731,15 @@ export async function saveProjectSubmission(
     existingProjectEventId = input.eventId ?? existingProject.event_id;
     existingProjectName = existingProject.project_name ?? null;
     existingProjectDescription = existingProject.project_description ?? null;
+    existingLegacySubmissionFields = {
+      project_url: existingProject.project_url,
+      video_url: existingProject.video_url,
+      additional_materials_url: existingProject.additional_materials_url,
+      cover_image_url: existingProject.cover_image_url,
+    };
+    isMovingToAnotherEvent =
+      input.eventId !== undefined &&
+      input.eventId !== existingProject.event_id;
     existingTeammates = existingProject.teammates;
     existingProjectIsDraft = existingProject.submitted === false;
   }
@@ -768,7 +799,8 @@ export async function saveProjectSubmission(
   if (input.coverImageUrl !== undefined)
     updateData.cover_image_url = input.coverImageUrl;
   if (input.leadName !== undefined) updateData.lead_name = input.leadName;
-  if (input.leadEmail !== undefined) updateData.lead_email = input.leadEmail;
+  // lead_email is set on create only. It decides who owns the project, and any
+  // member can reach this update, so an update must never reassign the lead.
   if (input.teammates !== undefined) {
     updateData.teammates = input.teammates;
   } else if (input.addTeammates?.length || input.removeTeammates?.length) {
@@ -818,17 +850,55 @@ export async function saveProjectSubmission(
     };
   }
 
+  // An update that omits answers (a bare submit, a settings change) keeps the
+  // saved submission. Answers are only replaced when the request carries them,
+  // or when the project moves to an event whose fields they don't belong to.
+  const replacesConfiguredSubmission =
+    hasConfiguredSubmissionFields &&
+    (mode === "create" || hasSubmissionAnswersPayload || isMovingToAnotherEvent);
+
   if (hasConfiguredSubmissionFields) {
-    const {
-      project_name: _ignoredProjectName,
-      project_description: _ignoredProjectDescription,
-      ...legacySubmissionFieldReset
-    } = buildNullLegacyProjectPayload();
-    Object.assign(updateData, legacySubmissionFieldReset);
+    if (replacesConfiguredSubmission) {
+      const {
+        project_name: _ignoredProjectName,
+        project_description: _ignoredProjectDescription,
+        ...legacySubmissionFieldReset
+      } = buildNullLegacyProjectPayload();
+      Object.assign(updateData, legacySubmissionFieldReset);
+    }
   } else if (mode === "create" || hasArtifactsPayload) {
     updateData.project_url = legacyFields.project_url;
     updateData.video_url = legacyFields.video_url;
     updateData.additional_materials_url = legacyFields.additional_materials_url;
+  }
+
+  if (submitted === true && hasConfiguredSubmissionFields) {
+    const answersToValidate = replacesConfiguredSubmission
+      ? normalizedSubmissionAnswers
+      : (await fetchSubmissionAnswersByProjectIds(supabase, [projectId!])).get(
+          projectId!,
+        );
+    const missingRequiredField = findMissingRequiredSubmissionField(
+      configuredSubmissionFields,
+      buildSubmissionValuesFromProject(
+        {
+          ...existingLegacySubmissionFields,
+          project_name: finalProjectName,
+          project_description: finalProjectDescription,
+          ...updateData,
+          submission_answers: answersToValidate,
+        } as Partial<Project>,
+        configuredSubmissionFields,
+      ),
+    );
+
+    if (missingRequiredField) {
+      return {
+        error: `"${missingRequiredField.label}" is required`,
+        code: "required_field_missing" as const,
+        status: 400 as const,
+      };
+    }
   }
 
   if (
@@ -944,7 +1014,7 @@ export async function saveProjectSubmission(
     }
   }
 
-  if (input.submissionAnswers !== undefined || hasConfiguredSubmissionFields) {
+  if (hasSubmissionAnswersPayload || replacesConfiguredSubmission) {
     const { error: deleteAnswersError } = await supabase
       .from("project_submission_answers")
       .delete()

@@ -123,6 +123,8 @@ function agent(overrides: Record<string, unknown>) {
     type: "general",
     enabled: true,
     can_edit: true,
+    // Linking is creator-only, so these agents belong to the signed-in user.
+    user_id: "organizer-1",
     event_id: null,
     linkedEventIds: [],
     ...overrides,

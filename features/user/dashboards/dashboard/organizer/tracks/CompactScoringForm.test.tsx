@@ -1,4 +1,5 @@
 import React from "react";
+import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CompactScoringForm } from "./CompactScoringForm";
 import type { EventScoringConfig } from "@/lib/types";
@@ -141,6 +142,33 @@ jest.mock("@/components/ui/select", () => {
   };
 });
 
+function ControlledForm({
+  initialConfig,
+  ...props
+}: { initialConfig: EventScoringConfig } & Pick<
+  React.ComponentProps<typeof CompactScoringForm>,
+  "onSave"
+> &
+  Partial<
+    Omit<
+      React.ComponentProps<typeof CompactScoringForm>,
+      "config" | "onConfigChange" | "onSave"
+    >
+  >) {
+  const [config, setConfig] = React.useState(initialConfig);
+
+  return (
+    <CompactScoringForm
+      config={config}
+      onConfigChange={setConfig}
+      isArchived={false}
+      eventId="event-1"
+      onTrackDeleted={jest.fn()}
+      {...props}
+    />
+  );
+}
+
 describe("CompactScoringForm", () => {
   const multiRoundConfig: EventScoringConfig = {
     tracks: {
@@ -183,13 +211,7 @@ describe("CompactScoringForm", () => {
     const onSave = jest.fn();
 
     render(
-      <CompactScoringForm
-        initialConfig={multiRoundConfig}
-        onSave={onSave}
-        isArchived={false}
-        eventId="event-1"
-        onTrackDeleted={jest.fn()}
-      />
+      <ControlledForm initialConfig={multiRoundConfig} onSave={onSave} />
     );
 
     fireEvent.change(screen.getByRole("combobox"), {
@@ -233,17 +255,48 @@ describe("CompactScoringForm", () => {
     );
   });
 
+  it("lets a fractional weight be typed and a score range be retyped", async () => {
+    const user = userEvent.setup();
+    const onSave = jest.fn();
+
+    render(
+      <ControlledForm
+        initialConfig={{
+          ...multiRoundConfig,
+          rounds: [{ round_number: 1, name: "Only Round" }],
+        }}
+        onSave={onSave}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Impact"));
+    const [weight, , maxScore] = screen.getAllByRole("spinbutton");
+
+    await user.clear(weight);
+    await user.keyboard("0.5");
+    expect(weight).toHaveValue(0.5);
+
+    await user.clear(maxScore);
+    expect(maxScore).toHaveValue(null);
+    await user.keyboard("5");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save Scoring Configuration" })
+    );
+
+    expect(onSave.mock.calls[0][0].tracks["track-1"].criteria[0]).toMatchObject(
+      { weight: 0.5, max: 5 }
+    );
+  });
+
   it("hides the round selector when the event does not have multiple rounds", () => {
     render(
-      <CompactScoringForm
+      <ControlledForm
         initialConfig={{
           ...multiRoundConfig,
           rounds: [{ round_number: 1, name: "Only Round" }],
         }}
         onSave={jest.fn()}
-        isArchived={false}
-        eventId="event-1"
-        onTrackDeleted={jest.fn()}
       />
     );
 
@@ -279,7 +332,7 @@ describe("CompactScoringForm", () => {
 
     const renderForm = () =>
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={multiRoundConfig}
           onSave={jest.fn()}
           isArchived={false}
@@ -369,7 +422,7 @@ describe("CompactScoringForm", () => {
     it("shows the DB name/description and saves them unchanged", () => {
       const onSave = jest.fn();
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={{ ...multiRoundConfig, rounds: undefined }}
           onSave={onSave}
           isArchived={false}
@@ -394,7 +447,7 @@ describe("CompactScoringForm", () => {
     it("saves an edited description", () => {
       const onSave = jest.fn();
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={{ ...multiRoundConfig, rounds: undefined }}
           onSave={onSave}
           isArchived={false}
@@ -412,7 +465,7 @@ describe("CompactScoringForm", () => {
 
     it("lists the track's prizes instead of a placeholder", () => {
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={{ ...multiRoundConfig, rounds: undefined }}
           onSave={jest.fn()}
           isArchived={false}
@@ -450,11 +503,12 @@ describe("CompactScoringForm", () => {
 
     const renderForm = (onSave = jest.fn()) =>
       render(
-        <CompactScoringForm
+        <ControlledForm
           initialConfig={sharedIdConfig}
           onSave={onSave}
           isArchived={false}
           eventId="event-1"
+          onTrackDeleted={jest.fn()}
         />
       );
 

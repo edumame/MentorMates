@@ -105,10 +105,51 @@ export function WizardInviteStep({ event, setEvent }: WizardStepProps) {
 
 // ── Share Tab ────────────────────────────────────────────────────────────
 
+export interface WizardShareLink {
+  label: string;
+  description: string;
+  url: string;
+}
+
+/**
+ * Builds the share links for an event that has not been created yet.
+ *
+ * The links must use the slug exactly as the create call will save it
+ * (`slugify(event.slug)`, see `app/events/new/page.tsx`). An empty slug is
+ * saved as null, which leaves the event reachable only by its id, and that
+ * id doesn't exist until the event is saved. In that case there is no URL
+ * we can promise, so this returns null instead of guessing one.
+ *
+ * There is deliberately no separate judge link: every role joins from the
+ * event page and picks a role there (judges also enter the judge password).
+ */
+export function getWizardShareLinks(
+  baseUrl: string,
+  rawSlug: string
+): WizardShareLink[] | null {
+  const slug = slugify(rawSlug);
+  if (!slug) return null;
+
+  const eventUrl = `${baseUrl.replace(/\/+$/, "")}/events/${slug}`;
+  return [
+    {
+      label: "Event Page",
+      description:
+        "Everyone joins here. Participants, judges and mentors pick their role when they join.",
+      url: `${eventUrl}/overview`,
+    },
+    {
+      label: "Project Submission",
+      description:
+        "Takes participants straight to submitting their project (they sign in first).",
+      url: `${eventUrl}/submit`,
+    },
+  ];
+}
+
 function ShareTab({ event }: { event: WizardEventData }) {
   const [baseUrl, setBaseUrl] = useState(process.env.NEXT_PUBLIC_BASE_URL || "");
   const eventName = event.event_name || "Your Event";
-  const slug = event.slug || slugify(event.event_name || "your-event");
 
   useEffect(() => {
     if (!baseUrl && typeof window !== "undefined") {
@@ -116,23 +157,7 @@ function ShareTab({ event }: { event: WizardEventData }) {
     }
   }, [baseUrl]);
 
-  const links = [
-    {
-      label: "Event Page",
-      description: "Public event details page for anyone to view",
-      url: `${baseUrl}/${slug}/overview`,
-    },
-    {
-      label: "Participant Portal",
-      description: "Registration and project submission page",
-      url: `${baseUrl}/${slug}/submit`,
-    },
-    {
-      label: "Judge Dashboard",
-      description: "Judging interface for reviewing projects",
-      url: `${baseUrl}/${slug}/judge`,
-    },
-  ];
+  const links = getWizardShareLinks(baseUrl, event.slug);
 
   return (
     <div className="space-y-6">
@@ -154,11 +179,33 @@ function ShareTab({ event }: { event: WizardEventData }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {links.map((link) => (
-          <ShareCard key={link.label} {...link} />
-        ))}
-      </div>
+      {links ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {links.map((link) => (
+              <ShareCard key={link.label} {...link} />
+            ))}
+          </div>
+
+          <div className="flex items-start gap-3 rounded-xl bg-gray-50 px-4 py-3">
+            <Scale className="size-4 text-gray-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-gray-600">
+              Judges use the same event page link. After the event is saved,
+              set a judge password under Access → Role Passwords and share it
+              only with your judges, or invite them by email from the Judges
+              tab.
+            </p>
+          </div>
+        </>
+      ) : (
+        <div
+          className="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-600"
+          data-testid="share-links-unavailable"
+        >
+          Add a URL slug in Basic Info to get share links and QR codes now. You
+          can also find them on the event page after you save.
+        </div>
+      )}
     </div>
   );
 }

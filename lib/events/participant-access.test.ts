@@ -1,6 +1,7 @@
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 import {
   countReservedParticipantSeats,
+  isEventFullDbError,
   isParticipantSeatAvailable,
   joinParticipantEvent,
   releaseParticipantSeatReservation,
@@ -553,5 +554,18 @@ describe("joinParticipantEvent after withdrawing", () => {
       status: "error",
       httpStatus: 500,
     });
+  });
+});
+
+describe("isEventFullDbError", () => {
+  it("recognises the database capacity guards' SQLSTATE", () => {
+    expect(isEventFullDbError({ code: "45000" })).toBe(true);
+  });
+
+  it("does not treat other errors, or no error, as a full event", () => {
+    expect(isEventFullDbError({ code: "23505" })).toBe(false);
+    expect(isEventFullDbError({ code: null })).toBe(false);
+    expect(isEventFullDbError(null)).toBe(false);
+    expect(isEventFullDbError(undefined)).toBe(false);
   });
 });

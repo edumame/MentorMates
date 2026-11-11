@@ -6,8 +6,12 @@ import { getAppBaseUrl } from "@/lib/utils/app-url";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
-import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
 import { EventRole } from "@/lib/types";
+import {
+  EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE,
+  isEventClosedForEnrollment,
+  isParticipantSeatAvailable,
+} from "@/lib/events/participant-access";
 
 interface CheckoutOptions {
   eventId?: string | null;
@@ -97,6 +101,19 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   let lineItems;
 
   if (options?.pricingTierId) {
+    // pricing_tiers stay readable whatever the event's state, so check the event
+    // itself with the join rule. RLS hides a taken-down draft from non-members,
+    // hence the null case.
+    const { data: event } = await supabase
+      .from("events")
+      .select("visibility, approval_status")
+      .eq("event_id", options.eventId)
+      .maybeSingle();
+
+    if (!event || isEventClosedForEnrollment(event)) {
+      throw new Error(EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE);
+    }
+
     // Query the pricing_tiers table for the specific tier
     const { data: pricingTierData } = await supabase
       .from("pricing_tiers")
@@ -153,7 +170,9 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     line_items: lineItems,
     mode: "payment",
     return_url: `${origin}/return?session_id={CHECKOUT_SESSION_ID}${options?.eventSlug ? `&eventSlug=${encodeURIComponent(options.eventSlug)}` : ""}`,
-    metadata: { product_type: "event", event_id: options?.eventId || "" },
+    // user_id + event_id let /return find the payment row even before the
+    // webhook records this session on it (newer checkouts share the row).
+    metadata: { product_type: "event", event_id: options?.eventId || "", user_id: user.id },
     // automatic_tax: { enabled: true },
     allow_promotion_codes: true,
   });

@@ -10,6 +10,8 @@ interface PaymentStatusWatcherProps {
   sessionId: string;
   eventId?: string;
   customerEmail?: string | null;
+  paymentUserId?: string;
+  paymentEventId?: string;
 }
 
 type PaymentStatus = 'processing' | 'paid' | 'canceled';
@@ -24,7 +26,13 @@ interface UserEventPayment {
   updated_at: string;
 }
 
-export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: PaymentStatusWatcherProps) {
+export function PaymentStatusWatcher({
+  sessionId,
+  eventId,
+  customerEmail,
+  paymentUserId,
+  paymentEventId,
+}: PaymentStatusWatcherProps) {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('processing');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +47,13 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
     const setupRealtimeSubscription = async () => {
       try {
         // First, fetch the current payment record
-        const { data: payment, error: fetchError } = await supabase
-          .from('user_event_payments')
-          .select('*')
-          .eq('stripe_session_id', sessionId)
-          .single();
+        // A newer checkout may hold the row until the webhook records this
+        // session, so prefer the user and event the session was created for.
+        const paymentQuery = supabase.from('user_event_payments').select('*');
+        const { data: payment, error: fetchError } = await (paymentUserId && paymentEventId
+          ? paymentQuery.eq('user_id', paymentUserId).eq('event_id', paymentEventId)
+          : paymentQuery.eq('stripe_session_id', sessionId)
+        ).single();
 
         if (fetchError) {
           setError('Failed to fetch payment status');
@@ -137,7 +147,7 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
         clearTimeout(processingTimer);
       }
     };
-  }, [sessionId, remountKey, retryCount]); // Include remountKey in dependencies to trigger remount
+  }, [sessionId, paymentUserId, paymentEventId, remountKey, retryCount]); // Include remountKey in dependencies to trigger remount
 
   // Show loading state while fetching payment record
   if (isLoading) {

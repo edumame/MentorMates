@@ -6,7 +6,11 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
+import {
+  EVENT_FULL_APPROVAL_MESSAGE,
+  isEventFullDbError,
+  isParticipantSeatAvailable,
+} from "@/lib/events/participant-access";
 import { z } from "zod";
 
 // GET: List pending/all approval requests
@@ -134,7 +138,7 @@ export async function POST(request: NextRequest) {
       }))
     ) {
       return NextResponse.json(
-        { error: "Event is at full capacity. Cannot approve more participants." },
+        { error: EVENT_FULL_APPROVAL_MESSAGE },
         { status: 409 }
       );
     }
@@ -153,6 +157,15 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", request_id);
+
+    // enforce_paid_participant_seat_hold: another approval took the last seat
+    // after the check above.
+    if (isEventFullDbError(updateError)) {
+      return NextResponse.json(
+        { error: EVENT_FULL_APPROVAL_MESSAGE },
+        { status: 409 }
+      );
+    }
 
     if (updateError) {
       return NextResponse.json(

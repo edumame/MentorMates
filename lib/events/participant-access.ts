@@ -30,6 +30,23 @@ interface JoinParticipantEventOptions {
   channel: "web" | "agent";
 }
 
+/**
+ * SQLSTATE raised by the database capacity guards: enforce_participant_capacity
+ * (participant role insert) and enforce_paid_participant_seat_hold (approving a
+ * paid participant request). Both take the event row lock, so this is what a
+ * request that lost a race for the last seat gets back.
+ */
+export const EVENT_FULL_DB_ERROR_CODE = "45000";
+
+export const EVENT_FULL_APPROVAL_MESSAGE =
+  "Event is at full capacity. Cannot approve more participants.";
+
+export function isEventFullDbError(
+  error: { code?: string | null } | null | undefined,
+): boolean {
+  return error?.code === EVENT_FULL_DB_ERROR_CODE;
+}
+
 // Matches PostgREST's default row cap, so a full page means there may be more.
 const SEAT_ROW_PAGE_SIZE = 1000;
 
@@ -218,6 +235,27 @@ async function findPaidPayment(
     } | null>();
 }
 
+export const EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE =
+  "This event is not open for enrollment.";
+
+/**
+ * Private events are intentionally usable before public-listing approval.
+ * Draft/rejected events, unapproved public listings and archived (read-only,
+ * XL-001) events are not open enrollment. Shared by the web and agent joins
+ * and by checkout, so nobody is charged for an event they could not join.
+ */
+export function isEventClosedForEnrollment(event: {
+  visibility: string | null;
+  approval_status: string | null;
+}) {
+  return (
+    event.visibility === EventVisibility.Draft ||
+    event.visibility === EventVisibility.Archived ||
+    event.approval_status === "rejected" ||
+    (event.visibility === EventVisibility.Public && event.approval_status !== "approved")
+  );
+}
+
 function failure(
   httpStatus: number,
   payload: Record<string, unknown>,
@@ -291,13 +329,8 @@ export async function joinParticipantEvent(
     return failure(404, { error: "Event not found" });
   }
 
-  // Private events are intentionally usable before public-listing approval.
-  // Draft/rejected events, unapproved public listings and archived (read-only,
-  // XL-001) events are not open enrollment. Shared by the web and agent joins.
-  if (event.visibility === EventVisibility.Draft || event.visibility === EventVisibility.Archived ||
-      event.approval_status === "rejected" ||
-      (event.visibility === EventVisibility.Public && event.approval_status !== "approved")) {
-    return failure(403, { error: "This event is not open for enrollment." });
+  if (isEventClosedForEnrollment(event)) {
+    return failure(403, { error: EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE });
   }
 
   if (channel === "agent" && event.paid) {
@@ -515,7 +548,7 @@ export async function joinParticipantEvent(
 
   if (roleError) {
     if (roleError.code === "23505") return failure(409, { error: "You already have a role in this event" });
-    if (roleError.code === "45000") {
+    if (isEventFullDbError(roleError)) {
       return eventFullFailure(supabase, event.paid, eventId, userId);
     }
     return failure(500, { error: "Failed to join event" });
