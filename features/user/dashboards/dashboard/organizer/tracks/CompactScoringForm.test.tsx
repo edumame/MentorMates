@@ -260,15 +260,12 @@ describe("CompactScoringForm", () => {
     const onSave = jest.fn();
 
     render(
-      <CompactScoringForm
+      <ControlledForm
         initialConfig={{
           ...multiRoundConfig,
           rounds: [{ round_number: 1, name: "Only Round" }],
         }}
         onSave={onSave}
-        isArchived={false}
-        eventId="event-1"
-        onTrackDeleted={jest.fn()}
       />
     );
 
