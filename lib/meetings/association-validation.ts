@@ -1,7 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { TRPCError } from "@trpc/server";
 
-/** The database also enforces these rules on direct client writes in stage 2. */
+/**
+ * Checked before any Stream side effect. The database repeats this check on
+ * every client write (202611110401_meeting_timeline_and_client_limits.sql).
+ */
 export async function validateMeetingAssociations(
   client: SupabaseClient,
   input: { agentId: string; eventId?: string; projectId?: string },
@@ -13,4 +16,15 @@ export async function validateMeetingAssociations(
   });
   if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to verify meeting associations" });
   if (data !== true) throw new TRPCError({ code: "FORBIDDEN", message: "Meeting associations are not permitted" });
+}
+
+/**
+ * A meeting write the database refused (association trigger, RLS or column
+ * grants: SQLSTATE 42501) is the caller's error, not a server failure.
+ */
+export function meetingWriteError(error: { code?: string; message?: string }) {
+  if (error.code === "42501") {
+    return new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to save this meeting" });
+  }
+  return new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to save meeting" });
 }

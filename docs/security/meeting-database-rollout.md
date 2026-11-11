@@ -1,53 +1,49 @@
 # Meeting database boundary rollout
 
-The repository contains two staged migrations and a reduced-fixture PostgreSQL integration test. They have been tested in an isolated PostgreSQL 16.15 container. **No deployed Supabase migration or production schema verification is claimed.**
+[202611110401_meeting_timeline_and_client_limits.sql](../../supabase/migrations/202611110401_meeting_timeline_and_client_limits.sql) builds on two migrations already in `main`:
 
-## Required deployment sequence
+- [202611030002_restrict_meeting_agent_reads.sql](../../supabase/migrations/202611030002_restrict_meeting_agent_reads.sql) dropped public meeting reads. Its replacement policy still let project teammates and event judges read full rows, including transcript URLs and summaries.
+- [202611060401_protect_meeting_provider_urls.sql](../../supabase/migrations/202611060401_protect_meeting_provider_urls.sql) stops clients forging `transcript_url`, `recording_url` and `provisioning_failed`. This migration keeps that trigger.
 
-Do not run an undifferentiated `supabase db push` that applies both migrations before the application consumer is deployed. File order alone cannot provide the required application deployment between stages. Record each staged application through the deployment process and keep the target Supabase migration history synchronized, so a later routine migration run does not mistakenly replay an already applied stage. Do not mark a stage applied before it has executed successfully.
+## What changes
 
-1. Inspect the target schema, existing meeting policies, table and column grants, role memberships, triggers, and callable SECURITY DEFINER functions through the authorized database deployment process. Inventory mismatched meeting/project/event associations. Do not automatically rewrite historical records.
-2. Apply only [202610200002_meeting_timeline_projection.sql](../../supabase/migrations/202610200002_meeting_timeline_projection.sql). This additive stage provides the authorized fixed-column `project_meeting_timeline` projection, the full-row access helper, and `meeting_associations_allowed`, which create/update handlers must call before Stream work. Verify both the timeline and association RPCs as an authorized user before proceeding.
-3. Deploy the application consumer that reads this RPC, uses its `can_view_details` result for detail links, and writes only permitted meeting metadata. Verify owner editing, project timeline, organizer score views, and server processing. The public project route currently has no timeline; this change does not add one.
-4. Only after the consumer is live, apply [202610200003_restrict_meetings.sql](../../supabase/migrations/202610200003_restrict_meetings.sql). This removes broad meeting policies and client table/column grants, grants limited writable metadata, enforces association consistency, and restricts the historical auto-conversation definer RPC. Unexpected meeting policy names cause the transaction to fail before changes are made; investigate rather than remove that check.
-5. Verify anonymous denial, teammate metadata-only timeline, owner and authorized event management access, safe metadata creation/editing, service processing updates, and automatic role-trigger conversations on the deployed environment. Review effective privileges, including inherited roles, rather than checking policy text alone.
+- **Full rows.** The policy `Owners and event staff can read meetings` replaces `Owners, teammates and event staff can read meetings`. Only the meeting owner and the people who manage its event can read full rows: the event owner, event organizers, the event `admin` role, and platform admins for event meetings. This matches `meetings.getOne` and `requireMeetingAccess`.
+- **Timeline.** `project_meeting_timeline(project_id)` is a SECURITY DEFINER function with a fixed column list: id, name, status, start and end times, created time, score and `can_view_details`. It returns the rows the old policy showed (owner, event staff, judges of the meeting's event, project members), but never transcript URLs, recording URLs, summaries or category scores. Meetings whose event differs from the project's event are left out.
+- **Client writes.** `authenticated` can insert only `name, user_id, agent_id, event_id, project_id` and update only `name, agent_id, event_id, project_id`. Status, timestamps, summary, scores and ids are written by the server (service role). Table grants and old column grants are both revoked.
+- **Associations.** `meeting_associations_allowed(agent, event, project)` and the `validate_meeting_client_associations` trigger require the agent to be enabled and to belong to the event (directly or through `agent_events`). The caller must be in or manage the event, and the project must be in the same event with the caller on its team. Renames skip this check, so meetings whose agent was later disabled can still be renamed. Service-role and SECURITY DEFINER writes skip it too.
+- **Auto conversations.** `create_auto_conversations_for_event_role` can no longer be called by `anon` or `authenticated`, since it inserts meetings for any user id. The `user_event_roles` trigger still creates TODO conversations.
 
-The restrictive protection is not active until the restrictive migration in step 4 is actually installed. If a target cannot be inspected or these stages cannot be separated, keep deployment pending. No application fallback should restore broad full-row reads. Roll back application changes only to a version compatible with the additive projection; do not restore public SELECT as a rollback shortcut.
+## Deployment order
 
-## Interim read policy
+1. Apply the migration to production.
+2. Then merge and deploy the app.
 
-[202611030002_restrict_meeting_agent_reads.sql](../../supabase/migrations/202611030002_restrict_meeting_agent_reads.sql) closes anonymous meeting reads before this rollout, using the policy `Owners, teammates and event staff can read meetings`. That policy allows full-row teammate and judge reads, so it must not remain once this boundary is active. Step 4 drops it. [202611030003_remove_interim_meeting_read_policy.sql](../../supabase/migrations/202611030003_remove_interim_meeting_read_policy.sql) drops it for databases migrated in filename order, where the interim migration runs after step 4, and does nothing if `meetings_read_authorized` doesn't exist yet.
+The migration is safe to apply before the app deploy. The previous app writes only the granted columns, and readers that lose rows get fewer rows, not errors. The new app is **not** safe before the migration, because it calls `project_meeting_timeline` and `meeting_associations_allowed`. Without them, the project timeline shows an error and creating or re-linking a meeting fails with "Unable to verify meeting associations".
 
-Judges lose full-row meeting reads under this boundary unless they are also event organizers. Confirm the agent scores on the organizer scores page before activating it.
+After applying, check in production:
 
-## Real database tests
+- A teammate's or judge's project page shows the timeline without a "View" link.
+- The meeting owner can still open `/learn/<id>`.
+- Organizers still see agent scores on the event's scores tab.
+- Creating a meeting from `/learn` still works.
 
-From the repository root, with Docker and Python 3 installed:
+## Tests
 
 ```sh
 python3 scripts/test_meeting_database.py
 ```
 
-The wrapper accepts no existing-container, database URL, or repository arguments. It pulls PostgreSQL 16.15 with a separate cold-pull timeout, creates a random container with `--network none`, tmpfs data, and no published ports, waits for the final TCP server, then removes the container in `finally`. It never connects to a deployed database.
+This runs in a disposable PostgreSQL 16.15 container with no network and tmpfs storage, and never touches a deployed database. It applies the real `main` migrations that shape meetings access (agents, meetings, project RLS, auto conversations, agent_events, `202611030002`, `202611060401`, `202611091101`) on a reduced fixture. It confirms the teammate/judge full-row read before the migration. Then it applies `202611110401` twice and checks:
 
-The internal test engine and synthetic schema/data live in [scripts/tests/meeting_database](../../scripts/tests/meeting_database). Tests read the two actual checked-in migrations above, plus the actual historical agents, meetings, project-policy and automatic-conversation migrations. There are no duplicate copies of the migrations in the fixtures. The synthetic fixture supplies only their required dependencies and test identities; it is not a complete schema bootstrap or production snapshot.
+- the full-row read matrix and the timeline matrix;
+- denied columns and stale grants;
+- association rules;
+- update and delete filtering;
+- that service-role processing writes still work, and that 16 concurrent claims have exactly one winner;
+- the auto-conversation ACL and the real role trigger.
 
-The `meeting-database` job in [validation.yml](../../.github/workflows/validation.yml) runs the same wrapper separately from unit/build and scraper quota checks. Assertions cover:
+It runs in the `scraper-quota` job in [validation.yml](../../.github/workflows/validation.yml).
 
-- Anonymous, missing identity, owner, teammate, event owner/organizer/admin, platform admin, wrong-event and outsider visibility; public/private/standalone timelines and fixed columns.
-- Spoofed owners and server-owned fields rejected on client INSERT/UPDATE with SQLSTATE 42501; table and stale-column grants removed.
-- Agent and project association validity, including global, primary-event, junction, disabled/missing, null-enabled and caller-owned agent cases.
-- Legacy name-only edits, safe reassociation, owner/nonowner update/delete filtering, and service-owned processing writes.
-- Exactly one winner across 16 concurrent conditional processing claims.
-- Repeat-safe restrictive migration and unexpected-policy preflight preserving existing state.
-- Direct client calls to the historical auto-conversation definer RPC denied, while the actual role trigger and service retry retain correct behavior without duplicate conversations.
+## Limits
 
-## Limits and compatibility
-
-The full-row policy permits the meeting owner, or authorized management of its associated event. Platform administrators do not thereby gain access to unrelated standalone meetings. The timeline exposes selected metadata only; it excludes transcripts, recording URLs and summaries. Meetings with contradictory project/event associations are excluded from that projection.
-
-Association checks intentionally require write provenance rather than merely public project readability. Existing caller-owned event agents remain usable without an explicit event; explicit contradictory event selection is rejected unless an agent-event association permits it. `enabled = false` rejects a new association; legacy name-only edits do not revalidate a disabled agent.
-
-Trusted server/database roles still write processing fields and retain the historical role-trigger behavior. Tests do not prove that every definer function, inherited role, default, or trigger in a deployed environment matches this reduced fixture; the predeployment inspection remains necessary.
-
-Direct client inserts using permitted columns can still bypass application-only session-cap checks. This change does not claim an end-to-end billing quota or complete Stream/chat privacy protection. Those require separate controls.
+Direct client inserts with the permitted columns still skip the app-only session-cap check. Stream video/chat authorization is a separate boundary.

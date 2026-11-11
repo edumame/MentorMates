@@ -7,7 +7,7 @@ import z from "zod";
 import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
-import { validateMeetingAssociations } from "@/lib/meetings/association-validation";
+import { meetingWriteError, validateMeetingAssociations } from "@/lib/meetings/association-validation";
 import { streamChat } from "@/lib/stream-chat";
 import { requireMeetingAccess } from "@/lib/meetings/access";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -157,7 +157,7 @@ export const meetingsRouter = createTRPCRouter({
                 project_id: input.projectId || null,
             }).select().limit(1);
 
-        if (insertError) throw insertError;
+        if (insertError) throw meetingWriteError(insertError);
         const createdMeeting = createdRows?.[0];
 
         if (!createdMeeting) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Meeting creation failed' });
@@ -442,7 +442,7 @@ export const meetingsRouter = createTRPCRouter({
             project_id: projectId || null,
         };
         const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id, user_id: ctx.auth.user.id }).select();
-        if (error) throw error;
+        if (error) throw meetingWriteError(error);
         const updatedMeeting = data?.[0];
         if (!updatedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
         return updatedMeeting;

@@ -4,7 +4,7 @@ import type { MeetingGetOne } from "../../types";
 import { supabase } from "@/lib/supabase";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
-jest.mock("@/lib/supabase", () => ({ supabase: { from: jest.fn() } }));
+jest.mock("@/lib/supabase", () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
 jest.mock("@/lib/hooks/use-toast", () => ({ toast: jest.fn() }));
 jest.mock("@/features/user/authentication/auth/AuthContext", () => {
   const session = { user: { id: "user", email: "owner@example.test" } };
@@ -40,14 +40,20 @@ const records = [
 let projectFilters: Array<[string, unknown]>;
 beforeEach(() => {
   jest.clearAllMocks(); projectFilters = []; mockAgents = [];
+  // my_project_ids returns the caller's projects, narrowed to one event when given.
+  (supabase.rpc as jest.Mock).mockImplementation(async (_name, args: { p_event_id?: string }) => ({
+    data: records.filter(project => !args?.p_event_id || project.event_id === args.p_event_id).map(project => project.id),
+    error: null,
+  }));
   (supabase.from as jest.Mock).mockImplementation(table => {
-    let filter: unknown = undefined;
+    let rows: Array<Record<string, unknown>> = table === "projects" ? records : [];
     const query: Record<string, jest.Mock> = {};
     query.select = jest.fn(() => query);
-    query.eq = jest.fn((key, value) => { if (table === "projects") { filter = value; projectFilters.push([key, value]); } return query; });
-    query.is = jest.fn((key, value) => { filter = value; projectFilters.push([key, value]); return query; });
+    query.eq = jest.fn(() => query);
+    query.in = jest.fn((key, values: string[]) => { rows = rows.filter(row => values.includes(String(row[key]))); return query; });
+    query.is = jest.fn((key, value) => { projectFilters.push([key, value]); rows = rows.filter(row => row[key] === value); return query; });
     query.then = jest.fn(resolve => Promise.resolve({ data: table === "projects"
-      ? records.filter(project => filter === undefined || project.event_id === filter)
+      ? rows
       : [{ events: { event_id: eventId, event_name: "Event" } }], error: null }).then(resolve));
     return query;
   });

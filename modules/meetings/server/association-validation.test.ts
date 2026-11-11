@@ -21,17 +21,20 @@ let allowed: unknown;
 let rpcError: unknown;
 let existing: unknown;
 let lookupError: unknown;
+let writeError: unknown;
 let create: jest.Mock;
 function caller() { return meetingsRouter.createCaller({ supabase: { rpc, from }, auth: { user: { id: "user", user_metadata: {} } } } as never); }
 beforeEach(() => {
-  jest.clearAllMocks(); eqs = []; allowed = true; rpcError = null; lookupError = null;
+  jest.clearAllMocks(); eqs = []; allowed = true; rpcError = null; lookupError = null; writeError = null;
   existing = { agent_id: agent, event_id: null, project_id: null };
   create = jest.fn().mockResolvedValue({});
   (streamVideo.video.call as jest.Mock).mockReturnValue({ create });
   (streamVideo.upsertUsers as jest.Mock).mockResolvedValue({});
   rpc = jest.fn(async (name) => ({ data: name === "is_admin_user" ? true : allowed, error: rpcError }));
   from = jest.fn(table => {
-    const result = { data: table === "agents" ? [{ id: agent, name: "Agent" }] : [{ id: meeting, agent_id: agent }], error: null };
+    const result = table === "agents"
+      ? { data: [{ id: agent, name: "Agent" }], error: null }
+      : { data: writeError ? null : [{ id: meeting, agent_id: agent }], error: writeError };
     const query: Record<string, jest.Mock> = {};
     for (const method of ["select","eq","match"]) query[method] = jest.fn(() => query);
     query.maybeSingle = jest.fn(async () => ({ data: existing, error: lookupError }));
@@ -84,4 +87,19 @@ it("permits a validated association change and keeps owner-scoped update", async
   expect(rpc).toHaveBeenCalledWith("meeting_associations_allowed", { p_agent: agent, p_event: event, p_project: null });
   expect(update).toHaveBeenCalledWith(expect.objectContaining({ event_id: event }));
   expect(streamVideo.video.call).not.toHaveBeenCalled();
+});
+
+// The database repeats the association check and the column limits.
+it.each([
+  ["create", () => caller().create(input)],
+  ["update", () => caller().update({ ...input, id: meeting, eventId: event })],
+])("maps a database permission refusal on %s to FORBIDDEN, not a 500", async (_label, run) => {
+  writeError = { code: "42501", message: "Invalid meeting association" };
+  await expect(run()).rejects.toMatchObject({ code: "FORBIDDEN", message: "You do not have permission to save this meeting" });
+  expect(create).not.toHaveBeenCalled();
+});
+it("hides other database write failures behind a generic error", async () => {
+  writeError = { code: "XX000", message: "private detail" };
+  await expect(caller().create(input)).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR", message: "Unable to save meeting" });
+  expect(create).not.toHaveBeenCalled();
 });
