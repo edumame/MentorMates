@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/lib/hooks/use-toast";
+import { safeExternalHref } from "@/lib/events/approval";
 import {
   Loader2,
   Star,
@@ -41,6 +42,13 @@ type EventOrganizer = {
   userId: string;
   displayName: string;
   email: string;
+};
+
+type EventSubmissionContact = {
+  submitter_email: string | null;
+  submitter_name: string | null;
+  organizer_affiliation: string | null;
+  expected_attendance: number | null;
 };
 
 type AdminEventItem = EventItem & {
@@ -135,23 +143,61 @@ export default function AdminPage() {
           event_type,
           featured,
           approval_status,
-          rejection_reason,
           created_at,
           external_url,
           external_redirect_enabled,
-          submitter_email,
-          submitter_name,
-          organizer_affiliation,
-          expected_attendance,
-          featured_requested
+          featured_requested,
+          event_submissions (
+            submitter_email,
+            submitter_name,
+            organizer_affiliation,
+            expected_attendance
+          )
         `
         )
         .order("created_at", { ascending: true });
 
       if (error) throw error;
 
-      const eventsData = (data || []) as AdminEventItem[];
+      // Submitter contact details live in the admin-only event_submissions
+      // table (PUB-003); flatten them onto the event for the existing UI.
+      const eventsData = ((data || []) as Array<
+        Omit<AdminEventItem, "organizers"> & {
+          event_submissions?: EventSubmissionContact | EventSubmissionContact[] | null;
+        }
+      >).map(({ event_submissions, ...event }) => {
+        const contact = Array.isArray(event_submissions)
+          ? event_submissions[0]
+          : event_submissions;
+        return {
+          ...event,
+          submitter_email: contact?.submitter_email ?? null,
+          submitter_name: contact?.submitter_name ?? null,
+          organizer_affiliation: contact?.organizer_affiliation ?? null,
+          expected_attendance: contact?.expected_attendance ?? null,
+          organizers: [],
+        } as AdminEventItem;
+      });
       const eventIds = eventsData.map((event) => event.event_id);
+
+      // rejection_reason is not column-readable for signed-in users (XL-014);
+      // admins (and event managers) read it through this RPC.
+      if (eventIds.length > 0) {
+        const { data: reasonRows, error: reasonsError } = await supabase.rpc(
+          "get_event_rejection_reasons",
+          { p_event_ids: eventIds }
+        );
+        if (reasonsError) throw reasonsError;
+        const reasonByEventId = new Map<string, string>(
+          ((reasonRows || []) as Array<{ event_id: string; rejection_reason: string }>).map(
+            (row) => [row.event_id, row.rejection_reason]
+          )
+        );
+        eventsData.forEach((event) => {
+          event.rejection_reason = reasonByEventId.get(event.event_id) ?? null;
+        });
+      }
+
       let organizersByEventId: Record<string, EventOrganizer[]> = {};
 
       if (eventIds.length > 0) {
@@ -276,6 +322,13 @@ export default function AdminPage() {
             const updated = { ...event, [field]: value };
             if (field === "approval_status" && value === ApprovalStatus.Approved) {
               updated.visibility = EventVisibility.Public;
+            }
+            if (
+              field === "approval_status" &&
+              value === ApprovalStatus.Rejected &&
+              updated.visibility === EventVisibility.Public
+            ) {
+              updated.visibility = EventVisibility.Draft;
             }
             if (field === "approval_status" && value === ApprovalStatus.Rejected && rejectionReason) {
               (updated as EventItem & { rejection_reason?: string }).rejection_reason = rejectionReason;
@@ -636,14 +689,21 @@ export default function AdminPage() {
                                   External Link
                                 </label>
                                 <p className="mt-0.5">
-                                  <a
-                                    href={event.external_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline break-all"
-                                  >
-                                    {event.external_url}
-                                  </a>
+                                  {/* Only http(s) URLs become links (PUB-001). */}
+                                  {safeExternalHref(event.external_url) ? (
+                                    <a
+                                      href={safeExternalHref(event.external_url)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline break-all"
+                                    >
+                                      {event.external_url}
+                                    </a>
+                                  ) : (
+                                    <span className="break-all text-red-700">
+                                      {event.external_url} (not an http(s) link)
+                                    </span>
+                                  )}
                                 </p>
                               </div>
                             )}
@@ -872,16 +932,6 @@ export default function AdminPage() {
                                           ...prev,
                                           [event.event_id]: reason,
                                         }));
-                                        
-                                        // If status is already rejected, update immediately
-                                        if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
-                                          updateEventStatus(
-                                            event.event_id,
-                                            "approval_status",
-                                            ApprovalStatus.Rejected,
-                                            reason
-                                          );
-                                        }
                                       }}
                                       disabled={updatingEventId === event.event_id}
                                       className="min-h-[100px]"
@@ -1524,16 +1574,6 @@ export default function AdminPage() {
                                                       ...prev,
                                                       [event.event_id]: reason,
                                                     }));
-                                                    
-                                                    // If status is already rejected, update immediately
-                                                    if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
-                                                      updateEventStatus(
-                                                        event.event_id,
-                                                        "approval_status",
-                                                        ApprovalStatus.Rejected,
-                                                        reason
-                                                      );
-                                                    }
                                                   }}
                                                   disabled={updatingEventId === event.event_id}
                                                   className="min-h-[100px]"

@@ -14,11 +14,13 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/lib/hooks/use-toast";
 import { createClient } from "@/app/utils/supabase/client";
 import { cn } from "@/lib/utils";
 import type { MentorAvailabilityWithBookings } from "@/lib/types/mentor-booking";
+import { defaultSlotWindow, formatSlotRange } from "./utils";
 
 function padDateTimePart(value: number): string {
   return value.toString().padStart(2, "0");
@@ -56,15 +58,16 @@ async function getSubmissionWindowDefaults(eventId: string) {
     throw error;
   }
 
+  // A one-hour slot at the next full hour (or the window start), not the
+  // whole multi-day submission window (MENT-003).
+  const suggested = defaultSlotWindow({
+    start: data?.submission_time_start,
+    end: data?.submission_time_cutoff,
+  });
   return {
-    start:
-      data?.submission_time_start
-        ? toInputValue(data.submission_time_start)
-        : "",
-    end:
-      data?.submission_time_cutoff
-        ? toInputValue(data.submission_time_cutoff)
-        : "",
+    start: toInputValue(suggested.start.toISOString()),
+    end: toInputValue(suggested.end.toISOString()),
+    fromEventWindow: Boolean(data?.submission_time_start),
   };
 }
 
@@ -89,7 +92,9 @@ export function MentorAvailabilityManager({
   const [maxBookings, setMaxBookings] = useState(1);
   const [usingSubmissionWindowDefaults, setUsingSubmissionWindowDefaults] =
     useState(false);
-  const [slotToDelete, setSlotToDelete] = useState<string | null>(null);
+  const [slotToDelete, setSlotToDelete] =
+    useState<MentorAvailabilityWithBookings | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -109,14 +114,9 @@ export function MentorAvailabilityManager({
           return;
         }
 
-        if (!defaults.start || !defaults.end) {
-          setUsingSubmissionWindowDefaults(false);
-          return;
-        }
-
         setStart((currentStart) => currentStart || defaults.start);
         setEnd((currentEnd) => currentEnd || defaults.end);
-        setUsingSubmissionWindowDefaults(true);
+        setUsingSubmissionWindowDefaults(defaults.fromEventWindow);
       } catch (error) {
         if (!cancelled) {
           console.error("Error loading submission window:", error);
@@ -219,11 +219,13 @@ export function MentorAvailabilityManager({
       return;
     }
 
-    const id = slotToDelete;
+    const { id, booking_count: bookingCount } = slotToDelete;
     setDeleting(true);
     try {
+      // The user has seen the booking count in the dialog, so confirm the
+      // cancellation explicitly; the API refuses booked slots otherwise.
       const res = await fetch(
-        `/api/events/${eventId}/mentor-availability?id=${id}`,
+        `/api/events/${eventId}/mentor-availability?id=${id}${bookingCount > 0 ? "&force=true" : ""}`,
         { method: "DELETE" }
       );
       const data = await res.json();
@@ -247,6 +249,30 @@ export function MentorAvailabilityManager({
     }
   }
 
+  async function cancelBooking(bookingId: string) {
+    setCancellingId(bookingId);
+    try {
+      const res = await fetch(
+        `/api/events/${eventId}/mentor-bookings?id=${bookingId}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to cancel booking");
+      }
+      toast({ title: "Booking cancelled" });
+      await load();
+    } catch (error) {
+      toast({
+        title: "Could not cancel booking",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
   return (
     <div className={cn("space-y-6", className)}>
       {showHeader && (
@@ -262,8 +288,8 @@ export function MentorAvailabilityManager({
         <form onSubmit={handleCreate} className="space-y-4">
           {usingSubmissionWindowDefaults && (
             <p className="text-sm text-muted-foreground">
-              Defaulted to the hackathon submission window. You can widen these
-              times if you want to offer more mentor availability.
+              Suggested a one-hour slot during the hackathon. Add several
+              shorter slots rather than one long one so more teams can book.
             </p>
           )}
 
@@ -292,15 +318,14 @@ export function MentorAvailabilityManager({
 
           <div className="max-w-xs space-y-1">
             <Label htmlFor="max">Max bookings</Label>
-            <Input
+            <NumberInput
               id="max"
-              type="number"
+              integer
               min={1}
               max={50}
               value={maxBookings}
-              onChange={(event) =>
-                setMaxBookings(Math.max(1, Number(event.target.value) || 1))
-              }
+              onValueChange={setMaxBookings}
+              required
             />
           </div>
 
@@ -327,23 +352,43 @@ export function MentorAvailabilityManager({
               >
                 <div className="text-sm">
                   <div className="font-medium">
-                    {new Date(slot.start_time).toLocaleString()}{" "}
-                    <span className="text-muted-foreground">→</span>{" "}
-                    {new Date(slot.end_time).toLocaleString()}
+                    {formatSlotRange(slot.start_time, slot.end_time)}
                   </div>
                   <div className="text-muted-foreground">
                     {slot.booking_count} / {slot.max_bookings} booked
                   </div>
 
-                  <div className="text-muted-foreground">
-                    with {slot.participants.map((p) => p.email).join(", ")}
-                  </div>
+                  {slot.participants.length > 0 && (
+                    <ul className="mt-1 space-y-1 text-muted-foreground">
+                      {slot.participants.map((participant) => (
+                        <li
+                          key={participant.booking_id ?? participant.email ?? participant.display_name}
+                          className="flex items-center gap-2"
+                        >
+                          <span>
+                            {participant.display_name?.trim() || participant.email || "Participant"}
+                          </span>
+                          {participant.booking_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2"
+                              disabled={cancellingId === participant.booking_id}
+                              onClick={() => void cancelBooking(participant.booking_id!)}
+                            >
+                              {cancellingId === participant.booking_id ? "Cancelling..." : "Cancel booking"}
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => setSlotToDelete(slot.id)}
+                  onClick={() => setSlotToDelete(slot)}
                 >
                   Delete
                 </Button>
@@ -365,7 +410,9 @@ export function MentorAvailabilityManager({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this slot?</AlertDialogTitle>
             <AlertDialogDescription>
-              Any bookings on it will also be removed. This cannot be undone.
+              {slotToDelete && slotToDelete.booking_count > 0
+                ? `${slotToDelete.booking_count} participant${slotToDelete.booking_count === 1 ? " has" : "s have"} booked this slot. Their booking${slotToDelete.booking_count === 1 ? "" : "s"} will be cancelled. This cannot be undone.`
+                : "This cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

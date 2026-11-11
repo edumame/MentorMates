@@ -47,11 +47,41 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test scraper quota in disposable PostgreSQL
         run: python3 scripts/test_scraper_quota.py
+      - name: Test event role policies in disposable PostgreSQL
+        run: python3 scripts/test_event_role_rls.py
+      - name: Test meeting and agent read policies in disposable PostgreSQL
+        run: python3 scripts/test_meeting_agent_rls.py
+      - name: Test admission hardening and capacity in disposable PostgreSQL
+        run: python3 scripts/test_admission_security.py
+      - name: Test atomic voting, booking and project membership
+        run: python3 scripts/test_atomic_flows.py
+      - name: Test meeting provider field controls
+        run: python3 scripts/test_meeting_provider_controls.py
+      - name: Test payment fulfillment and chat retry controls
+        run: python3 scripts/test_payment_fulfillment.py
+      - name: Test trusted paid-ticket claims
+        run: python3 scripts/test_ticket_claim.py
+      - name: Test project event move guard for round advancements
+        run: python3 scripts/test_project_event_awards.py
+      - name: Test auto conversations for linked agents in disposable PostgreSQL
+        run: python3 scripts/test_auto_conversations_linked_agents.py
+      - name: Test internal API reservation in disposable PostgreSQL
+        run: python3 scripts/test_internal_api_reservation.py
+      - name: Test meeting_screen_context RLS in disposable PostgreSQL
+        run: python3 scripts/test_meeting_screen_context_rls.py
 
-  project-assignment-role-cleanup:
+  promo-code-view:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Test project assignment role cleanup in disposable PostgreSQL
-        run: python3 scripts/test_project_assignment_role_cleanup.py
+      - name: Test promo code view removal in disposable PostgreSQL
+        run: python3 scripts/test_coupons_with_codes_view.py
+
+  agent-global-restriction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test global agent restriction in disposable PostgreSQL
+        run: python3 scripts/test_agent_global_restriction.py

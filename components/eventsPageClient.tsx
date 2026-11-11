@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { EventRole } from "@/lib/types";
+import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
@@ -19,6 +19,7 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/config/constants";
 type EventsPageClientProps = {
   eventsList: EventWithRole[];
   initialIsAuthenticated: boolean;
+  isGlobalAdmin?: boolean;
 };
 
 type TabKey = "discover" | "attended" | "hosting";
@@ -59,6 +60,19 @@ const DATE_BUCKET_LABEL: Record<DateBucket, string> = {
 
 const DATE_ORDER: DateBucket[] = ["today", "tomorrow", "thisWeek", "nextWeek", "later", "past"];
 
+/** Search matches the event name or its location (PUB-018: host is not part of listing data). */
+export function matchesEventSearch(
+  event: { event_name: string; location?: string | null },
+  searchTerm: string
+) {
+  const term = searchTerm.trim().toLowerCase();
+  if (!term) return true;
+  return (
+    event.event_name.toLowerCase().includes(term) ||
+    (event.location ?? "").toLowerCase().includes(term)
+  );
+}
+
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
@@ -87,6 +101,7 @@ function sameDay(a: Date, b: Date) {
 export function EventsPageClient({
   eventsList,
   initialIsAuthenticated,
+  isGlobalAdmin = false,
 }: EventsPageClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("discover");
@@ -128,19 +143,22 @@ export function EventsPageClient({
     };
   }, [isAuthenticated]);
 
-  const availableTypes = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of eventsList)
-      (e.event_type ?? []).forEach((t) => {
-        const lower = t.toLowerCase();
-        if (HIDDEN_EVENT_TYPES.has(lower)) return;
-        set.add(t);
-      });
-    return Array.from(set).sort();
-  }, [eventsList]);
+  // eventsList also holds the viewer's own draft, private and unapproved events
+  // for Hosting and Attended. Only global admins see those in Discover.
+  const discoverEvents = useMemo(
+    () =>
+      isGlobalAdmin
+        ? eventsList
+        : eventsList.filter(
+            (e) =>
+              e.visibility === EventVisibility.Public &&
+              e.approval_status === ApprovalStatus.Approved
+          ),
+    [eventsList, isGlobalAdmin]
+  );
 
   const tabFilteredEvents = useMemo(() => {
-    if (!isAuthenticated || activeTab === "discover") return eventsList;
+    if (!isAuthenticated || activeTab === "discover") return discoverEvents;
     if (activeTab === "hosting") {
       return eventsList.filter(
         (e) => e.userRole === EventRole.Organizer || e.userRole === EventRole.Admin
@@ -152,11 +170,24 @@ export function EventsPageClient({
         e.userRole === EventRole.Judge ||
         e.userRole === EventRole.Mentor
     );
-  }, [eventsList, activeTab, isAuthenticated]);
+  }, [eventsList, discoverEvents, activeTab, isAuthenticated]);
+
+  // Seeded with the selection so an active filter can still be unticked after
+  // switching to a tab that has no events of that type.
+  const availableTypes = useMemo(() => {
+    const set = new Set<string>(selectedTypes);
+    for (const e of tabFilteredEvents)
+      (e.event_type ?? []).forEach((t) => {
+        const lower = t.toLowerCase();
+        if (HIDDEN_EVENT_TYPES.has(lower)) return;
+        set.add(t);
+      });
+    return Array.from(set).sort();
+  }, [tabFilteredEvents, selectedTypes]);
 
   const filteredEvents = useMemo(() => {
     return tabFilteredEvents.filter((event) => {
-      if (searchTerm && !event.event_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      if (searchTerm && !matchesEventSearch(event, searchTerm)) {
         return false;
       }
       if (selectedLocations.size > 0) {
@@ -193,8 +224,10 @@ export function EventsPageClient({
       later: [],
       past: [],
     };
+    // Skip only the events shown in Featured; overflow stays in its date bucket.
+    const featuredIds = new Set(featuredEvents.map((e) => e.event_id));
     for (const e of filteredEvents) {
-      if (e.featured) continue;
+      if (featuredIds.has(e.event_id)) continue;
       buckets[bucketForDate(e.event_date)].push(e);
     }
     for (const k of Object.keys(buckets) as DateBucket[]) {
@@ -205,7 +238,7 @@ export function EventsPageClient({
       });
     }
     return buckets;
-  }, [filteredEvents]);
+  }, [filteredEvents, featuredEvents]);
 
   const datesWithEvents = useMemo(() => {
     const set = new Set<string>();
@@ -363,7 +396,8 @@ export function EventsPageClient({
             <div className="pb-3">
               <EventSearchInput
                 wrapperClassName="w-full"
-                placeholder="Search by event or host title"
+                placeholder="Search events by name or location"
+                aria-label="Search events by name or location"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />

@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getGuestInvitationEmailTemplate } from '@/lib/email_templates/guest-invitation';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
+import { reserveInviteQuota } from '@/lib/email/invite-quota';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
   // Fetch event details for the email
   const { data: eventData } = await supabase
     .from('events')
-    .select('event_name, slug')
+    .select('event_name')
     .eq('event_id', eventId)
     .single();
 
@@ -68,13 +70,17 @@ export async function POST(request: Request) {
 
   const inviterName = inviterProfile?.display_name || 'An event organizer';
 
+  // ORG-012: same per-inviter and per-event daily caps as the judge and
+  // organizer invites, so this route cannot be used to spam addresses.
+  const quotaResponse = await reserveInviteQuota(createSupabaseServiceClient(), auth.user.id, eventId);
+  if (quotaResponse) return quotaResponse;
+
   // Send invitation email
   try {
     const emailTemplate = getGuestInvitationEmailTemplate(
       eventData.event_name,
       eventId,
       inviterName,
-      eventData.slug,
       scheduleItem
     );
 

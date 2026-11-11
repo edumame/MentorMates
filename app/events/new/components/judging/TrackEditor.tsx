@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { NumberInput } from "@/components/ui/number-input";
 import {
   Plus,
   Trash2,
@@ -662,16 +663,13 @@ function CriterionEditor({
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-gray-500">Weight</label>
-          <input
-            type="number"
+          <NumberInput
+            unstyled
+            integer
             min={1}
             max={10}
             value={criterion.weight}
-            onChange={(e) =>
-              onChange({
-                weight: Math.max(1, parseInt(e.target.value, 10) || 1),
-              })
-            }
+            onValueChange={(weight) => onChange({ weight })}
             className="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm text-center outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           />
         </div>
@@ -693,23 +691,21 @@ function CriterionEditor({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <label className="text-xs text-gray-500">Score range:</label>
-          <input
-            type="number"
+          <NumberInput
+            unstyled
+            integer
             min={0}
             value={criterion.min}
-            onChange={(e) =>
-              onChange({ min: parseInt(e.target.value, 10) || 0 })
-            }
+            onValueChange={(min) => onChange({ min })}
             className="w-14 h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs text-center outline-none focus:border-[#4B89EF]"
           />
           <span className="text-xs text-gray-300">to</span>
-          <input
-            type="number"
+          <NumberInput
+            unstyled
+            integer
             min={1}
             value={criterion.max}
-            onChange={(e) =>
-              onChange({ max: parseInt(e.target.value, 10) || 10 })
-            }
+            onValueChange={(max) => onChange({ max })}
             className="w-14 h-7 rounded-md border border-gray-200 bg-white px-1.5 text-xs text-center outline-none focus:border-[#4B89EF]"
           />
         </div>

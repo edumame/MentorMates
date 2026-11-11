@@ -11,7 +11,7 @@ export default function TermsAndConditions() {
           {/* Page Title */}
           <h1 className="text-3xl font-bold text-center">Terms &amp; Conditions</h1>
           <p className="text-center text-sm text-gray-500 mt-2">
-            Last updated: {new Date().toLocaleDateString()}
+            Last updated: September 24, 2025
           </p>
 
           {/* 1. Introduction */}

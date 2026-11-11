@@ -1,3 +1,4 @@
+import { issueEventRoleInviteToken } from "@/lib/events/role-invitations";
 import { EventVisibility } from "@/lib/types";
 import {
   getEventRoleInvitationEmailTemplate,
@@ -39,31 +40,32 @@ export function getEventInviteAcceptanceUrl(
   appOrigin: string,
   eventSlugOrId: string,
   role: EventInviteRole,
-  email: string
+  email: string,
+  token: string
 ): string {
   const route = role === "participant" ? "accept-participant" : "accept-judge";
   const origin = appOrigin.replace(/\/$/, "");
   return `${origin}/events/${eventSlugOrId}/${route}?email=${encodeURIComponent(
     email
-  )}`;
+  )}&token=${encodeURIComponent(token)}`;
 }
 
 export function getOrganizerInviteAcceptanceUrl(
   appOrigin: string,
   eventSlugOrId: string,
-  email: string
+  email: string,
+  token: string
 ): string {
   const origin = appOrigin.replace(/\/$/, "");
   return `${origin}/events/${eventSlugOrId}/accept-organizer?email=${encodeURIComponent(
     email
-  )}`;
+  )}&token=${encodeURIComponent(token)}`;
 }
 
 export async function sendEventInviteEmails({
   appOrigin,
   eventId,
   eventName,
-  eventSlug,
   inviterName,
   visibility,
   participantInviteEmails,
@@ -74,7 +76,6 @@ export async function sendEventInviteEmails({
   appOrigin: string;
   eventId: string;
   eventName: string;
-  eventSlug?: string | null;
   inviterName: string;
   visibility: EventVisibility;
   participantInviteEmails?: string[];
@@ -116,18 +117,24 @@ export async function sendEventInviteEmails({
     return summary;
   }
 
-  const eventUrl = getEventOverviewUrl(appOrigin, eventSlug || eventId);
-  const eventSlugOrId = eventSlug || eventId;
+  // Emailed links outlive a slug rename, so they use the immutable event id.
+  const eventUrl = getEventOverviewUrl(appOrigin, eventId);
 
   const sendRoleEmails = async (role: EventInviteRole, emails: string[]) => {
     await Promise.all(
       emails.map(async (email) => {
         try {
+          const token = await issueEventRoleInviteToken({
+            email,
+            eventId,
+            role,
+          });
           const actionUrl = getEventInviteAcceptanceUrl(
             appOrigin,
-            eventSlugOrId,
+            eventId,
             role,
-            email
+            email,
+            token
           );
           const template = getEventRoleInvitationEmailTemplate({
             eventName,
@@ -166,7 +173,6 @@ export async function sendOrganizerInviteEmails({
   appOrigin,
   eventId,
   eventName,
-  eventSlug,
   inviterName,
   existingOrganizerEmails,
   newOrganizerEmails,
@@ -175,7 +181,6 @@ export async function sendOrganizerInviteEmails({
   appOrigin: string;
   eventId: string;
   eventName: string;
-  eventSlug?: string | null;
   inviterName: string;
   existingOrganizerEmails?: string[];
   newOrganizerEmails?: string[];
@@ -202,20 +207,39 @@ export async function sendOrganizerInviteEmails({
     return summary;
   }
 
-  const eventSlugOrId = eventSlug || eventId;
-  const eventUrl = getEventOverviewUrl(appOrigin, eventSlugOrId);
+  // Email links must be absolute. A missing or malformed deployment origin
+  // must fail delivery rather than send recipients a relative/broken URL.
+  try {
+    const origin = new URL(appOrigin.trim());
+    if (
+      !["http:", "https:"].includes(origin.protocol) ||
+      origin.username || origin.password || origin.pathname !== "/" ||
+      origin.search || origin.hash
+    ) throw new Error("Invalid application origin");
+    appOrigin = origin.origin;
+  } catch {
+    summary.failed.push(...normalizedExisting, ...normalizedNew);
+    return summary;
+  }
+
+  // Emailed links outlive a slug rename, so they use the immutable event id.
+  const eventUrl = getEventOverviewUrl(appOrigin, eventId);
 
   const sendOrganizerEmail = async (email: string, isNewUser: boolean) => {
     try {
-      const acceptUrl = isNewUser
-        ? getOrganizerInviteAcceptanceUrl(appOrigin, eventSlugOrId, email)
-        : undefined;
+      // Existing users also need the invitation entry page when signed out.
+      // Use the stable ID so a later slug change does not break emailed links.
+      const acceptUrl = getOrganizerInviteAcceptanceUrl(
+        appOrigin,
+        eventId,
+        email,
+        await issueEventRoleInviteToken({ email, eventId, role: "organizer" })
+      );
 
       const template = getOrganizerInvitationEmailTemplate(
         eventName,
         eventId,
         inviterName,
-        eventSlugOrId,
         isNewUser,
         acceptUrl,
         eventUrl

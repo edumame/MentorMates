@@ -42,3 +42,22 @@ describe("ProjectBoard public profile data", () => {
     expect(screen.queryByTitle("Team member 4")).not.toBeInTheDocument();
   });
 });
+
+describe("ProjectBoard server-resolved roster", () => {
+  it("labels teammates from team_members and never renders member emails", () => {
+    show({
+      ...project,
+      lead_email: undefined,
+      teammates: undefined,
+      team_members: [
+        { id: "u1", display_name: "Lead Person", avatar_url: null, affiliation: null, role: "lead" },
+        { id: "u2", display_name: "Ada Builder", avatar_url: null, affiliation: null, role: "member" },
+        { id: null, display_name: "Team member", avatar_url: null, affiliation: null, role: "member" },
+      ],
+    } as unknown as Project);
+    expect(screen.getByTitle("Ada Builder")).toBeInTheDocument();
+    expect(screen.getByTitle("Team member")).toBeInTheDocument();
+    expect(screen.queryByTitle("Lead Person")).not.toBeInTheDocument();
+    expect(document.body.innerHTML).not.toMatch(/@/);
+  });
+});

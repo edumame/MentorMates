@@ -75,6 +75,7 @@ export async function POST(req: Request) {
       amount_off,
       currency,
       duration,
+      duration_in_months,
       max_redemptions,
       redeem_by,
     } = await req.json();
@@ -105,6 +106,33 @@ export async function POST(req: Request) {
     if (amount_off && !currency) {
       return NextResponse.json(
         { error: "Currency is required when using amount_off" },
+        { status: 400 }
+      );
+    }
+
+    // Stripe rejects duration_in_months unless duration is "repeating", and the
+    // form keeps the value if the organizer switches away from "repeating".
+    const durationInMonths =
+      duration === "repeating" ? duration_in_months : undefined;
+
+    if (
+      duration === "repeating" &&
+      (!Number.isInteger(durationInMonths) || durationInMonths <= 0)
+    ) {
+      return NextResponse.json(
+        { error: "A whole number of months is required for repeating coupons" },
+        { status: 400 }
+      );
+    }
+
+    const redeemByDate = redeem_by ? new Date(redeem_by) : null;
+
+    if (
+      redeemByDate &&
+      (Number.isNaN(redeemByDate.getTime()) || redeemByDate <= new Date())
+    ) {
+      return NextResponse.json(
+        { error: "Expiration date must be a valid date in the future" },
         { status: 400 }
       );
     }
@@ -163,8 +191,11 @@ export async function POST(req: Request) {
       amount_off: amount_off || undefined,
       currency: currency || undefined,
       duration: duration,
+      duration_in_months: durationInMonths,
       max_redemptions: max_redemptions || undefined,
-      redeem_by: redeem_by || undefined,
+      redeem_by: redeemByDate
+        ? Math.floor(redeemByDate.getTime() / 1000)
+        : undefined,
       applies_to: {
         products: productIds,
       },
@@ -181,8 +212,9 @@ export async function POST(req: Request) {
         amount_off: amount_off || null,
         currency: currency || null,
         duration: duration,
+        duration_in_months: durationInMonths ?? null,
         max_redemptions: max_redemptions || null,
-        redeem_by: redeem_by ? new Date(redeem_by).toISOString() : null,
+        redeem_by: redeemByDate ? redeemByDate.toISOString() : null,
         created_by_user_id: user.user?.id,
       })
       .select()
@@ -215,6 +247,7 @@ export async function POST(req: Request) {
         amount_off: amount_off,
         currency: currency,
         duration: duration,
+        duration_in_months: durationInMonths,
         max_redemptions: max_redemptions,
         redeem_by: redeem_by,
         event_id: eventId,

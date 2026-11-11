@@ -5,6 +5,7 @@ import {
 import { initTRPC, TRPCError } from '@trpc/server';
 import type { User } from '@supabase/supabase-js';
 import { cache } from 'react';
+import { StreamNotConfiguredError } from '@/lib/stream-config';
 
 export const createTRPCContext = cache(async () => {
   /**
@@ -25,7 +26,23 @@ const t = initTRPC.create({
 // Base router and procedure helpers
 export const createTRPCRouter = t.router;
 export const createCallerFactory = t.createCallerFactory;
-export const baseProcedure = t.procedure;
+/**
+ * Optional providers (Stream video/chat) that are not configured surface as a
+ * typed PRECONDITION_FAILED instead of an opaque 500, so views can render an
+ * "unavailable" state.
+ */
+export const serviceAvailability = t.middleware(async ({ next }) => {
+  const result = await next();
+  if (!result.ok && result.error.cause instanceof StreamNotConfiguredError) {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: result.error.cause.message,
+      cause: result.error.cause,
+    });
+  }
+  return result;
+});
+export const baseProcedure = t.procedure.use(serviceAvailability);
 export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
   const supabase = await createSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
