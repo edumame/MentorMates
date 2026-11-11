@@ -72,15 +72,24 @@ export async function POST(request: Request) {
 
     // If projectId is null, we're unassigning all winners for this prize
     if (projectId === null) {
-      const { error: deleteError } = await supabase
+      const { data: removedWinners, error: deleteError } = await supabase
         .from("prize_winners")
         .delete()
-        .eq("prize_id", prizeId);
+        .eq("prize_id", prizeId)
+        .select("id");
 
       if (deleteError) {
         return NextResponse.json(
           { error: "Failed to unassign prize" },
           { status: 500 }
+        );
+      }
+
+      // RLS hides rows from delete without raising an error.
+      if (!removedWinners?.length) {
+        return NextResponse.json(
+          { error: "No winner was removed" },
+          { status: 404 }
         );
       }
 
@@ -215,16 +224,25 @@ export async function DELETE(request: Request) {
     }
 
     // Remove the specific winner
-    const { error: deleteError } = await supabase
+    const { data: removedWinners, error: deleteError } = await supabase
       .from("prize_winners")
       .delete()
       .eq("prize_id", prizeId)
-      .eq("project_id", projectId);
+      .eq("project_id", projectId)
+      .select("id");
 
     if (deleteError) {
       return NextResponse.json(
         { error: "Failed to remove winner" },
         { status: 500 }
+      );
+    }
+
+    // RLS hides rows from delete without raising an error.
+    if (!removedWinners?.length) {
+      return NextResponse.json(
+        { error: "No winner was removed" },
+        { status: 404 }
       );
     }
 

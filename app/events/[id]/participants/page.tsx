@@ -1,6 +1,4 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { UUID } from "crypto";
-import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import {
@@ -9,7 +7,9 @@ import {
 } from "@/components/events/participants-content";
 import { headers } from "next/headers";
 import { EventRole } from "@/lib/types";
+import { fetchAllEventUsers } from "@/features/user/dashboards/dashboard/organizer/participants/fetch-event-users";
 
+import { resolveEventRouteId } from "@/lib/events/resolve-event-route";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -20,13 +20,12 @@ const ALL_ROLES = [
   EventRole.Participant,
   EventRole.Mentor,
   EventRole.Judge,
-].join(",");
+];
 
 export default async function PublicParticipantsPage({ params }: PageProps) {
   const supabase = await createSupabaseClient();
   const { id } = await params;
 
-  const isUUID = isValidUUID(id);
 
   let eventQuery = supabase.from("events").select(`
     event_id,
@@ -40,11 +39,10 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     paid
   `);
 
-  if (isUUID) {
-    eventQuery = eventQuery.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    eventQuery = eventQuery.eq("slug", id);
-  }
+  // ORG-014: one shared rule resolves the param (event_id before slug).
+  const routeEventId = await resolveEventRouteId(supabase, id);
+  if (!routeEventId) notFound();
+  eventQuery = eventQuery.eq("event_id", routeEventId);
 
   const { data: eventData, error: eventError } = await eventQuery.single();
 
@@ -95,35 +93,29 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       (host ? `${protocol}://${host}` : "");
 
     if (baseUrl) {
-      const rolesParam = canViewMultipleRoles
-        ? ALL_ROLES
-        : EventRole.Participant;
-      const response = await fetch(
-        `${baseUrl}/api/events/${eventData.event_id}/users?roles=${rolesParam}&limit=500`,
-        {
-          cache: "no-store",
-          headers: {
-            cookie: requestHeaders.get("cookie") || "",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const payload = await response.json();
-        participantsList = (payload.users || []).map(
-          (u: {
-            user_id: UUID;
-            uid: UUID;
-            display_name: string | null;
-            role: EventRole;
-          }) => ({
-            uid: u.uid || u.user_id,
-            display_name: u.display_name,
-            role: u.role,
-          })
+      const roles = canViewMultipleRoles ? ALL_ROLES : [EventRole.Participant];
+      const cookie = requestHeaders.get("cookie") || "";
+      try {
+        // Page through every member (ORG-024): one limit=500 request silently
+        // dropped everyone past the first page. Server fetches need an
+        // absolute URL and the viewer's cookie.
+        const { users } = await fetchAllEventUsers(
+          eventData.event_id,
+          roles,
+          (input, init) =>
+            fetch(`${baseUrl}${String(input)}`, {
+              ...init,
+              cache: "no-store",
+              headers: { cookie },
+            })
         );
-      } else {
-        console.error("Error fetching participants via API route");
+        participantsList = users.map((u) => ({
+          uid: u.uid || u.user_id,
+          display_name: u.display_name,
+          role: u.role,
+        }));
+      } catch (error) {
+        console.error("Error fetching participants via API route:", error);
       }
     }
   }

@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { isPrizeFromEvent, type PrizeWithEvent } from "@/lib/projects/awards";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { ApprovalStatus, EventVisibility } from "@/lib/types";
 import { presentProfile, publicDisplayName, publicTeammateLabels } from "@/lib/users/profile-presentation";
+import { getTeamEmails, type TeamEmails } from "@/lib/projects/membership";
+import { fetchPublicTeamRosters } from "@/lib/projects/team-members";
+
+type ProfileProjectRow = {
+  id: string;
+  project_name: string | null;
+  project_description: string | null;
+  lead_name: string | null;
+  project_url: string | null;
+  cover_image_url: string | null;
+  event_id: string | null;
+  created_at: string | null;
+  submitted: boolean | null;
+  project_tracks: Array<{ event_tracks: Array<{ track_id: string; name: string }> | null }> | null;
+};
 
 export async function GET(
   request: NextRequest,
@@ -93,20 +109,35 @@ export async function GET(
       }
     }
 
-    // Profile email is editable; owner membership must use the verified auth identity.
-    const membershipEmail = isOwnProfile ? loggedInUser.user?.email : profile.email;
+    // Membership is resolved server-side from the profile owner's verified
+    // auth email (project_ids_for_user, service role). The project rows are
+    // then read with the caller's client, so projects RLS still decides which
+    // (private) projects this viewer may see, and only client-readable
+    // columns are selected (team emails are not readable by anon/auth roles).
+    const { data: memberRows, error: memberError } = await serviceSupabase.rpc(
+      "project_ids_for_user" as never,
+      { p_user_id: userId } as never
+    );
+    if (memberError) {
+      console.error("Error resolving profile projects:", memberError);
+      return NextResponse.json(
+        { error: "Failed to fetch projects" },
+        { status: 500 }
+      );
+    }
+    const memberProjectIds = ((memberRows ?? []) as Array<string | { project_ids_for_user: string }>).map(
+      (row) => (typeof row === "string" ? row : row.project_ids_for_user)
+    );
 
-    // Fetch projects where user is lead
-    const { data: leadProjects, error: leadError } = membershipEmail ? await supabase
-      .from("projects")
-      .select(
-        `
+    const { data: projectRows, error: projectsError } = memberProjectIds.length
+      ? await supabase
+          .from("projects")
+          .select(
+            `
         id,
         project_name,
         project_description,
         lead_name,
-        lead_email,
-        teammates,
         project_url,
         cover_image_url,
         event_id,
@@ -119,64 +150,49 @@ export async function GET(
         ),
         submitted
       `
-      )
-      .eq("lead_email", membershipEmail)
-      .or(fetchDraftProjects) : { data: [], error: null };
-
-    if (leadError) {
-      console.error("Error fetching lead projects:", leadError);
-      return NextResponse.json(
-        { error: "Failed to fetch lead projects" },
-        { status: 500 }
-      );
-    }
-
-    // Fetch projects where user is teammate
-    const { data: teamProjects, error: teamError } = membershipEmail ? await supabase
-      .from("projects")
-      .select(
-        `
-        id,
-        project_name,
-        project_description,
-        lead_name,
-        lead_email,
-        teammates,
-        project_url,
-        cover_image_url,
-        event_id,
-        created_at,
-        project_tracks (
-          event_tracks (
-            track_id,
-            name
           )
-        ),
-        submitted
-      `
-      )
-      .contains("teammates", [membershipEmail])
-      .or(fetchDraftProjects) : { data: [], error: null };
+          .in("id", memberProjectIds)
+          .or(fetchDraftProjects)
+      : { data: [], error: null };
 
-    if (teamError) {
-      console.error("Error fetching team projects:", teamError);
+    if (projectsError) {
+      console.error("Error fetching profile projects:", projectsError);
       return NextResponse.json(
-        { error: "Failed to fetch team projects" },
+        { error: "Failed to fetch projects" },
         { status: 500 }
       );
     }
+
+    // The owner sees their own teams' emails; everyone else sees generic
+    // labels (team size from the server-side roster, no emails).
+    const visibleIds = ((projectRows ?? []) as unknown as ProfileProjectRow[]).map((row) => row.id);
+    const [ownTeamEmails, rosters] = await Promise.all([
+      isOwnProfile
+        ? getTeamEmails(supabase, visibleIds)
+        : Promise.resolve(new Map<string, TeamEmails>()),
+      fetchPublicTeamRosters(visibleIds),
+    ]);
+    const profileProjects = ((projectRows ?? []) as unknown as ProfileProjectRow[]).map(
+      (project) => {
+        const emails = ownTeamEmails.get(project.id);
+        const teammateCount =
+          rosters.get(project.id)?.members.filter((member) => member.role === "member").length ?? 0;
+        return {
+          ...project,
+          lead_email: emails?.lead_email ?? null,
+          teammates: emails?.teammates ?? Array.from({ length: teammateCount }, () => ""),
+        };
+      }
+    );
 
     // Combine and deduplicate projects
-    const allProjects = [...(leadProjects || []), ...(teamProjects || [])]
+    const allProjects = profileProjects
       .filter(
         (project, index, self) =>
           index === self.findIndex((p) => p.id === project.id)
       )
       .map((project) => {
-        const canViewMemberIdentities = isOwnProfile && Boolean(membershipEmail) && (
-          project.lead_email === membershipEmail ||
-          (Array.isArray(project.teammates) && project.teammates.includes(membershipEmail!))
-        );
+        const canViewMemberIdentities = isOwnProfile && Boolean(project.lead_email);
         return {
         id: project.id,
         project_name: project.project_name,
@@ -270,13 +286,18 @@ export async function GET(
     // Fetch prizes for all projects
     if (allProjects.length > 0) {
       const projectIds = allProjects.map((p) => p.id);
-      const { data: prizesData, error: prizesError } = await supabase
+      // Service client: this page is public and lists projects whatever their
+      // event's visibility, but anonymous event_tracks RLS hides archived, test
+      // and demo events, which would drop real wins. projectIds are limited to
+      // projects the caller can read, and only ids leave this query.
+      const { data: prizesData, error: prizesError } = await serviceSupabase
         .from("prize_winners")
         .select(
           `
           id,
           prize_id,
-          project_id
+          project_id,
+          prizes ( event_tracks ( event_id ) )
           `
         )
         .in("project_id", projectIds);
@@ -289,15 +310,25 @@ export async function GET(
         );
       }
 
-      // Group prizes by project_id
+      // Group prizes by project_id, counting only prizes from the project's
+      // current event so status does not follow a project that changed event
+      const projectEventIds = new Map(allProjects.map((p) => [p.id, p.event_id]));
       const prizesByProject = (prizesData || []).reduce(
-        (acc, prize) => {
+        (acc, { prizes, ...prize }) => {
           const projectId = prize.project_id!;
+          if (
+            !isPrizeFromEvent(
+              prizes as unknown as PrizeWithEvent,
+              projectEventIds.get(projectId)
+            )
+          ) {
+            return acc;
+          }
           if (!acc[projectId]) acc[projectId] = [];
           acc[projectId].push(prize);
           return acc;
         },
-        {} as Record<string, typeof prizesData>
+        {} as Record<string, { id: string; prize_id: string | null; project_id: string | null }[]>
       );
 
       // Add prizes to projects

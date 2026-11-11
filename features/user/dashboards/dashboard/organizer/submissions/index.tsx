@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Papa from "papaparse";
+import { toSpreadsheetSafeCsv } from "@/lib/utils/csv";
 import { supabase } from "@/lib/supabase";
 import {
   Table,
@@ -91,8 +91,8 @@ interface ProjectData {
   }[];
   feedback: {
     feedback_text: string;
-    mentor_name: string;
-    mentor_email: string;
+    mentor_name: string | null;
+    mentor_id: string | null;
   }[];
   artifacts?: {
     kind: "project_link" | "video_link" | "additional_material";
@@ -127,6 +127,7 @@ export function SubmissionsTab({
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -312,6 +313,20 @@ export function SubmissionsTab({
     });
   };
 
+  // The realtime subscription filters on event_id, so DELETE events are not
+  // reliably delivered. Update local state directly after a successful delete.
+  const removeDeletedProjects = (projectIds: string[]) => {
+    const deletedIds = new Set(projectIds);
+
+    setProjects((current) =>
+      current.filter((project) => !deletedIds.has(project.id))
+    );
+    setSelectedProjects(
+      (current) =>
+        new Set(Array.from(current).filter((id) => !deletedIds.has(id)))
+    );
+  };
+
   const handleDeleteProject = async (projectId: string, projectName: string) => {
     setDeletingProjectId(projectId);
     try {
@@ -324,12 +339,12 @@ export function SubmissionsTab({
         throw new Error(data.error || "Failed to delete project");
       }
 
+      removeDeletedProjects([projectId]);
+
       toast({
         title: "Project deleted",
         description: `"${projectName}" has been deleted successfully.`,
       });
-
-      // The real-time subscription will handle updating the list
     } catch (error) {
       toast({
         title: "Error",
@@ -346,7 +361,7 @@ export function SubmissionsTab({
 
     setIsBulkDeleting(true);
     const projectIds = Array.from(selectedProjects);
-    let successCount = 0;
+    const deletedProjectIds: string[] = [];
     let errorCount = 0;
 
     for (const projectId of projectIds) {
@@ -356,7 +371,7 @@ export function SubmissionsTab({
         });
 
         if (response.ok) {
-          successCount++;
+          deletedProjectIds.push(projectId);
         } else {
           errorCount++;
         }
@@ -364,6 +379,9 @@ export function SubmissionsTab({
         errorCount++;
       }
     }
+
+    const successCount = deletedProjectIds.length;
+    removeDeletedProjects(deletedProjectIds);
 
     if (successCount > 0) {
       toast({
@@ -384,7 +402,7 @@ export function SubmissionsTab({
 
   const exportSubmissions = async () => {
     if (projects.length > 0) {
-      const csv = Papa.unparse(buildSubmissionExportRows(projects));
+      const csv = toSpreadsheetSafeCsv(buildSubmissionExportRows(projects));
 
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
@@ -396,6 +414,31 @@ export function SubmissionsTab({
   };
 
   const exportFeedback = async () => {
+    // feedback.mentor_email is no longer stored (lane A2, MENT-002); the
+    // mentor is identified by name, resolved from mentor_id when missing.
+    const mentorIdsWithoutName = Array.from(
+      new Set(
+        projects.flatMap((project) =>
+          (project.feedback ?? [])
+            .filter((fb) => !fb.mentor_name?.trim() && fb.mentor_id)
+            .map((fb) => fb.mentor_id as string)
+        )
+      )
+    );
+    const mentorNames = new Map<string, string>();
+    if (mentorIdsWithoutName.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from("user_profiles")
+        .select("uid, display_name")
+        .in("uid", mentorIdsWithoutName);
+      if (profilesError) {
+        console.error("Error loading mentor names:", profilesError);
+      }
+      (profiles ?? []).forEach((profile) => {
+        if (profile.display_name) mentorNames.set(profile.uid, profile.display_name);
+      });
+    }
+
     // Create a flattened array where each feedback gets its own row
     const feedbackRows = projects.flatMap((project) => {
       // If no feedback, do not include the project in the export
@@ -417,12 +460,14 @@ export function SubmissionsTab({
             .filter(Boolean)
             .join(", ") || "",
         "Feedback Text": fb.feedback_text,
-        "Mentor Name": fb.mentor_name,
-        "Mentor Email": fb.mentor_email,
+        "Mentor Name":
+          fb.mentor_name?.trim() ||
+          (fb.mentor_id ? mentorNames.get(fb.mentor_id) : undefined) ||
+          "",
       }));
     });
 
-    const csv = Papa.unparse(feedbackRows);
+    const csv = toSpreadsheetSafeCsv(feedbackRows);
 
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -434,6 +479,7 @@ export function SubmissionsTab({
 
   useEffect(() => {
     async function fetchProjects() {
+      setLoadError(false);
       try {
         const [projectsResponse, tracksResponse] = await Promise.all([
           fetch(`/api/projects?eventId=${eventId}`),
@@ -457,6 +503,7 @@ export function SubmissionsTab({
         setEventTracks(tracksResponse.data || []);
       } catch (error) {
         console.error("Error fetching projects:", error);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -516,6 +563,10 @@ export function SubmissionsTab({
     );
   }, [submissionFieldColumns]);
 
+  // After a failed load the list is empty or holds only realtime updates, so
+  // an export would look complete while missing submissions.
+  const exportDisabled = loading || loadError;
+
   return (
     <div className="w-full min-w-0 space-y-6">
       {showFieldsSettings && <SubmissionFieldsSettings eventId={eventId} />}
@@ -562,8 +613,8 @@ export function SubmissionsTab({
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-                <Button disabled={loading} onClick={exportSubmissions} className="shrink-0 whitespace-nowrap rounded-[12px]">Export Submissions</Button>
-                <Button disabled={loading} onClick={exportFeedback} variant="outline" className="shrink-0 whitespace-nowrap rounded-[12px]">
+                <Button disabled={exportDisabled} onClick={exportSubmissions} className="shrink-0 whitespace-nowrap rounded-[12px]">Export Submissions</Button>
+                <Button disabled={exportDisabled} onClick={exportFeedback} variant="outline" className="shrink-0 whitespace-nowrap rounded-[12px]">
                   Export Feedback
                 </Button>
                 <DropdownMenu>
@@ -607,6 +658,14 @@ export function SubmissionsTab({
 
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
+            ) : loadError ? (
+              <div
+                role="alert"
+                className="rounded-md border border-destructive/50 p-4 text-sm text-destructive"
+              >
+                <p className="font-medium">Failed to load submissions</p>
+                <p>This does not mean the event has no submissions. Reload the page to try again.</p>
+              </div>
             ) : (
               <div className="scroll-x-tabs w-full min-w-0 rounded-md border">
               <Table className="min-w-[720px]">

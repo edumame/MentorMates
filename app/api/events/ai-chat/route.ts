@@ -6,12 +6,23 @@ import {
   type ChatMessage,
   type EventLike,
 } from "@/lib/ai-chat";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : (null as unknown as OpenAI);
 
 export async function POST(req: NextRequest) {
+  const supabase = await createSupabaseClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
       { error: "OPENAI_API_KEY not configured on the server." },

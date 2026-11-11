@@ -1,10 +1,17 @@
 "use client";
+import { useProjectDetailLoader } from "@/features/projects/hooks/use-project-detail-loader";
+import { ProjectDetailTabs } from "@/features/projects/components/displays/ProjectDetailTabs";
+import { ProjectLoadError } from "@/features/projects/components/displays/ProjectLoadError";
 import { projectBackTarget } from "@/features/projects/utils/back-navigation";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import {
+  ProjectSubmittedToCard,
+  SUBMITTED_TO_EVENT_COLUMNS,
+} from "@/features/projects/components/displays/ProjectSubmittedToCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +20,6 @@ import {
   Calendar,
   Heart,
   Loader,
-  MapPin,
   ArrowUpRight,
   ArrowLeft,
   Video as VideoIcon,
@@ -24,7 +30,7 @@ import {
   MessageSquare,
   Lightbulb,
 } from "lucide-react";
-import FeedbackDisplay from "@/features/projects/components/feedback/FeedbackDisplay";
+import { ProjectFeedbackSection } from "@/features/projects/components/displays/ProjectFeedbackSection";
 import { GiveFeedbackDialog } from "@/features/projects/components/feedback/GiveFeedbackDialog";
 import { useQRCodeActions } from "@/features/projects/components/management/project-dashboard/hooks/useQRCodeActions";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
@@ -34,20 +40,31 @@ import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 import { EventRole, EventTrack, EventVisibility, Project } from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { isProjectInActiveRound } from "@/lib/judging/rounds";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/utils/string";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
 import { ProjectFieldEntriesSection } from "@/features/projects/components/displays/ProjectFieldEntriesSection";
 import {
   CoverImageWithFallback,
   ProjectCoverHero,
 } from "@/features/projects/components/displays/cover-image-with-fallback";
+import { TrackSelector } from "@/features/projects/components/tracks/TrackSelector";
+import { useProjectEventTracks } from "@/features/projects/hooks/use-project-event-tracks";
 import { ProjectShareSection } from "@/features/projects/components/displays/ProjectShareSection";
+import {
+  ProjectTeamMembersList,
+  ProjectTeamSidebar,
+} from "@/features/projects/components/displays/ProjectTeam";
+import { ProjectEventRemovedNote } from "@/features/projects/components/displays/ProjectEventRemovedNote";
+import { getProjectFeedbackUrl } from "@/features/projects/utils/feedback-url";
+import { ProjectPrivateShareNotice } from "@/features/projects/components/displays/ProjectPrivateShareNotice";
+import { getProjectTeamDisplayMembers } from "@/features/projects/utils/team-display";
+import { parseUtcTimestamp } from "@/lib/utils/parse-utc-timestamp";
+import { canShowProjectScoring } from "@/features/projects/utils/judge-scoring-access";
 
 interface EventDetails {
   event_id: string;
@@ -57,6 +74,9 @@ interface EventDetails {
   end_date: string;
   location?: string;
   cover_image_url?: string;
+  event_type?: string[];
+  paid?: boolean | null;
+  event_blurb?: string | null;
 }
 
 export default function PublicProjectPage() {
@@ -65,9 +85,8 @@ export default function PublicProjectPage() {
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchComplete, setFetchComplete] = useState(false);
   const [isJudge, setIsJudge] = useState(false);
+  const [canScore, setCanScore] = useState(false);
   const [judgeId, setJudgeId] = useState("");
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
@@ -78,16 +97,6 @@ export default function PublicProjectPage() {
     useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
-  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
-    Record<
-      string,
-      {
-        displayName: string | null;
-        avatarUrl: string | null;
-        affiliation: string | null;
-      }
-    >
-  >({});
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -103,86 +112,21 @@ export default function PublicProjectPage() {
     toggleLike,
   } = useProjectLike(projectId);
 
+  // Public API mode enforces publication/event visibility without requiring a session; shared presentation remains identical.
+  const { isLoading, fetchComplete, loadError, retryProject } = useProjectDetailLoader(projectId, setProject, true, "public");
+  const hasEventTracks = useProjectEventTracks(project?.event_id);
+  const [feedbackCount, setFeedbackCount] = useState(0);
   useEffect(() => {
-    const fetchProject = async () => {
-      setIsLoading(true);
-      setFetchComplete(false);
+    let current = true;
+    setFeedbackCount(0);
+    if (project?.id) void Promise.resolve(supabase.from("feedback").select("id", { count: "exact", head: true }).eq("project_id", project.id))
+      .then(({ count }) => { if (current) setFeedbackCount(count ?? 0); }).catch(() => {});
+    return () => { current = false; };
+  }, [project?.event_id, project?.id]);
 
-      const response = await fetch(`/api/projects?projectId=${projectId}`);
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        project?: Project;
-      };
-
-      if (!response.ok || !payload.project) {
-        setProject(null);
-      } else {
-        // Do not need to check event visibility here; "public" does not mean public to the world, it means public to the event
-        // Event access check is controlled via RLS; if the event is public, the project is public
-
-        setProject(payload.project);
-      }
-
-      setIsLoading(false);
-      setFetchComplete(true);
-    };
-
-    fetchProject();
-  }, [projectId]);
-
-  // Fetch team profile data (display name, avatar, affiliation) from user_profiles
   useEffect(() => {
-    if (!project) return;
-    if (!project.lead_email && !(project.teammates?.length ?? 0)) return;
-
-    const emails = Array.from(
-      new Set([project.lead_email, ...(project.teammates ?? [])])
-    )
-      .filter(Boolean)
-      .map((e) => String(e).toLowerCase());
-
-    if (emails.length === 0) return;
-
-    let alive = true;
-
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("user_profiles")
-          .select("email, affiliation, avatar_url, display_name")
-          .in("email", emails);
-
-        if (error || !alive) return;
-
-        const map: Record<
-          string,
-          {
-            displayName: string | null;
-            avatarUrl: string | null;
-            affiliation: string | null;
-          }
-        > = {};
-
-        for (const row of data ?? []) {
-          const email = row.email?.toLowerCase();
-          if (!email) continue;
-          map[email] = {
-            displayName: row.display_name?.trim() || null,
-            avatarUrl: row.avatar_url?.trim() || null,
-            affiliation: row.affiliation?.trim() || null,
-          };
-        }
-
-        setTeamProfileByEmail(map);
-      } catch {
-        // ignore
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [project?.lead_email, project?.teammates, project]);
+    if (activeTab === "tracks" && !hasEventTracks) setActiveTab("overview");
+  }, [activeTab, hasEventTracks]);
 
   // Fetch event details when project is loaded
   useEffect(() => {
@@ -193,7 +137,7 @@ export default function PublicProjectPage() {
         const { data: eventData, error } = await supabase
           .from("events")
           .select(
-            "event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled",
+            `${SUBMITTED_TO_EVENT_COLUMNS}, finalist_recommendation_enabled` as const,
           )
           .eq("event_id", project.event_id)
           .single();
@@ -209,6 +153,9 @@ export default function PublicProjectPage() {
             end_date: eventData.event_date,
             location: eventData.location || undefined,
             cover_image_url: eventData.cover_image_url || undefined,
+            event_type: eventData.event_type || undefined,
+            paid: eventData.paid,
+            event_blurb: eventData.event_blurb,
           });
           setFinalistFeatureEnabled(
             !!eventData.finalist_recommendation_enabled,
@@ -228,6 +175,7 @@ export default function PublicProjectPage() {
       if (!project?.event_id) return;
 
       setIsCheckingJudgeStatus(true);
+      setCanScore(false);
       try {
         const {
           data: { session },
@@ -256,11 +204,42 @@ export default function PublicProjectPage() {
           return;
         }
 
-        const judgeStatus = canAccessRole(
-          roleData?.role as EventRole,
-          EventRole.Judge,
-        );
+        // Judges only see the scoring form for projects they are assigned to
+        // (server rejects other scores with 403); organizers/admins are exempt.
+        const role = roleData?.role as EventRole | undefined;
+        let hasAssignment = false;
+        if (
+          role &&
+          canAccessRole(role, EventRole.Judge) &&
+          !canAccessRole(role, EventRole.Organizer) &&
+          project?.id
+        ) {
+          const { data: assignments, error: assignmentError } = await supabase
+            .from("project_assignments")
+            .select("id")
+            .eq("project_id", project.id)
+            .eq("user_id", session.user.id)
+            .eq("role", "judge")
+            .is("revoked_at", null)
+            .limit(1);
+          hasAssignment = !assignmentError && (assignments?.length ?? 0) > 0;
+        }
+        const judgeStatus = canShowProjectScoring(role, hasAssignment);
         setIsJudge(judgeStatus);
+
+        // The assignment check above is not enough: the project must also be
+        // in the active round, or the project_scores trigger rejects the score
+        // (JUDGE-016). Refuse if the check fails.
+        if (judgeStatus && project?.id && project.event_id) {
+          setCanScore(
+            await isProjectInActiveRound(supabase, {
+              eventId: project.event_id,
+              projectId: project.id,
+            }).catch(() => false),
+          );
+        } else {
+          setCanScore(false);
+        }
 
         // Fetch project tracks if user is a judge
         if (judgeStatus && project?.id) {
@@ -326,6 +305,8 @@ export default function PublicProjectPage() {
     );
   }
 
+  if (loadError) return <PageContainer><ProjectLoadError message={loadError} retry={retryProject} /></PageContainer>;
+
   if (!project) {
     return (
       <PageContainer>
@@ -344,25 +325,10 @@ export default function PublicProjectPage() {
     );
   }
 
-  const totalMembers = (project.teammates?.length || 0) + 1;
-  const teamMembers =
-    project &&
-    [
-      {
-        email: project.lead_email,
-        displayName:
-          teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
-          project.lead_name,
-        role: "lead" as const,
-      },
-      ...(project.teammates ?? []).map((email) => ({
-        email,
-        displayName:
-          teamProfileByEmail[email.toLowerCase()]?.displayName || email,
-        role: "member" as const,
-      })),
-    ];
-  const feedbackUrl = typeof window !== "undefined" ? window.location.href : "";
+  // Public payloads carry the server-resolved, email-free roster only.
+  const teamMembers = getProjectTeamDisplayMembers(project);
+  const totalMembers = Math.max(teamMembers.length, 1);
+  const feedbackUrl = getProjectFeedbackUrl(project.id);
   const selectedTrack = projectTracks.find(
     (track) => track.track_id === selectedTrackId,
   );
@@ -428,7 +394,7 @@ export default function PublicProjectPage() {
                 >
                   <Calendar className="h-4 w-4" />
                   Created:{" "}
-                  {new Date(project.created_at).toLocaleDateString("en-US", {
+                  {(parseUtcTimestamp(project.created_at) ?? new Date(project.created_at)).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
@@ -611,46 +577,7 @@ export default function PublicProjectPage() {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-3 sm:gap-6 overflow-x-auto scrollbar-hide flex-nowrap">
-                <TabsTrigger
-                  value="overview"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="team"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
-                >
-                  Team
-                  <Badge
-                    variant="secondary"
-                    className="bg-white border border-black/15 text-black rounded-full text-xs"
-                  >
-                    {totalMembers}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="feedback"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
-                >
-                  Feedback
-                </TabsTrigger>
-                {isJudge && (
-                  <TabsTrigger
-                    value="scoring"
-                    className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
-                  >
-                    Judge Scoring
-                  </TabsTrigger>
-                )}
-                <TabsTrigger
-                  value="sharing"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
-                >
-                  Sharing
-                </TabsTrigger>
-              </TabsList>
+              <ProjectDetailTabs hasTracks={hasEventTracks} totalMembers={totalMembers} feedbackCount={feedbackCount} isJudge={canScore} />
 
               {/* Main Content Area */}
               <div className="py-6 sm:py-12">
@@ -658,7 +585,7 @@ export default function PublicProjectPage() {
                 <TabsContent value="overview" className="mt-0">
                   <div className="flex flex-col lg:flex-row gap-6 sm:gap-10">
                     {/* Left Column: Main Content */}
-                    <div className="flex-1 space-y-8">
+                    <div className="flex-1 min-w-0 space-y-8">
                       {/* About this project */}
                       <div>
                         <h2 className="text-3xl font-semibold text-black mb-6 tracking-tight">
@@ -701,181 +628,16 @@ export default function PublicProjectPage() {
                     </div>
 
                     {/* Right Column: Sidebar - Only for Overview */}
-                    <div className="w-full lg:w-[420px] space-y-6">
+                    <div className="w-full lg:w-[420px] xl:w-[480px] lg:flex-shrink-0 space-y-6">
                       {/* Meet the team */}
-                      <div className="space-y-6">
-                        <h3 className="text-lg font-bold text-black tracking-tight">
-                          Meet the team
-                        </h3>
-                        <div className="space-y-6">
-                          {/* Project Lead */}
-                          <div className="flex gap-4 items-center">
-                            <Avatar className="h-14 w-14 shrink-0">
-                              <AvatarImage
-                                src={
-                                  teamProfileByEmail[
-                                    project.lead_email.toLowerCase()
-                                  ]?.avatarUrl ?? undefined
-                                }
-                                alt={
-                                  teamProfileByEmail[
-                                    project.lead_email.toLowerCase()
-                                  ]?.displayName ||
-                                  project.lead_name ||
-                                  project.lead_email
-                                }
-                              />
-                              <AvatarFallback>
-                                {getInitials(project.lead_name || project.lead_email)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold text-base text-black">
-                                  {teamProfileByEmail[
-                                    project.lead_email.toLowerCase()
-                                  ]?.displayName || project.lead_name}
-                                </p>
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                                >
-                                  Lead
-                                </Badge>
-                              </div>
-                              {teamProfileByEmail[
-                                project.lead_email.toLowerCase()
-                              ]?.affiliation ? (
-                                <p className="text-base text-black">
-                                  {
-                                    teamProfileByEmail[
-                                      project.lead_email.toLowerCase()
-                                    ]?.affiliation
-                                  }
-                                </p>
-                              ) : (
-                                <p className="text-base text-black">
-                                  {project.lead_email}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Team Members */}
-                          {project.teammates
-                            ?.slice(0, 1)
-                            .map((teammate, index) => (
-                              <div
-                                key={index}
-                                className="flex gap-4 items-center"
-                              >
-                                <Avatar className="h-14 w-14 shrink-0">
-                                  <AvatarImage
-                                    src={
-                                      teamProfileByEmail[
-                                        teammate.toLowerCase()
-                                      ]?.avatarUrl ?? undefined
-                                    }
-                                    alt={
-                                      teamProfileByEmail[
-                                        teammate.toLowerCase()
-                                      ]?.displayName || teammate
-                                    }
-                                  />
-                                  <AvatarFallback>
-                                    {getInitials(
-                                      teamProfileByEmail[
-                                        teammate.toLowerCase()
-                                      ]?.displayName || teammate
-                                    )}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="space-y-0">
-                                  <p className="font-semibold text-base text-black">
-                                    {teamProfileByEmail[teammate.toLowerCase()]
-                                      ?.displayName || teammate}
-                                  </p>
-                                  {teamProfileByEmail[teammate.toLowerCase()]
-                                    ?.affiliation ? (
-                                    <p className="text-base text-black">
-                                      {
-                                        teamProfileByEmail[
-                                          teammate.toLowerCase()
-                                        ]?.affiliation
-                                      }
-                                    </p>
-                                  ) : null}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
+                      <ProjectTeamSidebar members={teamMembers} />
 
                       {/* Divider */}
                       <div className="border-t border-gray-200"></div>
 
-                      {/* Submitted to Event */}
-                      {eventDetails && (
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-bold text-black tracking-tight">
-                            Submitted to
-                          </h3>
-                          <Link
-                            href={`/events/${eventDetails.event_id}/overview`}
-                          >
-                            <Card className="border border-black/15 rounded-xl overflow-hidden hover:shadow-lg">
-                              <div className="relative">
-                                {eventDetails.cover_image_url ? (
-                                  <img
-                                    src={eventDetails.cover_image_url}
-                                    alt={eventDetails.event_name}
-                                    className="w-full h-[180px] object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
-                                )}
-                                {eventDetails.start_date && (
-                                  <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
-                                    <p className="text-sm text-black">
-                                      {new Date(
-                                        eventDetails.start_date,
-                                      ).toLocaleDateString("en-US", {
-                                        weekday: "short",
-                                      })}
-                                    </p>
-                                    <p className="text-4xl font-semibold text-black tracking-tight leading-none">
-                                      {new Date(
-                                        eventDetails.start_date,
-                                      ).getDate()}
-                                    </p>
-                                    <p className="text-sm text-black">
-                                      {new Date(
-                                        eventDetails.start_date,
-                                      ).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        year: "numeric",
-                                      })}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                              <CardContent className="p-6 space-y-4">
-                                <div className="space-y-2">
-                                  <h4 className="text-2xl font-semibold text-black tracking-tight">
-                                    {eventDetails.event_name}
-                                  </h4>
-                                  <div className="flex items-center gap-1 text-sm">
-                                    <MapPin className="h-4 w-4 text-black" />
-                                    <span className="text-black text-center">
-                                      {eventDetails.location || "Online"}
-                                    </span>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        </div>
-                      )}
+                      {/* Submitted to Event (or a note when the event was deleted) */}
+                      {!project.event_id && <ProjectEventRemovedNote />}
+                      {eventDetails && <ProjectSubmittedToCard event={eventDetails} />}
 
                       {/* Divider */}
                       <div className="border-t border-gray-200"></div>
@@ -969,9 +731,7 @@ export default function PublicProjectPage() {
                         projectId={projectId}
                         projectName={project.project_name}
                         eventName={eventDetails?.event_name}
-                        teamNames={(teamMembers || []).map(
-                          (m) => m.displayName,
-                        )}
+                        teamNames={teamMembers.map((m) => m.displayName)}
                         videoUrl={project.video_url}
                         showCertificateLink={!!project.submitted}
                       />
@@ -980,122 +740,21 @@ export default function PublicProjectPage() {
                 </TabsContent>
 
                 {/* Team Tab - Single Column */}
-                <TabsContent value="team" className="mt-0">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Team Members</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {teamMembers?.map((member) => {
-                          const emailKey = member.email.toLowerCase();
-                          const profile = teamProfileByEmail[emailKey];
-                          const title =
-                            member.displayName?.trim() || member.email;
-                          const subtitle =
-                            profile?.affiliation?.trim() ||
-                            (title.toLowerCase() === member.email.toLowerCase()
-                              ? member.email
-                              : null);
+                {hasEventTracks && <TabsContent value="tracks" className="mt-0 overflow-hidden">
+                  <TrackSelector projectId={project.id} eventId={project.event_id} canEdit={false} isLoading={false} />
+                </TabsContent>}
 
-                          return (
-                            <div
-                              key={member.email}
-                              className="flex items-center justify-between gap-4"
-                            >
-                              <div className="flex items-center gap-4 min-w-0">
-                                <Avatar className="h-14 w-14 shrink-0">
-                                  <AvatarImage
-                                    src={profile?.avatarUrl ?? undefined}
-                                    alt={title}
-                                  />
-                                  <AvatarFallback>
-                                    {getInitials(title)}
-                                  </AvatarFallback>
-                                </Avatar>
-
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <p className="font-semibold text-base text-black truncate">
-                                      {title}
-                                    </p>
-                                    {member.role === "lead" ? (
-                                      <Badge
-                                        variant="secondary"
-                                        className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                                      >
-                                        Lead
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                  {subtitle ? (
-                                    <p className="text-base text-black truncate">
-                                      {subtitle}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              </div>
-
-                              {/* Placeholder for future actions like Follow button */}
-                              <div className="shrink-0" />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
+                <TabsContent value="team" className="mt-0 overflow-visible">
+                  <ProjectTeamMembersList members={teamMembers} />
                 </TabsContent>
 
                 {/* Feedback Tab - Single Column */}
-                <TabsContent value="feedback" className="mt-0">
-                  <div className="space-y-8">
-                    {/* Display Existing Feedback */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <MessageSquare className="h-5 w-5" />
-                          Project Feedback
-                        </CardTitle>
-                        <p className="text-sm text-gray-600">
-                          See what mentors and peers have said about this
-                          project.
-                        </p>
-                      </CardHeader>
-                      <CardContent>
-                        <FeedbackDisplay
-                          projectId={project.id}
-                          showTitle={false}
-                        />
-                      </CardContent>
-                    </Card>
-
-                    {/* Submit Feedback Section */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <MessageSquare className="h-5 w-5" />
-                          Share Your Feedback
-                        </CardTitle>
-                        <p className="text-sm text-gray-600">
-                          Help this project improve by sharing your thoughts,
-                          suggestions, and ideas.
-                        </p>
-                      </CardHeader>
-                      <CardContent>
-                        <Button
-                          onClick={() => setShowFeedbackDialog(true)}
-                          className="w-full bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
-                        >
-                          <MessageSquare className="mr-2 h-4 w-4" />
-                          Give Feedback
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
+                <TabsContent value="feedback" className="mt-0 overflow-hidden">
+                      <ProjectFeedbackSection projectId={project.id} onGiveFeedback={() => setShowFeedbackDialog(true)} />
+                    </TabsContent>
 
                 {/* Judge Scoring Tab - Single Column */}
-                {isJudge && (
+                {canScore && (
                   <TabsContent value="scoring" className="mt-0">
                     <Card className="border-purple-200 bg-purple-50">
                       <CardHeader>
@@ -1264,7 +923,7 @@ export default function PublicProjectPage() {
 
                 {/* Sharing Tab - Single Column with custom layout */}
                 <TabsContent value="sharing" className="mt-0">
-                  <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-[1fr,minmax(300px,500px)] gap-6 border border-zinc-200 rounded-md p-4 sm:p-6">
                     {/* Left Column: Share Card */}
                     <Card>
                       <CardHeader>
@@ -1277,6 +936,9 @@ export default function PublicProjectPage() {
                         </p>
                       </CardHeader>
                       <CardContent className="space-y-6">
+                        {project.is_private && (
+                          <ProjectPrivateShareNotice eventName={eventDetails?.event_name} />
+                        )}
                         {/* Copy Link Section */}
                         <div className="space-y-2">
                           <div className="flex gap-2">
@@ -1411,7 +1073,6 @@ export default function PublicProjectPage() {
             onOpenChange={setShowFeedbackDialog}
             projectName={project.project_name}
             projectId={project.id}
-            projectDescription={project.project_description || ""}
             eventId={project.event_id || ""}
           />
         )}

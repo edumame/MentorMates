@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +54,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { TrackDeleteDialog } from "./TrackDeleteDialog";
+import { withoutTrack } from "./classify-track-entries";
 
 // ── Templates ─────────────────────────────────────────────────────────
 
@@ -99,6 +102,12 @@ function cloneCriterion(criterion: ScoringCriterion): ScoringCriterion {
   };
 }
 
+// Criterion ids are only unique within a track: default criteria, templates and
+// duplicated tracks all reuse the same ids.
+function criterionEditKey(trackId: string, criterionId: string): string {
+  return `${trackId}:${criterionId}`;
+}
+
 function cloneTrackScoringConfig(track: TrackScoringConfig): TrackScoringConfig {
   return {
     name: track.name,
@@ -108,59 +117,56 @@ function cloneTrackScoringConfig(track: TrackScoringConfig): TrackScoringConfig 
 
 // ── Props ─────────────────────────────────────────────────────────────
 
+/** Track fields stored on event_tracks but not in the scoring config. */
+export interface TrackDetailsById {
+  descriptions: Record<string, string>;
+}
+
 interface CompactScoringFormProps {
-  initialConfig?: EventScoringConfig | null;
-  onSave: (config: EventScoringConfig) => void;
+  /** The draft is owned by TracksTab so the judging sidebar reads and writes the same config. */
+  config: EventScoringConfig;
+  onConfigChange: React.Dispatch<React.SetStateAction<EventScoringConfig>>;
+  onSave: (config: EventScoringConfig, details: TrackDetailsById) => void;
   isSubmitting?: boolean;
   isArchived: boolean;
   eventId: string;
   tracks?: EventTrack[];
+  onTrackDeleted: (trackId: string) => void;
 }
 
 // ── Main Component ────────────────────────────────────────────────────
 
 export function CompactScoringForm({
-  initialConfig,
+  config,
+  onConfigChange: setConfig,
   onSave,
   isSubmitting = false,
   isArchived,
   eventId,
   tracks: savedTracks = [],
+  onTrackDeleted,
 }: CompactScoringFormProps) {
-  const [config, setConfig] = useState<EventScoringConfig>(
-    initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
-  );
-
-  // Sync external config changes (from AI sidebar) into the internal state.
-  // Uses a ref to avoid re-syncing when the user edits the form locally.
-  const lastExternalConfig = useRef(initialConfig);
-  useEffect(() => {
-    if (
-      initialConfig &&
-      initialConfig !== lastExternalConfig.current &&
-      JSON.stringify(initialConfig) !== JSON.stringify(config)
-    ) {
-      setConfig(initialConfig);
-      // Auto-expand new tracks that weren't there before
-      const newTrackIds = Object.keys(initialConfig.tracks).filter(
-        (id) => !config.tracks[id]
-      );
-      if (newTrackIds.length > 0) {
-        setExpandedTracks((prev) => {
-          const next = new Set(prev);
-          newTrackIds.forEach((id) => next.add(id));
-          return next;
-        });
-      }
-    }
-    lastExternalConfig.current = initialConfig;
-  }, [initialConfig]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const [expandedTracks, setExpandedTracks] = useState<Set<string>>(() => {
     // Auto-expand the first track or all tracks if ≤ 2
-    const ids = Object.keys(initialConfig?.tracks || {});
+    const ids = Object.keys(config.tracks);
     return new Set(ids.length <= 2 ? ids : ids.slice(0, 1));
   });
+
+  // Auto-expand tracks added from outside the form (AI sidebar)
+  const knownTrackIds = useRef(new Set(Object.keys(config.tracks)));
+  useEffect(() => {
+    const trackIds = Object.keys(config.tracks);
+    const newTrackIds = trackIds.filter((id) => !knownTrackIds.current.has(id));
+    knownTrackIds.current = new Set(trackIds);
+    if (newTrackIds.length > 0) {
+      setExpandedTracks((prev) => {
+        const next = new Set(prev);
+        newTrackIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  }, [config.tracks]);
+
   const [editingCritId, setEditingCritId] = useState<string | null>(null);
   const [isAssigningProjects, setIsAssigningProjects] = useState(false);
   const [selectedTrackForBulkAssign, setSelectedTrackForBulkAssign] = useState("");
@@ -170,6 +176,44 @@ export function CompactScoringForm({
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [newTrackName, setNewTrackName] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("numeric_10");
+  const [trackPendingDelete, setTrackPendingDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  // JUDGE-006: event_tracks.name / description are the source of truth.
+  // Descriptions are edited here (they are not part of the scoring config),
+  // and the DB name replaces a stale scoring_criteria.name copy unless the
+  // organizer has edited the name in this session.
+  const [descriptions, setDescriptions] = useState<Record<string, string>>({});
+  const editedTrackNames = useRef(new Set<string>());
+  useEffect(() => {
+    if (savedTracks.length === 0) return;
+    setDescriptions((prev) => {
+      const next = { ...prev };
+      for (const track of savedTracks) {
+        if (!(track.track_id in next)) next[track.track_id] = track.description ?? "";
+      }
+      return next;
+    });
+    setConfig((prev) => {
+      let changed = false;
+      const nextTracks = { ...prev.tracks };
+      for (const track of savedTracks) {
+        const current = nextTracks[track.track_id];
+        if (
+          current &&
+          track.name &&
+          current.name !== track.name &&
+          !editedTrackNames.current.has(track.track_id)
+        ) {
+          nextTracks[track.track_id] = { ...current, name: track.name };
+          changed = true;
+        }
+      }
+      return changed ? { ...prev, tracks: nextTracks } : prev;
+    });
+  }, [savedTracks]);
 
   const { toast } = useToast();
 
@@ -363,32 +407,23 @@ export function CompactScoringForm({
   };
 
   const removeTrack = async (id: string) => {
-    const { error } = await supabase.from("event_tracks").delete().eq("track_id", id);
-    if (error) {
+    setTrackPendingDelete(null);
+    const { data: deletedRows, error } = await supabase
+      .from("event_tracks")
+      .delete()
+      .eq("track_id", id)
+      // A config key can be another event's track id; never delete that row.
+      .eq("event_id", eventId)
+      .select("track_id");
+    // A delete matching no rows is not an error, so check a saved track really
+    // went. A track that was never saved has no row to remove.
+    const savedRowRemains =
+      savedTracks.some((track) => track.track_id === id) && !deletedRows?.length;
+    if (error || savedRowRemains) {
       toast({ title: "Error", description: "Failed to delete track", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Track deleted" });
-      setConfig((prev) => {
-        const newTracks = { ...prev.tracks };
-        delete newTracks[id];
-        return {
-          ...prev,
-          tracks: newTracks,
-          rounds: (prev.rounds || []).map((round) => {
-            if (!round.tracks?.[id]) {
-              return round;
-            }
-
-            const nextTracks = { ...round.tracks };
-            delete nextTracks[id];
-
-            return {
-              ...round,
-              tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
-            };
-          }),
-        };
-      });
+      setConfig((prev) => withoutTrack(prev, id));
       setSelectedRubricScopeByTrack((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -399,10 +434,13 @@ export function CompactScoringForm({
         next.delete(id);
         return next;
       });
+      setSelectedTrackForBulkAssign((prev) => (prev === id ? "" : prev));
+      onTrackDeleted(id);
     }
   };
 
   const updateTrackName = (id: string, name: string) => {
+    editedTrackNames.current.add(id);
     setConfig((prev) => ({
       ...prev,
       tracks: { ...prev.tracks, [id]: { ...prev.tracks[id], name } },
@@ -489,7 +527,7 @@ export function CompactScoringForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(config);
+    onSave(config, { descriptions });
   };
 
   // ── Render ──────────────────────────────────────────────────────────
@@ -560,37 +598,46 @@ export function CompactScoringForm({
           return (
             <Card key={trackId} className="rounded-2xl border border-gray-200 overflow-hidden">
               {/* ── Collapsible header ── */}
-              <button
-                type="button"
-                onClick={() => toggleExpanded(trackId)}
-                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
-                    {track.name || <span className="text-gray-400 italic">Untitled Track</span>}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {track.criteria.length} criteria
-                  </p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span
-                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
-                    onClick={(e) => { e.stopPropagation(); duplicateTrack(trackId); }}
-                    title="Duplicate"
-                  >
-                    <CopyIcon className="h-3.5 w-3.5" />
-                  </span>
-                  <span
-                    className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50"
-                    onClick={(e) => { e.stopPropagation(); removeTrack(trackId); }}
-                    title="Delete"
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </span>
+              {/* Actions are siblings of the toggle (not nested inside it) so they
+                  are real, keyboard-accessible buttons. */}
+              <div className="flex w-full items-center gap-1 pr-3 hover:bg-gray-50/50 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => toggleExpanded(trackId)}
+                  aria-expanded={isExpanded}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {track.name || <span className="text-gray-400 italic">Untitled Track</span>}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {track.criteria.length} criteria
+                    </p>
+                  </div>
                   <ChevronDown className={`h-4 w-4 text-gray-400 ml-1 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                </div>
-              </button>
+                </button>
+                <button
+                  type="button"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+                  onClick={() => duplicateTrack(trackId)}
+                  disabled={isArchived}
+                  title="Duplicate"
+                  aria-label={`Duplicate track ${track.name || "Untitled Track"}`}
+                >
+                  <CopyIcon className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50"
+                  onClick={() => setTrackPendingDelete({ id: trackId, name: track.name })}
+                  disabled={isArchived}
+                  title="Delete"
+                  aria-label={`Delete track ${track.name || "Untitled Track"}`}
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
 
               {/* ── Expanded body ── */}
               {isExpanded && (
@@ -609,7 +656,16 @@ export function CompactScoringForm({
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-gray-500">Description</label>
-                      <Input disabled={isArchived} className="h-10" placeholder="What is this track about?" />
+                      <Input
+                        value={descriptions[trackId] ?? ""}
+                        disabled={isArchived}
+                        className="h-10"
+                        aria-label="Track description"
+                        onChange={(e) =>
+                          setDescriptions((prev) => ({ ...prev, [trackId]: e.target.value }))
+                        }
+                        placeholder="What is this track about?"
+                      />
                     </div>
                   </div>
 
@@ -693,7 +749,7 @@ export function CompactScoringForm({
                     <div className="space-y-0">
                       {displayedCriteria.map((criterion, idx) => {
                         const pct = totalWeight > 0 ? Math.round(((criterion.weight ?? 1) / totalWeight) * 100) : 0;
-                        const isEditing = editingCritId === criterion.id;
+                        const isEditing = editingCritId === criterionEditKey(trackId, criterion.id);
 
                         return (
                           <div key={criterion.id}>
@@ -720,11 +776,11 @@ export function CompactScoringForm({
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500">Weight</label>
-                                    <Input
-                                      type="number" min={0} step={0.01}
-                                      value={criterion.weight}
+                                    <NumberInput
+                                      min={0} step={0.01}
+                                      value={criterion.weight ?? 1}
                                       disabled={isArchived}
-                                      onChange={(e) => updateCriterion(trackId, idx, { weight: parseFloat(e.target.value) || 1 })}
+                                      onValueChange={(weight) => updateCriterion(trackId, idx, { weight })}
                                       className="h-9 text-center"
                                     />
                                   </div>
@@ -802,19 +858,19 @@ export function CompactScoringForm({
                                   ) : (
                                     <div className="flex items-center gap-2">
                                       <span className="text-xs text-gray-500 w-24 shrink-0">Score range</span>
-                                      <Input
-                                        type="number" min={0}
+                                      <NumberInput
+                                        integer min={0}
                                         value={criterion.min ?? 0}
                                         disabled={isArchived}
-                                        onChange={(e) => updateCriterion(trackId, idx, { min: parseInt(e.target.value) || 0 })}
+                                        onValueChange={(min) => updateCriterion(trackId, idx, { min })}
                                         className="w-14 h-7 text-xs text-center"
                                       />
                                       <span className="text-xs text-gray-300">to</span>
-                                      <Input
-                                        type="number" min={1}
+                                      <NumberInput
+                                        integer min={1}
                                         value={criterion.max ?? 10}
                                         disabled={isArchived}
-                                        onChange={(e) => updateCriterion(trackId, idx, { max: parseInt(e.target.value) || 10 })}
+                                        onValueChange={(max) => updateCriterion(trackId, idx, { max })}
                                         className="w-14 h-7 text-xs text-center"
                                       />
                                     </div>
@@ -839,7 +895,7 @@ export function CompactScoringForm({
                               /* ── Criterion Row (compact) ── */
                               <div
                                 className="group flex items-center gap-3 py-2.5 px-2 -mx-1 rounded-lg hover:bg-gray-50/80 transition-colors cursor-pointer"
-                                onClick={() => !isArchived && setEditingCritId(criterion.id)}
+                                onClick={() => !isArchived && setEditingCritId(criterionEditKey(trackId, criterion.id))}
                               >
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-black truncate">
@@ -888,14 +944,32 @@ export function CompactScoringForm({
                     </button>
                   </div>
 
-                  {/* ── Prizes (inline placeholder) ── */}
+                  {/* ── Prizes (read-only summary; edited in the Prizes sub-tab) ── */}
                   <div>
                     <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-2">
                       Prizes
                     </h4>
-                    <p className="text-xs text-gray-400 italic">
-                      No prizes added yet.
-                    </p>
+                    {(() => {
+                      const prizes =
+                        savedTracks.find((saved) => saved.track_id === trackId)?.prizes ?? [];
+                      if (prizes.length === 0) {
+                        return (
+                          <p className="text-xs text-gray-400 italic">
+                            No prizes added yet. Add them in the Prizes tab.
+                          </p>
+                        );
+                      }
+                      return (
+                        <ul className="space-y-1 text-sm text-gray-700">
+                          {prizes.map((prize) => (
+                            <li key={prize.id}>
+                              <span className="font-medium">{prize.prize_amount}</span>
+                              {prize.prize_description ? ` — ${prize.prize_description}` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -952,6 +1026,12 @@ export function CompactScoringForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TrackDeleteDialog
+        track={trackPendingDelete}
+        onCancel={() => setTrackPendingDelete(null)}
+        onConfirm={removeTrack}
+      />
     </form>
   );
 }

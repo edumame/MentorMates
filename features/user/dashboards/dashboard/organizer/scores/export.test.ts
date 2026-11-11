@@ -6,6 +6,7 @@ import {
   buildScoreExportFiles,
   buildScoreExportRows,
   buildTrackScoresByRound,
+  filterScoresToCurrentTracks,
   type DashboardProjectScore,
   type RawScoreExportData,
 } from "./export";
@@ -229,14 +230,15 @@ describe("score exports", () => {
       {
         judgeId: "judge-a",
         judgeName: "Alex Judge",
-        totalScore: 24,
+        // normalised 0-10: 10 × (2×(9-1)/9 + (6-1)/9) / 3
+        totalScore: expect.closeTo(70 / 9, 5),
         submittedAt: "2026-04-01T09:00:00.000Z",
         choiceAnswers: {},
       },
       {
         judgeId: "judge-b",
         judgeName: "Zara Judge",
-        totalScore: 23,
+        totalScore: expect.closeTo(200 / 27, 5),
         submittedAt: "2026-04-01T10:00:00.000Z",
         choiceAnswers: {},
       },
@@ -272,12 +274,67 @@ describe("score exports", () => {
       {
         judgeId: "judge-a",
         judgeName: "Alex Judge",
-        totalScore: 18,
+        // multiple-choice criteria do not contribute to the numeric score
+        totalScore: expect.closeTo(80 / 9, 5),
         submittedAt: "2026-04-01T09:00:00.000Z",
         choiceAnswers: {
           award_fit: "Best AI",
         },
       },
+    ]);
+  });
+
+  it("treats a criterion weight of 0 as zero, not as the default of 1", () => {
+    const zeroWeightConfig: EventScoringConfig = {
+      ...scoringConfig,
+      tracks: {
+        main: {
+          name: "Main Track",
+          criteria: scoringConfig.tracks.main.criteria.map((criterion) =>
+            criterion.id === "feasible"
+              ? { ...criterion, weight: 0 }
+              : criterion
+          ),
+        },
+      },
+    };
+
+    const byRound = buildTrackScoresByRound(
+      [
+        {
+          project_id: "p2",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          scores: { impact: 10, feasible: 9 },
+          projects: {
+            project_name: "Beta",
+            lead_name: "Bob",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+      ],
+      zeroWeightConfig
+    );
+
+    expect(
+      buildScoreExportRows({
+        roundNumber: 1,
+        scores: byRound[1].main,
+        numericCriteria: zeroWeightConfig.tracks.main.criteria,
+        choiceCriteria: [],
+      })
+    ).toEqual([
+      // The total is main's 0..10 weighted mean (computeWeightedScore), so the
+      // weight-0 criterion drops out and Impact 10/10 gives 10.00.
+      expect.objectContaining({
+        "Total Average": "10.00",
+        "Impact (×2)": "10.00",
+        "Feasibility (×0)": "9.00",
+      }),
     ]);
   });
 
@@ -318,7 +375,7 @@ describe("score exports", () => {
         Rank: 1,
         Project: "Beta",
         Lead: "Bob",
-        "Total Average": "29.00",
+        "Total Average": "9.63",
         "Impact (×2)": "10.00",
         Feasibility: "9.00",
         Judges: 1,
@@ -454,7 +511,8 @@ describe("score exports", () => {
         "Lead Email": "alpha@example.com",
         Impact: 9,
         Feasibility: 6,
-        "Total Score": 24,
+        "Total Score": 7.7778,
+        "Score Notes": "",
       },
     ]);
     expect(files[1].rows).toEqual([
@@ -468,7 +526,8 @@ describe("score exports", () => {
         Comments: "Best live demo",
         "Lead Email": "beta@example.com",
         "Demo Quality": 5,
-        "Total Score": 15,
+        "Total Score": 10,
+        "Score Notes": "",
       },
     ]);
   });
@@ -508,7 +567,202 @@ describe("score exports", () => {
         "Lead Email": "gamma@example.com",
         Score_custom_metric: 7,
         "Total Score": null,
+        "Score Notes": "",
       },
     ]);
+  });
+
+  describe("filterScoresToCurrentTracks", () => {
+    const score = (projectId: string, trackId: string): DashboardProjectScore => ({
+      project_id: projectId,
+      track_id: trackId,
+      event_id: "event-1",
+      round_number: 1,
+      judge_id: "judge-1",
+      scores: { impact: 8, feasible: 6 },
+      projects: {
+        project_name: projectId,
+        lead_name: "Lead",
+        event_id: "event-1",
+      },
+      tracks: { name: "Main Track" },
+    });
+
+    it("drops scores for a track the project was removed from", () => {
+      const result = filterScoresToCurrentTracks(
+        [score("p1", "track-a"), score("p1", "track-b"), score("p2", "track-b")],
+        [
+          { track_id: "track-a", name: "A", project_tracks: [{ project_id: "p1" }] },
+          { track_id: "track-b", name: "B", project_tracks: [{ project_id: "p2" }] },
+        ]
+      );
+
+      expect(result.map((row) => [row.project_id, row.track_id])).toEqual([
+        ["p1", "track-a"],
+        ["p2", "track-b"],
+      ]);
+    });
+
+    it("drops every score for a track that has no projects left", () => {
+      const result = filterScoresToCurrentTracks(
+        [score("p1", "track-b")],
+        [{ track_id: "track-b", name: "B", project_tracks: [] }]
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it("keeps the score again once the project is back in the track", () => {
+      const rows = [score("p1", "track-b")];
+
+      expect(
+        filterScoresToCurrentTracks(rows, [
+          { track_id: "track-b", name: "B", project_tracks: [{ project_id: "p1" }] },
+        ])
+      ).toEqual(rows);
+    });
+
+    it("keeps scores when track membership is unknown", () => {
+      const rows = [score("p1", "track-b"), score("p1", "track-c")];
+
+      expect(
+        filterScoresToCurrentTracks(rows, [
+          { track_id: "track-b", name: "B", project_tracks: null },
+        ])
+      ).toEqual(rows);
+    });
+
+    it("removes a stale project from the ranking and the per-track CSV", () => {
+      const eventTracks = [
+        { track_id: "main", name: "Main Track", project_tracks: [{ project_id: "p2" }] },
+      ];
+      const current = filterScoresToCurrentTracks(
+        [score("p1", "main"), score("p2", "main")],
+        eventTracks
+      );
+
+      expect(buildTrackScores(current, scoringConfig).main.map((row) => row.projectId))
+        .toEqual(["p2"]);
+
+      const [file] = buildScoreExportFiles({
+        scoreData: current,
+        scoringConfig,
+        eventTracks,
+        eventId: "event-1",
+      });
+      expect(file.rows.map((row) => row.Project)).toEqual(["p2"]);
+    });
+  });
+
+  describe("shared formula, ranking ties, former judges and legacy values (JUDGE-007 / JUDGE-017)", () => {
+    const row = (
+      projectId: string,
+      judgeId: string,
+      scores: Record<string, number | string>
+    ): DashboardProjectScore => ({
+      project_id: projectId,
+      track_id: "main",
+      event_id: "event-1",
+      round_number: 1,
+      judge_id: judgeId,
+      judge_name: judgeId,
+      scores,
+      projects: { project_name: projectId, lead_name: "Lead", event_id: "event-1" },
+      tracks: { name: "Main Track" },
+    });
+
+    it("a perfect scorecard reads 10, the lowest 0, and partial scorecards are not counted", () => {
+      const scores = buildTrackScores(
+        [
+          row("p1", "j1", { impact: 1, feasible: 1 }),
+          row("p2", "j1", { impact: 7 }),
+          row("p3", "j1", { impact: 10, feasible: 10 }),
+        ],
+        scoringConfig
+      );
+      const byId = Object.fromEntries(scores.main.map((s) => [s.projectId, s]));
+      expect(byId.p1.averageScore).toBe(0);
+      expect(byId.p3.averageScore).toBe(10);
+      expect(byId.p2.numberOfJudges).toBe(0);
+      expect(byId.p2.judgeScores[0]).toEqual(
+        expect.objectContaining({ excludedReason: "incomplete", missingCriterionIds: ["feasible"] })
+      );
+    });
+
+    it("ignores out-of-range legacy scorecards instead of letting them dominate", () => {
+      const scores = buildTrackScores(
+        [row("p1", "j1", { impact: 9999, feasible: 5 }), row("p2", "j1", { impact: 6, feasible: 6 })],
+        scoringConfig
+      );
+      expect(scores.main.map((s) => s.projectId)).toEqual(["p2", "p1"]);
+      expect(scores.main[0].averageScore).toBeCloseTo(50 / 9, 10);
+      const legacy = scores.main.find((s) => s.projectId === "p1")!;
+      expect(legacy.numberOfJudges).toBe(0);
+      expect(legacy.judgeScores[0].invalidCriterionIds).toEqual(["impact"]);
+      expect(legacy.judgeScores[0].excludedReason).toBe("incomplete");
+      expect(legacy.criterionScores.impact).toBeUndefined();
+    });
+
+    it("excludes invalid scorecards from the judge count", () => {
+      const scores = buildTrackScores(
+        [row("p1", "j1", { impact: 9999 }), row("p1", "j2", { impact: 4, feasible: 4 })],
+        scoringConfig
+      );
+      expect(scores.main[0].numberOfJudges).toBe(1);
+      expect(scores.main[0].averageScore).toBeCloseTo(10 / 3, 10);
+    });
+
+    it("lists but excludes scores from users who are no longer judges", () => {
+      const scores = buildTrackScores(
+        [row("p1", "removed", { impact: 10, feasible: 10 }), row("p1", "j1", { impact: 2, feasible: 2 })],
+        scoringConfig,
+        { activeJudgeIds: new Set(["j1"]) }
+      );
+      expect(scores.main[0].averageScore).toBeCloseTo(10 / 9, 10);
+      expect(scores.main[0].numberOfJudges).toBe(1);
+      expect(scores.main[0].judgeScores.find((j) => j.judgeId === "removed")?.excludedReason).toBe(
+        "former_judge"
+      );
+    });
+
+    it("gives tied projects the same rank in the export", () => {
+      const byRound = buildTrackScoresByRound(
+        [
+          row("p1", "j1", { impact: 5, feasible: 5 }),
+          row("p2", "j1", { impact: 5, feasible: 5 }),
+          row("p3", "j1", { impact: 3, feasible: 3 }),
+        ],
+        scoringConfig
+      );
+      const rows = buildScoreExportRows({
+        roundNumber: 1,
+        scores: byRound[1].main,
+        numericCriteria: scoringConfig.tracks.main.criteria,
+        choiceCriteria: [],
+      });
+      expect(rows.map((r) => r.Rank)).toEqual([1, 1, 3]);
+    });
+
+    it("flags former judges and out-of-range values in the raw export", () => {
+      const rows = buildRawScoreExportRows({
+        scoreData: [
+          {
+            scores: { impact: 9999, feasible: 4 },
+            comments: null,
+            round_number: 1,
+            judge_id: "removed",
+            judge_name: "Removed Judge",
+            projects: { project_name: "Alpha", lead_email: "a@example.test" },
+            event_tracks: { name: "Main Track", track_id: "main" },
+          },
+        ],
+        scoringConfig,
+        activeJudgeIds: new Set(["j1"]),
+      });
+      expect(rows[0]["Total Score"]).toBeNull();
+      expect(rows[0]["Score Notes"]).toBe(
+        "Former judge (excluded from rankings); Out-of-range values ignored: Impact; Incomplete, not counted"
+      );
+    });
   });
 });

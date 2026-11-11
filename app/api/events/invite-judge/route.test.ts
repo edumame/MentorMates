@@ -9,6 +9,7 @@ import { EventRole, EventVisibility } from "@/lib/types";
 import { POST } from "./route";
 
 const mockResendSend = jest.fn();
+const quotaRpc = jest.fn();
 const mockCreateSupabaseClient = createSupabaseClient as jest.Mock;
 const mockCreateSupabaseServiceClient =
   createSupabaseServiceClient as jest.Mock;
@@ -18,6 +19,11 @@ jest.mock("@/app/utils/supabase/server", () => ({
   createSupabaseClient: jest.fn(),
 }));
 
+// Invitations are stored rows since lane B round 2; keep these route tests DB-free.
+jest.mock("@/lib/events/role-invitations", () => ({
+  issueEventRoleInviteToken: (payload: { email: string; eventId: string; role: "participant" | "judge" | "organizer" }) =>
+    jest.requireActual("@/lib/utils/jwt").generateEventRoleInviteToken({ ...payload, jti: "test-invite" }),
+}));
 jest.mock("@/lib/supabase/service", () => ({
   createSupabaseServiceClient: jest.fn(),
 }));
@@ -43,16 +49,19 @@ describe("POST /api/events/invite-judge", () => {
       ...originalEnv,
       NEXT_PUBLIC_APP_URL: "https://mentormates.ai",
       RESEND_API_KEY: "resend-key",
+      JWT_SECRET: "test-secret-with-enough-length-for-hs256",
     };
     mockCanAccessRole.mockReturnValue(true);
     mockResendSend.mockResolvedValue({ error: null });
+    quotaRpc.mockResolvedValue({ data: [{ allowed: true, retry_at: null, scope: null }], error: null });
+    mockCreateSupabaseServiceClient.mockReturnValue({ rpc: quotaRpc });
   });
 
   afterAll(() => {
     process.env = originalEnv;
   });
 
-  it("adds an existing user as judge and sends the invite email even for draft events", async () => {
+  it("sends an acceptance link (never a direct judge grant) even for draft events", async () => {
     const upsert = jest.fn().mockResolvedValue({ error: null });
 
     mockCreateSupabaseClient.mockResolvedValue({
@@ -108,6 +117,7 @@ describe("POST /api/events/invite-judge", () => {
     });
 
     mockCreateSupabaseServiceClient.mockReturnValue({
+      rpc: quotaRpc,
       from: jest.fn(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -129,28 +139,27 @@ describe("POST /api/events/invite-judge", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      success: true,
-      userExists: true,
+    // ORG-012 / MENT-008: uniform response and no role write; the judge role
+    // is granted only when the invitee accepts while signed in with the email.
+    await expect(response.json()).resolves.toEqual({ success: true });
+    expect(upsert).not.toHaveBeenCalled();
+    expect(quotaRpc).toHaveBeenCalledWith("consume_invite_quota", {
+      p_inviter_id: "organizer-1",
+      p_event_id: "event-123",
     });
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event_id: "event-123",
-        role: EventRole.Judge,
-        user_id: "judge-user-1",
-      }),
-      { onConflict: "user_id,event_id" }
-    );
     expect(mockResendSend).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "judge@email.com",
         subject: expect.stringContaining("judge"),
-        html: expect.stringContaining("/events/hack-night/accept-judge"),
+        // The link uses the immutable event id, not the editable slug.
+        html: expect.stringMatching(
+          /\/events\/event-123\/accept-judge\?email=[^"&]+&token=[\w.-]+/
+        ),
       })
     );
   });
 
-  it("returns 503 for new users when email sending is not configured", async () => {
+  it("returns 503 when email sending is not configured", async () => {
     delete process.env.RESEND_API_KEY;
 
     mockCreateSupabaseClient.mockResolvedValue({
@@ -203,6 +212,7 @@ describe("POST /api/events/invite-judge", () => {
     });
 
     mockCreateSupabaseServiceClient.mockReturnValue({
+      rpc: quotaRpc,
       from: jest.fn(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -227,5 +237,34 @@ describe("POST /api/events/invite-judge", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Email is not configured (RESEND_API_KEY missing)",
     });
+  });
+
+  it("returns 500 without granting access when delivery fails", async () => {
+    const upsert = jest.fn();
+    mockResendSend.mockResolvedValue({ error: { name: "send_failed" } });
+    mockCreateSupabaseClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: "organizer-1" } } }) },
+      from: jest.fn((table: string) => ({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        upsert,
+        maybeSingle: jest.fn().mockResolvedValue({ data: { role: EventRole.Organizer } }),
+        single: jest.fn().mockResolvedValue({
+          data: table === "events"
+            ? { event_name: "Hack Night", slug: "hack-night", visibility: EventVisibility.Private }
+            : { display_name: "Casey Organizer" },
+        }),
+      })),
+      rpc: jest.fn(),
+    });
+    const response = await POST(
+      new Request("http://localhost/api/events/invite-judge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: "event-123", email: "judge@email.com" }),
+      })
+    );
+    expect(response.status).toBe(500);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

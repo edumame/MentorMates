@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useId, useRef, useState } from "react";
 import {
   FileIcon,
   Image as ImageIcon,
@@ -88,6 +88,7 @@ export function ProjectSubmissionSchemaSection({
   showDescriptionPreview,
   onToggleDescriptionPreview,
 }: ProjectSubmissionSchemaSectionProps) {
+  const sectionId = useId();
   const uploadInFlight = useRef(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -112,6 +113,10 @@ export function ProjectSubmissionSchemaSection({
       {uploading && <p role="status">Uploading files. Please wait before publishing or leaving.</p>}
       {uploadError && <p role="alert">{uploadError}</p>}
       {fields.map((field, index) => {
+        const inputId = `${sectionId}-field-${index}`;
+        const labelId = `${inputId}-label`;
+        const descriptionId = field.description ? `${inputId}-description` : undefined;
+        const grouped = ["select", "multi_select"].includes(field.field_type);
         const labelSuffix = field.required ? "" : " (Optional)";
         const textValue = getTextValue(values[field.key]);
         const listValue = isMultiValueSubmissionFieldType(field.field_type)
@@ -121,17 +126,19 @@ export function ProjectSubmissionSchemaSection({
         return (
           <Fragment key={field.id}>
             <div className="space-y-2">
-              <label className="text-base text-black font-normal">
+              <label id={labelId} htmlFor={grouped ? undefined : inputId} className="text-base text-black font-normal">
                 {field.label}
                 {labelSuffix}
               </label>
               {field.description ? (
-                <p className="text-base text-[#7f7f7f]">{field.description}</p>
+                <p id={descriptionId} className="text-base text-[#7f7f7f]">{field.description}</p>
               ) : null}
 
               {field.field_type === "long_text" ? (
                 <>
                   <Textarea
+                    id={inputId}
+                    aria-describedby={descriptionId}
                     value={textValue}
                     onChange={(event) => onValueChange(field.key, event.target.value)}
                     placeholder={field.placeholder || ""}
@@ -163,6 +170,9 @@ export function ProjectSubmissionSchemaSection({
                   {(listValue.length > 0 ? listValue : [""]).map((url, itemIndex) => (
                     <div key={`${field.id}-${itemIndex}`} className="flex gap-2">
                       <Input
+                        id={itemIndex === 0 ? inputId : `${inputId}-${itemIndex}`}
+                        aria-label={itemIndex > 0 ? `${field.label} ${itemIndex + 1}` : undefined}
+                        aria-describedby={descriptionId}
                         value={url}
                         onChange={(event) => {
                           const nextValues =
@@ -207,13 +217,20 @@ export function ProjectSubmissionSchemaSection({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onValueChange(field.key, [...listValue, ""])}
+                    onClick={() =>
+                      onValueChange(field.key, [
+                        ...(listValue.length > 0 ? listValue : [""]),
+                        "",
+                      ])
+                    }
                   >
                     Add another link
                   </Button>
                 </div>
               ) : field.field_type === "multi_file" ? (
                 <MultiFileUploadField
+                  inputId={inputId}
+                  descriptionId={descriptionId}
                   field={field}
                   urls={listValue}
                   onUpload={(files) => void uploadFiles(field.key, files)}
@@ -258,6 +275,8 @@ export function ProjectSubmissionSchemaSection({
                       <div className="flex shrink-0 items-center gap-2">
                         <label className="inline-flex h-9 cursor-pointer items-center rounded-xl bg-[rgba(0,0,0,0.05)] px-3 py-1 shadow-sm">
                           <input
+                            id={inputId}
+                            aria-describedby={descriptionId}
                             type="file"
                             accept="image/*"
                             onChange={(event) => {
@@ -290,6 +309,8 @@ export function ProjectSubmissionSchemaSection({
                   <div className="flex h-11 items-center gap-3 rounded-xl border border-[rgba(0,0,0,0.15)] bg-white px-3 py-2">
                     {getFieldIcon(field.key)}
                     <Input
+                      id={inputId}
+                      aria-describedby={descriptionId}
                       value={textValue}
                       onChange={(event) =>
                         onValueChange(field.key, event.target.value)
@@ -315,12 +336,12 @@ export function ProjectSubmissionSchemaSection({
                   </div>
                 )
               ) : field.field_type === "select" ? (
-                <div className="space-y-2">
+                <div role="radiogroup" aria-labelledby={labelId} aria-describedby={descriptionId} className="space-y-2">
                   {getFieldOptions(field.options).map((option) => (
                       <label key={option} className="flex items-center gap-2">
                         <input
                           type="radio"
-                          name={field.id}
+                          name={inputId}
                           checked={textValue === option}
                           onChange={() => onValueChange(field.key, option)}
                           className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -331,7 +352,7 @@ export function ProjectSubmissionSchemaSection({
                   )}
                 </div>
               ) : field.field_type === "multi_select" ? (
-                <div className="space-y-2">
+                <div role="group" aria-labelledby={labelId} aria-describedby={descriptionId} className="space-y-2">
                   {getFieldOptions(field.options).map((option) => (
                       <label key={option} className="flex items-center gap-2">
                         <input
@@ -353,6 +374,8 @@ export function ProjectSubmissionSchemaSection({
               ) : field.field_type === "checkbox" ? (
                 <label className="flex items-center gap-2">
                   <input
+                    id={inputId}
+                    aria-describedby={descriptionId}
                     type="checkbox"
                     checked={textValue === "true"}
                     onChange={(event) =>
@@ -368,6 +391,8 @@ export function ProjectSubmissionSchemaSection({
                 <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
                   {getFieldIcon(field.key)}
                   <Input
+                    id={inputId}
+                    aria-describedby={descriptionId}
                     type={field.field_type === "url" ? "url" : "text"}
                     value={textValue}
                     onChange={(event) => onValueChange(field.key, event.target.value)}
@@ -388,11 +413,15 @@ export function ProjectSubmissionSchemaSection({
 }
 
 function MultiFileUploadField({
+  inputId,
+  descriptionId,
   field,
   urls,
   onUpload,
   onRemove,
 }: {
+  inputId: string;
+  descriptionId?: string;
   field: EffectiveSubmissionField;
   urls: string[];
   onUpload: (files: File[]) => void;
@@ -412,6 +441,8 @@ function MultiFileUploadField({
         }`}
       >
         <input
+          id={inputId}
+          aria-describedby={descriptionId}
           type="file"
           multiple
           disabled={!canAdd}

@@ -51,3 +51,16 @@ export const createUploadedStorageFileName = (fileName: string): string => {
   const safeName = toStorageSafeFileName(fileName) || "file";
   return `upload-${Date.now()}-${safeName}`;
 };
+
+/** Largest cover image accepted by the event-materials bucket uploads. */
+export const MAX_COVER_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Checks a cover image file before it is uploaded.
+ * @returns An error message to show the user, or null when the file is OK.
+ */
+export const validateCoverImageFile = (file: File): string | null => {
+  if (!file.type.startsWith("image/")) return "Please upload an image file.";
+  if (file.size > MAX_COVER_IMAGE_BYTES) return "Image must be under 5MB.";
+  return null;
+};
