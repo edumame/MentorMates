@@ -9,6 +9,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, type EventSubmissionField } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { checkArchivedEventChildWrite } from "@/lib/events/event-write-guard";
 import { submissionAnswerInputSchema } from "@/features/projects/utils/submission";
 import {
   findMissingRequiredSubmissionAnswer,
@@ -57,29 +58,50 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify user is organizer/admin for this event
-    const { data: roleRow } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("event_id", eventId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Only organizers of this event (or platform admins) may submit on a
+    // participant's behalf. Both lookups fail closed: a lookup error must not
+    // fall through to the service-role write below.
+    const [roleLookup, adminLookup] = await Promise.all([
+      supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("event_id", eventId)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase.rpc("is_admin_user", { user_id: user.id }),
+    ]);
 
-    const { data: isAdminRpc } = await supabase.rpc("is_admin_user", {
-      user_id: user.id,
-    });
+    if (roleLookup.error || adminLookup.error) {
+      console.error("Failed to verify organizer access for on-behalf submission:", {
+        eventId,
+        roleError: roleLookup.error,
+        adminError: adminLookup.error,
+      });
+      return NextResponse.json(
+        { error: "Failed to verify permissions" },
+        { status: 500 }
+      );
+    }
 
-    const isOrganizer =
-      roleRow && canAccessRole(roleRow.role as EventRole, EventRole.Organizer);
+    const isAdmin = Boolean(adminLookup.data);
+    const callerRole = roleLookup.data?.role as EventRole | undefined;
+    const isOrganizer = Boolean(
+      callerRole && canAccessRole(callerRole, EventRole.Organizer)
+    );
 
-    if (!isOrganizer && !Boolean(isAdminRpc)) {
+    if (!isOrganizer && !isAdmin) {
       return NextResponse.json(
         { error: "Only organizers can submit on behalf of participants" },
         { status: 403 }
       );
     }
 
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
     const parsed = submitForParticipantSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -88,30 +110,42 @@ export async function POST(
       );
     }
 
-    const { participant_user_id, project, submit_immediately } = parsed.data;
-
     const serviceSupabase = createSupabaseServiceClient();
 
-    // Fetch the participant's profile to get their name/email
-    const { data: participantProfile, error: profileError } = await serviceSupabase
-      .from("user_profiles")
-      .select("uid, display_name, email")
-      .eq("uid", participant_user_id)
+    // The project write below uses the service role, which bypasses the
+    // enforce_archived_event_read_only / guard_archived_event_child_write
+    // triggers, so mirror them here (XL-001): archived events are read-only
+    // for everyone but platform admins.
+    const { data: targetEvent, error: eventError } = await serviceSupabase
+      .from("events")
+      .select("event_id, visibility")
+      .eq("event_id", eventId)
       .maybeSingle();
 
-    if (profileError || !participantProfile) {
+    if (eventError) {
+      console.error("Failed to load event for on-behalf submission:", eventError);
       return NextResponse.json(
-        { error: "Participant profile not found" },
-        { status: 404 }
+        { error: "Failed to load event" },
+        { status: 500 }
       );
     }
 
-    if (!participantProfile.email) {
+    if (!targetEvent) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const archivedGuard = checkArchivedEventChildWrite({
+      isAdmin,
+      visibility: targetEvent.visibility,
+    });
+    if (!archivedGuard.ok) {
       return NextResponse.json(
-        { error: "Participant has no email on file — cannot submit" },
-        { status: 400 }
+        { error: archivedGuard.error },
+        { status: archivedGuard.status }
       );
     }
+
+    const { participant_user_id, project, submit_immediately } = parsed.data;
 
     // Verify the target user holds the participant role in this event. Any
     // other role (mentor, judge, organizer) must not receive a project, since
@@ -134,6 +168,35 @@ export async function POST(
     if (participantRole?.role !== EventRole.Participant) {
       return NextResponse.json(
         { error: "User is not a participant of this event" },
+        { status: 400 }
+      );
+    }
+
+    // Fetch the participant's profile to get their name/email
+    const { data: participantProfile, error: profileError } = await serviceSupabase
+      .from("user_profiles")
+      .select("uid, display_name, email")
+      .eq("uid", participant_user_id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("Failed to load participant profile:", profileError);
+      return NextResponse.json(
+        { error: "Failed to load participant profile" },
+        { status: 500 }
+      );
+    }
+
+    if (!participantProfile) {
+      return NextResponse.json(
+        { error: "Participant profile not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!participantProfile.email) {
+      return NextResponse.json(
+        { error: "Participant has no email on file — cannot submit" },
         { status: 400 }
       );
     }

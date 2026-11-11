@@ -1682,6 +1682,9 @@ describe("saveProjectSubmission submission window", () => {
         if (table === "project_artifacts") return artifactsTable;
         throw new Error(`Unexpected table ${table}`);
       }),
+      // Hydration reads team emails through project_team_emails
+      // (lib/projects/membership.ts).
+      rpc: jest.fn(async () => ({ data: [], error: null })),
     };
     return { supabase, projectsTable };
   }

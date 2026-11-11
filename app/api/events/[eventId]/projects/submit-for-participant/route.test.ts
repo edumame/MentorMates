@@ -12,15 +12,26 @@ const participant='11111111-1111-4111-8111-111111111111'; const event='22222222-
 const mockUserRole=jest.fn();
 let targetRole:{data:unknown,error:unknown}={data:{role:'participant'},error:null};
 let submissionFields:{data:unknown,error:unknown}={data:[],error:null};
+let profile:{data:unknown,error:unknown};
+let eventRow:{data:unknown,error:unknown};
+const serviceSelects:Record<string,string[]>={};
 const service = { from: (table:string) => {
- const result=table==='user_profiles' ? {data:{uid:participant,email:'participant@example.test',display_name:'Participant'},error:null} : table==='event_submission_fields' ? submissionFields : targetRole;
- const chain:Record<string,unknown>={}; for(const name of ['select','eq','maybeSingle','overrideTypes']) chain[name]=() => chain;
+ const result=table==='user_profiles' ? profile : table==='event_submission_fields' ? submissionFields : table==='events' ? eventRow : targetRole;
+ const chain:Record<string,unknown>={}; for(const name of ['eq','maybeSingle','overrideTypes']) chain[name]=() => chain;
+ chain.select=(columns:string)=>{ (serviceSelects[table] ||= []).push(columns); return chain; };
  chain.then=(resolve:(value:unknown)=>void)=>resolve(result); return chain;
 } };
+const mockIsAdmin=jest.fn();
+const mockGetUser=jest.fn();
 beforeEach(() => {
  jest.clearAllMocks(); targetRole={data:{role:'participant'},error:null}; submissionFields={data:[],error:null}; mockUserRole.mockResolvedValue({data:{role:'organizer'},error:null});
+ profile={data:{uid:participant,email:'participant@example.test',display_name:'Participant'},error:null};
+ eventRow={data:{event_id:event,visibility:'public'},error:null};
+ for(const key of Object.keys(serviceSelects)) delete serviceSelects[key];
+ mockIsAdmin.mockResolvedValue({data:false,error:null});
+ mockGetUser.mockResolvedValue({data:{user:{id:'organizer'}},error:null});
  const chain:Record<string,unknown>={}; for(const name of ['select','eq']) chain[name]=()=>chain; chain.maybeSingle=mockUserRole;
- jest.mocked(createSupabaseClient).mockResolvedValue({auth:{getUser:async()=>({data:{user:{id:'organizer'}},error:null})},from:()=>chain,rpc:async()=>({data:false,error:null})} as never);
+ jest.mocked(createSupabaseClient).mockResolvedValue({auth:{getUser:mockGetUser},from:()=>chain,rpc:mockIsAdmin} as never);
  jest.mocked(createSupabaseServiceClient).mockReturnValue(service as never);
  jest.mocked(saveProjectSubmission).mockResolvedValue({status:200,project:{id:'project',project_name:'Example'}} as never);
 });
@@ -129,4 +140,95 @@ describe('required submission answers',()=>{
 it.each(['participant','mentor','judge'])('denies %s callers with 403 before touching service credentials',async(role)=>{
  mockUserRole.mockResolvedValue({data:{role},error:null});
  expect((await run()).status).toBe(403); expect(createSupabaseServiceClient).not.toHaveBeenCalled(); expect(saveProjectSubmission).not.toHaveBeenCalled();
+});
+
+describe('caller authorization',()=>{
+ it('returns 401 for signed-out callers without touching service credentials',async()=>{
+  mockGetUser.mockResolvedValue({data:{user:null},error:null});
+  expect((await run()).status).toBe(401); expect(createSupabaseServiceClient).not.toHaveBeenCalled();
+ });
+ it('returns 403 for a signed-in user with no role in the event (e.g. an organizer of another event)',async()=>{
+  mockUserRole.mockResolvedValue({data:null,error:null});
+  expect((await run()).status).toBe(403); expect(createSupabaseServiceClient).not.toHaveBeenCalled(); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('lets an event-level admin role through',async()=>{
+  mockUserRole.mockResolvedValue({data:{role:'admin'},error:null});
+  expect((await run()).status).toBe(201);
+ });
+ it('lets a platform admin with no event role through',async()=>{
+  mockUserRole.mockResolvedValue({data:null,error:null}); mockIsAdmin.mockResolvedValue({data:true,error:null});
+  expect((await run()).status).toBe(201); expect(saveProjectSubmission).toHaveBeenCalled();
+ });
+ it('fails closed when the caller role lookup errors, even for an apparent organizer',async()=>{
+  jest.spyOn(console,'error').mockImplementation(()=>{});
+  mockUserRole.mockResolvedValue({data:{role:'organizer'},error:{message:'db down'}});
+  expect((await run()).status).toBe(500); expect(createSupabaseServiceClient).not.toHaveBeenCalled(); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('fails closed when the admin check errors',async()=>{
+  jest.spyOn(console,'error').mockImplementation(()=>{});
+  mockIsAdmin.mockResolvedValue({data:null,error:{message:'rpc failed'}});
+  expect((await run()).status).toBe(500); expect(createSupabaseServiceClient).not.toHaveBeenCalled(); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('returns 400 for a non-JSON body',async()=>{
+  const response=await POST(new NextRequest('https://example.test/api/submit',{method:'POST',body:'not json'}),{params:Promise.resolve({eventId:event})});
+  expect(response.status).toBe(400); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('rejects a body without a valid participant id',async()=>{
+  expect((await run({...defaultBody(),participant_user_id:'nope'})).status).toBe(400); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+});
+
+describe('archived and missing events',()=>{
+ it('refuses organizers on an archived event (mirrors guard_archived_event_child_write)',async()=>{
+  eventRow={data:{event_id:event,visibility:'archived'},error:null};
+  const response=await run(); expect(response.status).toBe(409);
+  expect(await response.json()).toEqual({error:'archived events are read-only; unarchive first'});
+  expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('refuses archived events for drafts too',async()=>{
+  eventRow={data:{event_id:event,visibility:'archived'},error:null};
+  expect((await run({...defaultBody(),submit_immediately:false})).status).toBe(409); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('lets a platform admin write to an archived event, like the DB trigger',async()=>{
+  eventRow={data:{event_id:event,visibility:'archived'},error:null}; mockIsAdmin.mockResolvedValue({data:true,error:null});
+  expect((await run()).status).toBe(201); expect(saveProjectSubmission).toHaveBeenCalled();
+ });
+ it.each(['public','private','draft'])('allows %s events',async(visibility)=>{
+  eventRow={data:{event_id:event,visibility},error:null};
+  expect((await run()).status).toBe(201);
+ });
+ it('returns 404 when the event does not exist',async()=>{
+  eventRow={data:null,error:null};
+  expect((await run()).status).toBe(404); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('fails closed when the event lookup errors',async()=>{
+  jest.spyOn(console,'error').mockImplementation(()=>{});
+  eventRow={data:null,error:{message:'db down'}};
+  expect((await run()).status).toBe(500); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('names its columns on events and user_profiles instead of select("*")',async()=>{
+  expect((await run()).status).toBe(201);
+  expect(serviceSelects.events).toEqual(['event_id, visibility']);
+  expect(serviceSelects.user_profiles).toEqual(['uid, display_name, email']);
+ });
+});
+
+describe('participant profile',()=>{
+ it('fails closed when the profile lookup errors',async()=>{
+  jest.spyOn(console,'error').mockImplementation(()=>{});
+  profile={data:null,error:{message:'db down'}};
+  expect((await run()).status).toBe(500); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('returns 404 when the participant has no profile',async()=>{
+  profile={data:null,error:null};
+  expect((await run()).status).toBe(404); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('returns 400 when the participant has no email',async()=>{
+  profile={data:{uid:participant,email:null,display_name:'Participant'},error:null};
+  expect((await run()).status).toBe(400); expect(saveProjectSubmission).not.toHaveBeenCalled();
+ });
+ it('checks the participant role before reading their profile',async()=>{
+  targetRole={data:{role:'mentor'},error:null};
+  expect((await run()).status).toBe(400); expect(serviceSelects.user_profiles).toBeUndefined();
+ });
 });

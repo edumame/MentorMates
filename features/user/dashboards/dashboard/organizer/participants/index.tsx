@@ -724,7 +724,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                             <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
                                 <div className="flex items-center justify-end gap-1">
-                                  {participant.role === EventRole.Participant && (
+                                  {participant.role === EventRole.Participant && !isArchived && (
                                     <Button
                                       variant="ghost"
                                       size="sm"
