@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Link as LinkIcon, QrCode } from "lucide-react";
 import { EventRole, Resource } from "@/lib/types";
 import { useActiveRole } from "./ActiveRoleContext";
+import { ShareQrDialog } from "./share-qr-dialog";
 
 interface EventPageSidebarProps {
   eventResources?: Resource[];
@@ -16,13 +18,17 @@ export function EventPageSidebar({
   eventSlug,
 }: EventPageSidebarProps) {
   const { activeRole } = useActiveRole();
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
 
   // Judges need maximum room for scoring; hide sidebar actions in judge view.
   if (activeRole === EventRole.Judge) {
     return null;
   }
 
-  const eventUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/events/${eventSlug || eventId}/overview`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const eventUrl = `${origin}/events/${eventSlug || eventId}/overview`;
+  // Printed and saved QR codes outlive a slug rename, so encode the immutable id.
+  const qrUrl = `${origin}/events/${eventId}/overview`;
 
   const handleShare = (platform: string) => {
     switch (platform) {
@@ -108,6 +114,7 @@ export function EventPageSidebar({
             type="button"
             aria-label="Show QR code"
             title="Show QR code"
+            onClick={() => setIsQrDialogOpen(true)}
             className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg"
           >
             <QrCode className="w-6 h-6 text-black" aria-hidden="true" />
@@ -155,6 +162,15 @@ export function EventPageSidebar({
           </button>
         </div>
       </div>
+
+      <ShareQrDialog
+        open={isQrDialogOpen}
+        onOpenChange={setIsQrDialogOpen}
+        url={qrUrl}
+        title="Share this event"
+        description="Share the event page or display the QR code so people can scan it."
+        downloadFileName={`${eventSlug || eventId}-event-qr.png`}
+      />
     </div>
   );
 }
