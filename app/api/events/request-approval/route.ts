@@ -183,7 +183,7 @@ export async function POST(req: Request) {
         organizerEmail: user.email || "",
         eventDate: updatedEvent.event_date || "TBD",
         location: updatedEvent.location || "TBD",
-        eventId: updatedEvent.slug || updatedEvent.event_id,
+        eventId: updatedEvent.event_id,
       }).catch((err) =>
         console.error("Failed to send approval notification email:", err),
       );
@@ -344,7 +344,7 @@ export async function POST(req: Request) {
       organizerEmail: user.email || "",
       eventDate: createdEvent.event_date || "TBD",
       location: createdEvent.location || "TBD",
-      eventId: createdEvent.slug || createdEvent.event_id,
+      eventId: createdEvent.event_id,
     }).catch((err) =>
       console.error("Failed to send approval notification email:", err),
     );

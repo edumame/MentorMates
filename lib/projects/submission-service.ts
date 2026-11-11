@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { getTeamEmails } from "@/lib/projects/membership";
 import type { Database, Json } from "@/lib/database.types";
-import type { ServiceSupabaseClient } from "@/lib/supabase/service";
+import {
+  createSupabaseServiceClient,
+  type ServiceSupabaseClient,
+} from "@/lib/supabase/service";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import {
   buildArtifactsFromLegacy,
@@ -10,7 +13,12 @@ import {
   normalizeProjectArtifacts,
   submissionAnswerInputSchema,
 } from "@/features/projects/utils/submission";
-import { buildNullLegacyProjectPayload } from "@/features/projects/utils/effectiveSubmission";
+import {
+  buildNullLegacyProjectPayload,
+  buildSubmissionValuesFromProject,
+  findMissingRequiredSubmissionField,
+} from "@/features/projects/utils/effectiveSubmission";
+import type { EventSubmissionField, Project } from "@/lib/types";
 import {
   fetchArtifactsByProjectIds,
   fetchSubmissionAnswersByProjectIds,
@@ -47,14 +55,14 @@ const projectWriteSchema = z.object({
 
 /**
  * Database guards on projects (lane A1): moving a project to another event is
- * refused once it has scores/prizes/votes (23514) or when the target event was
- * not joined (42501). Surface those as client errors instead of a 500.
+ * refused once it has scores/prizes/votes or a round advancement (23514) or
+ * when the target event was not joined (42501). Surface those as client errors instead of a 500.
  */
 export function mapProjectUpdateError(error: { code?: string | null; message?: string | null }) {
   if (error.code === "23514") {
     return {
       error:
-        "This project can't be moved to another event because it already has scores, prizes or votes.",
+        "This project can't be moved to another event because it already has scores, prizes, votes or a round advancement.",
       status: 400 as const,
     };
   }
@@ -339,6 +347,93 @@ function buildArtifactsFromInput(input: NormalizedProjectWriteInput) {
   return normalizeProjectArtifacts(fallbackArtifacts);
 }
 
+// Round advancements stay keyed to the event they were made in, so moving a
+// project away from them silently detaches it from that event's judging.
+// Scores, prize winners and votes are already refused by the
+// guard_project_event_change trigger (mapped by mapProjectUpdateError), and
+// stale assignments are dropped by cleanup_project_after_event_change
+// (migration 202611080105), so they are not re-checked here. The caller may be
+// a lead, who cannot read these tables under RLS, so the lookups use the
+// service client and a failed lookup blocks the move.
+const JUDGING_RECORD_TABLES = ["project_round_advancements"] as const;
+
+const EVENT_MOVE_CHECK_FAILED = {
+  error: "Failed to verify whether this project can change events",
+  status: 500 as const,
+};
+
+async function validateProjectCanLeaveEvent(project: {
+  id: string;
+  event_id: string;
+  submitted: boolean | null;
+}) {
+  const blocked = (reason: string) => ({
+    error: `This project can't move to another event because ${reason}. Contact an organizer of its current event.`,
+    code: "project_event_move_blocked" as const,
+    status: 409 as const,
+  });
+
+  try {
+    const serviceClient = createSupabaseServiceClient();
+
+    const { data: currentEvent, error: eventError } = await serviceClient
+      .from("events")
+      .select("submission_time_cutoff")
+      .eq("event_id", project.event_id)
+      .maybeSingle();
+
+    if (eventError) {
+      console.error("[submit] fetch current event failed", {
+        projectId: project.id,
+        error: eventError,
+      });
+      return EVENT_MOVE_CHECK_FAILED;
+    }
+
+    const judgingLookups = await Promise.all(
+      JUDGING_RECORD_TABLES.map((table) =>
+        serviceClient
+          .from(table)
+          .select("project_id")
+          .eq("project_id", project.id)
+          .limit(1),
+      ),
+    );
+
+    const failedLookup = judgingLookups.find((lookup) => lookup.error);
+    if (failedLookup) {
+      console.error("[submit] fetch judging records failed", {
+        projectId: project.id,
+        error: failedLookup.error,
+      });
+      return EVENT_MOVE_CHECK_FAILED;
+    }
+
+    if (judgingLookups.some((lookup) => (lookup.data?.length ?? 0) > 0)) {
+      return blocked("it already has judging records");
+    }
+
+    // A draft was never entered into the closed event, so it may still go to
+    // another one. Legacy rows with a null flag count as submitted.
+    const cutoff = currentEvent?.submission_time_cutoff;
+    if (
+      project.submitted !== false &&
+      cutoff &&
+      new Date() > new Date(cutoff)
+    ) {
+      return blocked("the submission deadline for its current event has passed");
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[submit] event move check failed", {
+      projectId: project.id,
+      error,
+    });
+    return EVENT_MOVE_CHECK_FAILED;
+  }
+}
+
 async function validateProjectEventContext(
   supabase: ServiceSupabaseClient,
   eventId: string | null | undefined,
@@ -408,7 +503,7 @@ async function validateProjectEventContext(
   const { data: configuredSubmissionFields, error: fieldsError } =
     await supabase
     .from("event_submission_fields")
-    .select("id, event_id, key, field_type, is_active")
+    .select("id, event_id, key, label, field_type, required, is_active")
       .eq("event_id", eventId)
       .eq("is_active", true)
       // Multi-entry fields live in project_field_entries, not the
@@ -420,7 +515,9 @@ async function validateProjectEventContext(
           id: string;
           event_id: string;
           key: string;
-          field_type: string;
+          label: string;
+          field_type: EventSubmissionField["field_type"];
+          required: boolean;
           is_active: boolean;
         }>
       >();
@@ -563,6 +660,7 @@ export async function saveProjectSubmission(
     (input.extraVideoUrls?.length || 0) > 0 ||
     (input.extraMaterialsUrls?.length || 0) > 0;
 
+  const hasSubmissionAnswersPayload = Array.isArray(input.submissionAnswers);
   const parsedAnswers = Array.isArray(input.submissionAnswers)
     ? input.submissionAnswers
         .map((item) => submissionAnswerInputSchema.safeParse(item))
@@ -573,12 +671,23 @@ export async function saveProjectSubmission(
   let existingProjectEventId: string | null | undefined = input.eventId;
   let existingProjectName: string | null = null;
   let existingProjectDescription: string | null = null;
+  let existingLegacySubmissionFields: Partial<
+    Pick<
+      Database["public"]["Tables"]["projects"]["Row"],
+      | "project_url"
+      | "video_url"
+      | "additional_materials_url"
+      | "cover_image_url"
+    >
+  > = {};
+  let isMovingToAnotherEvent = false;
+  let existingProjectIsDraft = false;
   let existingTeammates: string[] | null = null;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description, teammates",
+        "id, event_id, contextus_project_id, project_name, project_description, project_url, video_url, additional_materials_url, cover_image_url, teammates, submitted",
       )
       .eq("id", projectId)
       .single()
@@ -590,7 +699,12 @@ export async function saveProjectSubmission(
           | "contextus_project_id"
           | "project_name"
           | "project_description"
+          | "project_url"
+          | "video_url"
+          | "additional_materials_url"
+          | "cover_image_url"
           | "teammates"
+          | "submitted"
         >
       >();
     if (error || !existingProject) {
@@ -601,10 +715,33 @@ export async function saveProjectSubmission(
       return { error: "Project not found", status: 404 as const };
     }
 
+    const currentEventId = existingProject.event_id;
+    if (
+      currentEventId &&
+      input.eventId !== undefined &&
+      input.eventId !== currentEventId
+    ) {
+      const moveBlocked = await validateProjectCanLeaveEvent({
+        ...existingProject,
+        event_id: currentEventId,
+      });
+      if (moveBlocked) return moveBlocked;
+    }
+
     existingProjectEventId = input.eventId ?? existingProject.event_id;
     existingProjectName = existingProject.project_name ?? null;
     existingProjectDescription = existingProject.project_description ?? null;
+    existingLegacySubmissionFields = {
+      project_url: existingProject.project_url,
+      video_url: existingProject.video_url,
+      additional_materials_url: existingProject.additional_materials_url,
+      cover_image_url: existingProject.cover_image_url,
+    };
+    isMovingToAnotherEvent =
+      input.eventId !== undefined &&
+      input.eventId !== existingProject.event_id;
     existingTeammates = existingProject.teammates;
+    existingProjectIsDraft = existingProject.submitted === false;
   }
 
   const validation = await validateProjectEventContext(
@@ -662,7 +799,8 @@ export async function saveProjectSubmission(
   if (input.coverImageUrl !== undefined)
     updateData.cover_image_url = input.coverImageUrl;
   if (input.leadName !== undefined) updateData.lead_name = input.leadName;
-  if (input.leadEmail !== undefined) updateData.lead_email = input.leadEmail;
+  // lead_email is set on create only. It decides who owns the project, and any
+  // member can reach this update, so an update must never reassign the lead.
   if (input.teammates !== undefined) {
     updateData.teammates = input.teammates;
   } else if (input.addTeammates?.length || input.removeTeammates?.length) {
@@ -682,6 +820,11 @@ export async function saveProjectSubmission(
   const isNonEmptyString = (value: unknown): value is string =>
     typeof value === "string" && value.trim().length > 0;
 
+  // Drafts created by POST /api/projects start with no name or description, so
+  // the locked fields only apply once the saved project is submitted.
+  const resultingSubmitted = submitted ?? !existingProjectIsDraft;
+  const staysDraft = mode === "update" && !resultingSubmitted;
+
   const lockedFieldErrors: string[] = [];
   const finalProjectName =
     updateData.project_name !== undefined
@@ -692,10 +835,10 @@ export async function saveProjectSubmission(
       ? updateData.project_description
       : existingProjectDescription;
 
-  if (!isNonEmptyString(finalProjectName)) {
+  if (!staysDraft && !isNonEmptyString(finalProjectName)) {
     lockedFieldErrors.push("project_name");
   }
-  if (!isNonEmptyString(finalProjectDescription)) {
+  if (!staysDraft && !isNonEmptyString(finalProjectDescription)) {
     lockedFieldErrors.push("project_description");
   }
 
@@ -707,17 +850,55 @@ export async function saveProjectSubmission(
     };
   }
 
+  // An update that omits answers (a bare submit, a settings change) keeps the
+  // saved submission. Answers are only replaced when the request carries them,
+  // or when the project moves to an event whose fields they don't belong to.
+  const replacesConfiguredSubmission =
+    hasConfiguredSubmissionFields &&
+    (mode === "create" || hasSubmissionAnswersPayload || isMovingToAnotherEvent);
+
   if (hasConfiguredSubmissionFields) {
-    const {
-      project_name: _ignoredProjectName,
-      project_description: _ignoredProjectDescription,
-      ...legacySubmissionFieldReset
-    } = buildNullLegacyProjectPayload();
-    Object.assign(updateData, legacySubmissionFieldReset);
+    if (replacesConfiguredSubmission) {
+      const {
+        project_name: _ignoredProjectName,
+        project_description: _ignoredProjectDescription,
+        ...legacySubmissionFieldReset
+      } = buildNullLegacyProjectPayload();
+      Object.assign(updateData, legacySubmissionFieldReset);
+    }
   } else if (mode === "create" || hasArtifactsPayload) {
     updateData.project_url = legacyFields.project_url;
     updateData.video_url = legacyFields.video_url;
     updateData.additional_materials_url = legacyFields.additional_materials_url;
+  }
+
+  if (submitted === true && hasConfiguredSubmissionFields) {
+    const answersToValidate = replacesConfiguredSubmission
+      ? normalizedSubmissionAnswers
+      : (await fetchSubmissionAnswersByProjectIds(supabase, [projectId!])).get(
+          projectId!,
+        );
+    const missingRequiredField = findMissingRequiredSubmissionField(
+      configuredSubmissionFields,
+      buildSubmissionValuesFromProject(
+        {
+          ...existingLegacySubmissionFields,
+          project_name: finalProjectName,
+          project_description: finalProjectDescription,
+          ...updateData,
+          submission_answers: answersToValidate,
+        } as Partial<Project>,
+        configuredSubmissionFields,
+      ),
+    );
+
+    if (missingRequiredField) {
+      return {
+        error: `"${missingRequiredField.label}" is required`,
+        code: "required_field_missing" as const,
+        status: 400 as const,
+      };
+    }
   }
 
   if (
@@ -833,7 +1014,7 @@ export async function saveProjectSubmission(
     }
   }
 
-  if (input.submissionAnswers !== undefined || hasConfiguredSubmissionFields) {
+  if (hasSubmissionAnswersPayload || replacesConfiguredSubmission) {
     const { error: deleteAnswersError } = await supabase
       .from("project_submission_answers")
       .delete()
@@ -969,13 +1150,15 @@ export async function saveProjectSubmission(
   const contextusProjectId = await maybeCreateContextusProject(supabase, {
     projectId: finalProjectId,
     contextusProjectId: updatedProject.contextus_project_id,
-    label: input.projectName,
-    leadName: input.leadName,
-    leadEmail: input.leadEmail,
+    // Publishing a draft can send only { projectId, submitted }, so read these
+    // from the saved row rather than the request.
+    label: updatedProject.project_name ?? undefined,
+    leadName: updatedProject.lead_name ?? undefined,
+    leadEmail: updatedProject.lead_email ?? undefined,
     eventId: existingProjectEventId ?? input.eventId,
-    projectDescription: input.projectDescription,
-    projectUrl: legacyFields.project_url,
-    submitted,
+    projectDescription: updatedProject.project_description ?? undefined,
+    projectUrl: legacyFields.project_url ?? updatedProject.project_url ?? null,
+    submitted: staysDraft ? false : submitted,
   });
 
   const [fieldMap, answerMap, artifactMap] = await Promise.all([

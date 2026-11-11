@@ -7,7 +7,7 @@ import { verifyEventCheckinToken } from '@/lib/utils/jwt'
 // ?evt=&usr= values and answered "Successfully checked in" without recording
 // anything. It is now an organizer-only verification of a server-signed ticket.
 //
-// Attendance is persisted in event_checkins (migration 202611090098); a repeat
+// Attendance is persisted in event_checkins (migration 202611110101); a repeat
 // scan returns 409 with the first scan time.
 
 export async function GET() {

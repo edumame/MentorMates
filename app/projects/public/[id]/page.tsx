@@ -40,6 +40,7 @@ import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 import { EventRole, EventTrack, EventVisibility, Project } from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { isProjectInActiveRound } from "@/lib/judging/rounds";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
@@ -85,6 +86,7 @@ export default function PublicProjectPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [isJudge, setIsJudge] = useState(false);
+  const [canScore, setCanScore] = useState(false);
   const [judgeId, setJudgeId] = useState("");
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
@@ -173,6 +175,7 @@ export default function PublicProjectPage() {
       if (!project?.event_id) return;
 
       setIsCheckingJudgeStatus(true);
+      setCanScore(false);
       try {
         const {
           data: { session },
@@ -223,6 +226,20 @@ export default function PublicProjectPage() {
         }
         const judgeStatus = canShowProjectScoring(role, hasAssignment);
         setIsJudge(judgeStatus);
+
+        // The assignment check above is not enough: the project must also be
+        // in the active round, or the project_scores trigger rejects the score
+        // (JUDGE-016). Refuse if the check fails.
+        if (judgeStatus && project?.id && project.event_id) {
+          setCanScore(
+            await isProjectInActiveRound(supabase, {
+              eventId: project.event_id,
+              projectId: project.id,
+            }).catch(() => false),
+          );
+        } else {
+          setCanScore(false);
+        }
 
         // Fetch project tracks if user is a judge
         if (judgeStatus && project?.id) {
@@ -560,7 +577,7 @@ export default function PublicProjectPage() {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <ProjectDetailTabs hasTracks={hasEventTracks} totalMembers={totalMembers} feedbackCount={feedbackCount} isJudge={isJudge} />
+              <ProjectDetailTabs hasTracks={hasEventTracks} totalMembers={totalMembers} feedbackCount={feedbackCount} isJudge={canScore} />
 
               {/* Main Content Area */}
               <div className="py-6 sm:py-12">
@@ -737,7 +754,7 @@ export default function PublicProjectPage() {
                     </TabsContent>
 
                 {/* Judge Scoring Tab - Single Column */}
-                {isJudge && (
+                {canScore && (
                   <TabsContent value="scoring" className="mt-0">
                     <Card className="border-purple-200 bg-purple-50">
                       <CardHeader>

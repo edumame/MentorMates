@@ -12,6 +12,8 @@ import { requireMeetingAccess } from "@/lib/meetings/access";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { fetchMeetingTranscript } from "@/lib/meetings/transcript";
 
+const FILTER_OPTIONS_BATCH_SIZE = 1000;
+
 interface MeetingRow {
   id: string;
   name?: string | null;
@@ -393,6 +395,33 @@ export const meetingsRouter = createTRPCRouter({
             total,
             totalPages,
         };
+    }),
+    // Every event and project the user has a meeting in, independent of getMany's paging.
+    getFilterOptions: protectedProcedure.query(async ({ ctx }) => {
+        const eventIds = new Set<string>();
+        const projectIds = new Set<string>();
+
+        // PostgREST caps each response at max_rows (supabase/config.toml), so read in batches.
+        for (let offset = 0; ; offset += FILTER_OPTIONS_BATCH_SIZE) {
+            const { data, error } = await ctx.supabase
+                .from("meetings")
+                .select("event_id, project_id")
+                .eq("user_id", ctx.auth.user.id)
+                .order("id", { ascending: true })
+                .range(offset, offset + FILTER_OPTIONS_BATCH_SIZE - 1);
+
+            if (error) throw error;
+
+            const rows = data ?? [];
+            for (const row of rows) {
+                if (row.event_id) eventIds.add(String(row.event_id));
+                if (row.project_id) projectIds.add(String(row.project_id));
+            }
+
+            if (rows.length < FILTER_OPTIONS_BATCH_SIZE) break;
+        }
+
+        return { eventIds: Array.from(eventIds), projectIds: Array.from(projectIds) };
     }),
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;

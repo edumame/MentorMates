@@ -4,6 +4,8 @@ import { ProjectDetailTabs } from "@/features/projects/components/displays/Proje
 import { ProjectLoadError } from "@/features/projects/components/displays/ProjectLoadError";
 
 import { saveProjectMaterials } from "@/features/projects/client-actions/client-materials";
+import { saveProjectField } from "@/features/projects/client-actions/client-project-fields";
+import { keepSubmissionConfig } from "@/features/projects/utils/effectiveSubmission";
 import { useEffect, useState, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useParams, useRouter } from "next/navigation";
@@ -149,7 +151,7 @@ export default function ProjectPage() {
       additional_materials_url: nextProject.additional_materials_url,
     });
     setProject((prev) => ({
-      ...nextProject,
+      ...keepSubmissionConfig(nextProject, prev),
       artifacts:
         nextProject.artifacts ||
         (prev?.id === nextProject.id ? prev.artifacts : undefined) ||
@@ -263,20 +265,10 @@ export default function ProjectPage() {
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      const { data, error } = await updateProjectClient(projectId, {
-        project_name: newTitle,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "project_name", newTitle);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update project title",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: "Project title updated successfully",
@@ -285,7 +277,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update project title",
+        description:
+          error instanceof Error ? error.message : "Failed to update project title",
         variant: "destructive",
       });
       return false;
@@ -299,20 +292,10 @@ export default function ProjectPage() {
   ): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      const { data, error } = await updateProjectClient(projectId, {
-        project_description: newDescription,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "project_description", newDescription);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update project description",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: "Project description updated successfully",
@@ -321,47 +304,11 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update project description",
+        description:
+          error instanceof Error ? error.message : "Failed to update project description",
         variant: "destructive",
       });
       return false;
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleSubmitToEvent = async (): Promise<void> => {
-    setIsUpdating(true);
-    try {
-      const response = await fetch("/api/projects/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, submitted: true }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        toast({
-          title: "Submission failed",
-          description: errorData?.error || "Could not submit project to event.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data } = await response.json();
-      setProjectWithArtifacts(data as Project);
-      toast({
-        title: "Submitted to event",
-        description: "Your project is now visible to judges.",
-      });
-    } catch (err) {
-      toast({
-        title: "Submission failed",
-        description:
-          err instanceof Error ? err.message : "Unknown error. Try again.",
-        variant: "destructive",
-      });
     } finally {
       setIsUpdating(false);
     }
@@ -392,20 +339,10 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
-        project_url: newUrl.trim() || undefined,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "project_url", newUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update project URL",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -416,7 +353,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update project URL",
+        description:
+          error instanceof Error ? error.message : "Failed to update project URL",
         variant: "destructive",
       });
       return false;
@@ -451,20 +389,10 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
-        cover_image_url: newUrl.trim() || undefined,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "cover_image", newUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update cover image",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -475,7 +403,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update cover image",
+        description:
+          error instanceof Error ? error.message : "Failed to update cover image",
         variant: "destructive",
       });
       return false;
@@ -508,20 +437,10 @@ export default function ProjectPage() {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      const { data, error } = await updateProjectClient(projectId, {
-        cover_image_url: publicUrl,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "cover_image", publicUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update cover image",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: "Cover image uploaded and updated successfully",
@@ -530,7 +449,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to upload cover image",
+        description:
+          error instanceof Error ? error.message : "Failed to upload cover image",
         variant: "destructive",
       });
       return false;
@@ -615,20 +535,10 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
-        video_url: newUrl.trim() || null,
-      });
+      if (!project) return false;
+      const data = await saveProjectField(project, "video_url", newUrl);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update video URL",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      setProjectWithArtifacts(data as Project);
+      setProjectWithArtifacts(data);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -639,7 +549,8 @@ export default function ProjectPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update video URL",
+        description:
+          error instanceof Error ? error.message : "Failed to update video URL",
         variant: "destructive",
       });
       return false;
@@ -825,7 +736,12 @@ export default function ProjectPage() {
         return;
       }
 
-      setProjectWithArtifacts(data as Project);
+      // Merge only the stored team into hydrated state; the raw row lacks
+      // submission answers and artifacts.
+      setProject(
+        (prev) =>
+          prev && { ...prev, teammates: data?.teammates ?? prev.teammates }
+      );
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -855,7 +771,12 @@ export default function ProjectPage() {
         return;
       }
 
-      setProjectWithArtifacts(data as Project);
+      // Merge only the stored team into hydrated state; the raw row lacks
+      // submission answers and artifacts.
+      setProject(
+        (prev) =>
+          prev && { ...prev, teammates: data?.teammates ?? prev.teammates }
+      );
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,
@@ -903,7 +824,7 @@ export default function ProjectPage() {
         return;
       }
 
-      const { data, error } = await updateProjectClient(projectId, {
+      const { error } = await updateProjectClient(projectId, {
         contextus_project_id: contextusId,
       });
 
@@ -916,7 +837,9 @@ export default function ProjectPage() {
         return;
       }
 
-      setProjectWithArtifacts(data as Project);
+      setProject(
+        (prev) => prev && { ...prev, contextus_project_id: contextusId }
+      );
       toast({
         title: "Success",
         description: "Project linked to Contextus successfully",
@@ -1143,16 +1066,18 @@ export default function ProjectPage() {
                         Draft — not yet submitted to the event
                       </p>
                       <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
-                        Your project is saved but hasn&apos;t been submitted. Publishing
-                        a project is not the same as submitting it to an event —
-                        click &quot;Submit to event&quot; for judges to see it.
+                        Your project is saved but hasn&apos;t been submitted. Click
+                        &quot;Submit to event&quot; to review it, then choose
+                        &quot;Publish project&quot; for judges to see it.
                       </p>
                       <Button
                         className="mt-2.5 bg-[#4B89EF] hover:bg-[#3E7EEA] text-white rounded-[12px] h-8 px-4 text-[13px] font-semibold shadow-[inset_0_2px_1px_0_rgba(255,255,255,0.25),0_1px_2px_0_rgba(0,0,0,0.05)]"
-                        onClick={handleSubmitToEvent}
+                        // The edit form owns the required-field and intake
+                        // form checks, so every submission goes through it.
+                        onClick={() => router.push(`/projects/${projectId}/edit`)}
                         disabled={isUpdating}
                       >
-                        {isUpdating ? "Submitting…" : "Submit to event"}
+                        Submit to event
                       </Button>
                     </div>
                   </div>
@@ -1738,10 +1663,16 @@ export default function ProjectPage() {
                                     )
                                     .forEach((email) => handleAddTeammate(email));
 
-                                  // Handle removals
-                                  removed.forEach((email) =>
-                                    handleRemoveTeammate(email)
+                                  // Handle removals. A pending invite's chip is not a
+                                  // teammate yet, so removing it writes nothing.
+                                  const teammateEmails = (project?.teammates || []).map(
+                                    (email) => email.toLowerCase()
                                   );
+                                  removed
+                                    .filter((email) =>
+                                      teammateEmails.includes(email.toLowerCase())
+                                    )
+                                    .forEach((email) => handleRemoveTeammate(email));
                                 }}
                                 initialTags={(project?.teammates || []).map((email) => {
                                   const participant = participants.find(

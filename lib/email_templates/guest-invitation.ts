@@ -9,16 +9,14 @@ export function getGuestInvitationEmailTemplate(
   eventName: string,
   eventId: string,
   inviterName: string,
-  eventSlug?: string,
   scheduleItem?: {
     dayTitle?: string;
     eventName?: string;
     time?: string;
   }
 ): GuestInvitationEmailTemplate {
-  const eventUrl = eventSlug
-    ? `https://mentormates.ai/events/${eventSlug}`
-    : `https://mentormates.ai/events/${eventId}`;
+  // Emailed links outlive a slug rename, so they use the immutable event id.
+  const eventUrl = `https://mentormates.ai/events/${eventId}`;
   // Every interpolated value is escaped (names/schedule are user data).
   const h = {
     eventName: escapeHtml(eventName),

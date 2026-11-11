@@ -43,7 +43,8 @@ interface ExtendedPrize extends Prize {
     project_id: string;
     assigned_at: string;
     assigned_by: string;
-    projects: Project;
+    // Null when RLS hides the project, e.g. a private project that left the event.
+    projects: Project | null;
   }[];
 }
 
@@ -682,11 +683,15 @@ export function PrizesTab({
                               <div className="flex items-center justify-between">
                                 <div>
                                   <div className="text-sm font-medium text-green-800">
-                                    🏆 {winner.projects.project_name}
+                                    🏆{" "}
+                                    {winner.projects?.project_name ??
+                                      "Project unavailable"}
                                   </div>
-                                  <div className="text-xs text-green-600">
-                                    Led by {winner.projects.lead_name}
-                                  </div>
+                                  {winner.projects && (
+                                    <div className="text-xs text-green-600">
+                                      Led by {winner.projects.lead_name}
+                                    </div>
+                                  )}
                                   <div className="text-xs text-green-500 mt-1">
                                     Assigned{" "}
                                     {new Date(
@@ -782,8 +787,9 @@ export function PrizesTab({
             <ul className="list-disc pl-5 text-sm">
               {winnersOfPrizeToDelete.map((winner) => (
                 <li key={winner.id}>
-                  {winner.projects.project_name}, led by{" "}
-                  {winner.projects.lead_name}
+                  {winner.projects
+                    ? `${winner.projects.project_name}, led by ${winner.projects.lead_name}`
+                    : "Project unavailable"}
                 </li>
               ))}
             </ul>

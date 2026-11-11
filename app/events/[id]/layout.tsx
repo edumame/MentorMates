@@ -1,11 +1,18 @@
 import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getEventForRoute } from "@/lib/events/server-event";
 import { ConditionalEventLayout } from "./conditional-event-layout";
 import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
-import { canUseInternalEventRoute, getExternalRedirectUrl } from "@/lib/events/navigation";
+import {
+  canUseInternalEventRoute,
+  getExternalRedirectUrl,
+  isInviteAcceptancePath,
+  isPublicEventHiddenByReview,
+  REQUEST_PATHNAME_HEADER,
+} from "@/lib/events/navigation";
 
 // add authentication check for non private/public events
 
@@ -20,11 +27,21 @@ export default async function Layout({
   const { data: event } = await getEventForRoute(id);
 
   if (!event) {
+    // An invite sent before a slug rename lands here. The accept pages explain
+    // that the link changed, which a generic 404 from this layout would hide.
+    const requestHeaders = await headers();
+    if (isInviteAcceptancePath(requestHeaders.get(REQUEST_PATHNAME_HEADER))) {
+      return <RouteBasedLayoutConfig>{children}</RouteBasedLayoutConfig>;
+    }
+
     notFound();
   }
 
   const externalUrl = getExternalRedirectUrl(event);
-  if (externalUrl) {
+  // Submitted or rejected public events are not live: only people who manage
+  // the event (or its submitter) may open them by direct link.
+  const hiddenByReview = isPublicEventHiddenByReview(event);
+  if (externalUrl || hiddenByReview) {
     const supabase = await createSupabaseClient();
     const {
       data: { user },
@@ -49,7 +66,22 @@ export default async function Layout({
       });
     }
 
-    if (!canUseInternalEventPage) {
+    if (hiddenByReview && !canUseInternalEventPage) {
+      // A signed-in submitter owns the event but has no organizer role.
+      // owner_id is not part of the shared route columns, so look it up here.
+      let isOwner = false;
+      if (user) {
+        const { data: ownership } = await supabase
+          .from("events")
+          .select("owner_id")
+          .eq("event_id", event.event_id)
+          .maybeSingle();
+        isOwner = ownership?.owner_id === user.id;
+      }
+      if (!isOwner) notFound();
+    }
+
+    if (externalUrl && !canUseInternalEventPage) {
       redirect(externalUrl);
     }
   }
@@ -82,6 +114,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await Promise.resolve(params);
   const { data: event } = await getEventForRoute(id);
+
+  // The 404 for these events must not carry the unreviewed title or blurb.
+  if (event && isPublicEventHiddenByReview(event)) {
+    return { title: "Event" };
+  }
 
   const path = event?.slug ? `/events/${event.slug}` : `/events/${id}`;
   const description = event?.event_blurb || event?.event_description || undefined;

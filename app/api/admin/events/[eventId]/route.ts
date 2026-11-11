@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventVisibility } from "@/lib/types";
+import { isWithdrawnVisibility } from "@/lib/events/approval-visibility";
 
 import { EVENT_ROW_COLUMNS } from "@/lib/events/event-columns";
 import { deleteEvent } from "@/app/api/events/[eventId]/delete-event";
@@ -84,16 +85,58 @@ export async function PATCH(
       );
     }
 
-    // If approval_status is being updated, get the current status first for logging
+    // If approval_status is being updated, get the current state first for
+    // logging, to check that approval may publish the event, and to take a
+    // public event down on rejection
     let previousStatus = null;
     if (approval_status !== undefined) {
-      const { data: currentEvent } = await supabase
+      const { data: currentEvent, error: currentEventError } = await supabase
         .from("events")
-        .select("approval_status")
+        .select("approval_status, visibility")
         .eq("event_id", eventId)
         .single();
-      
+
+      if (approval_status === "approved") {
+        // Approval publishes the event, so never do it blind
+        if (currentEventError || !currentEvent) {
+          console.error("Error loading event for approval:", currentEventError);
+          return NextResponse.json(
+            { error: "Failed to load event" },
+            { status: 500 }
+          );
+        }
+
+        // Public stays approvable: public-submit creates public + submitted rows
+        if (isWithdrawnVisibility(currentEvent.visibility)) {
+          return NextResponse.json(
+            {
+              error: `This event is ${currentEvent.visibility}, so it can't be approved. The organizer must set it to Private first.`,
+            },
+            { status: 409 }
+          );
+        }
+      }
+
       previousStatus = currentEvent?.approval_status || null;
+
+      if (approval_status === "rejected") {
+        if (!currentEvent) {
+          return NextResponse.json(
+            { error: "Failed to update event" },
+            { status: 500 }
+          );
+        }
+
+        // Draft, not private: RLS lets everyone read private events. Private
+        // events stay as they are because they were only denied a public listing.
+        // Draft is a withdrawn visibility, so approving again needs the
+        // organizer to set the event to Private first (see the approval check
+        // above). external_redirect_enabled is kept; getExternalRedirectUrl
+        // ignores it until the event is approved.
+        if (currentEvent.visibility === EventVisibility.Public) {
+          updateData.visibility = EventVisibility.Draft;
+        }
+      }
     }
 
     // Update the event

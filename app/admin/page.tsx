@@ -323,6 +323,13 @@ export default function AdminPage() {
             if (field === "approval_status" && value === ApprovalStatus.Approved) {
               updated.visibility = EventVisibility.Public;
             }
+            if (
+              field === "approval_status" &&
+              value === ApprovalStatus.Rejected &&
+              updated.visibility === EventVisibility.Public
+            ) {
+              updated.visibility = EventVisibility.Draft;
+            }
             if (field === "approval_status" && value === ApprovalStatus.Rejected && rejectionReason) {
               (updated as EventItem & { rejection_reason?: string }).rejection_reason = rejectionReason;
             } else if (field === "approval_status" && value !== ApprovalStatus.Rejected) {
@@ -925,16 +932,6 @@ export default function AdminPage() {
                                           ...prev,
                                           [event.event_id]: reason,
                                         }));
-                                        
-                                        // If status is already rejected, update immediately
-                                        if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
-                                          updateEventStatus(
-                                            event.event_id,
-                                            "approval_status",
-                                            ApprovalStatus.Rejected,
-                                            reason
-                                          );
-                                        }
                                       }}
                                       disabled={updatingEventId === event.event_id}
                                       className="min-h-[100px]"
@@ -1577,16 +1574,6 @@ export default function AdminPage() {
                                                       ...prev,
                                                       [event.event_id]: reason,
                                                     }));
-                                                    
-                                                    // If status is already rejected, update immediately
-                                                    if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
-                                                      updateEventStatus(
-                                                        event.event_id,
-                                                        "approval_status",
-                                                        ApprovalStatus.Rejected,
-                                                        reason
-                                                      );
-                                                    }
                                                   }}
                                                   disabled={updatingEventId === event.event_id}
                                                   className="min-h-[100px]"

@@ -30,11 +30,13 @@ jest.mock("@/trpc/client", () => ({
   useTRPC: () => ({
     meetings: {
       getMany: { queryOptions: jest.fn(() => ({})) },
+      getFilterOptions: { queryOptions: jest.fn(() => ({})) },
       remove: { mutationOptions: jest.fn(() => ({})) },
     },
   }),
 }));
 jest.mock("@tanstack/react-query", () => ({
+  keepPreviousData: jest.fn(),
   useMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),
   useQuery: jest.fn(),
   useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),

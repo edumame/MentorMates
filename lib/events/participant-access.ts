@@ -26,6 +26,27 @@ interface JoinParticipantEventOptions {
   channel: "web" | "agent";
 }
 
+export const EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE =
+  "This event is not open for enrollment.";
+
+/**
+ * Private events are intentionally usable before public-listing approval.
+ * Draft/rejected events, unapproved public listings and archived (read-only,
+ * XL-001) events are not open enrollment. Shared by the web and agent joins
+ * and by checkout, so nobody is charged for an event they could not join.
+ */
+export function isEventClosedForEnrollment(event: {
+  visibility: string | null;
+  approval_status: string | null;
+}) {
+  return (
+    event.visibility === EventVisibility.Draft ||
+    event.visibility === EventVisibility.Archived ||
+    event.approval_status === "rejected" ||
+    (event.visibility === EventVisibility.Public && event.approval_status !== "approved")
+  );
+}
+
 function failure(
   httpStatus: number,
   payload: Record<string, unknown>,
@@ -69,13 +90,8 @@ export async function joinParticipantEvent(
     return failure(404, { error: "Event not found" });
   }
 
-  // Private events are intentionally usable before public-listing approval.
-  // Draft/rejected events, unapproved public listings and archived (read-only,
-  // XL-001) events are not open enrollment. Shared by the web and agent joins.
-  if (event.visibility === EventVisibility.Draft || event.visibility === EventVisibility.Archived ||
-      event.approval_status === "rejected" ||
-      (event.visibility === EventVisibility.Public && event.approval_status !== "approved")) {
-    return failure(403, { error: "This event is not open for enrollment." });
+  if (isEventClosedForEnrollment(event)) {
+    return failure(403, { error: EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE });
   }
 
   if (channel === "agent" && event.paid) {

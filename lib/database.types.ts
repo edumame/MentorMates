@@ -2573,6 +2573,21 @@ export type Database = {
       claim_chat_webhook: { Args: { p_message_id: string; p_token: string }; Returns: string }
       finish_chat_webhook: { Args: { p_message_id: string; p_token: string; p_completed: boolean }; Returns: undefined }
       reserve_scraper_request: { Args: { p_user_id: string }; Returns: { allowed: boolean; retry_after_seconds: number }[] }
+      reserve_internal_api_call: {
+        Args: {
+          p_service: string
+          p_key_id: string
+          p_invite_id: string
+          p_limit: number
+          p_window_seconds: number
+        }
+        Returns: {
+          outcome: string
+          usage_id: number | null
+          calls_in_window: number
+          oldest_in_window: string | null
+        }[]
+      }
       consume_role_password_attempt: {
         Args: {
           p_user_id: string

@@ -1,6 +1,6 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
-import { meetingsProcessing } from "@/lib/inngest/functions";
+import { meetingsEndAbandonedCall, meetingsProcessing } from "@/lib/inngest/functions";
 
 export const runtime = "nodejs";
 
@@ -9,5 +9,6 @@ export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
     meetingsProcessing,
+    meetingsEndAbandonedCall,
   ],
 });

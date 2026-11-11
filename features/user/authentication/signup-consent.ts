@@ -10,9 +10,17 @@
 /** Bump when the Terms or Privacy Policy change materially. */
 export const TERMS_VERSION = "2026-11-02";
 
+/**
+ * Accounts created from this date on must have a recorded acceptance. Older
+ * accounts predate the requirement and have none, so they are not gated.
+ */
+export const TERMS_ACCEPTANCE_REQUIRED_FROM = "2026-11-02T00:00:00.000Z";
+
 export const CONSENT_QUERY_PARAMS = {
   terms: "acceptTerms",
   marketing: "marketingOptIn",
+  /** Set on the sign-up page when the OAuth callback sends an account back. */
+  required: "termsRequired",
 } as const;
 
 export type SignupConsent = {
@@ -64,4 +72,21 @@ export function hasRecordedTermsAcceptance(
   userMetadata: Record<string, unknown> | null | undefined
 ) {
   return typeof userMetadata?.terms_accepted_at === "string";
+}
+
+/**
+ * True if the account must accept the Terms before continuing. OAuth creates
+ * accounts from the sign-in screen too, so this can't rely on the sign-up form.
+ * An unusable creation date can't prove the account predates the requirement.
+ */
+export function requiresTermsAcceptance(user: {
+  created_at?: string;
+  user_metadata?: Record<string, unknown> | null;
+}) {
+  if (hasRecordedTermsAcceptance(user.user_metadata)) return false;
+  const createdAt = Date.parse(user.created_at ?? "");
+  return (
+    Number.isNaN(createdAt) ||
+    createdAt >= Date.parse(TERMS_ACCEPTANCE_REQUIRED_FROM)
+  );
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EventDetails, EventTrack, EventRole, Lesson } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { getEventForRoute } from "@/lib/events/server-event";
+import { fetchPublicProfilesByIds } from "@/lib/users/public-profiles";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { EventPageContent } from "@/components/events/event-page-content";
 import { EventPageSidebar } from "@/components/events/event-page-sidebar";
@@ -45,7 +46,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
       .select("title,cover_image_url,url,description,duration_minutes")
       .eq("event_id", eventData.event_id),
     supabase.from("user_event_roles")
-      .select("user_id, user_profiles!user_id(uid, display_name, bio, avatar_url, affiliation)")
+      .select("user_id")
       .eq("event_id", eventData.event_id)
       .eq("role", "judge"),
     supabase.auth.getUser(),
@@ -58,12 +59,17 @@ export default async function EventOverviewPage({ params }: PageProps) {
   } as EventDetails & { cover_image_url?: string; event_lessons?: Lesson[] };
   const tracks = (tracksData || []) as EventTrack[];
 
-  const judges: EventJudge[] = (judgesData || []).flatMap((judgeRecord) => {
-      const profile = Array.isArray(judgeRecord.user_profiles)
-        ? judgeRecord.user_profiles[0]
-        : judgeRecord.user_profiles;
+  // Role visibility stays viewer-scoped; only the profile fields are read
+  // with the service client, since user_profiles RLS hides other users.
+  const judgeIds = (judgesData || []).flatMap((judgeRecord) =>
+    judgeRecord.user_id ? [judgeRecord.user_id] : []
+  );
+  const judgeProfiles = await fetchPublicProfilesByIds(judgeIds);
 
-      if (!profile?.uid || !profile?.display_name) {
+  const judges: EventJudge[] = judgeIds.flatMap((judgeId) => {
+      const profile = judgeProfiles.get(judgeId);
+
+      if (!profile?.display_name) {
         return [];
       }
 

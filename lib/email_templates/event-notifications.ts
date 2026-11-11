@@ -4,9 +4,9 @@ import { escapeHtml, escapeUrl, plainTextSubject } from "./escape-html";
 
 const EVENT_PAGE_ORIGIN = "https://mentormates.ai";
 
-function eventPageUrl(eventId: string, eventInformation: EventDetails): string {
-  const slugOrId = eventInformation.slug || eventId;
-  return `${EVENT_PAGE_ORIGIN}/events/${encodeURIComponent(slugOrId)}/overview`;
+// Emailed links outlive a slug rename, so they use the immutable event id.
+function eventPageUrl(eventId: string): string {
+  return `${EVENT_PAGE_ORIGIN}/events/${encodeURIComponent(eventId)}/overview`;
 }
 
 export interface EmailTemplate {
@@ -17,10 +17,11 @@ export interface EmailTemplate {
 export function getEventUpdateNotificationEmail(
   eventName: string,
   eventId: string,
-  eventInformation: EventDetails
+  // Kept for callers; links no longer depend on the (editable) slug.
+  _eventInformation: EventDetails
 ): EmailTemplate {
   const safeName = escapeHtml(eventName);
-  const url = escapeUrl(eventPageUrl(eventId, eventInformation));
+  const url = escapeUrl(eventPageUrl(eventId));
   return {
     subject: plainTextSubject(`New Event Update for "${eventName}" - MentorMates`),
     html: `
@@ -59,7 +60,7 @@ export function getEventScheduleUpdateNotificationEmail(
   eventInformation: EventDetails
 ): EmailTemplate {
   const safeName = escapeHtml(eventName);
-  const url = escapeUrl(eventPageUrl(eventId, eventInformation));
+  const url = escapeUrl(eventPageUrl(eventId));
   return {
     subject: plainTextSubject(`New Event Schedule Update for "${eventName}" - MentorMates`),
     html: `
@@ -101,12 +102,12 @@ export function getEventScheduleUpdateNotificationEmail(
 export function getEventRoleChangedNotificationEmail(
   eventName: string,
   eventId: string,
-  eventInformation: EventDetails,
+  _eventInformation: EventDetails,
   newRole: string
 ): EmailTemplate {
   const safeName = escapeHtml(eventName);
   const safeRole = escapeHtml(newRole);
-  const url = escapeUrl(eventPageUrl(eventId, eventInformation));
+  const url = escapeUrl(eventPageUrl(eventId));
   return {
     subject: plainTextSubject(`Your role in "${eventName}" changed - MentorMates`),
     html: `
