@@ -4,6 +4,7 @@ import ScreenCapture from "./screen-capture";
 import { SpeakerLayout, CallControls } from "@stream-io/video-react-sdk";
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
+import { toast } from "@/lib/hooks/use-toast";
 
 interface Props {
   onLeave: () => void;
@@ -52,12 +53,21 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const result = await response.json();
+      if (!result.ok) {
+        throw new Error("Worker did not confirm the Q&A change");
+      }
       if (paused) {
         setHasSpoken(false);
       }
       setPaused(!paused);
     } catch (err) {
       console.error(err);
+      toast({
+        title: paused ? "Couldn't start Q&A" : "Couldn't pause Q&A",
+        description: "The agent isn't ready yet. Please try again in a moment.",
+        variant: "destructive",
+      });
     }
 
     // brief disabled/loading state so the user sees the button was pressed
@@ -126,7 +136,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   // Subscribe to real-time caption updates via SSE
   useEffect(() => {
     const eventSource = new EventSource(
-      `${process.env.NEXT_PUBLIC_SCREEN_VISION_WORKER_URL}/captions/stream?meetingId=${meetingId}`
+      `/api/voice-agent/captions?meetingId=${encodeURIComponent(meetingId)}`
     );
 
     eventSource.onmessage = (event) => {

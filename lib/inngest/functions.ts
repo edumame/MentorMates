@@ -4,6 +4,7 @@ import { createAgent, openai, TextMessage } from "@inngest/agent-kit";
 import { StreamTranscriptItem } from "@/modules/meetings/types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/inngest/prompts";
+import { streamVideo } from "@/lib/stream-video";
 
 /**
  * Fetches the system prompt from the database for a given agent ID.
@@ -68,8 +69,81 @@ function extractOverallScore(summary: string): number {
   return score;
 }
 
+/**
+ * How long a call stays open for an owner who has not come back after someone
+ * else left. The wait is bounded because the agent, recording and transcription
+ * all keep running in an otherwise empty call, and because an owner who dropped
+ * out before the last non-owner left may never return.
+ */
+const OWNER_WAIT = "30m";
+
+/**
+ * Ends a call once nobody but the agent is left in it. Runs a grace window after
+ * the last departure, so a page refresh or a short connection drop can rejoin.
+ * A non-owner leaving does not end a call the owner may still arrive for.
+ */
+export const meetingsEndAbandonedCall = inngest.createFunction(
+  {
+    id: "meetings/end-abandoned-call",
+    debounce: { key: "event.data.meetingId", period: "60s" },
+  },
+  { event: "meetings/participant-left" },
+  async ({ event, step }) => {
+    const { meetingId, agentId, ownerId, leftUserId } = event.data as {
+      meetingId: string;
+      agentId: string;
+      ownerId?: string | null;
+      leftUserId?: string;
+    };
+    const call = streamVideo.video.call("default", meetingId);
+
+    const isAbandoned = async () => {
+      const { call: current } = await call.get();
+      const participants = current.session?.participants ?? [];
+      const someoneStayed = participants.some(({ user }) => user.id !== agentId);
+
+      return !current.ended_at && !someoneStayed;
+    };
+
+    if (ownerId && leftUserId !== ownerId) {
+      if (!(await step.run("check-abandoned", isAbandoned))) return;
+
+      await step.sleep("wait-for-owner", OWNER_WAIT);
+    }
+
+    await step.run("end-call-if-abandoned", async () => {
+      if (await isAbandoned()) await call.end();
+    });
+  }
+);
+
 export const meetingsProcessing = inngest.createFunction(
-  { id: "meetings/processing" },
+  {
+    id: "meetings/processing",
+    // Once retries are exhausted nothing else moves a meeting out of processing.
+    // Mirror the pre-dispatch release in submit-transcript so the user can
+    // resubmit, and never undo a meeting another run has already completed.
+    onFailure: async ({ event }) => {
+      const meetingId = event.data.event.data?.meetingId;
+      if (!meetingId) {
+        console.error("meetings/processing failed without a meetingId");
+        return;
+      }
+
+      const supabase = await createSupabaseServiceClient();
+      const { error } = await supabase
+        .from("meetings")
+        .update({
+          status: "upcoming",
+          ended_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", meetingId)
+        .eq("status", "processing");
+
+      if (error) throw error;
+    },
+  },
   { event: "meetings/processing" },
   async ({ event, step }) => {
     // agentId should be provided on the event; fall back to "summarizer"
@@ -89,7 +163,12 @@ export const meetingsProcessing = inngest.createFunction(
         throw new Error("Missing transcriptUrl and transcriptText on event data");
       }
 
-      return fetch(event.data.transcriptUrl).then((res) => res.text());
+      const res = await fetch(event.data.transcriptUrl);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch transcript: HTTP ${res.status}`);
+      }
+
+      return res.text();
     });
 
     const transcript = await step.run("parse-transcript", async () => {

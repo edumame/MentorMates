@@ -87,6 +87,36 @@ export function buildDraftArtifactsPayload(params: {
   return artifacts;
 }
 
+// The saved column wins: older inline edits changed it without updating the
+// artifact row, and rehydrating that stale row would autosave the old URL back.
+export function resolveDraftPrimaryUrl(
+  savedUrl: string | null | undefined,
+  artifactPrimaryUrl: string
+): string {
+  return savedUrl?.trim() || artifactPrimaryUrl;
+}
+
+// Configured events keep the full list in submission_values; the scalar
+// additional_materials_url only mirrors its first item. Other events hydrate
+// their extras from project_artifacts after mount.
+export function getInitialAdditionalMaterialUrls(project: {
+  additional_materials_url?: string | null;
+  has_submission_field_config?: boolean;
+  submission_values?: Record<string, string | string[]>;
+}): string[] {
+  const configuredValue = project.has_submission_field_config
+    ? project.submission_values?.additional_materials
+    : undefined;
+
+  if (configuredValue !== undefined) {
+    return normalizeDraftUrls(
+      Array.isArray(configuredValue) ? configuredValue : [configuredValue]
+    );
+  }
+
+  return normalizeDraftUrls([project.additional_materials_url || ""]);
+}
+
 export function splitPrimaryAndExtrasFromArtifacts(
   artifacts: ArtifactInputRecord[]
 ): {

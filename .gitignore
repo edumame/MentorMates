@@ -49,9 +49,6 @@ yarn-error.log*
 next-env.d.ts
 .qodo
 
-#pnpm store
-.pnpm-store
-
 #personal
 # todo.md
 
@@ -71,3 +68,9 @@ plans/*
 
 # Allow the checked-in environment template
 !.env.example
+
+# local tool caches and logs
+.swc/
+pnpm-debug.log*
+.eslintcache
+.claude/settings.local.json

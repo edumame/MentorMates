@@ -123,7 +123,7 @@ export function normalizeSubmissionValue(
   }
 
   if (Array.isArray(rawValue)) {
-    return rawValue[0]?.trim() ?? "";
+    return rawValue.find((item) => item?.trim())?.trim() ?? "";
   }
 
   return typeof rawValue === "string" ? rawValue : "";
@@ -150,19 +150,28 @@ function getLegacyProjectValue(project: Partial<Project>, key: BuiltInFieldKey):
 
 // Form state may retain legacy URL arrays even when an event uses a single-file
 // field. Use the configured type consistently for rendering, validation and saves.
+// multi_url arrays stay raw because each item is an editable row, so a blank row
+// must survive until validation and payload building normalize it.
 export function buildSubmissionFormValues(
   fields: EffectiveSubmissionField[],
   getValue: (field: EffectiveSubmissionField) => SubmissionValue
 ): Record<string, SubmissionValue> {
   return Object.fromEntries(
-    fields.map((field) => [field.key, normalizeSubmissionValue(field, getValue(field))])
+    fields.map((field) => {
+      const value = getValue(field);
+      return [
+        field.key,
+        field.field_type === "multi_url" && Array.isArray(value)
+          ? value
+          : normalizeSubmissionValue(field, value),
+      ];
+    })
   );
 }
 
-export function findMissingRequiredSubmissionField(
-  fields: EffectiveSubmissionField[],
-  values: Record<string, SubmissionValue>
-): EffectiveSubmissionField | undefined {
+export function findMissingRequiredSubmissionField<
+  T extends Pick<EffectiveSubmissionField, "key" | "field_type" | "required">,
+>(fields: T[], values: Record<string, SubmissionValue>): T | undefined {
   return fields.find((field) => {
     if (!field.required) return false;
     const value = normalizeSubmissionValue(field, values[field.key]);
@@ -240,7 +249,7 @@ export function hasSubmissionFieldMismatch(
 
 export function buildSubmissionValuesFromProject(
   project: Partial<Project>,
-  fields: EffectiveSubmissionField[]
+  fields: Array<Pick<EffectiveSubmissionField, "id" | "key" | "field_type">>
 ): Record<string, SubmissionValue> {
   const answerMap = buildSubmissionAnswerMapByFieldId(project.submission_answers);
   const values: Record<string, SubmissionValue> = {};
@@ -267,6 +276,36 @@ export function buildSubmissionValuesFromProject(
   }
 
   return values;
+}
+
+// Forms keep a link field as a primary URL plus extra rows.
+export function splitUrlRows(value: SubmissionValue): {
+  primary: string;
+  extras: string[];
+} {
+  const [primary = "", ...extras] = Array.isArray(value) ? value : [value];
+  return { primary, extras };
+}
+
+// Configured events keep links only in submission answers, and the legacy project
+// columns hold a single string at most. Editing must start from every saved link,
+// because each save replaces the whole answer. Returns [] when the field is not a
+// configured multi-value field, so callers keep using the legacy column.
+export function getSavedUrlRows(
+  project: Partial<Project>,
+  key: "project_url" | "video_url" | "additional_materials"
+): string[] {
+  if (!project.has_submission_field_config) {
+    return [];
+  }
+
+  const field = project.submission_fields?.find((item) => item.key === key);
+  if (!field) {
+    return [];
+  }
+
+  const value = buildSubmissionValuesFromProject(project, [field])[key];
+  return Array.isArray(value) ? value : [];
 }
 
 export function buildSubmissionAnswersPayload(
@@ -344,6 +383,28 @@ export function buildNullLegacyProjectPayload(): Record<string, null> {
     video_url: null,
     cover_image_url: null,
     additional_materials_url: null,
+  };
+}
+
+// Direct row updates return projects without the hydrated submission config.
+// Keep it so later saves still go through the event's configured fields.
+export function keepSubmissionConfig(
+  nextProject: Project,
+  previousProject: Project | null | undefined
+): Project {
+  if (
+    !previousProject ||
+    nextProject.has_submission_field_config !== undefined ||
+    previousProject.event_id !== nextProject.event_id
+  ) {
+    return nextProject;
+  }
+
+  return {
+    ...nextProject,
+    has_submission_field_config: previousProject.has_submission_field_config,
+    submission_fields: previousProject.submission_fields,
+    submission_answers: previousProject.submission_answers,
   };
 }
 

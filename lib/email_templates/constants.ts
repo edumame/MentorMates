@@ -8,4 +8,7 @@ export enum EMAIL_TYPES {
   CHECKIN_QR_CODE = "checkin_qr_code",
   ORGANIZER_INVITATION = "organizer_invitation",
   CLAIM_TICKET = "claim_ticket",
+  // Server-internal (participants route); not accepted from clients.
+  EVENT_ROLE_CHANGED = "event_role_changed",
+  EVENT_MEMBER_REMOVED = "event_member_removed",
 }

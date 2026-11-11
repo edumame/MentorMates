@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getTeamEmails } from "@/lib/projects/membership";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +27,29 @@ import {
   computeRoleCounts,
   type RoleFilter,
 } from "@/components/events/role-filter";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { fetchAllEventUsers } from "./fetch-event-users";
+import {
+  describeRemoval,
+  describeRoleChange,
+  getAssignableRoles,
+  getRowLockMessage,
+  getRowLockReason,
+  type PeopleViewer,
+} from "./people-access";
+
+type PendingPeopleAction =
+  | { type: "remove"; participant: Participant; judgeScoreCount: number | null }
+  | { type: "role"; participant: Participant; newRole: EventRole; judgeScoreCount: number | null };
 
 interface UserEventRoleWithProfile {
   user_id: string;
@@ -105,20 +129,43 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   const router = useRouter();
   const { toast } = useToast();
   const notifyOnSave = false;
+  const [viewer, setViewer] = useState<PeopleViewer>({ currentUserId: null, isAdmin: false });
+  const [pendingAction, setPendingAction] = useState<PendingPeopleAction | null>(null);
+  const [isApplyingAction, setIsApplyingAction] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadViewer() {
+      const { data } = await supabase.auth.getSession();
+      const currentUserId = data.session?.user?.id ?? null;
+      let isAdmin = false;
+      if (currentUserId) {
+        const { data: adminFlag } = await supabase.rpc("is_admin_user", {
+          user_id: currentUserId,
+        });
+        isAdmin = Boolean(adminFlag);
+      }
+      if (!cancelled) setViewer({ currentUserId, isAdmin });
+    }
+    loadViewer().catch((err) => console.error("Error loading viewer permissions", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchParticipants() {
       try {
-        const participantsResponse = await fetch(
-          `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer,admin&limit=500`
-        );
-        const participantsPayload = await participantsResponse.json();
-        if (!participantsResponse.ok) {
-          throw new Error(
-            participantsPayload.error || "Failed to fetch participants"
-          );
-        }
-        const data = (participantsPayload.users || []).map(
+        // Page through every member (ORG-024: a single 500-row request
+        // silently dropped everyone after the 500th).
+        const { users: eventUsers } = await fetchAllEventUsers(eventId, [
+          EventRole.Participant,
+          EventRole.Mentor,
+          EventRole.Judge,
+          EventRole.Organizer,
+          EventRole.Admin,
+        ]);
+        const data = eventUsers.map(
           (user: {
             user_id: string;
             role: EventRole;
@@ -138,13 +185,23 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
           })
         ) as UserEventRoleWithProfile[];
 
-        const { data: projectRows, error: projectError } = await supabase
+        // Team emails are not client-readable columns; organizers get them
+        // through project_team_emails.
+        const { data: projectBase, error: projectError } = await supabase
           .from("projects")
-          .select("project_name, lead_email, teammates")
-          .eq("event_id", eventId)
-          .overrideTypes<ProjectRow[]>();
+          .select("id, project_name")
+          .eq("event_id", eventId);
 
         if (projectError) throw projectError;
+        const teamEmails = await getTeamEmails(
+          supabase,
+          (projectBase ?? []).map((project) => project.id)
+        );
+        const projectRows: ProjectRow[] = (projectBase ?? []).map((project) => ({
+          project_name: project.project_name,
+          lead_email: teamEmails.get(project.id)?.lead_email ?? null,
+          teammates: teamEmails.get(project.id)?.teammates ?? null,
+        }));
 
         setTeamByEmail(buildEmailTeamMap(projectRows ?? []));
 
@@ -436,6 +493,60 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
     }
   };
 
+  // JUDGE-017: before demoting/removing a judge, load how many scores they
+  // submitted so the confirmation can say what is kept. null = unknown.
+  const loadJudgeScoreCount = async (participant: Participant): Promise<number | null> => {
+    if (participant.role !== EventRole.Judge) return null;
+    try {
+      const res = await fetch(`/api/events/${eventId}/participants/${participant.user_id}`);
+      if (!res.ok) return null;
+      const data = (await res.json()) as { judgeScoreCount?: number };
+      return typeof data.judgeScoreCount === "number" ? data.judgeScoreCount : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const requestRemoval = async (participant: Participant) => {
+    const judgeScoreCount = await loadJudgeScoreCount(participant);
+    setPendingAction({ type: "remove", participant, judgeScoreCount });
+  };
+
+  const requestRoleChange = async (participant: Participant, newRole: EventRole) => {
+    if (newRole === participant.role) return;
+    if (describeRoleChange(participant, newRole)) {
+      const judgeScoreCount = await loadJudgeScoreCount(participant);
+      setPendingAction({ type: "role", participant, newRole, judgeScoreCount });
+      return;
+    }
+    void handleChangeRole(participant.user_id, newRole);
+  };
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction) return;
+    setIsApplyingAction(true);
+    try {
+      if (pendingAction.type === "remove") {
+        await handleRemove(pendingAction.participant.user_id);
+      } else {
+        await handleChangeRole(pendingAction.participant.user_id, pendingAction.newRole);
+      }
+    } finally {
+      setIsApplyingAction(false);
+      setPendingAction(null);
+    }
+  };
+
+  const pendingActionDetails = pendingAction
+    ? pendingAction.type === "remove"
+      ? describeRemoval(pendingAction.participant, pendingAction.judgeScoreCount)
+      : describeRoleChange(
+          pendingAction.participant,
+          pendingAction.newRole,
+          pendingAction.judgeScoreCount
+        ) ?? []
+    : [];
+
   const [topSection, setTopSection] = useState<"registration" | "assign-roles">("registration");
   const [activeTab, setActiveTab] = useState("list");
 
@@ -565,26 +676,50 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                             <TableCell className="pl-6">{participant.display_name}</TableCell>
                             <TableCell>{participant.email}</TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
-                              {!participant.user_id.startsWith("project-") ? (
-                                <Select
-                                  value={participant.role}
-                                  onValueChange={(val) =>
-                                    handleChangeRole(participant.user_id, val as EventRole)
-                                  }
-                                >
-                                  <SelectTrigger className="w-[130px] sm:w-[180px]">
-                                    <SelectValue placeholder="Select role" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value={EventRole.Participant}>Participant</SelectItem>
-                                    <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
-                                    <SelectItem value={EventRole.Judge}>Judge</SelectItem>
-                                    <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <span className="capitalize">{participant.role}</span>
-                              )}
+                              {(() => {
+                                const lockReason = getRowLockReason(participant, viewer);
+                                const lockMessage = getRowLockMessage(lockReason);
+                                if (lockReason) {
+                                  return (
+                                    <span
+                                      className="capitalize"
+                                      title={lockMessage ?? undefined}
+                                      data-testid={`role-readonly-${participant.user_id}`}
+                                    >
+                                      {participant.role}
+                                    </span>
+                                  );
+                                }
+                                const options = getAssignableRoles(viewer);
+                                return (
+                                  <Select
+                                    value={participant.role}
+                                    onValueChange={(val) =>
+                                      void requestRoleChange(participant, val as EventRole)
+                                    }
+                                  >
+                                    <SelectTrigger
+                                      className="w-[130px] sm:w-[180px]"
+                                      aria-label={`Role for ${participant.display_name}`}
+                                    >
+                                      <SelectValue placeholder="Select role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {options.map((role) => (
+                                        <SelectItem key={role} value={role} className="capitalize">
+                                          <span className="capitalize">{role}</span>
+                                        </SelectItem>
+                                      ))}
+                                      {!options.includes(participant.role) && (
+                                        // Display-only (e.g. an admin row viewed by an admin).
+                                        <SelectItem value={participant.role} disabled>
+                                          <span className="capitalize">{participant.role}</span>
+                                        </SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
@@ -613,15 +748,17 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                                       Export Letter
                                     </Button>
                                   )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-red-600 hover:text-red-700"
-                                    onClick={() => handleRemove(participant.user_id)}
-                                    aria-label={`Remove ${participant.display_name}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {!getRowLockReason(participant, viewer) && !isArchived && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-600 hover:text-red-700"
+                                      onClick={() => void requestRemoval(participant)}
+                                      aria-label={`Remove ${participant.display_name}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               )}
                             </TableCell>
@@ -722,6 +859,44 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
           participantDisplayName={submitForParticipant.display_name}
         />
       )}
+      <AlertDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open && !isApplyingAction) setPendingAction(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingAction?.type === "remove"
+                ? `Remove ${pendingAction.participant.display_name} from this event?`
+                : pendingAction
+                  ? `Change ${pendingAction.participant.display_name} to ${pendingAction.newRole}?`
+                  : ""}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <ul className="list-disc space-y-1 pl-5 text-left text-sm text-muted-foreground">
+                {pendingActionDetails.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isApplyingAction}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmPendingAction();
+              }}
+              disabled={isApplyingAction}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {pendingAction?.type === "remove" ? "Remove" : "Change role"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <EvidenceLetterDialog
         open={letterDialogOpen}
         onOpenChange={setLetterDialogOpen}

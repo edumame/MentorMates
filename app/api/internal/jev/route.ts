@@ -62,38 +62,8 @@ export async function POST(request: NextRequest) {
   const auth = await authenticateAgentRequest(request, { allowMissingEventId: true });
   if (auth instanceof NextResponse) return auth;
 
-  // 3. Sliding-window rate limit per key, from the usage log.
-  const windowStart = new Date(Date.now() - JEV_WINDOW_MS).toISOString();
-  const { data: recent, error: usageError } = await supabase
-    .from("internal_api_usage")
-    .select("created_at")
-    .eq("key_id", auth.keyId)
-    .gte("created_at", windowStart)
-    .order("created_at", { ascending: true })
-    .limit(JEV_RATE_LIMIT + 1);
-  if (usageError) {
-    logAgentEvent("internal_usage_lookup_failed", { route: ROUTE, keyId: auth.keyId }, usageError);
-    return NextResponse.json({ error: "Temporarily unavailable" }, { status: 503 });
-  }
-  const calls = recent ?? [];
-  const decision = decideRateLimit(calls.length, {
-    oldestInWindow: calls[0] ? new Date(calls[0].created_at) : undefined,
-  });
-  if (!decision.allowed) {
-    return NextResponse.json(
-      { error: `Rate limit: ${JEV_RATE_LIMIT} calls per minute per key. Try again shortly.` },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(decision.retryAfterSeconds ?? 60),
-          "X-RateLimit-Limit": String(JEV_RATE_LIMIT),
-          "X-RateLimit-Remaining": "0",
-        },
-      }
-    );
-  }
-
-  // 4. Validate the caller's payload and pin the model.
+  // 3. Validate the caller's payload and pin the model. This runs before the
+  // reservation so a call that is never forwarded does not use up a slot.
   let upstreamBody;
   try {
     upstreamBody = buildUpstreamBody(await request.json().catch(() => null));
@@ -107,7 +77,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Jev is not configured on this server yet" }, { status: 503 });
   }
 
-  // 5. Forward, log, return.
+  // 4. Atomically reserve a sliding-window slot and an invite use before
+  // forwarding, so calls still in flight count against the limit.
+  const { data: reservations, error: reserveError } = await supabase.rpc("reserve_internal_api_call", {
+    p_service: JEV_SERVICE,
+    p_key_id: auth.keyId,
+    p_invite_id: invite.id,
+    p_limit: JEV_RATE_LIMIT,
+    p_window_seconds: JEV_WINDOW_MS / 1000,
+  });
+  const reservation = reservations?.[0];
+  if (reserveError || !reservation) {
+    logAgentEvent("internal_usage_reserve_failed", { route: ROUTE, keyId: auth.keyId }, reserveError ?? undefined);
+    return NextResponse.json({ error: "Temporarily unavailable" }, { status: 503 });
+  }
+  if (reservation.outcome === "invite_unavailable") return notFound();
+  const decision = decideRateLimit(reservation.calls_in_window, {
+    oldestInWindow: reservation.oldest_in_window ? new Date(reservation.oldest_in_window) : undefined,
+  });
+  const usageId = reservation.usage_id;
+  if (usageId === null) {
+    return NextResponse.json(
+      { error: `Rate limit: ${JEV_RATE_LIMIT} calls per minute per key. Try again shortly.` },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(decision.retryAfterSeconds ?? 60),
+          "X-RateLimit-Limit": String(JEV_RATE_LIMIT),
+          "X-RateLimit-Remaining": "0",
+        },
+      }
+    );
+  }
+
+  // 5. Forward, complete the usage row, return.
   const startedAt = Date.now();
   let status = 502;
   let payload: unknown = { error: "Upstream unavailable" };
@@ -128,17 +131,16 @@ export async function POST(request: NextRequest) {
   const latencyMs = Date.now() - startedAt;
   const usage = (payload as { usage?: { input_tokens?: number; output_tokens?: number } })?.usage;
 
-  const { error: insertError } = await supabase.from("internal_api_usage").insert({
-    service: JEV_SERVICE,
-    key_id: auth.keyId,
-    invite_id: invite.id,
-    status,
-    latency_ms: latencyMs,
-    prompt_tokens: usage?.input_tokens ?? null,
-    completion_tokens: usage?.output_tokens ?? null,
-  });
-  if (insertError) logAgentEvent("internal_usage_insert_failed", { route: ROUTE, keyId: auth.keyId }, insertError);
-  void supabase.rpc("increment_internal_invite_uses", { p_invite_id: invite.id });
+  const { error: updateError } = await supabase
+    .from("internal_api_usage")
+    .update({
+      status,
+      latency_ms: latencyMs,
+      prompt_tokens: usage?.input_tokens ?? null,
+      completion_tokens: usage?.output_tokens ?? null,
+    })
+    .eq("id", usageId);
+  if (updateError) logAgentEvent("internal_usage_update_failed", { route: ROUTE, keyId: auth.keyId }, updateError);
 
   const ok = status >= 200 && status < 300;
   return NextResponse.json(ok ? payload : { error: "Upstream error", upstream_status: status, detail: payload }, {

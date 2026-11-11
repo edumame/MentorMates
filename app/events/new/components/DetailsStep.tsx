@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, Eye } from "lucide-react";
 import type { WizardStepProps } from "@/lib/types/wizard";
+import { useObjectUrl } from "@/lib/hooks/use-object-url";
 import { BasicInfoEditor } from "./editors/BasicInfoEditor";
 import { ContentEditor } from "./editors/ContentEditor";
 import { ScheduleEditor } from "./editors/ScheduleEditor";
@@ -119,12 +120,16 @@ export function DetailsStep({ event, setEvent }: WizardStepProps) {
 
 /** Simple read-only preview of all event details */
 function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
+  // A picked file isn't uploaded until the event is created, so preview it locally.
+  const filePreviewUrl = useObjectUrl(event.cover_image_file);
+  const coverUrl = filePreviewUrl ?? event.cover_image_url;
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      {event.cover_image_url && (
+      {coverUrl && (
         <img
-          src={event.cover_image_url}
+          src={coverUrl}
           alt="Cover"
           className="w-full h-48 object-cover rounded-lg"
         />

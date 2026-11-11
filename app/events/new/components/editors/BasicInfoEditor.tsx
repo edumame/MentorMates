@@ -5,13 +5,13 @@ import {
   MapPin,
   Building2,
   Video,
-  ImageIcon,
   Calendar,
   Users,
 } from "lucide-react";
 import type { WizardEventData } from "@/lib/types/wizard";
-import { slugify } from "@/lib/types/wizard";
+import { EVENT_NAME_MAX_LENGTH, slugify } from "@/lib/types/wizard";
 import { Switch } from "@/components/ui/switch";
+import { CoverImageInput } from "./CoverImageInput";
 
 const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
 
@@ -22,6 +22,7 @@ interface BasicInfoEditorProps {
 
 export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
   const [customEventType, setCustomEventType] = useState("");
+  const timeZone = useBrowserTimeZone();
   const [baseUrl, setBaseUrl] = useState(process.env.NEXT_PUBLIC_BASE_URL || "");
 
   useEffect(() => {
@@ -45,8 +46,13 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             });
           }}
           placeholder="Event Title"
+          aria-label="Event title"
+          maxLength={EVENT_NAME_MAX_LENGTH}
           className="w-full border-none bg-transparent text-3xl font-semibold tracking-tight text-gray-900 outline-none placeholder:text-gray-300"
         />
+        <p className="text-right text-xs text-gray-400" aria-live="polite">
+          {event.event_name.length}/{EVENT_NAME_MAX_LENGTH}
+        </p>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">Blurb</label>
           <input
@@ -140,6 +146,9 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             <label className="text-sm font-medium text-gray-700">
               Submission Window
             </label>
+            <p className="text-xs text-gray-500">
+              Times are in your time zone{timeZone ? ` (${timeZone})` : ""}.
+            </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-xs text-gray-500">Opens</label>
@@ -253,21 +262,7 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
           </div>
 
           {/* Cover Image */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
-              Cover Image URL
-            </label>
-            <div className="relative">
-              <ImageIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="url"
-                value={event.cover_image_url}
-                onChange={(e) => update({ cover_image_url: e.target.value })}
-                placeholder="https://..."
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
-              />
-            </div>
-          </div>
+          <CoverImageInput event={event} update={update} />
 
           {/* Event Type (tags) */}
           <div className="space-y-1.5">
@@ -371,4 +366,17 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
       </div>
     </>
   );
+}
+
+// Read after mount: the server render does not know the browser's time zone.
+function useBrowserTimeZone() {
+  const [timeZone, setTimeZone] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || null);
+    } catch {
+      setTimeZone(null);
+    }
+  }, []);
+  return timeZone;
 }

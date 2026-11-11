@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { getUserProjectIds } from "@/lib/projects/membership";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
@@ -17,25 +18,40 @@ export async function POST(request: Request) {
     const { feedbackId, markAll } = body;
 
     if (markAll) {
-      // Mark all feedback as read for user's projects
-      const { data: userProjects } = await supabase
-        .from("projects")
-        .select("id")
-        .or(`owner_id.eq.${user.id},team_members.cs.{"${user.id}"}`);
-
-      const projectIds = userProjects?.map((p) => p.id) || [];
+      // Mark all feedback as read for user's projects. Same membership rule
+      // as GET /api/feedback (lead_email / teammates by verified email); the
+      // old owner_id/team_members columns don't exist, so this used to report
+      // success while marking nothing (MENT-012).
+      const { ids: projectIds, error: projectsError } = await getUserProjectIds(supabase);
+      if (projectsError || !projectIds) {
+        console.error("Error loading projects for mark-all-read:", projectsError);
+        return NextResponse.json(
+          { error: "Failed to mark all as read" },
+          { status: 500 }
+        );
+      }
 
       if (projectIds.length === 0) {
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, marked: 0 });
       }
 
       // Get all feedback for these projects
-      const { data: feedbackItems } = await supabase
+      const { data: feedbackItems, error: feedbackError } = await supabase
         .from("feedback")
         .select("id")
         .in("project_id", projectIds);
+      if (feedbackError) {
+        console.error("Error loading feedback for mark-all-read:", feedbackError);
+        return NextResponse.json(
+          { error: "Failed to mark all as read" },
+          { status: 500 }
+        );
+      }
 
       const feedbackIds = feedbackItems?.map((f) => f.id) || [];
+      if (feedbackIds.length === 0) {
+        return NextResponse.json({ success: true, marked: 0 });
+      }
 
       // Insert read status for all (using upsert to handle duplicates)
       const readStatusEntries = feedbackIds.map((id) => ({
@@ -57,6 +73,7 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
+      return NextResponse.json({ success: true, marked: feedbackIds.length });
     } else {
       // Mark single feedback as read
       if (!feedbackId) {
