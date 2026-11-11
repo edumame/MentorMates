@@ -40,7 +40,27 @@ describe("confirmation copy (ORG-008, JUDGE-017)", () => {
     expect(describeRemoval({ user_id: "j", role: EventRole.Judge }, 3).join(" ")).toMatch(/3 scores/);
     expect(describeRoleChange({ user_id: "j", role: EventRole.Judge }, EventRole.Participant, 1)?.join(" ")).toMatch(/1 score;/);
   });
-  it("needs no confirmation for non-judge role changes", () => {
+  it("needs no confirmation for participant role changes", () => {
     expect(describeRoleChange({ user_id: "p", role: EventRole.Participant }, EventRole.Mentor)).toBeNull();
+    expect(describeRoleChange({ user_id: "p", role: EventRole.Participant }, EventRole.Judge)).toBeNull();
+  });
+  it("warns that mentoring assignments are removed when a mentor is removed", () => {
+    const text = describeRemoval({ user_id: "m", role: EventRole.Mentor }).join(" ");
+    expect(text).toMatch(/mentoring assignments are removed/);
+    expect(text).not.toMatch(/judging/);
+  });
+  it("warns that mentoring assignments are removed when a mentor changes role", () => {
+    for (const newRole of [EventRole.Participant, EventRole.Judge, EventRole.Organizer]) {
+      const lines = describeRoleChange({ user_id: "m", role: EventRole.Mentor }, newRole);
+      expect(lines?.join(" ")).toMatch(/mentoring assignments are removed/);
+      expect(lines?.join(" ")).not.toMatch(/score/);
+    }
+  });
+  it("needs no confirmation when the role does not change", () => {
+    expect(describeRoleChange({ user_id: "m", role: EventRole.Mentor }, EventRole.Mentor)).toBeNull();
+    expect(describeRoleChange({ user_id: "j", role: EventRole.Judge }, EventRole.Judge)).toBeNull();
+  });
+  it("does not mention mentoring when a judge is removed", () => {
+    expect(describeRemoval({ user_id: "j", role: EventRole.Judge }).join(" ")).not.toMatch(/mentoring/);
   });
 });

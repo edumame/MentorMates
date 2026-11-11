@@ -1,186 +1,151 @@
 #!/usr/bin/env python3
-"""Test the project assignment role cleanup migration in a disposable PostgreSQL container.
+"""Offline-only PostgreSQL regression for judge/mentor assignment soft-revoke.
 
-No database URL or production connection is accepted. Requires Docker and Python3.
-Run from repository root.
+Applies the real migration (202611110201) to a minimal fixture in a disposable
+Docker PostgreSQL container. Never accepts a database URL. Requires Docker.
 """
-from pathlib import Path
-import subprocess
-import time
-import uuid
+from rls_test_harness import Database, Checks
 
-MIGRATION = Path(__file__).resolve().parents[1] / "supabase/migrations/202611050066_cleanup_project_assignments_on_role_change.sql"
-CONTAINER = "mentormates-assignment-test-" + uuid.uuid4().hex[:12]
+MIGRATION = "202611110201_revoke_former_mentor_assignments.sql"
 
-SCHEMA = """
-CREATE ROLE authenticated NOLOGIN;
-CREATE TYPE public.event_role AS ENUM ('participant', 'mentor', 'judge', 'organizer', 'admin', 'event');
+E = "00000000-0000-0000-0000-0000000000e1"
+E2 = "00000000-0000-0000-0000-0000000000e2"
+P1 = "00000000-0000-0000-0000-0000000000a1"
+P2 = "00000000-0000-0000-0000-0000000000a2"
+MENTOR = "00000000-0000-0000-0000-000000000001"
+JUDGE = "00000000-0000-0000-0000-000000000002"
+ORGANIZER = "00000000-0000-0000-0000-000000000003"
+STALE = "00000000-0000-0000-0000-000000000004"
+OTHER_EVENT_MENTOR = "00000000-0000-0000-0000-000000000005"
+ADMIN = "00000000-0000-0000-0000-000000000006"
 
+# Only the columns the trigger and backfill touch. The judge trigger from
+# 202611080105 is installed verbatim-equivalent so the migration must replace it.
+SCHEMA = f"""
+CREATE TYPE public.event_role AS ENUM ('participant', 'mentor', 'judge', 'organizer', 'admin');
 CREATE TABLE public.user_event_roles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   event_id uuid NOT NULL,
   role public.event_role NOT NULL,
-  updated_at timestamptz DEFAULT now(),
   UNIQUE (user_id, event_id)
 );
-
 CREATE TABLE public.project_assignments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id uuid NOT NULL,
   user_id uuid NOT NULL,
   event_id uuid NOT NULL,
   role public.event_role NOT NULL,
-  CONSTRAINT uq_project_assignment UNIQUE (event_id, project_id, user_id, role),
-  CONSTRAINT valid_assignment_role CHECK (role IN ('judge', 'mentor'))
+  revoked_at timestamptz,
+  UNIQUE (project_id, user_id, role)
 );
+CREATE FUNCTION public.cleanup_former_judge_assignments() RETURNS trigger
+LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$;
+CREATE TRIGGER cleanup_former_judge_assignments
+  AFTER INSERT OR DELETE OR UPDATE OF role, event_id, user_id ON public.user_event_roles
+  FOR EACH ROW EXECUTE FUNCTION public.cleanup_former_judge_assignments();
 
--- No policy for authenticated: like a global admin with no event role row, the
--- session client cannot see these rows, so cleanup must not depend on the caller.
-ALTER TABLE public.project_assignments ENABLE ROW LEVEL SECURITY;
-GRANT ALL ON public.user_event_roles TO authenticated;
-
-CREATE FUNCTION public.uid(n int) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
-  SELECT ('00000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid
-$$;
-
-CREATE FUNCTION public.seed(n int, event_n int, current_role_name text, VARIADIC assigned text[]) RETURNS void
-LANGUAGE plpgsql AS $$
-DECLARE
-  assigned_role text;
-BEGIN
-  IF current_role_name IS NOT NULL THEN
-    INSERT INTO public.user_event_roles (user_id, event_id, role)
-    VALUES (public.uid(n), public.uid(event_n), current_role_name::public.event_role);
-  END IF;
-  FOREACH assigned_role IN ARRAY assigned LOOP
-    INSERT INTO public.project_assignments (project_id, user_id, event_id, role)
-    VALUES (public.uid(500), public.uid(n), public.uid(event_n), assigned_role::public.event_role);
-  END LOOP;
-END;
-$$;
-
-CREATE FUNCTION public.expect(n int, event_n int, expected text) RETURNS void
-LANGUAGE plpgsql AS $$
-DECLARE
-  actual text;
-BEGIN
-  SELECT coalesce(string_agg(role::text, ',' ORDER BY role::text), '') INTO actual
-  FROM public.project_assignments
-  WHERE user_id = public.uid(n) AND event_id = public.uid(event_n);
-  IF actual IS DISTINCT FROM expected THEN
-    RAISE EXCEPTION 'user % event %: expected assignments [%], got [%]', n, event_n, expected, actual;
-  END IF;
-END;
-$$;
+INSERT INTO public.user_event_roles (user_id, event_id, role) VALUES
+  ('{MENTOR}', '{E}', 'mentor'),
+  ('{JUDGE}', '{E}', 'judge'),
+  ('{ORGANIZER}', '{E}', 'organizer'),
+  ('{ADMIN}', '{E}', 'admin'),
+  ('{STALE}', '{E}', 'participant'),
+  ('{OTHER_EVENT_MENTOR}', '{E2}', 'mentor');
+INSERT INTO public.project_assignments (project_id, user_id, event_id, role) VALUES
+  ('{P1}', '{MENTOR}', '{E}', 'mentor'),
+  ('{P2}', '{MENTOR}', '{E}', 'mentor'),
+  ('{P1}', '{JUDGE}', '{E}', 'judge'),
+  ('{P1}', '{ORGANIZER}', '{E}', 'mentor'),
+  ('{P1}', '{ADMIN}', '{E}', 'mentor'),
+  ('{P1}', '{STALE}', '{E}', 'mentor'),
+  ('{P1}', '{STALE}', '{E}', 'judge'),
+  ('{P2}', '{OTHER_EVENT_MENTOR}', '{E2}', 'mentor');
 """
-
-# Users 1-10 hold valid assignments; users 11-14 are in the state the bug left behind.
-SEED = """
-SELECT public.seed(1, 900, 'judge', 'judge');
-SELECT public.seed(2, 900, 'judge', 'judge');
-SELECT public.seed(3, 900, 'judge', 'judge');
-SELECT public.seed(4, 900, 'judge', 'judge');
-SELECT public.seed(5, 900, 'mentor', 'mentor');
-SELECT public.seed(6, 900, 'organizer', 'judge', 'mentor');
-SELECT public.seed(7, 900, 'judge', 'judge');
-SELECT public.seed(8, 900, 'judge', 'judge');
-SELECT public.seed(9, 900, 'judge', 'judge');
-SELECT public.seed(9, 901, 'judge', 'judge');
-SELECT public.seed(10, 900, 'mentor', 'mentor');
-SELECT public.seed(11, 900, NULL, 'judge');
-SELECT public.seed(12, 900, 'participant', 'judge');
-SELECT public.seed(13, 900, 'mentor', 'judge', 'mentor');
-SELECT public.seed(14, 900, 'admin', 'judge', 'mentor');
-"""
-
-# Applied once with the assignments table hidden, to prove a missing table is skipped.
-HIDE_ASSIGNMENTS = "ALTER TABLE public.project_assignments RENAME TO project_assignments_hidden;"
-SHOW_ASSIGNMENTS = "ALTER TABLE public.project_assignments_hidden RENAME TO project_assignments;"
-ASSERT_NO_TRIGGER = """
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'user_event_roles_project_assignment_cleanup_trigger') THEN
-    RAISE EXCEPTION 'trigger must not be created when project_assignments is missing';
-  END IF;
-END;
-$$;
-"""
-
-SCENARIO = """
--- Existing stale rows are removed, and valid ones survive.
-SELECT public.expect(11, 900, '');
-SELECT public.expect(12, 900, '');
-SELECT public.expect(13, 900, 'mentor');
-SELECT public.expect(14, 900, 'judge,mentor');
-SELECT public.expect(1, 900, 'judge');
-SELECT public.expect(6, 900, 'judge,mentor');
-
--- Role writes run as a caller who cannot touch project_assignments.
-SET ROLE authenticated;
-UPDATE public.user_event_roles SET role = 'participant' WHERE user_id = public.uid(1);
-DELETE FROM public.user_event_roles WHERE user_id = public.uid(2);
-UPDATE public.user_event_roles SET role = 'organizer' WHERE user_id = public.uid(3);
-UPDATE public.user_event_roles SET role = 'admin' WHERE user_id = public.uid(4);
-UPDATE public.user_event_roles SET role = 'judge' WHERE user_id = public.uid(5);
-UPDATE public.user_event_roles SET role = 'judge' WHERE user_id = public.uid(6);
-INSERT INTO public.user_event_roles (user_id, event_id, role)
-VALUES (public.uid(7), public.uid(900), 'participant')
-ON CONFLICT (user_id, event_id) DO UPDATE SET role = EXCLUDED.role;
-UPDATE public.user_event_roles SET role = 'judge' WHERE user_id = public.uid(8);
-DELETE FROM public.user_event_roles WHERE user_id = public.uid(9) AND event_id = public.uid(900);
-UPDATE public.user_event_roles SET updated_at = now() WHERE user_id = public.uid(10);
-RESET ROLE;
-
-SELECT public.expect(1, 900, '');
-SELECT public.expect(2, 900, '');
-SELECT public.expect(3, 900, 'judge');
-SELECT public.expect(4, 900, 'judge');
-SELECT public.expect(5, 900, '');
-SELECT public.expect(6, 900, 'judge');
-SELECT public.expect(7, 900, '');
-SELECT public.expect(8, 900, 'judge');
-SELECT public.expect(9, 900, '');
-SELECT public.expect(9, 901, 'judge');
-SELECT public.expect(10, 900, 'mentor');
-"""
-
-
-def docker(*args, input=None, check=True, timeout=90):
-    result = subprocess.run(["docker", *args], input=input, text=True,
-                            capture_output=True, check=False, timeout=timeout)
-    if check and result.returncode:
-        raise RuntimeError(f"Disposable Docker command failed: {result.stderr or result.stdout}")
-    return result
-
-
-def sql(statement):
-    return docker("exec", "-i", CONTAINER, "psql", "-X", "-h", "127.0.0.1", "-U", "postgres",
-                  "-v", "ON_ERROR_STOP=1", "-Atq", input=statement)
 
 
 def main():
-    migration = MIGRATION.read_text()
-    # Pull separately: a cold CI runner may need considerably longer than a SQL call.
-    docker("pull", "postgres:16.15", timeout=600)
-    try:
-        docker("run", "--detach", "--name", CONTAINER, "--network", "none",
-               "--tmpfs", "/var/lib/postgresql/data:rw", "--env",
-               "POSTGRES_HOST_AUTH_METHOD=trust", "postgres:16.15")
-        for _ in range(60):
-            # The image init server accepts Unix sockets before restarting. TCP
-            # readiness only succeeds once the final server is running.
-            if docker("exec", CONTAINER, "pg_isready", "-h", "127.0.0.1", "-U", "postgres", check=False).returncode == 0:
-                break
-            time.sleep(0.5)
-        else:
-            raise RuntimeError("Disposable PostgreSQL failed to start")
-        for step in (SCHEMA, SEED, HIDE_ASSIGNMENTS, migration, ASSERT_NO_TRIGGER, SHOW_ASSIGNMENTS,
-                     migration, migration, SCENARIO):
-            sql(step)
-        print("PASS: stale rows removed, role changes and removals clean up, organizer-level roles keep assignments")
-    finally:
-        docker("rm", "--force", CONTAINER, check=False)
+    checks = Checks()
+    with Database("assignment-role-cleanup") as db:
+        db.sql(SCHEMA)
+
+        def active(user, role, event=E):
+            return db.sql(
+                "SELECT count(*) FROM public.project_assignments "
+                f"WHERE user_id='{user}' AND event_id='{event}' AND role='{role}' AND revoked_at IS NULL"
+            )
+
+        def total(user, role, event=E):
+            return db.sql(
+                "SELECT count(*) FROM public.project_assignments "
+                f"WHERE user_id='{user}' AND event_id='{event}' AND role='{role}'"
+            )
+
+        def set_role(user, role, event=E):
+            db.sql(f"UPDATE public.user_event_roles SET role='{role}' WHERE user_id='{user}' AND event_id='{event}'")
+
+        # Without the migration, demoting a mentor leaves the assignments active.
+        set_role(MENTOR, "participant")
+        checks.expect("bug: demoted mentor stays assigned before the fix", active(MENTOR, "mentor"), "2")
+        set_role(MENTOR, "mentor")
+
+        db.migrate(MIGRATION)
+        db.migrate(MIGRATION)  # Re-running must be safe.
+
+        checks.expect("old judge-only trigger is replaced",
+                      db.sql("SELECT string_agg(tgname, ',') FROM pg_trigger "
+                             "WHERE tgrelid='public.user_event_roles'::regclass AND NOT tgisinternal"),
+                      "sync_role_project_assignments")
+        checks.expect("old judge-only function is dropped",
+                      db.sql("SELECT to_regproc('public.cleanup_former_judge_assignments') IS NULL"), "t")
+        checks.expect("API roles cannot execute the trigger function",
+                      db.sql("SELECT has_function_privilege('authenticated', 'public.sync_role_project_assignments()', 'execute')"
+                             " OR has_function_privilege('anon', 'public.sync_role_project_assignments()', 'execute')"),
+                      "f")
+
+        # Backfill.
+        checks.expect("backfill revokes a stale mentor assignment", active(STALE, "mentor"), "0")
+        checks.expect("backfill keeps the stale row (soft revoke)", total(STALE, "mentor"), "1")
+        checks.expect("backfill leaves judge rows alone", active(STALE, "judge"), "1")
+        checks.expect("backfill keeps current mentors", active(MENTOR, "mentor"), "2")
+        checks.expect("backfill keeps organizers assigned as mentors", active(ORGANIZER, "mentor"), "1")
+        checks.expect("backfill keeps admins assigned as mentors", active(ADMIN, "mentor"), "1")
+        checks.expect("backfill keeps other events", active(OTHER_EVENT_MENTOR, "mentor", E2), "1")
+
+        # Demote, restore, move to judge, remove, re-add.
+        set_role(MENTOR, "participant")
+        checks.expect("demoted mentor loses assignments", active(MENTOR, "mentor"), "0")
+        checks.expect("demoted mentor rows are kept", total(MENTOR, "mentor"), "2")
+        set_role(MENTOR, "mentor")
+        checks.expect("re-promoted mentor gets assignments back", active(MENTOR, "mentor"), "2")
+        set_role(MENTOR, "judge")
+        checks.expect("mentor moved to judge loses mentor assignments", active(MENTOR, "mentor"), "0")
+        set_role(MENTOR, "mentor")
+        db.sql(f"DELETE FROM public.user_event_roles WHERE user_id='{MENTOR}' AND event_id='{E}'")
+        checks.expect("removed mentor loses assignments", active(MENTOR, "mentor"), "0")
+        db.sql(f"INSERT INTO public.user_event_roles (user_id, event_id, role) VALUES ('{MENTOR}', '{E}', 'mentor')")
+        checks.expect("re-added mentor gets assignments back", active(MENTOR, "mentor"), "2")
+        db.sql(f"UPDATE public.user_event_roles SET role='mentor' WHERE user_id='{MENTOR}' AND event_id='{E}'")
+        checks.expect("same-role update changes nothing", active(MENTOR, "mentor"), "2")
+        checks.expect("other event is untouched throughout", active(OTHER_EVENT_MENTOR, "mentor", E2), "1")
+
+        # Stale participant made a mentor gets the backfill-revoked row back.
+        set_role(STALE, "mentor")
+        checks.expect("backfill-revoked row comes back on promotion", active(STALE, "mentor"), "1")
+
+        # Judges behave as before 202611110201.
+        set_role(JUDGE, "participant")
+        checks.expect("demoted judge loses assignments", active(JUDGE, "judge"), "0")
+        set_role(JUDGE, "judge")
+        checks.expect("re-promoted judge gets assignments back", active(JUDGE, "judge"), "1")
+        set_role(JUDGE, "mentor")
+        checks.expect("judge moved to mentor loses judge assignments", active(JUDGE, "judge"), "0")
+        checks.expect("judge moved to mentor gains no mentor rows", total(JUDGE, "mentor"), "0")
+
+        # Organizers/admins are not affected by a mentor trigger.
+        set_role(ORGANIZER, "admin")
+        checks.expect("organizer role change keeps mentor assignments", active(ORGANIZER, "mentor"), "1")
+    checks.finish()
 
 
 if __name__ == "__main__":
