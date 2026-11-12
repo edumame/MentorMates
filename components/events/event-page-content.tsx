@@ -9,6 +9,7 @@ import {
 } from "@/components/markdown/plugins";
 import { normalizeBullets } from "@/lib/markdown/normalize-bullets";
 import { Trophy, Plus } from "lucide-react";
+import { formatPrizeDisplay } from "@/lib/utils/prize-display";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -94,44 +95,6 @@ export function EventPageContent({
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() || "")
       .join("");
-
-  const formatPrizeDisplay = (
-    prizeAmount: string,
-    prizeDescription: string,
-  ) => {
-    const amount = prizeAmount?.trim() || "";
-    const description = prizeDescription?.trim() || "";
-    const descriptionLower = description.toLowerCase();
-    const amountLower = amount.toLowerCase();
-
-    if (!amount && !description) {
-      return { title: "Prize details coming soon", subtitle: "" };
-    }
-
-    if (!amount) {
-      return { title: description, subtitle: "" };
-    }
-
-    if (!description) {
-      return { title: amount, subtitle: "" };
-    }
-
-    if (descriptionLower.startsWith(amountLower)) {
-      const title = description
-        .slice(amount.length)
-        .trim()
-        .replace(/^[\-–:]\s*/, "");
-      return {
-        title: title || description,
-        subtitle: description,
-      };
-    }
-
-    return {
-      title: description,
-      subtitle: `${amount} ${description}`.trim(),
-    };
-  };
 
   // Get active role from context, fallback to userRole
   const { activeRole } = useActiveRole();
