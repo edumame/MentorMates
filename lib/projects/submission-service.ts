@@ -347,6 +347,24 @@ function buildArtifactsFromInput(input: NormalizedProjectWriteInput) {
   return normalizeProjectArtifacts(fallbackArtifacts);
 }
 
+/**
+ * Server-side-only overrides for `saveProjectSubmission`.
+ *
+ * These must never be derived from request input. Routes pass one of the
+ * exported constants below; the default (no overrides) is the participant path.
+ */
+export type ProjectSubmissionOverrides = {
+  /**
+   * Skip the `submission_time_cutoff` check. Only for organizer/admin-gated
+   * flows such as submitting on behalf of a participant who missed the deadline.
+   * The submission start check still applies.
+   */
+  allowAfterDeadline?: boolean;
+};
+
+export const ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES: Readonly<ProjectSubmissionOverrides> =
+  Object.freeze({ allowAfterDeadline: true });
+
 // Round advancements stay keyed to the event they were made in, so moving a
 // project away from them silently detaches it from that event's judging.
 // Scores, prize winners and votes are already refused by the
@@ -438,10 +456,12 @@ async function validateProjectEventContext(
   supabase: ServiceSupabaseClient,
   eventId: string | null | undefined,
   trackIds: string[] | undefined,
+  overrides: ProjectSubmissionOverrides = {},
 ) {
   if (!eventId) {
     return {
       event: null,
+      isPastCutoff: false,
       configuredSubmissionFields: [],
       hasConfiguredSubmissionFields: false,
       validTrackIds: [] as string[],
@@ -486,18 +506,19 @@ async function validateProjectEventContext(
     }
   }
 
-  if (event.submission_time_cutoff) {
-    const submissionCutoff = new Date(event.submission_time_cutoff);
-    if (now > submissionCutoff) {
-      return {
-        error: "Project submission deadline has passed",
-        status: 400 as const,
-        details: {
-          event_name: event.event_name,
-          submission_cutoff: event.submission_time_cutoff,
-        },
-      };
-    }
+  const isPastCutoff = Boolean(
+    event.submission_time_cutoff &&
+      now > new Date(event.submission_time_cutoff),
+  );
+  if (isPastCutoff && overrides.allowAfterDeadline !== true) {
+    return {
+      error: "Project submission deadline has passed",
+      status: 400 as const,
+      details: {
+        event_name: event.event_name,
+        submission_cutoff: event.submission_time_cutoff,
+      },
+    };
   }
 
   const { data: configuredSubmissionFields, error: fieldsError } =
@@ -565,6 +586,7 @@ async function validateProjectEventContext(
 
   return {
     event,
+    isPastCutoff,
     configuredSubmissionFields: configuredSubmissionFields || [],
     hasConfiguredSubmissionFields:
       (configuredSubmissionFields || []).length > 0,
@@ -638,6 +660,7 @@ export async function saveProjectSubmission(
     mode: "create" | "update";
     projectId?: string;
     defaultSubmitted?: boolean;
+    overrides?: ProjectSubmissionOverrides;
   },
 ) {
   const { input, mode } = options;
@@ -748,6 +771,7 @@ export async function saveProjectSubmission(
     supabase,
     existingProjectEventId ?? null,
     input.trackIds,
+    options.overrides,
   );
 
   if ("error" in validation) {
@@ -1187,5 +1211,8 @@ export async function saveProjectSubmission(
   return {
     status: 200 as const,
     project: hydratedProject,
+    // True only when an override let this write through after the event's
+    // submission cutoff (e.g. an organizer submitting on behalf of a participant).
+    submittedAfterDeadline: validation.isPastCutoff,
   };
 }
