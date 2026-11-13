@@ -2495,6 +2495,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      project_meeting_timeline: {
+        Args: { p_project_id: string }
+        Returns: {
+          id: string
+          name: string | null
+          status: Database["public"]["Enums"]["meeting_status"] | null
+          started_at: string | null
+          ended_at: string | null
+          created_at: string | null
+          score: number | null
+          can_view_details: boolean
+        }[]
+      }
+      meeting_associations_allowed: {
+        Args: { p_agent: string; p_event: string | null; p_project: string | null }
+        Returns: boolean
+      }
+      meeting_full_access: {
+        Args: { p_owner: string | null; p_event: string | null }
+        Returns: boolean
+      }
       claim_event_ticket: { Args: { p_ticket_id: string; p_user_id: string }; Returns: string }
 
       // Lane C (202611080405_c_round2.sql): atomic intake submission write.

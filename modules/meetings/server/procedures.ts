@@ -7,6 +7,7 @@ import z from "zod";
 import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
+import { meetingWriteError, validateMeetingAssociations } from "@/lib/meetings/association-validation";
 import { streamChat } from "@/lib/stream-chat";
 import { requireMeetingAccess } from "@/lib/meetings/access";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -48,6 +49,7 @@ type UserProfileRow = Record<string, unknown>;
 export const meetingsRouter = createTRPCRouter({
     create: protectedProcedure.input(meetingsInsertSchema).mutation(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
+        await validateMeetingAssociations(supabase, input);
         try {
             const agentId = input.agentId || null;
             const eventId = input.eventId || null;
@@ -155,7 +157,7 @@ export const meetingsRouter = createTRPCRouter({
                 project_id: input.projectId || null,
             }).select().limit(1);
 
-        if (insertError) throw insertError;
+        if (insertError) throw meetingWriteError(insertError);
         const createdMeeting = createdRows?.[0];
 
         if (!createdMeeting) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Meeting creation failed' });
@@ -426,6 +428,13 @@ export const meetingsRouter = createTRPCRouter({
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
         const { agentId, eventId, projectId, id, ...rest } = input;
+        const { data: existing, error: lookupError } = await supabase.from("meetings")
+            .select("agent_id,event_id,project_id").eq("id", id).eq("user_id", ctx.auth.user.id).maybeSingle();
+        if (lookupError) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Unable to verify meeting" });
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+        if (existing.agent_id !== agentId || existing.event_id !== (eventId || null) || existing.project_id !== (projectId || null)) {
+            await validateMeetingAssociations(supabase, input);
+        }
         const updatePayload: Record<string, string | null> = {
             ...rest,
             agent_id: agentId,
@@ -433,7 +442,7 @@ export const meetingsRouter = createTRPCRouter({
             project_id: projectId || null,
         };
         const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id, user_id: ctx.auth.user.id }).select();
-        if (error) throw error;
+        if (error) throw meetingWriteError(error);
         const updatedMeeting = data?.[0];
         if (!updatedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
         return updatedMeeting;
