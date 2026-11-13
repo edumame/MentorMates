@@ -23,6 +23,28 @@
 --   select policyname, cmd from pg_policies
 --    where schemaname = 'public' and tablename = 'project_tracks' order by cmd;
 --
+-- PRE-CHECK 2 (read-only): judges keep track reads through
+-- project_tracks_select -> can_view_project (any user_event_roles row for the
+-- project's event counts). Expect would_lose_access = 0 for every source;
+-- on 2026-11-13 PROD had 0 of 4719 / 1282 / 1075 pairs.
+--   with tracked as (select distinct project_id from public.project_tracks),
+--   pairs as (
+--     select 'judge role in event' src, r.user_id, p.id project_id
+--       from public.user_event_roles r join public.projects p on p.event_id = r.event_id
+--      where r.role = 'judge' and p.id in (select project_id from tracked)
+--     union
+--     select 'project_assignments (active)', a.user_id, a.project_id
+--       from public.project_assignments a
+--      where a.revoked_at is null and a.project_id in (select project_id from tracked)
+--     union
+--     select 'project_scores (has scored)', s.judge_id, s.project_id
+--       from public.project_scores s
+--      where s.project_id in (select project_id from tracked)
+--   )
+--   select src, count(*) pairs,
+--          count(*) filter (where not public.can_view_project(project_id, user_id)) would_lose_access
+--     from pairs group by src;
+--
 -- VERIFY after applying: no remaining policy on any table reads the email
 -- columns as the caller.
 --   select tablename, policyname from pg_policies
