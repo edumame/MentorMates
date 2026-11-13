@@ -4,6 +4,11 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, ParticipantRequestStatus } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import {
+  EVENT_FULL_APPROVAL_MESSAGE,
+  isEventFullDbError,
+  isParticipantSeatAvailable,
+} from "@/lib/events/participant-access";
 import { isApprovableRole } from "@/lib/roles/approval-requests";
 
 const updateRequestSchema = z.object({
@@ -193,28 +198,15 @@ export async function PATCH(
 
     // If approving, check capacity first
     if (status === ParticipantRequestStatus.Approved) {
-      const { data: event } = await supabase
-        .from("events")
-        .select("participant_capacity")
-        .eq("event_id", eventId)
-        .single();
+      if (approvalRequest.requested_role === EventRole.Participant) {
+        const seatAvailable = await isParticipantSeatAvailable(
+          createSupabaseServiceClient(),
+          { eventId, userId: approvalRequest.user_id }
+        );
 
-      if (
-        event?.participant_capacity &&
-        approvalRequest.requested_role === "participant"
-      ) {
-        const { count: participantCount } = await supabase
-          .from("user_event_roles")
-          .select("*", { count: "exact", head: true })
-          .eq("event_id", eventId)
-          .eq("role", "participant");
-
-        if (
-          participantCount &&
-          participantCount >= event.participant_capacity
-        ) {
+        if (!seatAvailable) {
           return NextResponse.json(
-            { error: "Event is at full capacity. Cannot approve more participants." },
+            { error: EVENT_FULL_APPROVAL_MESSAGE },
             { status: 409 }
           );
         }
@@ -235,6 +227,15 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq("id", requestId);
+
+    // enforce_paid_participant_seat_hold: another approval took the last seat
+    // after the check above.
+    if (isEventFullDbError(updateError)) {
+      return NextResponse.json(
+        { error: EVENT_FULL_APPROVAL_MESSAGE },
+        { status: 409 }
+      );
+    }
 
     if (updateError) {
       console.error("Error updating approval request:", updateError);

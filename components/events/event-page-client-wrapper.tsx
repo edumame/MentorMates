@@ -104,27 +104,28 @@ export function EventPageClientWrapper({
         return;
       }
 
-      const userId = session.user.id;
-
+      // Server route, because leaving also has to free a paid seat reservation.
       // Only the role this page was rendered for is removed; organizers never
       // reach this path (EVT-ORG-001).
-      const { error: deleteError } = await supabase
-        .from("user_event_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("event_id", eventId)
-        .eq("role", userRole);
+      const response = await fetch(`/api/events/${eventId}/registration`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: userRole }),
+      });
 
-      if (deleteError) {
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          hint?: string | null;
+        } | null;
         toast({
           title: "Error",
           description:
-            deleteError.hint === "last_organizer"
+            body?.hint === "last_organizer"
               ? "An event must keep at least one organizer."
               : "Failed to cancel registration. Please try again.",
           variant: "destructive",
         });
-        console.error("Error removing user role:", deleteError.message);
+        console.error("Error removing user role:", response.status);
         return;
       }
 
