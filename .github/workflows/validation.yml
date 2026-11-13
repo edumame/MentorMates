@@ -78,10 +78,13 @@ jobs:
       - name: Test promo code view removal in disposable PostgreSQL
         run: python3 scripts/test_coupons_with_codes_view.py
 
+  event-checkin:
   agent-global-restriction:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Test event check-in recording in disposable PostgreSQL
+        run: python3 scripts/test_event_checkin.py
       - name: Test global agent restriction in disposable PostgreSQL
         run: python3 scripts/test_agent_global_restriction.py

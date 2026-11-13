@@ -9,6 +9,7 @@ type CheckinResponse = {
   error?: string
   verified?: boolean
   recorded?: boolean
+  alreadyCheckedIn?: boolean
   attendee?: { name: string; role: string }
 }
 
@@ -35,7 +36,11 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
     })
       .then(async (res) => {
         const data = (await res.json().catch(() => ({}))) as CheckinResponse
-        return res.ok ? data : { error: data.error || 'Failed to process check-in' }
+        if (res.ok) return data
+        // A repeat scan (409) keeps the first scan time and attendee so staff
+        // can see when this person actually came in.
+        if (res.status === 409 && data.alreadyCheckedIn) return data
+        return { error: data.error || 'Failed to process check-in' }
       })
       .then((data: CheckinResponse) => {
         setStatus(data)
@@ -68,6 +73,22 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
           <div className="text-center py-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
             <p className="mt-4 text-gray-600">Processing check-in...</p>
+          </div>
+        ) : status?.alreadyCheckedIn ? (
+          <div className="text-center py-4">
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded relative" role="alert">
+              <p className="font-bold">Already checked in</p>
+              {status.attendee && (
+                <p className="text-sm font-medium">
+                  {status.attendee.name} ({status.attendee.role})
+                </p>
+              )}
+              {status.timestamp && (
+                <p className="text-xs mt-2">
+                  First scanned: {new Date(status.timestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
           </div>
         ) : status?.error ? (
           <div className="text-center py-4">

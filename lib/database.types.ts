@@ -361,6 +361,49 @@ export type Database = {
           },
         ]
       }
+      event_checkins: {
+        Row: {
+          checked_in_at: string
+          checked_in_by: string | null
+          event_id: string
+          user_id: string
+        }
+        Insert: {
+          checked_in_at?: string
+          checked_in_by?: string | null
+          event_id: string
+          user_id: string
+        }
+        Update: {
+          checked_in_at?: string
+          checked_in_by?: string | null
+          event_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_checkins_checked_in_by_fkey"
+            columns: ["checked_in_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+          {
+            foreignKeyName: "event_checkins_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_checkins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+        ]
+      }
       event_intake_form_bindings: {
         Row: {
           context: Database["public"]["Enums"]["intake_form_context"]
@@ -2495,6 +2538,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      record_event_checkin: {
+        Args: { p_event_id: string; p_user_id: string; p_checked_in_by: string }
+        Returns: { outcome: string; recorded_at: string | null }[]
+      }
       claim_event_ticket: { Args: { p_ticket_id: string; p_user_id: string }; Returns: string }
 
       // Lane C (202611080405_c_round2.sql): atomic intake submission write.
