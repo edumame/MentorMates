@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/lib/supabase";
+import { assignEventProjectTracks } from "@/features/projects/client-actions/client-track-update";
 import { useToast } from "@/lib/hooks/use-toast";
 
 type CsvRow = {
@@ -260,52 +261,40 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
         }
       }
 
-      // Step 4: Create project-track relationships
+      // Step 4: Set each imported project's tracks from its CSV row. Only
+      // rows that list tracks are touched; a row with no tracks keeps the
+      // project's current tracks. One atomic request per batch.
       if (insertedProjects && insertedProjects.length > 0) {
-        const projectTrackInserts: Array<{
-          project_id: string;
-          track_id: string;
-        }> = [];
+        const trackAssignments: Array<{ projectId: string; trackIds: string[] }> = [];
 
         insertedProjects.forEach((project) => {
-          // Find the original row to get its tracks
           const originalRow = mappedRows.find(
             (row) =>
               row.project_url === project.project_url &&
               row.event_id === project.event_id &&
               row.project_name === project.project_name
           );
-
-          if (originalRow?.tracks) {
-            originalRow.tracks.forEach((trackName) => {
-              const trackId = trackNameToIdMap.get(trackName);
-              if (trackId) {
-                projectTrackInserts.push({
-                  project_id: project.id,
-                  track_id: trackId,
-                });
-              }
-            });
+          const trackIds = (originalRow?.tracks ?? [])
+            .map((trackName) => trackNameToIdMap.get(trackName))
+            .filter((trackId): trackId is string => Boolean(trackId));
+          if (trackIds.length > 0) {
+            trackAssignments.push({ projectId: project.id, trackIds });
           }
         });
 
-        if (projectTrackInserts.length > 0) {
-          // Delete existing project-track relationships for these projects
-          const projectIds = insertedProjects.map((p) => p.id);
-          await supabase
-            .from("project_tracks")
-            .delete()
-            .in("project_id", projectIds);
-
-          // Insert new project-track relationships
-          const { error: projectTracksError } = await supabase
-            .from("project_tracks")
-            .insert(projectTrackInserts);
-
-          if (projectTracksError) {
+        if (trackAssignments.length > 0) {
+          const { success, error, appliedProjects } = await assignEventProjectTracks(
+            eventId,
+            "replace",
+            trackAssignments
+          );
+          if (!success) {
             toast({
               title: "Error creating project-track relationships",
-              description: projectTracksError.message,
+              description:
+                appliedProjects > 0
+                  ? `${error?.message ?? "Failed to assign tracks"} (tracks were set for ${appliedProjects} of ${trackAssignments.length} projects)`
+                  : error?.message ?? "Failed to assign tracks",
               variant: "destructive",
             });
             return;

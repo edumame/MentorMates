@@ -92,7 +92,7 @@ export function TrackSelector({
         console.error("Error updating tracks:", error);
         toast({
           title: "Error",
-          description: "Failed to update project tracks",
+          description: error?.message || "Failed to update project tracks",
           variant: "destructive",
         });
         return;

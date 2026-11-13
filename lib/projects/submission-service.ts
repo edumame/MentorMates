@@ -1,3 +1,5 @@
+// Writes with the service client after the calling route checks access.
+import "server-only";
 import { z } from "zod";
 import { getTeamEmails } from "@/lib/projects/membership";
 import type { Database, Json } from "@/lib/database.types";
@@ -27,6 +29,7 @@ import {
   type ProjectBaseRow,
 } from "@/lib/projects/query";
 import { applyTeammateChanges } from "@/lib/projects/teammates";
+import { setProjectTracks } from "@/lib/projects/project-tracks";
 
 const projectWriteSchema = z.object({
   projectId: z.string().uuid().optional(),
@@ -1129,39 +1132,26 @@ export async function saveProjectSubmission(
   }
 
   if (existingProjectEventId && input.trackIds !== undefined) {
-    const { error: deleteTracksError } = await supabase
-      .from("project_tracks")
-      .delete()
-      .eq(
-      "project_id",
-      finalProjectId,
-    );
-    if (deleteTracksError) {
-      console.error("[submit] delete project tracks failed", {
+    // Atomic replace with the service client: the caller's route has already
+    // checked edit rights, and validateProjectEventContext checked that every
+    // track belongs to the event. Partial failure can no longer leave the
+    // project without tracks.
+    let trackResult: Awaited<ReturnType<typeof setProjectTracks>>;
+    try {
+      trackResult = await setProjectTracks(
+        createSupabaseServiceClient(),
+        [{ projectId: finalProjectId!, trackIds: input.trackIds }],
+        { replace: true },
+      );
+    } catch (error) {
+      console.error("[submit] set project tracks failed", {
         projectId: finalProjectId,
-        error: deleteTracksError,
+        error,
       });
       return { error: "Failed to update project tracks", status: 500 as const };
     }
-
-    if (input.trackIds.length > 0) {
-      const { error: trackInsertError } = await supabase.from("project_tracks").insert(
-        input.trackIds.map((trackId) => ({
-          project_id: finalProjectId,
-          track_id: trackId,
-        })),
-      );
-      if (trackInsertError) {
-        console.error("[submit] insert project tracks failed", {
-          projectId: finalProjectId,
-          trackIds: input.trackIds,
-          error: trackInsertError,
-        });
-        return {
-          error: "Failed to create project track relationships",
-          status: 500 as const,
-        };
-      }
+    if (!trackResult.ok) {
+      return { error: trackResult.error, status: trackResult.status };
     }
   }
 

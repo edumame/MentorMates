@@ -98,82 +98,47 @@ export async function DELETE(
 
     const { projectId } = await params;
 
-    // First check if the user has permission to delete this project
-    const { data: project, error: fetchError } = await supabase
-      .from("projects")
-      .select("submitted, event_id")
-      .eq("id", projectId)
-      .single();
-
-    if (fetchError) {
-      return NextResponse.json(
-        { error: "Failed to fetch project" },
-        { status: 400 }
-      );
-    }
-
-    if (!project) {
-      return NextResponse.json(
-        { error: "Project not found" },
-        { status: 404 }
-      );
-    }
-
-    const accessResult = await getProjectEditAccess(createSupabaseServiceClient(), {
+    const service = createSupabaseServiceClient();
+    const accessResult = await getProjectEditAccess(service, {
       projectId,
       userId: user.id,
       userEmail: user.email,
     });
-    const isProjectLead = Boolean(accessResult.access?.isLead);
-
-    // Check if user is an organizer for the event
-    let isOrganizer = false;
-    if (project.event_id) {
-      const { data: organizerRole } = await supabase
-        .from("user_event_roles")
-        .select("role")
-        .eq("event_id", project.event_id)
-        .eq("user_id", user.id)
-        .eq("role", "organizer")
-        .single();
-
-      isOrganizer = !!organizerRole;
+    if (!accessResult.access) {
+      return NextResponse.json(
+        { error: accessResult.error },
+        { status: accessResult.status }
+      );
     }
 
-    // Project leads can only delete unsubmitted projects
-    if (isProjectLead && !isOrganizer) {
-      if (project.submitted) {
-        return NextResponse.json(
-          { error: "Cannot delete submitted projects from the dashboard." },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Must be either project lead or organizer to delete
-    if (!isProjectLead && !isOrganizer) {
+    // The project lead may delete their own project, submitted or not; an
+    // organizer of the project's event may delete any of its projects.
+    // Teammates may not.
+    const { isLead, isOrganizer } = accessResult.access;
+    if (!isLead && !isOrganizer) {
       return NextResponse.json(
         { error: "Unauthorized to delete this project" },
         { status: 403 }
       );
     }
 
-    // Delete project_tracks first (foreign key constraint)
-    await supabase
-      .from("project_tracks")
-      .delete()
-      .eq("project_id", projectId);
-
-    const { error: deleteError } = await supabase
+    // Service client after the check above. project_tracks, scores and other
+    // per-project rows are removed by their ON DELETE CASCADE foreign keys.
+    const { data: deletedRows, error: deleteError } = await service
       .from("projects")
       .delete()
-      .eq("id", projectId);
+      .eq("id", projectId)
+      .select("id");
 
     if (deleteError) {
+      console.error("Error deleting project:", { projectId, error: deleteError });
       return NextResponse.json(
-        { error: deleteError.message || "Failed to delete project" },
-        { status: 400 }
+        { error: "Failed to delete project" },
+        { status: 500 }
       );
+    }
+    if (!deletedRows || deletedRows.length === 0) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });
