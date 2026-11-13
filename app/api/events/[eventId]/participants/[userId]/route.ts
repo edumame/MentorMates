@@ -164,8 +164,8 @@ export async function PATCH(
       );
     }
 
-    // Judge assignment cleanup on demotion is handled in the database
-    // (lane A1 migration 202611080104); submitted scores are kept.
+    // Judge and mentor assignments are soft-revoked on demotion (and restored
+    // on re-promotion) in the database (202611110201); submitted scores are kept.
     const service = createSupabaseServiceClient();
 
     const notified = shouldNotify
@@ -202,8 +202,9 @@ export async function DELETE(
     //   longest-standing remaining member becomes lead;
     // - an approved participant request is closed so the user cannot rejoin an
     //   approval-gated event without a new organizer decision.
-    // Judge assignments are cleaned up by the database (lane A1 migration
-    // 202611080104). Submitted scores and intake answers are kept.
+    // Judge and mentor assignments are soft-revoked by the database trigger
+    // sync_role_project_assignments (202611110201). Submitted scores and
+    // intake answers are kept.
     const service = createSupabaseServiceClient();
     const { data: cleanup, error: removeError } = await service.rpc("remove_event_member", {
       p_event_id: auth.eventId,
