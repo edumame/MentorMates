@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { EventTrack } from "@/lib/types";
 import { PostgrestError } from "@supabase/supabase-js";
+import { readApiError, toError } from "./api-error";
 
 // Fetch available tracks for an event
 export async function fetchEventTracks(
@@ -63,67 +64,78 @@ export async function fetchProjectTracks(
   return { data: tracks, error: null };
 }
 
-// Update project tracks (replace all tracks for the project)
+/**
+ * Replace a project's tracks. Writes go through the API, which checks that the
+ * caller is on the team or organizes the event, enforces the submission
+ * deadline for participants and applies the change atomically.
+ */
 export async function updateProjectTracks(
   projectId: string,
   trackIds: string[]
-): Promise<{ success: boolean; error: PostgrestError | null }> {
-  // Start a transaction by first deleting existing tracks, then inserting new ones
-  
-  // Delete existing project tracks
-  const { error: deleteError } = await supabase
-    .from("project_tracks")
-    .delete()
-    .eq("project_id", projectId);
-
-  if (deleteError) {
-    return { success: false, error: deleteError };
-  }
-
-  // Insert new project tracks if any are provided
-  if (trackIds.length > 0) {
-    const trackInserts = trackIds.map(trackId => ({
-      project_id: projectId,
-      track_id: trackId,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("project_tracks")
-      .insert(trackInserts);
-
-    if (insertError) {
-      return { success: false, error: insertError };
-    }
-  }
-
-  return { success: true, error: null };
-}
-
-// Add a single track to a project
-export async function addProjectTrack(
-  projectId: string,
-  trackId: string
-): Promise<{ success: boolean; error: PostgrestError | null }> {
-  const { error } = await supabase
-    .from("project_tracks")
-    .insert({
-      project_id: projectId,
-      track_id: trackId,
+): Promise<{ success: boolean; error: Error | null }> {
+  try {
+    const response = await fetch(`/api/projects/${projectId}/tracks`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackIds }),
     });
-
-  return { success: !error, error };
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await readApiError(response, "Failed to update project tracks"),
+      };
+    }
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: toError(error, "Failed to update project tracks"),
+    };
+  }
 }
 
-// Remove a single track from a project
-export async function removeProjectTrack(
-  projectId: string,
-  trackId: string
-): Promise<{ success: boolean; error: PostgrestError | null }> {
-  const { error } = await supabase
-    .from("project_tracks")
-    .delete()
-    .eq("project_id", projectId)
-    .eq("track_id", trackId);
+export type EventTrackAssignment = { projectId: string; trackIds: string[] };
 
-  return { success: !error, error };
-} 
+// Matches the API's per-request limit.
+const ASSIGNMENT_BATCH_SIZE = 1000;
+
+/**
+ * Organizer bulk track assignment for an event.
+ * - "add": trackIds are added to each project; existing tracks are kept.
+ * - "replace": each listed project ends with exactly its trackIds.
+ * Each request is atomic. Lists longer than one request are sent in batches,
+ * and a failure stops before the next batch, so `appliedProjects` says how
+ * many projects were updated.
+ */
+export async function assignEventProjectTracks(
+  eventId: string,
+  mode: "add" | "replace",
+  assignments: EventTrackAssignment[]
+): Promise<{ success: boolean; error: Error | null; appliedProjects: number }> {
+  let appliedProjects = 0;
+  for (let i = 0; i < assignments.length; i += ASSIGNMENT_BATCH_SIZE) {
+    const batch = assignments.slice(i, i + ASSIGNMENT_BATCH_SIZE);
+    try {
+      const response = await fetch(`/api/events/${eventId}/project-tracks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode, assignments: batch }),
+      });
+      if (!response.ok) {
+        return {
+          success: false,
+          error: await readApiError(response, "Failed to assign project tracks"),
+          appliedProjects,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: toError(error, "Failed to assign project tracks"),
+        appliedProjects,
+      };
+    }
+    appliedProjects += batch.length;
+  }
+  return { success: true, error: null, appliedProjects };
+}
