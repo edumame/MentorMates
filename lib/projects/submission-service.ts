@@ -452,6 +452,44 @@ async function validateProjectCanLeaveEvent(project: {
   }
 }
 
+const TEAM_READ_FAILED = {
+  error: "Could not load the current team. Please try again.",
+  status: 503 as const,
+};
+
+/**
+ * Stored teammates of a project, for applying add/remove changes on top of.
+ * Uses the service client because projects.teammates is not readable by
+ * client roles (202611080505); the caller must already have checked that the
+ * user may edit the project. Fails closed: guessing an empty team here would
+ * drop every existing teammate on save.
+ */
+async function fetchStoredTeammates(
+  projectId: string,
+): Promise<{ teammates: string[] | null } | typeof TEAM_READ_FAILED> {
+  try {
+    const { data, error } = await createSupabaseServiceClient()
+      .from("projects")
+      .select("teammates")
+      .eq("id", projectId)
+      .single();
+    if (error || !data) {
+      console.error("[submit] fetch stored teammates failed", {
+        projectId,
+        error,
+      });
+      return TEAM_READ_FAILED;
+    }
+    return { teammates: data.teammates };
+  } catch (error) {
+    console.error("[submit] fetch stored teammates failed", {
+      projectId,
+      error,
+    });
+    return TEAM_READ_FAILED;
+  }
+}
+
 async function validateProjectEventContext(
   supabase: ServiceSupabaseClient,
   eventId: string | null | undefined,
@@ -705,12 +743,15 @@ export async function saveProjectSubmission(
   > = {};
   let isMovingToAnotherEvent = false;
   let existingProjectIsDraft = false;
-  let existingTeammates: string[] | null = null;
   if (mode === "update" && projectId) {
+    // `supabase` is often the caller's session client, which cannot read
+    // projects.lead_email / teammates (202611080505). Selecting either column
+    // here fails the whole query with 42501 and breaks every save; team
+    // emails are read separately below, only when a team change needs them.
     const { data: existingProject, error } = await supabase
       .from("projects")
       .select(
-        "id, event_id, contextus_project_id, project_name, project_description, project_url, video_url, additional_materials_url, cover_image_url, teammates, submitted",
+        "id, event_id, contextus_project_id, project_name, project_description, project_url, video_url, additional_materials_url, cover_image_url, submitted",
       )
       .eq("id", projectId)
       .single()
@@ -726,7 +767,6 @@ export async function saveProjectSubmission(
           | "video_url"
           | "additional_materials_url"
           | "cover_image_url"
-          | "teammates"
           | "submitted"
         >
       >();
@@ -763,7 +803,6 @@ export async function saveProjectSubmission(
     isMovingToAnotherEvent =
       input.eventId !== undefined &&
       input.eventId !== existingProject.event_id;
-    existingTeammates = existingProject.teammates;
     existingProjectIsDraft = existingProject.submitted === false;
   }
 
@@ -828,7 +867,15 @@ export async function saveProjectSubmission(
   if (input.teammates !== undefined) {
     updateData.teammates = input.teammates;
   } else if (input.addTeammates?.length || input.removeTeammates?.length) {
-    updateData.teammates = applyTeammateChanges(existingTeammates, {
+    // A new project has no stored team; an update must start from the stored
+    // one, or a partial change would wipe everyone else on the team.
+    let storedTeammates: string[] | null = null;
+    if (mode === "update" && projectId) {
+      const stored = await fetchStoredTeammates(projectId);
+      if ("error" in stored) return stored;
+      storedTeammates = stored.teammates;
+    }
+    updateData.teammates = applyTeammateChanges(storedTeammates, {
       add: input.addTeammates,
       remove: input.removeTeammates,
     });
