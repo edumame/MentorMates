@@ -717,6 +717,24 @@ describe("saveProjectSubmission", () => {
   });
 
   describe("team changes", () => {
+    type TeamRead = { data: unknown; error: unknown };
+
+    // The service client is the only reader of projects.teammates.
+    function mockServiceTeamRead(result: TeamRead | Error) {
+      const single =
+        result instanceof Error
+          ? jest.fn().mockRejectedValue(result)
+          : jest.fn().mockResolvedValue(result);
+      const teamQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single,
+      };
+      const serviceClient = { from: jest.fn(() => teamQuery) };
+      (createSupabaseServiceClient as jest.Mock).mockReturnValue(serviceClient);
+      return { serviceClient, teamQuery };
+    }
+
     async function saveTeamChanges(input: {
       addTeammates?: string[];
       removeTeammates?: string[];
@@ -731,7 +749,6 @@ describe("saveProjectSubmission", () => {
             contextus_project_id: null,
             project_name: "Existing Name",
             project_description: "Existing Description",
-            teammates: ["joined@x.com", "gone@x.com"],
           },
           error: null,
         }),
@@ -754,32 +771,134 @@ describe("saveProjectSubmission", () => {
         rpc: jest.fn(async () => ({ data: [], error: null })),
       };
 
-      await saveProjectSubmission(supabase as never, {
+      const result = await saveProjectSubmission(supabase as never, {
         mode: "update",
         projectId,
         input: { projectName: "Renamed", ...input },
       });
 
-      return projectsTable.update.mock.calls[0][0];
+      return {
+        result,
+        projectsTable,
+        update: projectsTable.update.mock.calls[0]?.[0],
+      };
     }
 
     it("applies changes to the stored team, keeping people who joined by invite", async () => {
-      const update = await saveTeamChanges({
+      const { teamQuery } = mockServiceTeamRead({
+        data: { teammates: ["joined@x.com", "gone@x.com"] },
+        error: null,
+      });
+
+      const { update } = await saveTeamChanges({
         addTeammates: ["pat@x.com"],
         removeTeammates: ["gone@x.com"],
       });
 
+      expect(teamQuery.select).toHaveBeenCalledWith("teammates");
+      expect(teamQuery.eq).toHaveBeenCalledWith("id", projectId);
       expect(update.teammates).toEqual(["joined@x.com", "pat@x.com"]);
     });
 
     it("leaves the team alone when there is nothing to change", async () => {
-      const update = await saveTeamChanges({
+      const { serviceClient } = mockServiceTeamRead({
+        data: { teammates: ["joined@x.com"] },
+        error: null,
+      });
+
+      const { update } = await saveTeamChanges({
         addTeammates: [],
         removeTeammates: [],
       });
 
       expect(update).not.toHaveProperty("teammates");
+      expect(serviceClient.from).not.toHaveBeenCalled();
     });
+
+    it("does not save when the stored team cannot be read", async () => {
+      mockServiceTeamRead({ data: null, error: { code: "XX000" } });
+
+      const { result, projectsTable } = await saveTeamChanges({
+        addTeammates: ["pat@x.com"],
+      });
+
+      expect(result).toMatchObject({ status: 503 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("does not save when the stored team read throws", async () => {
+      mockServiceTeamRead(new Error("network down"));
+
+      const { result, projectsTable } = await saveTeamChanges({
+        removeTeammates: ["gone@x.com"],
+      });
+
+      expect(result).toMatchObject({ status: 503 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+
+    it("does not save when the service client is unavailable", async () => {
+      (createSupabaseServiceClient as jest.Mock).mockImplementation(() => {
+        throw new Error("supabaseKey is required.");
+      });
+
+      const { result, projectsTable } = await saveTeamChanges({
+        addTeammates: ["pat@x.com"],
+      });
+
+      expect(result).toMatchObject({ status: 503 });
+      expect(projectsTable.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // Regression: client roles have no SELECT on these columns (202611080505).
+  // Asking for either one through the caller's client fails the whole query
+  // with 42501, which broke every draft save.
+  it("never reads team email columns through the caller's client on update", async () => {
+    const existingProjectQuery = {
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      overrideTypes: jest.fn().mockResolvedValue({
+        data: {
+          id: projectId,
+          event_id: null,
+          contextus_project_id: null,
+          project_name: "Existing Name",
+          project_description: "Existing Description",
+          submitted: false,
+        },
+        error: null,
+      }),
+    };
+    const projectsTable = {
+      select: jest.fn().mockReturnValue(existingProjectQuery),
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          select: jest
+            .fn()
+            .mockResolvedValue({ data: [{ id: projectId }], error: null }),
+        }),
+      }),
+    };
+    const supabase = {
+      from: jest.fn((table: string) => {
+        if (table === "projects") return projectsTable;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+      rpc: jest.fn(async () => ({ data: [], error: null })),
+    };
+
+    await saveProjectSubmission(supabase as never, {
+      mode: "update",
+      projectId,
+      input: { projectName: "Draft name", submitted: false },
+    });
+
+    expect(projectsTable.select).toHaveBeenCalled();
+    for (const [columns] of projectsTable.select.mock.calls) {
+      expect(String(columns ?? "*")).not.toMatch(/lead_email|teammates|\*/);
+    }
+    expect(projectsTable.update).toHaveBeenCalled();
   });
 
   describe("moving a project to another event", () => {

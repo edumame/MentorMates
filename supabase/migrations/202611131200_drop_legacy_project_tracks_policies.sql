@@ -1,0 +1,35 @@
+-- Drop two 2024-era project_tracks policies (20240417_update_track_references)
+-- that were left behind when 20251029 / 20260110 replaced them.
+--
+-- 1. "Allow full access for project owners and teammates" (FOR ALL) reads
+--    projects.lead_email / teammates inline, as the caller. Since
+--    202611080505 revoked SELECT on those columns from authenticated, every
+--    DELETE or UPDATE on project_tracks by a signed-in user fails with
+--    42501 "permission denied for table projects", even when a newer policy
+--    would allow it. That broke changing a project's tracks (the draft form
+--    deletes then re-inserts them). Members and organizers keep write access
+--    through the newer per-command policies, which use SECURITY DEFINER
+--    helpers ("Allow project members and organizers to insert/update/delete
+--    tracks").
+--
+-- 2. "Allow read access for all authenticated users" (FOR SELECT USING true)
+--    lets any signed-in user read the tracks of every project, bypassing the
+--    event-visibility rule in can_view_project (202611080601). Reads keep
+--    working through "project_tracks_select".
+--
+-- PRE-CHECK (read-only): expect both legacy policies listed alongside
+-- project_tracks_select and the three "Allow project members and organizers"
+-- policies.
+--   select policyname, cmd from pg_policies
+--    where schemaname = 'public' and tablename = 'project_tracks' order by cmd;
+--
+-- VERIFY after applying: no remaining policy on any table reads the email
+-- columns as the caller.
+--   select tablename, policyname from pg_policies
+--    where schemaname = 'public'
+--      and coalesce(qual, '') || coalesce(with_check, '') ~ '(lead_email|teammates)';
+--
+-- Idempotent.
+
+drop policy if exists "Allow full access for project owners and teammates" on public.project_tracks;
+drop policy if exists "Allow read access for all authenticated users" on public.project_tracks;
