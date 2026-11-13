@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/license",
       "/learn",
       "/resources",
+      // Marketing page for signed-out visitors (linked from the footer and sitemap).
+      "/modules",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
