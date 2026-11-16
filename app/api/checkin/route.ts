@@ -7,9 +7,8 @@ import { verifyEventCheckinToken } from '@/lib/utils/jwt'
 // ?evt=&usr= values and answered "Successfully checked in" without recording
 // anything. It is now an organizer-only verification of a server-signed ticket.
 //
-// NOTE (needs product decision): attendance is NOT persisted yet — there is no
-// checked_in_at column. The response says so explicitly (`recorded: false`)
-// instead of claiming a check-in happened.
+// Attendance is persisted in event_checkins (migration 202611110101); a repeat
+// scan returns 409 with the first scan time.
 
 export async function GET() {
   return NextResponse.json(
@@ -82,13 +81,55 @@ export async function POST(request: Request) {
     )
   }
 
+  // record_event_checkin inserts the first scan atomically (primary key on
+  // event_id + user_id) and marks one held ticket used; repeats report the
+  // original scan time instead of succeeding again.
+  const { data: checkinRows, error: checkinError } = await service.rpc('record_event_checkin', {
+    p_event_id: ticket.eventId,
+    p_user_id: ticket.userId,
+    p_checked_in_by: user.id,
+  })
+
+  if (checkinError) {
+    console.error('Check-in record failed:', checkinError)
+    return NextResponse.json({ error: 'Could not record this check-in' }, { status: 500 })
+  }
+
+  const checkin = checkinRows?.[0]
+  const attendee = {
+    name: profile?.display_name || 'Registered attendee',
+    role: attendeeRole.role,
+  }
+
+  if (checkin?.outcome === 'not_registered') {
+    return NextResponse.json(
+      { error: 'This ticket holder is no longer registered for this event' },
+      { status: 404 }
+    )
+  }
+
+  if (checkin?.outcome === 'already_checked_in') {
+    return NextResponse.json(
+      {
+        error: 'Already checked in',
+        alreadyCheckedIn: true,
+        timestamp: checkin.recorded_at,
+        attendee,
+      },
+      { status: 409 }
+    )
+  }
+
+  if (checkin?.outcome !== 'checked_in') {
+    console.error('Check-in returned an unexpected outcome:', checkin?.outcome)
+    return NextResponse.json({ error: 'Could not record this check-in' }, { status: 500 })
+  }
+
   return NextResponse.json({
     verified: true,
-    recorded: false,
-    attendee: {
-      name: profile?.display_name || 'Registered attendee',
-      role: attendeeRole.role,
-    },
-    message: 'Ticket verified: this person is registered for the event. Attendance is not recorded yet.',
+    recorded: true,
+    timestamp: checkin.recorded_at,
+    attendee,
+    message: 'Attendance recorded.',
   })
 }

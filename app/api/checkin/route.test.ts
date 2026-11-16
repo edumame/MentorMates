@@ -26,6 +26,10 @@ function setup({
   isAdmin = false,
   attendeeRole = { role: "participant" } as { role: string } | null,
   ownRole = { role: "participant" } as { role: string } | null,
+  checkin = { data: [{ outcome: "checked_in", recorded_at: "2026-11-09T10:00:00Z" }], error: null } as {
+    data: unknown;
+    error: unknown;
+  },
 } = {}) {
   const rpc = jest.fn(async (name: string) => ({
     data: name === "is_admin_user" ? isAdmin : isOrganizer,
@@ -36,11 +40,13 @@ function setup({
     rpc,
     from: () => query({ data: ownRole }),
   } as never);
+  const serviceRpc = jest.fn(async () => checkin);
   jest.mocked(createSupabaseServiceClient).mockReturnValue({
     from: (table: string) =>
       query({ data: table === "user_event_roles" ? attendeeRole : { display_name: "Ada" } }),
+    rpc: serviceRpc,
   } as never);
-  return { rpc };
+  return { rpc, serviceRpc };
 }
 
 const post = (body: unknown) =>
@@ -84,16 +90,69 @@ describe("POST /api/checkin (PUB-007)", () => {
     expect(rpc).toHaveBeenCalledWith("is_event_organizer_or_owner", { p_event_id: EVENT_ID, p_user_id: "org-1" });
   });
 
-  it("verifies a registered attendee for an organizer and says nothing was recorded", async () => {
-    setup({ isOrganizer: true });
+  it("records the check-in for an organizer", async () => {
+    const { serviceRpc } = setup({ isOrganizer: true });
     const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
     const res = await post({ token });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
       verified: true,
-      recorded: false,
+      recorded: true,
+      timestamp: "2026-11-09T10:00:00Z",
       attendee: { name: "Ada", role: "participant" },
     });
+    expect(serviceRpc).toHaveBeenCalledWith("record_event_checkin", {
+      p_event_id: EVENT_ID,
+      p_user_id: ATTENDEE,
+      p_checked_in_by: "org-1",
+    });
+  });
+
+  it("records the check-in for a platform admin", async () => {
+    const { serviceRpc } = setup({ isAdmin: true });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(200);
+    expect(serviceRpc).toHaveBeenCalledWith("record_event_checkin", expect.objectContaining({ p_checked_in_by: "org-1" }));
+  });
+
+  it("returns 409 with the first scan time on a repeat scan", async () => {
+    setup({
+      isOrganizer: true,
+      checkin: { data: [{ outcome: "already_checked_in", recorded_at: "2026-11-09T09:00:00Z" }], error: null },
+    });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    const res = await post({ token });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      error: "Already checked in",
+      alreadyCheckedIn: true,
+      timestamp: "2026-11-09T09:00:00Z",
+    });
+  });
+
+  it("returns 404 if the registration disappears before the record is written", async () => {
+    setup({ isOrganizer: true, checkin: { data: [{ outcome: "not_registered", recorded_at: null }], error: null } });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(404);
+  });
+
+  it.each([
+    ["an RPC error", { data: null, error: { message: "boom" } }],
+    ["no outcome row", { data: [], error: null }],
+  ])("returns 500 and never claims success on %s", async (_label, checkin) => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setup({ isOrganizer: true, checkin });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    const res = await post({ token });
+    expect(res.status).toBe(500);
+    expect(await res.json()).not.toHaveProperty("recorded", true);
+  });
+
+  it("does not record anything for a non-organizer", async () => {
+    const { serviceRpc } = setup({ isOrganizer: false, isAdmin: false });
+    const token = await generateEventCheckinToken({ eventId: EVENT_ID, userId: ATTENDEE });
+    expect((await post({ token })).status).toBe(403);
+    expect(serviceRpc).not.toHaveBeenCalled();
   });
 
   it("reports when the ticket holder is no longer registered", async () => {
