@@ -22,11 +22,14 @@ jest.mock("@/components/eventsPageClient", () => ({
 
 const USER_ID = "user-1";
 
+const LONG_DESCRIPTION = `Day one:\n\n${"Build something great. ".repeat(200)}`;
+
 const event = (event_id: string, visibility: string, approval_status: string) => ({
   event_id,
   visibility,
   approval_status,
   event_date: "2026-12-01",
+  event_description: event_id === "public-approved" ? LONG_DESCRIPTION : null,
 });
 
 const EVENTS: Row[] = [
@@ -139,5 +142,30 @@ describe("EventsPage", () => {
 
     expect(events).toHaveLength(EVENTS.length);
     expect(mockClientProps.mock.calls[0][0].isGlobalAdmin).toBe(true);
+  });
+
+  it("sends a short summary instead of each event's full description", async () => {
+    mockSupabase();
+
+    const events = (await renderedEvents()) as unknown as Array<{
+      event_id: string;
+      event_description: string | null;
+    }>;
+    const summary = events.find((e) => e.event_id === "public-approved")!.event_description!;
+
+    expect(summary.length).toBeLessThanOrEqual(300);
+    expect(summary.startsWith("Day one: Build something great.")).toBe(true);
+    expect(summary.endsWith("…")).toBe(true);
+    expect(events.find((e) => e.event_id === "hosted-draft")!.event_description).toBeNull();
+  });
+
+  it("still lists events when the admin check and role lookup run together", async () => {
+    mockSupabase({ isAdmin: true });
+
+    const events = await renderedEvents();
+
+    // Admins see every event, including ones they have no role in.
+    expect(ids(events)).toContain("stranger-draft");
+    expect(events.find((e) => e.event_id === "hosted-draft")!.userRole).toBe("organizer");
   });
 });

@@ -5,7 +5,7 @@ import { createSupabaseClient } from "../utils/supabase/server";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { isEventManagerRole } from "@/lib/events/navigation";
-import { EVENT_CARD_COLUMNS } from "@/lib/events/event-card-columns";
+import { EVENT_CARD_COLUMNS, withListSummary } from "@/lib/events/event-card-columns";
 
 export const dynamic = "force-dynamic";
 
@@ -20,58 +20,56 @@ export default async function EventsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const isAuthenticated = !!user;
-  const isAdminGlobal = isAuthenticated
-    ? (await supabase.rpc("is_admin_user", { user_id: user!.id })).data || false
-    : false;
+
+  // These lookups don't depend on each other, so run them together: done one
+  // after another they made the page noticeably slow to open.
+  const [adminResult, rolesResult] = isAuthenticated
+    ? await Promise.all([
+        supabase.rpc("is_admin_user", { user_id: user!.id }),
+        supabase.from("user_event_roles").select("event_id, role").eq("user_id", user!.id),
+      ])
+    : [null, null];
+  const isAdminGlobal = adminResult?.data || false;
 
   async function fetchAuthenticatedUserEvents() {
     try {
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !rolesResult) {
         console.error("User not authenticated");
         return [];
       }
 
-      const userId = user.id;
-
-      // Get user's roles in all events
-      const { data: userRoles, error: rolesError } = await supabase
-        .from("user_event_roles")
-        .select("event_id, role")
-        .eq("user_id", userId);
-
+      const { data: userRoles, error: rolesError } = rolesResult;
       if (rolesError) throw rolesError;
 
       const isAdmin = isAdminGlobal;
-      
+
       let query = supabase.from("events").select(EVENT_CARD_COLUMNS);
 
-      if (isAdmin) {
-        // Admins can see all events regardless of approval status
-        // No additional filter needed
-      } else {
-        // Regular users only see public events that are approved
+      if (!isAdmin) {
+        // Regular users only see public events that are approved.
+        // Admins see all events regardless of approval status.
         query = query
           .in("visibility", [EventVisibility.Public])
           .eq("approval_status", ApprovalStatus.Approved);
       }
 
-      const { data: events, error: eventsError } = await query;
-
-      if (eventsError) throw eventsError;
-
       // Hosting and Attended list the user's own events, whatever their
       // visibility or approval. Discover hides them again on the client.
       const roleEventIds = userRoles.map((role) => role.event_id);
+      const roleEventsQuery =
+        !isAdmin && roleEventIds.length > 0
+          ? supabase.from("events").select(EVENT_CARD_COLUMNS).in("event_id", roleEventIds)
+          : null;
+
+      const [eventsResult, roleEventsResult] = await Promise.all([query, roleEventsQuery]);
+
+      const { data: events, error: eventsError } = eventsResult;
+      if (eventsError) throw eventsError;
+
       let roleEvents: typeof events = [];
-
-      if (!isAdmin && roleEventIds.length > 0) {
-        const { data, error: roleEventsError } = await supabase
-          .from("events")
-          .select(EVENT_CARD_COLUMNS)
-          .in("event_id", roleEventIds);
-
-        if (roleEventsError) throw roleEventsError;
-        roleEvents = data;
+      if (roleEventsResult) {
+        if (roleEventsResult.error) throw roleEventsResult.error;
+        roleEvents = roleEventsResult.data;
       }
 
       const uniqueEvents = [
@@ -129,7 +127,7 @@ export default async function EventsPage() {
     ? await fetchAuthenticatedUserEvents()
     : await fetchPublicEvents();
 
-  const eventsList = events || [];
+  const eventsList = (events || []).map((event) => withListSummary(event));
 
   return (
     <>
