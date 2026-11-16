@@ -1,3 +1,6 @@
+// The service role bypasses RLS. Importing this from a Client Component is a
+// build error, so the key and the client can never reach the browser.
+import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 
@@ -54,6 +57,14 @@ type ServiceDatabase = Omit<Database, "public"> & {
       shipcue_claim_next: {
         Args: { p_agent: string };
         Returns: ShipcueReportRow[];
+      };
+      // 202611131500_set_project_tracks.sql; service_role only.
+      set_project_tracks: {
+        Args: {
+          p_assignments: Array<{ project_id: string; track_ids: string[] }>;
+          p_replace: boolean;
+        };
+        Returns: Array<{ added: number; removed: number }>;
       };
     };
     Tables: Database["public"]["Tables"] & {

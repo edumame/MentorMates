@@ -25,6 +25,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { EventSubmissionField, Project } from "@/lib/types";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
+import { updateProjectTracks } from "@/features/projects/client-actions/client-track-update";
 import UserSearchWithInvite, {
   type TeamTagChange,
 } from "@/components/utils/UserSearchWithInvite";
@@ -124,6 +125,9 @@ export default function DraftProjectSubmissionFormSinglePage({
   // Lets publish flush any multi-entry field drafts the submitter typed
   // but didn't explicitly add.
   const fieldEntriesRef = useRef<ProjectFieldEntriesSectionHandle | null>(null);
+  // Serializes track saves; see handleTrackToggle.
+  const trackSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const latestTrackIdsRef = useRef<string[]>([]);
 
   const [project, setProject] = useState<Project>(initialProject);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
@@ -855,59 +859,57 @@ export default function DraftProjectSubmissionFormSinglePage({
       : selectedTrackIds.filter((id) => id !== trackId);
 
     setSelectedTrackIds(newTrackIds);
+    latestTrackIdsRef.current = newTrackIds;
 
-    // Update tracks in database
-    try {
-      // Delete existing tracks
-      await supabase
-        .from("project_tracks")
-        .delete()
-        .eq("project_id", projectId);
+    // Saves run one at a time and each sends the latest selection, so
+    // overlapping clicks cannot land out of order and leave the saved tracks
+    // different from what the form shows.
+    const save = trackSaveQueueRef.current.then(async () => {
+      const trackIdsToSave = latestTrackIdsRef.current;
+      const { success, error } = await updateProjectTracks(projectId, trackIdsToSave);
+      // A newer click has queued its own save; let that one report.
+      if (latestTrackIdsRef.current !== trackIdsToSave) return;
 
-      // Insert new tracks
-      if (newTrackIds.length > 0) {
-        const trackInserts = newTrackIds.map((tid) => ({
-          project_id: projectId,
-          track_id: tid,
-        }));
-
-        const { error } = await supabase
-          .from("project_tracks")
-          .insert(trackInserts);
-
-        if (error) {
-          throw error;
-        }
+      if (!success) {
+        console.error("Error updating tracks:", error);
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to update project tracks",
+          variant: "destructive",
+        });
+        // Show what is actually saved.
+        fetchProjectTracks();
+        return;
       }
 
       toast({
         title: "Tracks Updated",
         description: "Project tracks have been updated successfully",
       });
-    } catch (error) {
-      console.error("Error updating tracks:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update project tracks",
-        variant: "destructive",
-      });
-      // Revert the state on error
-      fetchProjectTracks();
-    }
+    });
+    trackSaveQueueRef.current = save.catch(() => undefined);
+    await save;
   };
 
   const handleDeleteProject = async () => {
     setIsDeleting(true);
     try {
-      const { success } = await deleteProjectClient(projectId);
+      const { success, error } = await deleteProjectClient(projectId);
 
-      if (success) {
+      if (!success) {
         toast({
-          title: "Project deleted",
-          description: "Your project has been successfully deleted",
+          title: "Error",
+          description: error?.message || "Failed to delete project",
+          variant: "destructive",
         });
-        router.push("/projects");
+        return;
       }
+
+      toast({
+        title: "Project deleted",
+        description: "Your project has been successfully deleted",
+      });
+      router.push("/projects");
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);

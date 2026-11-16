@@ -37,6 +37,7 @@ import {
 } from "@/lib/types";
 import { defaultCriteria } from "@/lib/config/constants";
 import { supabase } from "@/lib/supabase";
+import { assignEventProjectTracks } from "@/features/projects/client-actions/client-track-update";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
   Select,
@@ -512,12 +513,21 @@ export function CompactScoringForm({
         toast({ title: "No projects", description: "No submitted projects to assign." });
         return;
       }
-      const rows = projects.map((p) => ({ project_id: p.id, track_id: trackId }));
-      const { error } = await supabase.from("project_tracks").upsert(rows, { onConflict: "project_id,track_id", ignoreDuplicates: true });
-      if (error) throw error;
+      // Adds the track and keeps each project's other tracks.
+      const { success, error } = await assignEventProjectTracks(
+        eventId,
+        "add",
+        projects.map((p) => ({ projectId: p.id, trackIds: [trackId] })),
+      );
+      if (!success) throw error;
       toast({ title: "Assigned", description: `${projects.length} projects assigned to track.` });
-    } catch {
-      toast({ title: "Error", description: "Failed to assign projects.", variant: "destructive" });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error && error.message ? error.message : "Failed to assign projects.",
+        variant: "destructive",
+      });
     } finally {
       setIsAssigningProjects(false);
     }

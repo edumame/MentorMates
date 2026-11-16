@@ -292,6 +292,33 @@ describe("SubmissionsTab", () => {
     expect(screen.queryByText("AI Track")).not.toBeInTheDocument();
   });
 
+  it("shows the server's reason and keeps the old tracks when saving tracks fails", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    updateProjectTracks.mockResolvedValue({
+      success: false,
+      error: new Error("One or more tracks do not belong to this project's event"),
+    });
+    render(<SubmissionsTab eventId="event-1" />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Project One")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /manage tracks/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Assign Sustainability Track" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Tracks" }));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: "Error",
+        description: "One or more tracks do not belong to this project's event",
+        variant: "destructive",
+      });
+    });
+    expect(screen.getAllByText("AI Track").length).toBeGreaterThan(0);
+    consoleSpy.mockRestore();
+  });
+
   it("lets organizers add project submission question columns to the table", async () => {
     render(<SubmissionsTab eventId="event-1" />);
 

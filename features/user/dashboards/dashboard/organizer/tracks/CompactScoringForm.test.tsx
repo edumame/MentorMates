@@ -11,6 +11,11 @@ jest.mock("@/lib/hooks/use-toast", () => ({
   useToast: () => ({ toast }),
 }));
 
+const assignEventProjectTracks = jest.fn();
+jest.mock("@/features/projects/client-actions/client-track-update", () => ({
+  assignEventProjectTracks: (...args: unknown[]) => assignEventProjectTracks(...args),
+}));
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     from: (...args: unknown[]) => from(...args),
@@ -562,6 +567,94 @@ describe("CompactScoringForm", () => {
       const saved = onSave.mock.calls[0][0] as EventScoringConfig;
       expect(saved.tracks["track-1"].criteria[0].name).toBe("Renamed");
       expect(saved.tracks["track-2"].criteria[0].name).toBe("Second Technical");
+    });
+  });
+
+  describe("bulk assign all projects to a track", () => {
+    const savedTrack = {
+      track_id: "track-1",
+      event_id: "event-1",
+      name: "Climate Track",
+      description: "",
+      scoring_criteria: { name: "AI Track", criteria: [] },
+      created_at: "",
+      updated_at: "",
+      prizes: [],
+    };
+
+    function mockSubmittedProjects(result: { data: unknown; error: unknown }) {
+      const eqCalls: Array<[string, unknown]> = [];
+      from.mockImplementation((table: string) => {
+        if (table !== "projects") throw new Error(`Unexpected table ${table}`);
+        type Chain = { select: jest.Mock; eq: jest.Mock };
+        const chain: Chain = {
+          select: jest.fn(),
+          eq: jest.fn((column: string, value: unknown): Chain | Promise<typeof result> => {
+            eqCalls.push([column, value]);
+            return eqCalls.length === 2 ? Promise.resolve(result) : chain;
+          }),
+        };
+        chain.select.mockReturnValue(chain);
+        return chain;
+      });
+      return eqCalls;
+    }
+
+    async function assignAll() {
+      render(
+        <ControlledForm
+          initialConfig={{ ...multiRoundConfig, rounds: undefined }}
+          onSave={jest.fn()}
+          tracks={[savedTrack]}
+        />
+      );
+      const select = screen.getByRole("option", { name: "Climate Track" }).closest("select")!;
+      fireEvent.change(select, { target: { value: "track-1" } });
+      fireEvent.click(screen.getByRole("button", { name: "Assign All Projects" }));
+      await waitFor(() => expect(toast).toHaveBeenCalled());
+    }
+
+    it("adds the track to every submitted project through the API, keeping their other tracks", async () => {
+      const eqCalls = mockSubmittedProjects({ data: [{ id: "p1" }, { id: "p2" }], error: null });
+      assignEventProjectTracks.mockResolvedValue({ success: true, error: null, appliedProjects: 2 });
+
+      await assignAll();
+
+      expect(eqCalls).toEqual([
+        ["event_id", "event-1"],
+        ["submitted", true],
+      ]);
+      expect(assignEventProjectTracks).toHaveBeenCalledWith("event-1", "add", [
+        { projectId: "p1", trackIds: ["track-1"] },
+        { projectId: "p2", trackIds: ["track-1"] },
+      ]);
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Assigned", description: "2 projects assigned to track." })
+      );
+    });
+
+    it("does not call the API when there are no submitted projects", async () => {
+      mockSubmittedProjects({ data: [], error: null });
+
+      await assignAll();
+
+      expect(assignEventProjectTracks).not.toHaveBeenCalled();
+      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "No projects" }));
+    });
+
+    it("shows the server's reason when the assignment fails", async () => {
+      mockSubmittedProjects({ data: [{ id: "p1" }], error: null });
+      assignEventProjectTracks.mockResolvedValue({
+        success: false,
+        error: new Error("Forbidden"),
+        appliedProjects: 0,
+      });
+
+      await assignAll();
+
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Error", description: "Forbidden", variant: "destructive" })
+      );
     });
   });
 });

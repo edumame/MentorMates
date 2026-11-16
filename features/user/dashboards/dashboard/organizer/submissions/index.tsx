@@ -230,7 +230,10 @@ export function SubmissionsTab({
       console.error("Error updating project tracks:", error);
       toast({
         title: "Error",
-        description: "Failed to update project tracks",
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : "Failed to update project tracks",
         variant: "destructive",
       });
     } finally {

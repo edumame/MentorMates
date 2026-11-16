@@ -616,7 +616,7 @@ export default function ProjectPage() {
       if (!success || error) {
         toast({
           title: "Error",
-          description: "Failed to delete project",
+          description: error?.message || "Failed to delete project",
           variant: "destructive",
         });
         return;

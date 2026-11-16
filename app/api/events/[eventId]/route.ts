@@ -3,30 +3,8 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventVisibility } from "@/lib/types";
 import { withdrawSubmissionUpdate } from "@/lib/events/approval-visibility";
 import { z } from "zod";
+import { canManageEvent } from "@/lib/events/manage-access";
 import { deleteEvent } from "./delete-event";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseClient>>;
-
-/**
- * Owner, event organizer or global admin. Delegates to the SQL helper
- * public.can_manage_event() (same rule as the events UPDATE RLS policy) so the
- * API, delete_event() and the archived-events SELECT policy agree.
- */
-async function canManageEvent(
-  supabase: SupabaseServerClient,
-  eventId: string,
-  userId: string
-): Promise<boolean> {
-  const { data, error } = await supabase.rpc("can_manage_event", {
-    p_event_id: eventId,
-    p_user_id: userId,
-  });
-  if (error) {
-    console.error("Error checking event permissions:", error);
-    return false;
-  }
-  return data === true;
-}
 
 export async function DELETE(
   _request: NextRequest,

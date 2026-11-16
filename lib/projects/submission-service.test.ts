@@ -1928,3 +1928,175 @@ describe("saveProjectSubmission submission window", () => {
     expect(Object.isFrozen(ORGANIZER_ON_BEHALF_SUBMISSION_OVERRIDES)).toBe(true);
   });
 });
+
+describe("saveProjectSubmission track changes", () => {
+  const eventId = "11111111-1111-4111-8111-111111111111";
+  const projectId = "22222222-2222-4222-8222-222222222222";
+  const T1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const T2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  type Result = { data: unknown; error: unknown };
+
+  // Every builder method chains; awaiting or calling overrideTypes resolves.
+  const query = (result: Result) => {
+    const builder: Record<string, unknown> = {
+      then: (
+        resolve: (value: Result) => unknown,
+        reject: (reason: unknown) => unknown,
+      ) => Promise.resolve(result).then(resolve, reject),
+      overrideTypes: jest.fn().mockResolvedValue(result),
+    };
+    for (const method of ["select", "eq", "in", "order", "limit", "single", "maybeSingle"]) {
+      builder[method] = jest.fn().mockReturnValue(builder);
+    }
+    return builder;
+  };
+
+  function setup({
+    eventTracks = [T1, T2],
+    rpcResult = { data: [{ added: 1, removed: 0 }], error: null } as Result,
+  }: { eventTracks?: string[]; rpcResult?: Result } = {}) {
+    const row = {
+      id: projectId,
+      event_id: eventId,
+      contextus_project_id: null,
+      project_name: "Existing Name",
+      project_description: "Existing Description",
+      submitted: false,
+    };
+    const projectsTable = {
+      select: jest.fn(() => query({ data: { ...row, project_tracks: [] }, error: null })),
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          select: jest.fn().mockResolvedValue({ data: [{ id: projectId }], error: null }),
+        }),
+      }),
+    };
+    const callerTables: string[] = [];
+    const supabase = {
+      from: jest.fn((table: string) => {
+        callerTables.push(table);
+        switch (table) {
+          case "projects":
+            return projectsTable;
+          case "events":
+            return query({
+              data: {
+                event_id: eventId,
+                event_name: "Demo Day",
+                submission_time_start: null,
+                submission_time_cutoff: null,
+              },
+              error: null,
+            });
+          case "event_submission_fields":
+            return query({ data: [], error: null });
+          case "event_tracks":
+            return query({ data: eventTracks.map((track_id) => ({ track_id })), error: null });
+          default:
+            throw new Error(`Unexpected caller table ${table}`);
+        }
+      }),
+      rpc: jest.fn(async () => ({ data: [], error: null })),
+    };
+    const serviceRpc = jest.fn().mockResolvedValue(rpcResult);
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({ rpc: serviceRpc });
+
+    const save = (input: Record<string, unknown>) =>
+      saveProjectSubmission(supabase as never, {
+        mode: "update",
+        projectId,
+        input: { projectName: "Existing Name", ...input },
+      });
+
+    return { save, serviceRpc, callerTables, projectsTable };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchSubmissionFieldsByEventIds as jest.Mock).mockResolvedValue(new Map());
+    (fetchSubmissionAnswersByProjectIds as jest.Mock).mockResolvedValue(new Map());
+    (fetchArtifactsByProjectIds as jest.Mock).mockResolvedValue(new Map());
+    (hydrateProjectsWithSubmissionData as jest.Mock).mockImplementation((projects) => projects);
+  });
+
+  it("replaces the tracks in one atomic service call", async () => {
+    const { save, serviceRpc } = setup();
+
+    const result = await save({ trackIds: [T1, T2] });
+
+    expect(result).not.toHaveProperty("error");
+    expect(serviceRpc).toHaveBeenCalledWith("set_project_tracks", {
+      p_assignments: [{ project_id: projectId, track_ids: [T1, T2] }],
+      p_replace: true,
+    });
+  });
+
+  it("never writes project_tracks through the caller's client", async () => {
+    const { save, callerTables } = setup();
+
+    await save({ trackIds: [T1] });
+
+    expect(callerTables).not.toContain("project_tracks");
+  });
+
+  it("clears the tracks for an empty list", async () => {
+    const { save, serviceRpc } = setup();
+
+    await save({ trackIds: [] });
+
+    expect(serviceRpc).toHaveBeenCalledWith("set_project_tracks", {
+      p_assignments: [{ project_id: projectId, track_ids: [] }],
+      p_replace: true,
+    });
+  });
+
+  it("leaves the tracks alone when the request does not mention them", async () => {
+    const { save, serviceRpc } = setup();
+
+    await save({});
+
+    expect(serviceRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a track from another event before writing anything", async () => {
+    const { save, serviceRpc, projectsTable } = setup({ eventTracks: [T1] });
+
+    const result = await save({ trackIds: [T1, T2] });
+
+    expect(result).toMatchObject({ status: 400 });
+    expect(serviceRpc).not.toHaveBeenCalled();
+    expect(projectsTable.update).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed track write", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const { save } = setup({ rpcResult: { data: null, error: { code: "XX000" } } });
+
+    const result = await save({ trackIds: [T1] });
+
+    expect(result).toEqual({ error: "Failed to update project tracks", status: 500 });
+    errorSpy.mockRestore();
+  });
+
+  it("reports a track rejected by the database's same-event check", async () => {
+    const { save } = setup({ rpcResult: { data: null, error: { code: "23514" } } });
+
+    const result = await save({ trackIds: [T1] });
+
+    expect(result).toMatchObject({ status: 400 });
+  });
+
+  it("reports a failure when the service client is unavailable", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const { save } = setup();
+    (createSupabaseServiceClient as jest.Mock).mockImplementation(() => {
+      throw new Error("supabaseKey is required.");
+    });
+
+    const result = await save({ trackIds: [T1] });
+
+    expect(result).toEqual({ error: "Failed to update project tracks", status: 500 });
+    errorSpy.mockRestore();
+  });
+});

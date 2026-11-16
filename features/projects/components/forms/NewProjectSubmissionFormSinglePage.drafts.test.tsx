@@ -16,6 +16,12 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 jest.mock("@/lib/hooks/use-toast", () => ({ toast: jest.fn() }));
+// saveProjectSubmission writes tracks atomically with the service client.
+jest.mock("@/lib/supabase/service", () => ({
+  createSupabaseServiceClient: () => ({
+    rpc: (fn: string, args: unknown) => mockServiceRpc(fn, args),
+  }),
+}));
 jest.mock("@/components/ui/toaster", () => ({ Toaster: () => null }));
 jest.mock("@/lib/hooks/use-admin", () => ({ useAdmin: () => false }));
 jest.mock("@/lib/integrations/contextus", () => ({
@@ -144,6 +150,31 @@ const resetDb = () => {
   };
 };
 
+// set_project_tracks with p_replace = true: the project ends with exactly
+// the requested tracks.
+function mockServiceRpc(fn: string, args: unknown) {
+  if (fn !== "set_project_tracks") {
+    throw new Error(`Unexpected service rpc ${fn}`);
+  }
+  const { p_assignments, p_replace } = args as {
+    p_assignments: Array<{ project_id: string; track_ids: string[] }>;
+    p_replace: boolean;
+  };
+  if (!p_replace) throw new Error("Drafts replace their tracks");
+  const assignment = p_assignments.find((a) => a.project_id === db.project.id);
+  const before = db.trackIds;
+  db.trackIds = assignment ? [...assignment.track_ids] : before;
+  return Promise.resolve({
+    data: [
+      {
+        added: db.trackIds.filter((id) => !before.includes(id)).length,
+        removed: before.filter((id) => !db.trackIds.includes(id)).length,
+      },
+    ],
+    error: null,
+  });
+}
+
 const query = (data: unknown) => {
   const result = { data, error: null };
   const chain = {
@@ -181,19 +212,9 @@ const fakeSupabase = {
             }),
           }),
         };
-      case "project_tracks":
-        return {
-          delete: () => ({
-            eq: async () => {
-              db.trackIds = [];
-              return { error: null };
-            },
-          }),
-          insert: async (rows: Array<{ track_id: string }>) => {
-            db.trackIds = rows.map((row) => row.track_id);
-            return { error: null };
-          },
-        };
+      // No "project_tracks" case: tracks are written only through the
+      // service client's set_project_tracks (see mockServiceRpc), so a direct
+      // write from the caller's client fails the test as an unexpected table.
       case "project_artifacts":
         return {
           delete: () => ({ eq: async () => ({ error: null }) }),
