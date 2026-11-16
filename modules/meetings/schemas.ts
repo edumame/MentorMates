@@ -1,14 +1,16 @@
 import { z } from "zod";
 
+const optionalUuid = z.union([z.string().uuid(), z.literal("")]).optional();
+
 export const meetingsInsertSchema = z.object({
-    name: z.string().min(1, { message: "Name is required" }),
-    agentId: z.string().min(1, { message: "Agent is required" }),
-    eventId: z.string().optional(),
-    projectId: z.string().optional(),
+    name: z.string().trim().min(1, { message: "Name is required" }).max(200),
+    agentId: z.string().uuid({ message: "A valid agent is required" }),
+    eventId: optionalUuid,
+    projectId: optionalUuid,
 });
 
 export const meetingsUpdateSchema = meetingsInsertSchema.extend({
-    id: z.string().min(1, { message: "Id is required" }),
-    projectId: z.string().optional(),
+    id: z.string().uuid({ message: "A valid meeting ID is required" }),
+    projectId: optionalUuid,
 });
 

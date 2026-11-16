@@ -10,6 +10,7 @@ jest.mock('@/lib/stream-chat', () => ({ streamChat: { upsertUsers: jest.fn(), cr
 jest.mock('@/lib/supabase/service', () => ({ createSupabaseServiceClient: jest.fn() }));
 jest.mock('react', () => ({ ...jest.requireActual('react'), cache: (fn: unknown) => fn }));
 const id = '10000000-0000-4000-8000-000000000001';
+const agentId = '30000000-0000-4000-8000-000000000001';
 const user = { id: 'ordinary-user', user_metadata: { full_name: 'Fixture' } };
 const mockCall = { create: jest.fn(), delete: jest.fn(), listTranscriptions: jest.fn(), get: jest.fn(), updateCallMembers: jest.fn() };
 const mockChannel = { create: jest.fn(), addMembers: jest.fn() };
@@ -19,7 +20,8 @@ let cleanupError: object | null;
 function database() {
   return {
     auth: { getUser: async () => ({ data: { user } }) },
-    rpc: async () => ({ data: false }),
+    // Not an admin; the agent/event/project association check passes.
+    rpc: async (name: string) => ({ data: name === 'meeting_associations_allowed', error: null }),
     from: (table: string) => {
       let mode = 'select';
       const q = {
@@ -64,19 +66,19 @@ test('unrelated user receives no provider credentials or membership', async () =
 test('failed call provisioning cleans remote call and row, then retry consumes one session', async () => {
   mockCall.create.mockRejectedValueOnce(new Error('provider unavailable')).mockResolvedValueOnce({});
   const caller = meetingsRouter.createCaller({});
-  await expect(caller.create({ name: 'Fixture', agentId: 'agent' })).rejects.toThrow('Please try again');
+  await expect(caller.create({ name: 'Fixture', agentId })).rejects.toThrow('Please try again');
   expect(mockCall.delete).toHaveBeenCalledTimes(1); expect(rows).toHaveLength(0);
-  await caller.create({ name: 'Fixture', agentId: 'agent' }); expect(rows).toHaveLength(1);
+  await caller.create({ name: 'Fixture', agentId }); expect(rows).toHaveLength(1);
 });
 test('agent provider failure does not insert a meeting', async () => {
   (streamVideo.upsertUsers as jest.Mock).mockRejectedValue(new Error('provider unavailable'));
-  await expect(meetingsRouter.createCaller({}).create({ name: 'Fixture', agentId: 'agent' })).rejects.toThrow();
+  await expect(meetingsRouter.createCaller({}).create({ name: 'Fixture', agentId })).rejects.toThrow();
   expect(rows).toHaveLength(0);
 });
 test('database compensation failure is surfaced explicitly', async () => {
   mockCall.create.mockRejectedValue(new Error('provider unavailable')); cleanupError = { message: 'database unavailable' };
   const log = jest.spyOn(console, 'error').mockImplementation(() => {});
-  try { await expect(meetingsRouter.createCaller({}).create({ name: 'Fixture', agentId: 'agent' })).rejects.toThrow('cleanup requires support'); }
+  try { await expect(meetingsRouter.createCaller({}).create({ name: 'Fixture', agentId })).rejects.toThrow('cleanup requires support'); }
   finally { log.mockRestore(); }
 });
 test('stored arbitrary URL is never fetched; transcript resolved from provider by meeting id', async () => {
@@ -100,7 +102,7 @@ test('failed remote cleanup retains a non-quota-consuming reconciliation record'
   (createSupabaseServiceClient as jest.Mock).mockReturnValue({ from: () => ({ update }) });
   const log = jest.spyOn(console, 'error').mockImplementation(() => {});
   try {
-    await expect(meetingsRouter.createCaller({}).create({ name: 'Fixture', agentId: 'agent' })).rejects.toThrow('session allowance was restored');
+    await expect(meetingsRouter.createCaller({}).create({ name: 'Fixture', agentId })).rejects.toThrow('session allowance was restored');
     expect(update).toHaveBeenCalledWith({ provisioning_failed: true, status: 'cancelled' });
     expect(rows).toHaveLength(1);
   } finally { log.mockRestore(); }

@@ -1352,9 +1352,9 @@ export default function ProjectPage() {
 
                         {/* Session timeline. Intentionally private-route only (CLAUDE.md
                             parity exception): it lists mentor/AI session meetings with
-                            scores, and meetings RLS only lets the team, judges and
-                            organizers read them (202611030002), so the public route
-                            would always render an empty card. */}
+                            scores, and project_meeting_timeline only returns them to the
+                            team, judges and event staff (202611110401), so the public
+                            route would always render an empty card. */}
                         <div>
                           <ProjectTimeline projectId={project.id} />
                         </div>
