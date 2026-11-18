@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { NextRequest } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { queryMock, supabaseMock } from "@/lib/testing/supabase-query-mock";
 import { EventRole } from "@/lib/types";
 import { PATCH } from "./route";
@@ -22,6 +23,12 @@ function setup(requestedRole: EventRole) {
     tables: {
       user_event_roles: [queryMock({ data: { role: EventRole.Organizer }, error: null }), roles],
       participant_approval_requests: [request, updates],
+      events: queryMock({ data: { participant_capacity: null, paid: false }, error: null }),
+    },
+  }));
+  // Capacity is checked with the service client (isParticipantSeatAvailable).
+  (createSupabaseServiceClient as jest.Mock).mockReturnValue(supabaseMock({
+    tables: {
       events: queryMock({ data: { participant_capacity: null, paid: false }, error: null }),
     },
   }));

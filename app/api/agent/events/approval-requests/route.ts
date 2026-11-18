@@ -6,6 +6,11 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import {
+  EVENT_FULL_APPROVAL_MESSAGE,
+  isEventFullDbError,
+  isParticipantSeatAvailable,
+} from "@/lib/events/participant-access";
 import { z } from "zod";
 
 // GET: List pending/all approval requests
@@ -124,6 +129,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      action === "approve" &&
+      approvalReq.requested_role === EventRole.Participant &&
+      !(await isParticipantSeatAvailable(supabase, {
+        eventId: auth.eventId,
+        userId: approvalReq.user_id,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: EVENT_FULL_APPROVAL_MESSAGE },
+        { status: 409 }
+      );
+    }
+
     const newStatus = action === "approve" ? "approved" : "rejected";
 
     // Update the request
@@ -138,6 +157,15 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", request_id);
+
+    // enforce_paid_participant_seat_hold: another approval took the last seat
+    // after the check above.
+    if (isEventFullDbError(updateError)) {
+      return NextResponse.json(
+        { error: EVENT_FULL_APPROVAL_MESSAGE },
+        { status: 409 }
+      );
+    }
 
     if (updateError) {
       return NextResponse.json(
