@@ -47,7 +47,7 @@ export async function saveToBucket(file: File, key: string): Promise<string> {
   return storage.getPublicUrl(path).data.publicUrl;
 }
 
-/** Emails the team about a new report, as /api/bug-reports did. Skipped without RESEND_API_KEY. */
+/** Emails the team about a new report. Skipped without RESEND_API_KEY. */
 export async function notifyTeam(report: Report): Promise<void> {
   if (!process.env.RESEND_API_KEY) return;
   const to = (process.env.BUG_REPORT_NOTIFY_EMAILS ?? DEFAULT_NOTIFY)
