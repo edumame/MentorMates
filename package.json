@@ -74,7 +74,7 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^0.544.0",
     "mammoth": "^1.12.0",
-    "next": "^16.4.1",
+    "next": "^16.4.5",
     "nodemailer": "^10.1.4",
     "openai": "^4.104.0",
     "papaparse": "^5.5.3",
