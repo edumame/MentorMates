@@ -74,7 +74,7 @@ it("does not let an older session lookup undo signout", async () => {
 });
 
 // PUB-009: public content pages and the 404 page must render for signed-out visitors.
-it.each(["/license", "/learn", "/resources", "/does-not-exist-route"])(
+it.each(["/license", "/learn", "/resources", "/modules", "/does-not-exist-route"])(
   "renders %s for a signed-out visitor without redirecting home",
   async (path) => {
     (usePathname as jest.Mock).mockReturnValue(path);
@@ -84,6 +84,15 @@ it.each(["/license", "/learn", "/resources", "/does-not-exist-route"])(
     expect(push).not.toHaveBeenCalled();
   }
 );
+
+// /modules is an exact public path, not a prefix: nothing under it is opened up.
+it("does not make paths under /modules public", async () => {
+  (usePathname as jest.Mock).mockReturnValue("/modules/admin");
+  (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null }, error: null });
+  await act(async () => { render(<AuthProvider>Nested content</AuthProvider>); });
+  expect(screen.queryByText("Nested content")).not.toBeInTheDocument();
+  expect(push).toHaveBeenCalledWith("/login?returnUrl=%2Fmodules%2Fadmin");
+});
 
 it("still redirects signed-out visitors away from real protected routes", async () => {
   (usePathname as jest.Mock).mockReturnValue("/checkin");

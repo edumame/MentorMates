@@ -50,6 +50,7 @@ export const APP_ROUTE_SEGMENTS: ReadonlySet<string> = new Set([
   "host",
   "join",
   "license",
+  "modules",
   "previous-contributors",
   "privacy",
   "research",
