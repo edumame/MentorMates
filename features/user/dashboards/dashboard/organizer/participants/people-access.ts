@@ -49,6 +49,9 @@ export function getAssignableRoles(viewer: PeopleViewer): EventRole[] {
   return viewer.isAdmin ? [...roles, EventRole.Organizer] : roles;
 }
 
+const MENTOR_ASSIGNMENTS_REMOVED =
+  "Their mentoring assignments are removed. They come back if this person is made a mentor again.";
+
 function describeJudgeScores(judgeScoreCount: number | null): string {
   if (judgeScoreCount === null) {
     return "Scores they already submitted are kept for organizers.";
@@ -67,15 +70,28 @@ export function describeRemoval(row: PeopleRow, judgeScoreCount: number | null =
   if (row.role === EventRole.Judge) {
     lines.push("Their judging assignments are removed.", describeJudgeScores(judgeScoreCount));
   }
+  if (row.role === EventRole.Mentor) {
+    lines.push(MENTOR_ASSIGNMENTS_REMOVED);
+  }
   return lines;
 }
 
-/** Explains the effect of changing a judge to another role. */
+/**
+ * Explains the effect of changing a judge or mentor to another role. Their
+ * project assignments are soft-revoked by the database and come back if they
+ * get the role again (202611080105 for judges, 202611110201 for mentors).
+ */
 export function describeRoleChange(
   row: PeopleRow,
   newRole: EventRole,
   judgeScoreCount: number | null = null
 ): string[] | null {
-  if (row.role !== EventRole.Judge || newRole === EventRole.Judge) return null;
-  return ["Their judging assignments are removed.", describeJudgeScores(judgeScoreCount)];
+  if (newRole === row.role) return null;
+  if (row.role === EventRole.Judge) {
+    return ["Their judging assignments are removed.", describeJudgeScores(judgeScoreCount)];
+  }
+  if (row.role === EventRole.Mentor) {
+    return [MENTOR_ASSIGNMENTS_REMOVED];
+  }
+  return null;
 }
