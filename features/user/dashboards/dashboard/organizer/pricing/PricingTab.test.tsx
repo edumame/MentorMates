@@ -260,3 +260,40 @@ describe("PricingTab tier deactivation", () => {
     expect(activeSwitch()).toBeDisabled();
   });
 });
+
+describe("PricingTab sold count", () => {
+  beforeEach(() => {
+    mockToast.mockReset();
+    mockTierUpdates.length = 0;
+    mockTiersInDb = [buildTier({ max_quantity: 50, current_quantity: 12 })];
+  });
+
+  it("does not send current_quantity when saving an existing tier", async () => {
+    const user = userEvent.setup();
+    renderTab();
+
+    await screen.findByDisplayValue("Early Bird");
+    // A sale lands in the database while the page is open.
+    mockTiersInDb = [{ ...mockTiersInDb[0], current_quantity: 13 }];
+    await user.click(saveButton());
+
+    await waitFor(() => expect(mockTierUpdates).toHaveLength(1));
+    expect(mockTierUpdates[0]).toMatchObject({ tier_id: "early-bird", max_quantity: 50 });
+    expect(mockTierUpdates[0]).not.toHaveProperty("current_quantity");
+    expect(mockTiersInDb[0].current_quantity).toBe(13);
+  });
+
+  it("does not send current_quantity when turning paid off", async () => {
+    const user = userEvent.setup();
+    renderTab();
+
+    await screen.findByDisplayValue("Early Bird");
+    await user.click(paidSwitch());
+
+    await waitFor(() => expect(mockTiersInDb[0].is_active).toBe(false));
+    for (const update of mockTierUpdates) {
+      expect(update).not.toHaveProperty("current_quantity");
+    }
+    expect(mockTiersInDb[0].current_quantity).toBe(12);
+  });
+});
