@@ -5,9 +5,12 @@ import { headers } from "next/headers";
 import { getAppBaseUrl } from "@/lib/utils/app-url";
 import { stripe } from "@/lib/stripe/stripe";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import type { ServiceSupabaseClient } from "@/lib/supabase/service";
+import { EventRole } from "@/lib/types";
 import {
   EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE,
   isEventClosedForEnrollment,
+  isParticipantSeatAvailable,
 } from "@/lib/events/participant-access";
 
 interface CheckoutOptions {
@@ -15,6 +18,36 @@ interface CheckoutOptions {
   eventSlug?: string | null;
   eventName?: string | null;
   pricingTierId?: string | null; // Required: id from pricing_tiers table
+}
+
+// The last check before money is taken: nothing refunds a charge automatically
+// if the post-payment join then finds the event full. participant_capacity
+// limits participants only, so a user who already holds another role (decided
+// server-side, never from the request) is not checked.
+async function assertParticipantSeatAvailable(
+  service: ServiceSupabaseClient,
+  eventId: string,
+  userId: string,
+) {
+  const { data: existingRoles, error: roleError } = await service
+    .from("user_event_roles")
+    .select("user_id, role")
+    .eq("event_id", eventId)
+    .eq("user_id", userId);
+  if (roleError) throw new Error("Failed to verify event capacity");
+  const holdsOtherRole = (existingRoles ?? []).some(
+    (row) => row.user_id === userId && row.role !== EventRole.Participant,
+  );
+  if (holdsOtherRole) return;
+
+  const seatAvailable = await isParticipantSeatAvailable(service, {
+    eventId,
+    userId,
+  });
+
+  if (!seatAvailable) {
+    throw new Error("Event is full. No seats available.");
+  }
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -127,6 +160,8 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   if (!customerId) {
     throw new Error("Failed to load Stripe customer");
   }
+
+  await assertParticipantSeatAvailable(service, options.eventId, user.id);
 
   // Create Checkout Sessions from body params.
   const session = await stripe.checkout.sessions.create({

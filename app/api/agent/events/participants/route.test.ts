@@ -5,6 +5,8 @@ import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } fro
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
 import { NextResponse } from "next/server";
+import { isParticipantSeatAvailable } from "@/lib/events/participant-access";
+import { createSeatStore } from "@/lib/events/__fixtures__/seat-store";
 
 jest.mock("next/server", () => {
   class MockNextResponse {
@@ -252,6 +254,54 @@ describe("PATCH /api/agent/events/participants", () => {
       const response = await PATCH(removeRequest as never);
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe("seat reservations", () => {
+    const alice = "33333333-3333-4333-8333-333333333333";
+    const bob = "44444444-4444-4444-8444-444444444444";
+
+    const patch = (body: Record<string, unknown>) =>
+      PATCH({ json: async () => ({ user_id: alice, ...body }) } as never);
+
+    const useStore = () => {
+      const store = createSeatStore({
+        participantCapacity: 1,
+        paid: true,
+        roles: { [alice]: EventRole.Participant },
+        requests: { [alice]: "approved" },
+      });
+      (createSupabaseServiceClient as jest.Mock).mockReturnValue(store.client);
+      (authenticateAgentRequest as jest.Mock).mockResolvedValue({
+        userId: "11111111-1111-4111-8111-111111111111",
+        eventId: store.eventId,
+        scopes: ["participants:write"],
+        keyId: "key-1",
+      });
+      (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({
+        eventId: store.eventId,
+        isAdmin: false,
+        isOwner: false,
+        userRole: EventRole.Organizer,
+      });
+      return store;
+    };
+
+    it("frees the seat when a paid participant moves to another role", async () => {
+      const store = useStore();
+
+      const response = await patch({
+        action: "change_role",
+        role: EventRole.Mentor,
+      });
+
+      expect(response.status).toBe(200);
+      await expect(
+        isParticipantSeatAvailable(store.client, {
+          eventId: store.eventId,
+          userId: bob,
+        }),
+      ).resolves.toBe(true);
     });
   });
 });

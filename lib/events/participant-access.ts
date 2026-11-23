@@ -1,4 +1,8 @@
-import { EventRole, EventVisibility } from "@/lib/types";
+import {
+  EventRole,
+  EventVisibility,
+  ParticipantRequestStatus,
+} from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 import type { ServiceSupabaseClient } from "@/lib/supabase/service";
 
@@ -24,6 +28,211 @@ interface JoinParticipantEventOptions {
   eventId: string;
   userId: string;
   channel: "web" | "agent";
+}
+
+/**
+ * SQLSTATE raised by the database capacity guards: enforce_participant_capacity
+ * (participant role insert) and enforce_paid_participant_seat_hold (approving a
+ * paid participant request). Both take the event row lock, so this is what a
+ * request that lost a race for the last seat gets back.
+ */
+export const EVENT_FULL_DB_ERROR_CODE = "45000";
+
+export const EVENT_FULL_APPROVAL_MESSAGE =
+  "Event is at full capacity. Cannot approve more participants.";
+
+export function isEventFullDbError(
+  error: { code?: string | null } | null | undefined,
+): boolean {
+  return error?.code === EVENT_FULL_DB_ERROR_CODE;
+}
+
+// Matches PostgREST's default row cap, so a full page means there may be more.
+const SEAT_ROW_PAGE_SIZE = 1000;
+
+async function collectRows<Row>(
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: Row[] | null;
+    error: unknown;
+  }>,
+): Promise<Row[]> {
+  const rows: Row[] = [];
+
+  for (let from = 0; ; from += SEAT_ROW_PAGE_SIZE) {
+    const { data, error } = await fetchPage(
+      from,
+      from + SEAT_ROW_PAGE_SIZE - 1,
+    );
+
+    if (error) {
+      throw new Error("Failed to count reserved seats");
+    }
+
+    rows.push(...(data ?? []));
+
+    if ((data?.length ?? 0) < SEAT_ROW_PAGE_SIZE) {
+      return rows;
+    }
+  }
+}
+
+/**
+ * Counts seats that are spoken for: participants who have joined, plus, on paid
+ * events, approved users who hold no role yet. Paid approvals create no role
+ * until after payment, so without the second group they would hold no seat.
+ *
+ * A user who took another role is not waiting for a seat, so they are left out.
+ * Users who gave a seat up are no longer "approved": see
+ * releaseParticipantSeatReservation.
+ *
+ * Reads other users' rows, so callers must pass a service client (RLS would
+ * otherwise hide them). Throws on a query error so callers fail closed.
+ */
+export async function countReservedParticipantSeats(
+  supabase: ServiceSupabaseClient,
+  options: { eventId: string; paid: boolean; excludeUserId?: string },
+): Promise<number> {
+  const { eventId, paid, excludeUserId } = options;
+
+  const roleRows = await collectRows<{ user_id: string; role: string }>(
+    (from, to) =>
+      supabase
+        .from("user_event_roles")
+        .select("user_id, role")
+        .eq("event_id", eventId)
+        .order("user_id")
+        .range(from, to),
+  );
+
+  const reservedUserIds = new Set(
+    roleRows
+      .filter(({ role }) => role === EventRole.Participant)
+      .map(({ user_id }) => user_id),
+  );
+
+  if (paid) {
+    const roleHolderIds = new Set(roleRows.map(({ user_id }) => user_id));
+    const approvedRows = await collectRows<{ user_id: string }>((from, to) =>
+      supabase
+        .from("participant_approval_requests")
+        .select("user_id")
+        .eq("event_id", eventId)
+        .eq("requested_role", EventRole.Participant)
+        .eq("status", ParticipantRequestStatus.Approved)
+        .order("user_id")
+        .range(from, to),
+    );
+
+    approvedRows
+      .filter(({ user_id }) => !roleHolderIds.has(user_id))
+      .forEach(({ user_id }) => reservedUserIds.add(user_id));
+  }
+
+  if (excludeUserId) {
+    reservedUserIds.delete(excludeUserId);
+  }
+
+  return reservedUserIds.size;
+}
+
+/**
+ * Whether userId can take a participant seat, not counting their own
+ * reservation. The one capacity rule for approving and for checkout, so the
+ * web and agent paths cannot drift apart. Throws on a query error.
+ */
+export async function isParticipantSeatAvailable(
+  supabase: ServiceSupabaseClient,
+  options: { eventId: string; userId: string },
+): Promise<boolean> {
+  const { eventId, userId } = options;
+
+  const { data: event, error } = await supabase
+    .from("events")
+    .select("participant_capacity, paid")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Failed to verify event capacity");
+  }
+
+  if (event?.participant_capacity == null) {
+    return true;
+  }
+
+  const reservedSeats = await countReservedParticipantSeats(supabase, {
+    eventId,
+    paid: Boolean(event.paid),
+    excludeUserId: userId,
+  });
+
+  return reservedSeats < event.participant_capacity;
+}
+
+/**
+ * Ends a paid approval's seat reservation. Call this wherever a user leaves or
+ * is removed from an event, before deleting their role: on a paid event an
+ * approved row counts as a held seat, and deleting the role alone leaves it
+ * held forever. The user can ask to join again, which reopens the request.
+ *
+ * Free events are skipped because approved rows hold no seat there. Needs a
+ * service client, since RLS stops users changing their own approved request.
+ * Throws on a query error so a seat is never silently left held.
+ */
+export async function releaseParticipantSeatReservation(
+  supabase: ServiceSupabaseClient,
+  options: { eventId: string; userId: string },
+): Promise<void> {
+  const { eventId, userId } = options;
+
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("paid")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (eventError) {
+    throw new Error("Failed to release seat reservation");
+  }
+
+  if (!event?.paid) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("participant_approval_requests")
+    .update({
+      status: ParticipantRequestStatus.Withdrawn,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("event_id", eventId)
+    .eq("user_id", userId)
+    .eq("requested_role", EventRole.Participant)
+    .eq("status", ParticipantRequestStatus.Approved);
+
+  if (error) {
+    throw new Error("Failed to release seat reservation");
+  }
+}
+
+async function findPaidPayment(
+  supabase: ServiceSupabaseClient,
+  eventId: string,
+  userId: string,
+) {
+  return supabase
+    .from("user_event_payments")
+    .select("payment_status")
+    .eq("user_id", userId)
+    .eq("event_id", eventId)
+    .eq("payment_status", "paid")
+    .maybeSingle()
+    .overrideTypes<{
+      payment_status: Database["public"]["Tables"]["user_event_payments"]["Row"]["payment_status"];
+    } | null>();
 }
 
 export const EVENT_CLOSED_FOR_ENROLLMENT_MESSAGE =
@@ -56,6 +265,36 @@ function failure(
     httpStatus,
     payload,
   };
+}
+
+/**
+ * 409 for a full event. A paid user who reaches this has already been charged,
+ * so they get refund guidance instead of the generic message.
+ */
+async function eventFullFailure(
+  supabase: ServiceSupabaseClient,
+  paid: boolean | null | undefined,
+  eventId: string,
+  userId: string,
+): Promise<ParticipantJoinFailure> {
+  const { data: payment } = paid
+    ? await findPaidPayment(supabase, eventId, userId)
+    : { data: null };
+
+  if (payment) {
+    // Nothing refunds this automatically, so the log is what staff act on.
+    console.error("Paid user could not join a full event", {
+      eventId,
+      userId,
+    });
+    return failure(409, {
+      error:
+        "This event filled up before your registration finished, so you do not have a seat. Your payment went through. Please contact the organizers for a refund.",
+      refund_required: true,
+    });
+  }
+
+  return failure(409, { error: "Event is full. No seats available." });
 }
 
 export async function joinParticipantEvent(
@@ -139,7 +378,7 @@ export async function joinParticipantEvent(
     }
 
     if ((count || 0) >= event.participant_capacity) {
-      return failure(409, { error: "Event is full. No seats available." });
+      return eventFullFailure(supabase, event.paid, eventId, userId);
     }
   }
 
@@ -249,6 +488,31 @@ export async function joinParticipantEvent(
         message:
           "Your request has been submitted and is pending organizer approval",
       };
+    } else if (existingRequest.status === ParticipantRequestStatus.Withdrawn) {
+      // Includes users who left a paid event: asking again goes back to review.
+      const { error: reopenError } = await supabase
+        .from("participant_approval_requests")
+        .update({
+          status: ParticipantRequestStatus.Pending,
+          reviewed_by: null,
+          reviewed_at: null,
+          rejection_reason: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingRequest.id);
+
+      if (reopenError) {
+        return failure(500, { error: "Failed to submit approval request" });
+      }
+
+      return {
+        status: "approval_requested",
+        requiresApproval: true,
+        requestId: existingRequest.id,
+        requestStatus: "pending",
+        message:
+          "Your request has been submitted and is pending organizer approval",
+      };
     } else if (existingRequest.status !== "approved") {
       return failure(403, {
         error:
@@ -260,15 +524,11 @@ export async function joinParticipantEvent(
   }
 
   if (event.paid && channel === "web") {
-    const { data: payment, error: paymentError } = await supabase
-      .from("user_event_payments")
-      .select("payment_status")
-      .eq("user_id", userId)
-      .eq("event_id", eventId)
-      .eq("payment_status", "paid")
-      .limit(1)
-      .maybeSingle()
-      .overrideTypes<{ payment_status: string } | null>();
+    const { data: payment, error: paymentError } = await findPaidPayment(
+      supabase,
+      eventId,
+      userId,
+    );
     if (paymentError) return failure(500, { error: "Failed to verify payment status" });
     if (!payment) return failure(402, {
       error: "Payment required before joining this event.",
@@ -288,7 +548,9 @@ export async function joinParticipantEvent(
 
   if (roleError) {
     if (roleError.code === "23505") return failure(409, { error: "You already have a role in this event" });
-    if (roleError.code === "45000") return failure(409, { error: "Event is full. No seats available." });
+    if (isEventFullDbError(roleError)) {
+      return eventFullFailure(supabase, event.paid, eventId, userId);
+    }
     return failure(500, { error: "Failed to join event" });
   }
 
